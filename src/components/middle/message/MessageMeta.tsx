@@ -18,13 +18,16 @@ import renderText from '../../common/helpers/renderText';
 
 import useFlag from '../../../hooks/useFlag';
 import useLang from '../../../hooks/useLang';
+import useLastCallback from '../../../hooks/useLastCallback';
 
 import AnimatedCounter from '../../common/AnimatedCounter';
 import Icon from '../../common/icons/Icon';
 import MessageOutgoingStatus from '../../common/MessageOutgoingStatus';
 import DeletedMark from '../../proxygram/DeletedMark';
+import EditHistoryModal from '../../proxygram/EditHistoryModal';
 
 import './MessageMeta.scss';
+import editHistoryStyles from '../../proxygram/EditHistoryModal.module.scss';
 
 type OwnProps = {
   message: ApiMessage;
@@ -159,6 +162,12 @@ const MessageMeta = ({
     repeatPeriodText, shouldShowPrimaryEditedDate, withFullDate,
   ]);
 
+  const [isEditHistoryOpen, openEditHistory, closeEditHistory] = useFlag();
+  const handleEditedClick = useLastCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    openEditHistory();
+  });
+
   const fullClassName = buildClassName(
     'MessageMeta',
     withReactionOffset && 'reactions-offset',
@@ -166,71 +175,81 @@ const MessageMeta = ({
   );
 
   return (
-    <span
-      className={fullClassName}
-      dir={lang.isRtl ? 'rtl' : 'ltr'}
-      onClick={onClick}
-      data-ignore-on-paste
-    >
-      {effectEmoji && (
-        <span className="message-effect-icon" onClick={onEffectClick}>
-          {renderText(effectEmoji)}
-        </span>
-      )}
-      {isTranslated && (
-        <Icon name="language" className="message-translated" onClick={onTranslationClick} />
-      )}
-      {Boolean(message.viewsCount) && (
-        <>
-          <span className="message-views" title={viewsTitle}>
-            {formatIntegerCompact(lang, message.viewsCount)}
+    <>
+      <span
+        className={fullClassName}
+        dir={lang.isRtl ? 'rtl' : 'ltr'}
+        onClick={onClick}
+        data-ignore-on-paste
+      >
+        {effectEmoji && (
+          <span className="message-effect-icon" onClick={onEffectClick}>
+            {renderText(effectEmoji)}
           </span>
-          <Icon name="eye" />
-        </>
-      )}
-      {!noReplies && Boolean(repliesThreadInfo?.messagesCount) && (
-        <span onClick={handleOpenThread} className="message-replies-wrapper" title={repliesTitle}>
-          <span className="message-replies">
-            <AnimatedCounter text={formatIntegerCompact(lang, repliesThreadInfo.messagesCount)} />
-          </span>
-          <Icon name="reply-filled" />
-        </span>
-      )}
-      {isPinned && (
-        <Icon name="pin-filled" className="message-pinned" />
-      )}
-      {signature && (
-        <span className="message-signature">{renderText(signature)}</span>
-      )}
-      {Boolean(paidMessageStars) && (
-        <span className="message-price">
-          {
-            formatStarsAsIcon(lang, paidMessageStars, {
-              asFont: true,
-            })
-          }
-        </span>
-      )}
-      {Boolean(message.pxgDeletedAt) && <DeletedMark deletedAt={message.pxgDeletedAt} />}
-      <span className="message-time" title={dateTitle} onMouseEnter={markActivated}>
-        {Boolean(message.anchorMsgId) && `${lang('EphemeralUpdated')} `}
-        {message.forwardInfo?.isImported && (
+        )}
+        {isTranslated && (
+          <Icon name="language" className="message-translated" onClick={onTranslationClick} />
+        )}
+        {Boolean(message.viewsCount) && (
           <>
-            <span className="message-imported" onClick={handleImportedClick}>
-              {formatDateTime(lang, secondsToDate(message.forwardInfo.date), { date: 'short', time: 'short' })}
+            <span className="message-views" title={viewsTitle}>
+              {formatIntegerCompact(lang, message.viewsCount)}
             </span>
-            <span className="message-imported" onClick={handleImportedClick}>{lang('MessageMetaImported')}</span>
+            <Icon name="eye" />
           </>
         )}
-        {message.isEdited && !shouldShowPrimaryEditedDate && `${lang('MessageMetaEdited')} `}
-        {message.isVideoProcessingPending && !shouldShowPrimaryEditedDate && `${lang('MessageMetaApproximate')} `}
-        {date}
+        {!noReplies && Boolean(repliesThreadInfo?.messagesCount) && (
+          <span onClick={handleOpenThread} className="message-replies-wrapper" title={repliesTitle}>
+            <span className="message-replies">
+              <AnimatedCounter text={formatIntegerCompact(lang, repliesThreadInfo.messagesCount)} />
+            </span>
+            <Icon name="reply-filled" />
+          </span>
+        )}
+        {isPinned && (
+          <Icon name="pin-filled" className="message-pinned" />
+        )}
+        {signature && (
+          <span className="message-signature">{renderText(signature)}</span>
+        )}
+        {Boolean(paidMessageStars) && (
+          <span className="message-price">
+            {
+              formatStarsAsIcon(lang, paidMessageStars, {
+                asFont: true,
+              })
+            }
+          </span>
+        )}
+        {Boolean(message.pxgDeletedAt) && <DeletedMark deletedAt={message.pxgDeletedAt} />}
+        <span className="message-time" title={dateTitle} onMouseEnter={markActivated}>
+          {Boolean(message.anchorMsgId) && `${lang('EphemeralUpdated')} `}
+          {message.forwardInfo?.isImported && (
+            <>
+              <span className="message-imported" onClick={handleImportedClick}>
+                {formatDateTime(lang, secondsToDate(message.forwardInfo.date), { date: 'short', time: 'short' })}
+              </span>
+              <span className="message-imported" onClick={handleImportedClick}>{lang('MessageMetaImported')}</span>
+            </>
+          )}
+          {/* PXG: «изменено» открывает историю правок */}
+          {message.isEdited && !shouldShowPrimaryEditedDate && (
+            <span className={editHistoryStyles.editedLink} onClick={handleEditedClick}>
+              {`${lang('MessageMetaEdited')} `}
+            </span>
+          )}
+          {message.isVideoProcessingPending && !shouldShowPrimaryEditedDate && `${lang('MessageMetaApproximate')} `}
+          {date}
+        </span>
+        {outgoingStatus && (
+          <MessageOutgoingStatus status={outgoingStatus} />
+        )}
+        {renderQuickReactionButton && renderQuickReactionButton()}
       </span>
-      {outgoingStatus && (
-        <MessageOutgoingStatus status={outgoingStatus} />
+      {isEditHistoryOpen && (
+        <EditHistoryModal isOpen message={message} onClose={closeEditHistory} />
       )}
-      {renderQuickReactionButton && renderQuickReactionButton()}
-    </span>
+    </>
   );
 };
 

@@ -25,6 +25,7 @@ import { notifyAboutMessage } from '../../../util/notifications';
 import { onTickEnd } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
+import { recordEditVersion } from '../../../proxygram/archive/editHistory';
 import { keepDeletedMessages } from '../../../proxygram/archive/keepDeletedMessages';
 import {
   addPaidReaction,
@@ -666,6 +667,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       if (hasRichMessageEdit || hasContentChanged) {
         global = clearMessageTranslation(global, chatId, id);
         global = clearMessageSummary(global, chatId, id);
+        // PXG: история правок — сохранить прежнюю версию до применения новой
+        global = recordEditVersion(global, chatId, id, currentMessage, message);
       }
 
       global = updateWithLocalMedia(global, chatId, id, false, message);

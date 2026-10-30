@@ -4514,3 +4514,9 @@
 "PxgUnofficialNotice" = "Unofficial client built on the Telegram API";
 "PxgDeleted" = "deleted";
 "PxgDeletedAt" = "Deleted {time}";
+"PxgEditHistoryTitle" = "Edit history";
+"PxgEditHistoryCurrent" = "Current";
+"PxgEditHistoryOriginal" = "Original";
+"PxgEditHistoryVersion" = "Version {number}";
+"PxgEditHistoryShowDiff" = "Show changes";
+"PxgEditHistoryNotCaptured" = "This message was edited before the app saw it — earlier versions were not saved.";

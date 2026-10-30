@@ -672,6 +672,15 @@ export enum ApiMessageEntityTypes {
   TonAddress = 'MessageEntityTonAddress',
 }
 
+// PXG: версия сообщения до правки
+export interface PxgEditVersion {
+  text?: ApiFormattedText;
+  /** С какого момента действовала эта версия: дата отправки или прошлой правки */
+  date: number;
+  /** Когда клиент её сохранил */
+  capturedAt: number;
+}
+
 export interface ApiFormattedText {
   text: string;
   entities?: ApiMessageEntity[];
@@ -793,6 +802,8 @@ export interface ApiMessage {
   isDeleting?: boolean;
   // PXG: время удаления (сек, время сервера) — сообщение сохранено антиудалением
   pxgDeletedAt?: number;
+  // PXG: прежние версии текста, от старых к новым (текущая — в content)
+  pxgEditHistory?: PxgEditVersion[];
   previousLocalId?: number;
   viewsCount?: number;
   forwardsCount?: number;

@@ -1,3 +1,9 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
 "PxgDeleted" = "удалено";
 "PxgDeletedAt" = "Удалено {time}";
+"PxgEditHistoryTitle" = "История изменений";
+"PxgEditHistoryCurrent" = "Текущая";
+"PxgEditHistoryOriginal" = "Исходная";
+"PxgEditHistoryVersion" = "Версия {number}";
+"PxgEditHistoryShowDiff" = "Показать различия";
+"PxgEditHistoryNotCaptured" = "Сообщение изменили до того, как приложение его увидело, — прежние версии не сохранились.";

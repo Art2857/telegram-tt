@@ -3378,6 +3378,11 @@ export interface LangPair {
   'SettingsSearchEmpty': undefined;
   'PxgUnofficialNotice': undefined;
   'PxgDeleted': undefined;
+  'PxgEditHistoryTitle': undefined;
+  'PxgEditHistoryCurrent': undefined;
+  'PxgEditHistoryOriginal': undefined;
+  'PxgEditHistoryShowDiff': undefined;
+  'PxgEditHistoryNotCaptured': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -5634,6 +5639,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgDeletedAt': {
     'time': V;
   };
+  'PxgEditHistoryVersion': {
+    'number': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7074,7 +7082,8 @@ export interface LangKeyGroups {
   'number': {
     keys:
       | 'GiftInfoCollectible'
-      | 'GiftSavedNumber';
+      | 'GiftSavedNumber'
+      | 'PxgEditHistoryVersion';
     variables: 'number';
   };
   'name,number': {
