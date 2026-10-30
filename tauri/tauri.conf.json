@@ -53,6 +53,6 @@
       }
     }
   },
-  "identifier": "org.telegram.TelegramAirBeta",
-  "productName": "Telegram Air"
+  "identifier": "app.proxygram.client",
+  "productName": "Proxygram"
 }
