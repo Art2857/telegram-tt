@@ -1,0 +1,16 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 0.25rem;
+  color: var(--color-error);
+}
+
+.icon {
+  margin-inline-end: 0.125rem;
+  font-size: 0.875rem;
+}
+
+// Пузырь удалённого сообщения бледнее, чтобы его было видно сразу
+:global(.Message).deletedMessage :global(.message-content) {
+  opacity: 0.6;
+}

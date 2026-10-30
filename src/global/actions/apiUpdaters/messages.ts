@@ -25,6 +25,7 @@ import { notifyAboutMessage } from '../../../util/notifications';
 import { onTickEnd } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
+import { keepDeletedMessages } from '../../../proxygram/archive/keepDeletedMessages';
 import {
   addPaidReaction,
   checkIfHasUnreadReactions,
@@ -1657,6 +1658,15 @@ export function deleteThread<T extends GlobalState>(
 export function deleteMessages<T extends GlobalState>(
   global: T, chatId: string | undefined, ids: number[], actions: RequiredGlobalActions,
 ) {
+  // PXG: антиудаление — сохраняемые сообщения остаются в чате с пометкой, удаляется только остальное
+  const kept = keepDeletedMessages(global, chatId, ids);
+  global = kept.global;
+  ids = kept.remainingIds;
+  if (!ids.length) {
+    setGlobal(global);
+    return;
+  }
+
   // Channel update
 
   if (chatId) {

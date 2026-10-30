@@ -1,1 +1,3 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
+"PxgDeleted" = "удалено";
+"PxgDeletedAt" = "Удалено {time}";

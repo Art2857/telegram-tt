@@ -22,6 +22,7 @@ import useLang from '../../../hooks/useLang';
 import AnimatedCounter from '../../common/AnimatedCounter';
 import Icon from '../../common/icons/Icon';
 import MessageOutgoingStatus from '../../common/MessageOutgoingStatus';
+import DeletedMark from '../../proxygram/DeletedMark';
 
 import './MessageMeta.scss';
 
@@ -210,6 +211,7 @@ const MessageMeta = ({
           }
         </span>
       )}
+      {Boolean(message.pxgDeletedAt) && <DeletedMark deletedAt={message.pxgDeletedAt} />}
       <span className="message-time" title={dateTitle} onMouseEnter={markActivated}>
         {Boolean(message.anchorMsgId) && `${lang('EphemeralUpdated')} `}
         {message.forwardInfo?.isImported && (

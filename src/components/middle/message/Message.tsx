@@ -219,6 +219,7 @@ import Video from './Video';
 import WebPage from './WebPage';
 
 import './Message.scss';
+import deletedMarkStyles from '../../proxygram/DeletedMark.module.scss';
 
 type MessagePositionProperties = {
   isFirstInGroup: boolean;
@@ -816,6 +817,7 @@ const Message = ({
 
   const containerClassName = buildClassName(
     'Message message-list-item',
+    message.pxgDeletedAt && deletedMarkStyles.deletedMessage,
     isFirstInGroup && 'first-in-group',
     isProtected && 'hide-on-print',
     isProtected ? 'is-protected' : 'allow-selection',

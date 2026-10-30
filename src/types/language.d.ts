@@ -3377,6 +3377,7 @@ export interface LangPair {
   'SettingsKeywordsLogOut': undefined;
   'SettingsSearchEmpty': undefined;
   'PxgUnofficialNotice': undefined;
+  'PxgDeleted': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -5630,6 +5631,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PeerPickerUnknownPeer': {
     'id': V;
   };
+  'PxgDeletedAt': {
+    'time': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -6655,7 +6659,8 @@ export interface LangKeyGroups {
       | 'StealthModeOnHint'
       | 'GiftAuctionTimeLeft'
       | 'ChannelBoostErrorBoostTooOftenText'
-      | 'LiveLocationUpdatedYesterdayAt';
+      | 'LiveLocationUpdatedYesterdayAt'
+      | 'PxgDeletedAt';
     variables: 'time';
   };
   'date,time': {

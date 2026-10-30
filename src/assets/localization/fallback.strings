@@ -4512,3 +4512,5 @@
 "SettingsKeywordsLogOut" = "log out, sign out, exit";
 "SettingsSearchEmpty" = "Start typing to find a setting";
 "PxgUnofficialNotice" = "Unofficial client built on the Telegram API";
+"PxgDeleted" = "deleted";
+"PxgDeletedAt" = "Deleted {time}";

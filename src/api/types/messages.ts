@@ -791,6 +791,8 @@ export interface ApiMessage {
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed';
   forwardInfo?: ApiMessageForwardInfo;
   isDeleting?: boolean;
+  // PXG: время удаления (сек, время сервера) — сообщение сохранено антиудалением
+  pxgDeletedAt?: number;
   previousLocalId?: number;
   viewsCount?: number;
   forwardsCount?: number;
