@@ -3376,6 +3376,7 @@ export interface LangPair {
   'SettingsKeywordsLastSeen': undefined;
   'SettingsKeywordsLogOut': undefined;
   'SettingsSearchEmpty': undefined;
+  'PxgUnofficialNotice': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

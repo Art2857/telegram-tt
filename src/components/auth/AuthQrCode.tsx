@@ -24,6 +24,7 @@ import useMediaTransitionDeprecated from '../../hooks/useMediaTransitionDeprecat
 import useMultiaccountInfo from '../../hooks/useMultiaccountInfo';
 
 import AnimatedIcon from '../common/AnimatedIcon';
+import UnofficialNotice from '../proxygram/UnofficialNotice';
 import Button from '../ui/Button';
 import Loading from '../ui/Loading';
 
@@ -188,6 +189,7 @@ const AuthCode = ({
             {continueText}
           </Button>
         )}
+        <UnofficialNotice />
       </div>
     </div>
   );

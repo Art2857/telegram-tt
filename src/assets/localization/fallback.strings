@@ -4511,3 +4511,4 @@
 "SettingsKeywordsLastSeen" = "online, last seen, status";
 "SettingsKeywordsLogOut" = "log out, sign out, exit";
 "SettingsSearchEmpty" = "Start typing to find a setting";
+"PxgUnofficialNotice" = "Unofficial client built on the Telegram API";
