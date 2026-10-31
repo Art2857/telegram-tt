@@ -4712,3 +4712,10 @@
 "PxgMediaGeo" = "Location";
 "PxgMediaContact" = "Contact";
 "PxgMediaDocument" = "File";
+"PxgGuestReply" = "Reply";
+"PxgGuestReact" = "React";
+"PxgGuestEdit" = "Edit";
+"PxgGuestDelete" = "Delete";
+"PxgGuestEditing" = "Editing";
+"PxgGuestCancel" = "Cancel";
+"PxgGuestDeleteConfirm" = "Delete this message for everyone? It is deleted on behalf of the owner.";

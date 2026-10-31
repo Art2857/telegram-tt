@@ -5,12 +5,15 @@ import type { AccessChat, MessageDto } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
+import { usePxgState } from '../../../proxygram/server/store';
 import { describePxgError } from '../helpers';
 import useGuestHistory from './useGuestHistory';
 
 import useLang from '../../../hooks/useLang';
 
+import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import Spinner from '../../ui/Spinner';
 import PxgAvatar from '../PxgAvatar';
 import GuestMessage from './GuestMessage';
@@ -34,6 +37,10 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
   const history = useGuestHistory(accountId, peerId, onError);
   const { messages } = history;
   const [draft, setDraft] = useState('');
+  // поле ввода отвечает на сообщение или правит своё
+  const [composerTarget, setComposerTarget] = useState<{ mode: 'reply' | 'edit'; message: MessageDto }>();
+  const [deleteCandidate, setDeleteCandidate] = useState<MessageDto>();
+  const myUserId = usePxgState((state) => state.session?.user.id);
   const [isNoticeShown, setIsNoticeShown] = useState(() => !localStorage.getItem('pxg-write-notice-seen'));
   const listRef = useRef<HTMLDivElement>();
   const lastReadRef = useRef(0);
@@ -89,15 +96,43 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
   const send = async () => {
     const text = draft.trim();
     if (!text) return;
+    const target = composerTarget;
     setDraft('');
+    setComposerTarget(undefined);
     setError(undefined);
     fromBottomRef.current = 0;
     try {
-      await pxgRpc.call('messages.send', { accountId, peerId, text });
+      if (target?.mode === 'edit') {
+        await pxgRpc.call('messages.edit', { accountId, peerId, msgId: target.message.msgId, text });
+      } else {
+        await pxgRpc.call('messages.send', {
+          accountId, peerId, text, replyToMsgId: target?.message.msgId,
+        });
+      }
     } catch (err) {
       setDraft(text);
+      setComposerTarget(target);
       onError(err);
     }
+  };
+
+  const startReply = (message: MessageDto) => setComposerTarget({ mode: 'reply', message });
+
+  const startEdit = (message: MessageDto) => {
+    setComposerTarget({ mode: 'edit', message });
+    setDraft(message.text);
+  };
+
+  const cancelComposerTarget = () => {
+    if (composerTarget?.mode === 'edit') setDraft('');
+    setComposerTarget(undefined);
+  };
+
+  const confirmDelete = () => {
+    const message = deleteCandidate;
+    setDeleteCandidate(undefined);
+    if (!message) return;
+    pxgRpc.call('messages.delete', { accountId, peerId, msgIds: [message.msgId] }).catch(onError);
   };
 
   const react = (message: MessageDto, emoji?: string) => {
@@ -115,6 +150,8 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void send();
+    } else if (e.key === 'Escape' && composerTarget) {
+      cancelComposerTarget();
     }
   };
 
@@ -175,7 +212,11 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
               message={message}
               chat={chat}
               replyTarget={replyId ? byId.get(replyId) : undefined}
+              myUserId={myUserId}
               onReact={react}
+              onReply={startReply}
+              onEdit={startEdit}
+              onDelete={setDeleteCandidate}
             />,
           );
           return items;
@@ -201,6 +242,28 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
               </Button>
             </div>
           )}
+          {composerTarget && (
+            <div className={styles.composerTarget}>
+              <Icon name={composerTarget.mode === 'edit' ? 'edit' : 'reply'} className={styles.composerTargetIcon} />
+              <div className={styles.composerTargetText}>
+                <span className={styles.replySender}>
+                  {composerTarget.mode === 'edit'
+                    ? lang('PxgGuestEditing')
+                    : composerTarget.message.senderName
+                      ?? (composerTarget.message.isOutgoing ? lang('PxgGuestOwner') : lang('PxgGuestReplyTo'))}
+                </span>
+                <span className={styles.replyText}>{composerTarget.message.text}</span>
+              </div>
+              <Button
+                round
+                size="smaller"
+                color="translucent"
+                iconName="close"
+                ariaLabel={lang('PxgGuestCancel')}
+                onClick={cancelComposerTarget}
+              />
+            </div>
+          )}
           <div className={styles.inputRow}>
             <textarea
               className={styles.input}
@@ -213,7 +276,7 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
             <Button
               round
               color="secondary"
-              iconName="send"
+              iconName={composerTarget?.mode === 'edit' ? 'check' : 'send'}
               disabled={!draft.trim()}
               onClick={() => void send()}
               ariaLabel={lang('PxgGuestSend')}
@@ -223,6 +286,16 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
       ) : (
         <footer className={styles.readOnly}>{lang('PxgGuestReadOnly')}</footer>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteCandidate)}
+        title={lang('PxgGuestDelete')}
+        text={lang('PxgGuestDeleteConfirm')}
+        confirmLabel={lang('PxgGuestDelete')}
+        confirmIsDestructive
+        confirmHandler={confirmDelete}
+        onClose={() => setDeleteCandidate(undefined)}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { memo } from '../../../lib/teact/teact';
+import { memo, useState } from '../../../lib/teact/teact';
 
 import type { AccessChat, MessageDto, ReactionCountDto } from '../../../proxygram/server/types';
 
@@ -7,24 +7,35 @@ import { formatTime, getAvatarPlaceholder, mediaLabel } from '../helpers';
 
 import useLang from '../../../hooks/useLang';
 
+import Icon from '../../common/icons/Icon';
 import GuestMedia from './GuestMedia';
 
 import styles from './GuestApp.module.scss';
 
 const GROUP_TYPES = new Set(['chat', 'megagroup', 'forum']);
 const QUOTE_LENGTH = 90;
+/** Быстрые реакции, как в меню сообщения Telegram */
+const QUICK_REACTIONS = ['👍', '❤', '🔥', '😂', '😮', '😢', '👎'];
 
 type OwnProps = {
   message: MessageDto;
   chat: AccessChat;
   /** Сообщение, на которое ответили, если оно уже загружено */
   replyTarget?: MessageDto;
+  /** Кто смотрит: свои сообщения гость может менять и удалять (по правам) */
+  myUserId?: string;
   /** emoji не передан — снять реакцию */
   onReact?: (message: MessageDto, emoji?: string) => void;
+  onReply?: (message: MessageDto) => void;
+  onEdit?: (message: MessageDto) => void;
+  onDelete?: (message: MessageDto) => void;
 };
 
-const GuestMessage = ({ message, chat, replyTarget, onReact }: OwnProps) => {
+const GuestMessage = ({
+  message, chat, replyTarget, myUserId, onReact, onReply, onEdit, onDelete,
+}: OwnProps) => {
   const lang = useLang();
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   if (message.isService) {
     return <div className={styles.service}>{message.text || lang('PxgGuestServiceMessage')}</div>;
@@ -35,9 +46,79 @@ const GuestMessage = ({ message, chat, replyTarget, onReact }: OwnProps) => {
   const replyToId = message.replyTo?.replyToMsgId;
   const isStickerOnly = message.media?.kind === 'sticker' && !message.text;
   const reactions = message.reactions?.results ?? [];
+  const { permissions } = chat;
+  // своё сообщение или исходящее владельца при праве на них — так же проверяет сервер
+  const isOwn = Boolean(myUserId) && message.sentByUserId === myUserId;
+  const isAlive = !message.deleted;
+  const canEdit = isAlive && Boolean(message.text)
+    && ((isOwn && permissions.editOwn) || (message.isOutgoing && permissions.manageOwnerOutgoing));
+  const canDelete = isAlive
+    && ((isOwn && permissions.deleteOwn) || (message.isOutgoing && permissions.manageOwnerOutgoing));
+  const canReply = isAlive && permissions.write;
+  const canReact = isAlive && permissions.react;
+  const chosen = reactions.find((item) => item.chosenOrder !== undefined)?.reaction.emoticon;
 
   return (
-    <div className={buildClassName(styles.messageRow, message.isOutgoing && styles.outgoing)}>
+    <div
+      className={buildClassName(styles.messageRow, message.isOutgoing && styles.outgoing)}
+      onMouseLeave={() => setIsPickerOpen(false)}
+    >
+      {(canReply || canReact || canEdit || canDelete) && (
+        <div className={buildClassName(styles.messageActions, isPickerOpen && styles.messageActionsOpen)}>
+          {isPickerOpen ? QUICK_REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className={buildClassName(styles.quickReaction, chosen === emoji && styles.quickReactionChosen)}
+              onClick={() => {
+                setIsPickerOpen(false);
+                onReact?.(message, chosen === emoji ? undefined : emoji);
+              }}
+            >
+              {emoji}
+            </button>
+          )) : (
+            <>
+              {canReply && (
+                <button
+                  type="button"
+                  title={lang.withRegular({ key: 'PxgGuestReply' })}
+                  onClick={() => onReply?.(message)}
+                >
+                  <Icon name="reply" />
+                </button>
+              )}
+              {canReact && (
+                <button
+                  type="button"
+                  title={lang.withRegular({ key: 'PxgGuestReact' })}
+                  onClick={() => setIsPickerOpen(true)}
+                >
+                  <Icon name="smile" />
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  title={lang.withRegular({ key: 'PxgGuestEdit' })}
+                  onClick={() => onEdit?.(message)}
+                >
+                  <Icon name="edit" />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  type="button"
+                  title={lang.withRegular({ key: 'PxgGuestDelete' })}
+                  onClick={() => onDelete?.(message)}
+                >
+                  <Icon name="delete" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <div
         className={buildClassName(
           styles.bubble,

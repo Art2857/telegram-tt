@@ -505,3 +505,95 @@
   width: 1rem;
   height: 1rem;
 }
+
+.messageRow {
+  position: relative;
+}
+
+// действия появляются при наведении — как всплывающее меню сообщения в Telegram
+.messageActions {
+  position: absolute;
+  z-index: 1;
+  // над пузырём, не поверх текста
+  top: -1.625rem;
+  right: 0;
+
+  display: none;
+  gap: 0.125rem;
+
+  padding: 0.125rem;
+  border-radius: 1rem;
+
+  background: var(--color-background);
+  box-shadow: 0 1px 4px var(--color-default-shadow);
+
+  button {
+    cursor: var(--custom-cursor, pointer);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+
+    font-size: 1.125rem;
+    color: var(--color-text-secondary);
+
+    background: transparent;
+
+    &:hover {
+      color: var(--color-primary);
+      background: var(--color-chat-hover);
+    }
+  }
+
+  .messageRow:not(.outgoing) & {
+    right: auto;
+    left: min(30rem, 85%);
+  }
+}
+
+.messageRow:hover .messageActions,
+.messageActionsOpen {
+  display: flex;
+}
+
+.quickReaction {
+  font-size: 1.125rem !important;
+}
+
+.quickReactionChosen {
+  background: var(--color-chat-hover) !important;
+}
+
+.composerTarget {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+  border-radius: 0.75rem;
+
+  background: var(--color-background);
+}
+
+.composerTargetIcon {
+  font-size: 1.25rem;
+  color: var(--color-primary);
+}
+
+.composerTargetText {
+  overflow: hidden;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+
+  min-width: 0;
+
+  font-size: 0.875rem;
+}

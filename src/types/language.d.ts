@@ -3554,6 +3554,13 @@ export interface LangPair {
   'PxgMediaGeo': undefined;
   'PxgMediaContact': undefined;
   'PxgMediaDocument': undefined;
+  'PxgGuestReply': undefined;
+  'PxgGuestReact': undefined;
+  'PxgGuestEdit': undefined;
+  'PxgGuestDelete': undefined;
+  'PxgGuestEditing': undefined;
+  'PxgGuestCancel': undefined;
+  'PxgGuestDeleteConfirm': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

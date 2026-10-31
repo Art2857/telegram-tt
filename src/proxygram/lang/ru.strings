@@ -199,3 +199,10 @@
 "PxgMediaGeo" = "Геопозиция";
 "PxgMediaContact" = "Контакт";
 "PxgMediaDocument" = "Файл";
+"PxgGuestReply" = "Ответить";
+"PxgGuestReact" = "Реакция";
+"PxgGuestEdit" = "Изменить";
+"PxgGuestDelete" = "Удалить";
+"PxgGuestEditing" = "Редактирование";
+"PxgGuestCancel" = "Отменить";
+"PxgGuestDeleteConfirm" = "Удалить сообщение у всех? Удаление идёт от имени владельца.";
