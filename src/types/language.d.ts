@@ -3561,6 +3561,10 @@ export interface LangPair {
   'PxgGuestEditing': undefined;
   'PxgGuestCancel': undefined;
   'PxgGuestDeleteConfirm': undefined;
+  'PxgGuestAttach': undefined;
+  'PxgGuestRemoveAttachment': undefined;
+  'PxgGuestFileTooLarge': undefined;
+  'PxgGuestCaptionPlaceholder': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -5886,6 +5890,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminRevokeConfirm': {
     'name': V;
   };
+  'PxgGuestUploading': {
+    'percent': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7298,7 +7305,8 @@ export interface LangKeyGroups {
       | 'GiftDiscount'
       | 'GiftCraftSuccessChance'
       | 'PaidMessageTransactionDescription'
-      | 'StarTransactionCommission';
+      | 'StarTransactionCommission'
+      | 'PxgGuestUploading';
     variables: 'percent';
   };
   'receiver': {

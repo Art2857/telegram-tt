@@ -13,6 +13,7 @@ const ERROR_KEYS: Record<string, string> = {
   rate_limited: 'PxgErrorRateLimited',
   already_exists: 'PxgErrorAlreadyExists',
   grantee_not_registered: 'PxgErrorNotRegistered',
+  too_large: 'PxgGuestFileTooLarge',
 };
 
 /** Понятный текст ошибки сервера Proxygram */

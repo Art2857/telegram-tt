@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import type { ClipboardEvent, KeyboardEvent } from 'react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from '../../../lib/teact/teact';
 
 import type { AccessChat, MessageDto } from '../../../proxygram/server/types';
@@ -6,6 +6,7 @@ import type { AccessChat, MessageDto } from '../../../proxygram/server/types';
 import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { usePxgState } from '../../../proxygram/server/store';
+import { MAX_UPLOAD_BYTES, uploadFile } from '../../../proxygram/server/upload';
 import { describePxgError } from '../helpers';
 import useGuestHistory from './useGuestHistory';
 
@@ -40,6 +41,10 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
   // поле ввода отвечает на сообщение или правит своё
   const [composerTarget, setComposerTarget] = useState<{ mode: 'reply' | 'edit'; message: MessageDto }>();
   const [deleteCandidate, setDeleteCandidate] = useState<MessageDto>();
+  const [attachment, setAttachment] = useState<{ file: File; previewUrl?: string }>();
+  // undefined — ничего не загружается; 0..1 — доля отправленного на сервер
+  const [uploadProgress, setUploadProgress] = useState<number>();
+  const fileInputRef = useRef<HTMLInputElement>();
   const myUserId = usePxgState((state) => state.session?.user.id);
   const [isNoticeShown, setIsNoticeShown] = useState(() => !localStorage.getItem('pxg-write-notice-seen'));
   const listRef = useRef<HTMLDivElement>();
@@ -95,25 +100,66 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
 
   const send = async () => {
     const text = draft.trim();
-    if (!text) return;
+    const file = attachment?.file;
+    if ((!text && !file) || uploadProgress !== undefined) return;
     const target = composerTarget;
-    setDraft('');
-    setComposerTarget(undefined);
     setError(undefined);
     fromBottomRef.current = 0;
     try {
       if (target?.mode === 'edit') {
+        setDraft('');
+        setComposerTarget(undefined);
         await pxgRpc.call('messages.edit', { accountId, peerId, msgId: target.message.msgId, text });
-      } else {
-        await pxgRpc.call('messages.send', {
-          accountId, peerId, text, replyToMsgId: target?.message.msgId,
-        });
+        return;
       }
+      // файл сначала на сервер (с прогрессом), потом — сообщение с ним и подписью
+      let uploadId: string | undefined;
+      if (file) {
+        setUploadProgress(0);
+        uploadId = (await uploadFile(file, { accountId, peerId }, setUploadProgress)).uploadId;
+      }
+      setDraft('');
+      setComposerTarget(undefined);
+      clearAttachment();
+      await pxgRpc.call('messages.send', {
+        accountId,
+        peerId,
+        text,
+        file: uploadId ? { uploadId } : undefined,
+        replyToMsgId: target?.message.msgId,
+      });
     } catch (err) {
       setDraft(text);
       setComposerTarget(target);
       onError(err);
+    } finally {
+      setUploadProgress(undefined);
     }
+  };
+
+  const attach = (file?: File) => {
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(lang('PxgGuestFileTooLarge'));
+      return;
+    }
+    clearAttachment();
+    setAttachment({ file, previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined });
+  };
+
+  const clearAttachment = () => {
+    setAttachment((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return undefined;
+    });
+  };
+
+  // вставка картинки из буфера обмена — как в Telegram
+  const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const file = e.clipboardData?.files?.[0];
+    if (!file || !permissions.sendMedia || composerTarget?.mode === 'edit') return;
+    e.preventDefault();
+    attach(file);
   };
 
   const startReply = (message: MessageDto) => setComposerTarget({ mode: 'reply', message });
@@ -264,20 +310,68 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
               />
             </div>
           )}
+          {attachment && (
+            <div className={styles.composerTarget}>
+              {attachment.previewUrl ? (
+                <img className={styles.attachmentThumb} src={attachment.previewUrl} alt="" />
+              ) : (
+                <Icon name="document" className={styles.composerTargetIcon} />
+              )}
+              <div className={styles.composerTargetText}>
+                <span className={styles.replySender}>{attachment.file.name}</span>
+                <span className={styles.replyText}>
+                  {uploadProgress !== undefined
+                    ? lang('PxgGuestUploading', { percent: Math.round(uploadProgress * 100) })
+                    : formatFileSize(attachment.file.size)}
+                </span>
+              </div>
+              <Button
+                round
+                size="smaller"
+                color="translucent"
+                iconName="close"
+                disabled={uploadProgress !== undefined}
+                ariaLabel={lang('PxgGuestRemoveAttachment')}
+                onClick={clearAttachment}
+              />
+            </div>
+          )}
           <div className={styles.inputRow}>
+            {permissions.sendMedia && composerTarget?.mode !== 'edit' && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className={styles.fileInput}
+                  onChange={(e) => {
+                    attach(e.currentTarget.files?.[0]);
+                    e.currentTarget.value = '';
+                  }}
+                />
+                <Button
+                  round
+                  color="translucent"
+                  iconName="attach"
+                  ariaLabel={lang('PxgGuestAttach')}
+                  onClick={() => fileInputRef.current?.click()}
+                />
+              </>
+            )}
             <textarea
               className={styles.input}
               rows={1}
               value={draft}
-              placeholder={lang('PxgGuestMessagePlaceholder')}
+              placeholder={lang(attachment ? 'PxgGuestCaptionPlaceholder' : 'PxgGuestMessagePlaceholder')}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
             />
             <Button
               round
               color="secondary"
               iconName={composerTarget?.mode === 'edit' ? 'check' : 'send'}
-              disabled={!draft.trim()}
+              isLoading={uploadProgress !== undefined}
+              disabled={!draft.trim() && !attachment}
               onClick={() => void send()}
               ariaLabel={lang('PxgGuestSend')}
             />
@@ -299,6 +393,12 @@ const GuestChat = ({ chat, onBack }: OwnProps) => {
     </div>
   );
 };
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 function dayKey(iso: string) {
   return new Date(iso).toDateString();

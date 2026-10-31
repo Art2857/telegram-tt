@@ -4719,3 +4719,8 @@
 "PxgGuestEditing" = "Editing";
 "PxgGuestCancel" = "Cancel";
 "PxgGuestDeleteConfirm" = "Delete this message for everyone? It is deleted on behalf of the owner.";
+"PxgGuestAttach" = "Attach a file";
+"PxgGuestRemoveAttachment" = "Remove the file";
+"PxgGuestUploading" = "Uploading… {percent}%";
+"PxgGuestFileTooLarge" = "The file is larger than 50 MB";
+"PxgGuestCaptionPlaceholder" = "Caption";

@@ -206,3 +206,8 @@
 "PxgGuestEditing" = "Редактирование";
 "PxgGuestCancel" = "Отменить";
 "PxgGuestDeleteConfirm" = "Удалить сообщение у всех? Удаление идёт от имени владельца.";
+"PxgGuestAttach" = "Прикрепить файл";
+"PxgGuestRemoveAttachment" = "Убрать файл";
+"PxgGuestUploading" = "Загрузка… {percent}%";
+"PxgGuestFileTooLarge" = "Файл больше 50 МБ";
+"PxgGuestCaptionPlaceholder" = "Подпись";
