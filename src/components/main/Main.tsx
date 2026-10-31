@@ -77,6 +77,7 @@ import FloatingRoundVideo from '../middle/panes/FloatingRoundVideo';
 import ModalContainer from '../modals/ModalContainer';
 import PaymentModal from '../payment/PaymentModal.async';
 import ReceiptModal from '../payment/ReceiptModal.async';
+import ProxygramBridge from '../proxygram/ProxygramBridge'; // PXG
 import RightColumn from '../right/RightColumn';
 import StoryViewer from '../story/StoryViewer.async';
 import AttachBotRecipientPicker from './AttachBotRecipientPicker.async';
@@ -692,6 +693,8 @@ const Main = ({
       <DeleteFolderDialog folder={deleteFolderDialog} />
       <ReactionPicker isOpen={isReactionPickerOpen} />
       <DeleteMessageModal isOpen={isDeleteMessageModalOpen} />
+      {/* PXG: сессия Proxygram после полного входа, раздача чатов, админка */}
+      <ProxygramBridge />
     </Wallpaper>
   );
 };

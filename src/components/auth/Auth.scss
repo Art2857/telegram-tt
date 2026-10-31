@@ -258,3 +258,15 @@
     transform: scale(1);
   }
 }
+
+// PXG: кнопка «другой способ входа» поверх экранов входа Web A
+.pxg-auth-telegram {
+  position: relative;
+  height: 100%;
+}
+
+.pxg-auth-back {
+  position: absolute !important;
+  top: 1rem;
+  left: 1rem;
+}

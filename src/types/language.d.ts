@@ -3383,6 +3383,158 @@ export interface LangPair {
   'PxgEditHistoryOriginal': undefined;
   'PxgEditHistoryShowDiff': undefined;
   'PxgEditHistoryNotCaptured': undefined;
+  'PxgAuthChoiceTitle': undefined;
+  'PxgAuthChoiceNote': undefined;
+  'PxgAuthTelegram': undefined;
+  'PxgAuthTelegramHint': undefined;
+  'PxgAuthGuest': undefined;
+  'PxgAuthGuestHint': undefined;
+  'PxgAuthOtherMethod': undefined;
+  'PxgGuestTitle': undefined;
+  'PxgGuestNote': undefined;
+  'PxgGuestUsername': undefined;
+  'PxgGuestGetCode': undefined;
+  'PxgGuestViaBot': undefined;
+  'PxgGuestCodeTitle': undefined;
+  'PxgGuestCodeNote': undefined;
+  'PxgGuestCode': undefined;
+  'PxgGuestDeeplinkTitle': undefined;
+  'PxgGuestDeeplinkNote': undefined;
+  'PxgGuestOpenBot': undefined;
+  'PxgGuestWaiting': undefined;
+  'PxgGuestBack': undefined;
+  'PxgGuestMenu': undefined;
+  'PxgGuestChatsTitle': undefined;
+  'PxgGuestConnecting': undefined;
+  'PxgGuestUnknownChat': undefined;
+  'PxgGuestCanWrite': undefined;
+  'PxgGuestReadOnly': undefined;
+  'PxgGuestSelectChat': undefined;
+  'PxgGuestViaProxy': undefined;
+  'PxgGuestLoadOlder': undefined;
+  'PxgGuestNoMessages': undefined;
+  'PxgGuestWriteNotice': undefined;
+  'PxgGuestNoticeOk': undefined;
+  'PxgGuestMessagePlaceholder': undefined;
+  'PxgGuestSend': undefined;
+  'PxgGuestServiceMessage': undefined;
+  'PxgGuestEdited': undefined;
+  'PxgGuestDownload': undefined;
+  'PxgGuestMediaNotArchived': undefined;
+  'PxgGuestNoDownload': undefined;
+  'PxgSignOut': undefined;
+  'PxgErrorNetwork': undefined;
+  'PxgErrorInvalidCode': undefined;
+  'PxgErrorExpired': undefined;
+  'PxgErrorTooMany': undefined;
+  'PxgErrorDenied': undefined;
+  'PxgErrorForbidden': undefined;
+  'PxgErrorRateLimited': undefined;
+  'PxgErrorAlreadyExists': undefined;
+  'PxgErrorNotRegistered': undefined;
+  'PxgErrorGeneric': undefined;
+  'PxgErrorUsername': undefined;
+  'PxgMenuSharing': undefined;
+  'PxgMenuSharingOn': undefined;
+  'PxgConnectTitle': undefined;
+  'PxgConnectText1': undefined;
+  'PxgConnectText2': undefined;
+  'PxgConnectText3': undefined;
+  'PxgConnectButton': undefined;
+  'PxgConnectLater': undefined;
+  'PxgConnectProgress': undefined;
+  'PxgConnectPasswordNote': undefined;
+  'PxgConnectPasswordInvalid': undefined;
+  'PxgConnectDone': undefined;
+  'PxgConnectOk': undefined;
+  'PxgConnectRetry': undefined;
+  'PxgConnectDisconnect': undefined;
+  'PxgConnectDisconnectNote': undefined;
+  'PxgShareTitle': undefined;
+  'PxgShareUsername': undefined;
+  'PxgShareFind': undefined;
+  'PxgSharePreset': undefined;
+  'PxgPresetReadOnly': undefined;
+  'PxgPresetAssistant': undefined;
+  'PxgPresetFull': undefined;
+  'PxgShareHistory': undefined;
+  'PxgHistoryAll': undefined;
+  'PxgHistoryNew': undefined;
+  'PxgShareGrant': undefined;
+  'PxgShareList': undefined;
+  'PxgShareRevoke': undefined;
+  'PxgShareNeedServer': undefined;
+  'PxgAdminTitle': undefined;
+  'PxgAdminOverview': undefined;
+  'PxgAdminUsers': undefined;
+  'PxgAdminSessions': undefined;
+  'PxgAdminAccounts': undefined;
+  'PxgAdminShares': undefined;
+  'PxgAdminAudit': undefined;
+  'PxgAdminQueue': undefined;
+  'PxgAdminLoading': undefined;
+  'PxgAdminEmpty': undefined;
+  'PxgAdminConfirm': undefined;
+  'PxgAdminReadingNow': undefined;
+  'PxgAdminNobodyReading': undefined;
+  'PxgAdminStatUsers': undefined;
+  'PxgAdminStatOnline': undefined;
+  'PxgAdminStatFull': undefined;
+  'PxgAdminStatGuests': undefined;
+  'PxgAdminStatAccounts': undefined;
+  'PxgAdminStatShares': undefined;
+  'PxgAdminStatArchive': undefined;
+  'PxgAdminStatQueue': undefined;
+  'PxgAdminColWho': undefined;
+  'PxgAdminColChat': undefined;
+  'PxgAdminColAccount': undefined;
+  'PxgAdminColSince': undefined;
+  'PxgAdminColUser': undefined;
+  'PxgAdminColLogin': undefined;
+  'PxgAdminColActivity': undefined;
+  'PxgAdminColAccess': undefined;
+  'PxgAdminColActions': undefined;
+  'PxgAdminColDevice': undefined;
+  'PxgAdminColStatus': undefined;
+  'PxgAdminColArchive': undefined;
+  'PxgAdminColGuest': undefined;
+  'PxgAdminColPermissions': undefined;
+  'PxgAdminColTime': undefined;
+  'PxgAdminColAction': undefined;
+  'PxgAdminColDetails': undefined;
+  'PxgAdminSearch': undefined;
+  'PxgAdminAuditFilter': undefined;
+  'PxgAdminChatSearch': undefined;
+  'PxgAdminOnline': undefined;
+  'PxgAdminOnlineOnly': undefined;
+  'PxgAdminAll': undefined;
+  'PxgAdminBlocked': undefined;
+  'PxgAdminNoAccounts': undefined;
+  'PxgAdminKick': undefined;
+  'PxgAdminBlock': undefined;
+  'PxgAdminUnblock': undefined;
+  'PxgAdminMakeAdmin': undefined;
+  'PxgAdminRemoveAdmin': undefined;
+  'PxgAdminEndSession': undefined;
+  'PxgAdminPause': undefined;
+  'PxgAdminResume': undefined;
+  'PxgAdminDisconnect': undefined;
+  'PxgAdminGrant': undefined;
+  'PxgAdminRetry': undefined;
+  'PxgAdminCancel': undefined;
+  'PxgLevelGuest': undefined;
+  'PxgLevelClient': undefined;
+  'PxgRoleAdmin': undefined;
+  'PxgStatusActive': undefined;
+  'PxgStatusPaused': undefined;
+  'PxgStatusAuthLost': undefined;
+  'PxgStatusFlood': undefined;
+  'PxgStatusRevoked': undefined;
+  'PxgStatusConnecting': undefined;
+  'PxgShareStatusActive': undefined;
+  'PxgShareStatusPaused': undefined;
+  'PxgShareStatusRevoked': undefined;
+  'PxgShareStatusLost': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -5642,6 +5794,72 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgEditHistoryVersion': {
     'number': V;
   };
+  'PxgGuestSignedInAs': {
+    'name': V;
+  };
+  'PxgGuestNoChats': {
+    'username': V;
+  };
+  'PxgGuestMedia': {
+    'type': V;
+  };
+  'PxgConnectFailed': {
+    'reason': V;
+  };
+  'PxgConnectActive': {
+    'name': V;
+  };
+  'PxgShareFound': {
+    'name': V;
+  };
+  'PxgShareNotRegistered': {
+    'username': V;
+  };
+  'PxgAdminWarnAccounts': {
+    'count': V;
+  };
+  'PxgAdminWarnQueue': {
+    'count': V;
+  };
+  'PxgAdminDevices': {
+    'count': V;
+  };
+  'PxgAdminAccessCounts': {
+    'in': V;
+    'out': V;
+    'accounts': V;
+  };
+  'PxgAdminAccountCounts': {
+    'shares': V;
+    'queue': V;
+  };
+  'PxgAdminSince': {
+    'time': V;
+  };
+  'PxgAdminOwner': {
+    'name': V;
+  };
+  'PxgAdminFromAccount': {
+    'name': V;
+  };
+  'PxgAdminMessages': {
+    'count': V;
+  };
+  'PxgAdminKickConfirm': {
+    'name': V;
+  };
+  'PxgAdminBlockConfirm': {
+    'name': V;
+  };
+  'PxgAdminEndSessionConfirm': {
+    'name': V;
+  };
+  'PxgAdminDisconnectConfirm': {
+    'name': V;
+  };
+  'PxgAdminRevokeConfirm': {
+    'name': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -6506,7 +6724,9 @@ export interface LangKeyGroups {
     keys:
       | 'UsernameAvailable'
       | 'CocoonFeature1Text'
-      | 'FragmentUsernameTitle';
+      | 'FragmentUsernameTitle'
+      | 'PxgGuestNoChats'
+      | 'PxgShareNotRegistered';
     variables: 'username';
   };
   'limit,limit2': {
@@ -6632,7 +6852,17 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppProcessed'
       | 'WalletConnectRequestAppDeclined'
       | 'WalletConnectRequestAppExpired'
-      | 'WalletConnectSignTitle';
+      | 'WalletConnectSignTitle'
+      | 'PxgGuestSignedInAs'
+      | 'PxgConnectActive'
+      | 'PxgShareFound'
+      | 'PxgAdminOwner'
+      | 'PxgAdminFromAccount'
+      | 'PxgAdminKickConfirm'
+      | 'PxgAdminBlockConfirm'
+      | 'PxgAdminEndSessionConfirm'
+      | 'PxgAdminDisconnectConfirm'
+      | 'PxgAdminRevokeConfirm';
     variables: 'name';
   };
   'limit,premiumLimit': {
@@ -6668,7 +6898,8 @@ export interface LangKeyGroups {
       | 'GiftAuctionTimeLeft'
       | 'ChannelBoostErrorBoostTooOftenText'
       | 'LiveLocationUpdatedYesterdayAt'
-      | 'PxgDeletedAt';
+      | 'PxgDeletedAt'
+      | 'PxgAdminSince';
     variables: 'time';
   };
   'date,time': {
@@ -6834,7 +7065,11 @@ export interface LangKeyGroups {
       | 'BoostGiftStarsPerUser'
       | 'ConnectedAccountsLimitSubtitle'
       | 'GiveawayStarsPrepaidTitle'
-      | 'SimilarChannelsLimitSubtitle';
+      | 'SimilarChannelsLimitSubtitle'
+      | 'PxgAdminWarnAccounts'
+      | 'PxgAdminWarnQueue'
+      | 'PxgAdminDevices'
+      | 'PxgAdminMessages';
     variables: 'count';
   };
   'duration,time': {
@@ -7182,7 +7417,8 @@ export interface LangKeyGroups {
   };
   'type': {
     keys:
-      | 'SearchContextCaption';
+      | 'SearchContextCaption'
+      | 'PxgGuestMedia';
     variables: 'type';
   };
   'chats,folder': {
@@ -7875,6 +8111,21 @@ export interface LangKeyGroups {
     keys:
       | 'PeerPickerUnknownPeer';
     variables: 'id';
+  };
+  'reason': {
+    keys:
+      | 'PxgConnectFailed';
+    variables: 'reason';
+  };
+  'accounts,in,out': {
+    keys:
+      | 'PxgAdminAccessCounts';
+    variables: 'accounts' | 'in' | 'out';
+  };
+  'queue,shares': {
+    keys:
+      | 'PxgAdminAccountCounts';
+    variables: 'queue' | 'shares';
   };
 }
 

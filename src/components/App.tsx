@@ -23,6 +23,7 @@ import { checkSessionLocked, hasStoredSession } from '../util/sessions';
 import { getActionMessageBg, getWallpaperBaseColor } from '../util/wallpaper';
 import { handoffWebLogin } from '../util/webLoginHandoff';
 import { updateSizes } from '../util/windowSize';
+import { usePxgState } from '../proxygram/server/store';
 
 import useTauriDrag from '../hooks/tauri/useTauriDrag';
 import useAppLayout from '../hooks/useAppLayout';
@@ -40,6 +41,7 @@ import UiLoader from './common/UiLoader';
 import AppInactive from './main/AppInactive';
 import LockScreen from './main/LockScreen.async';
 import Main from './main/Main.async';
+import GuestApp from './proxygram/guest/GuestApp';
 // import Test from './test/demo/MessageTextStreamingTest';
 import Transition from './ui/Transition';
 
@@ -62,6 +64,7 @@ enum AppScreens {
   main,
   lock,
   inactive,
+  pxgGuest, // PXG: гость без сессии Telegram — только открытые ему чаты
 }
 
 const TRANSITION_RENDER_COUNT = Object.keys(AppScreens).length / 2;
@@ -143,7 +146,13 @@ const App = ({
   let activeKey: AppScreens;
   let page: UiLoaderPage | undefined;
 
-  if (inactiveReason) {
+  // PXG: сессия гостя Proxygram есть, а сессии Telegram на устройстве нет — режим гостя
+  const pxgSession = usePxgState((state) => state.session);
+  const isPxgGuest = pxgSession?.level === 'guest' && !hasStoredSession();
+
+  if (isPxgGuest) {
+    activeKey = AppScreens.pxgGuest;
+  } else if (inactiveReason) {
     activeKey = AppScreens.inactive;
   } else if (isScreenLocked) {
     page = 'lock';
@@ -190,6 +199,7 @@ const App = ({
   if (activeKey !== AppScreens.lock
     && activeKey !== AppScreens.inactive
     && activeKey !== AppScreens.main
+    && activeKey !== AppScreens.pxgGuest
     && getPendingWebLogin()
     && !hasWebAuthTokenFailed) {
     page = 'main';
@@ -220,6 +230,8 @@ const App = ({
         return <LockScreen isLocked={isScreenLocked} />;
       case AppScreens.inactive:
         return <AppInactive inactiveReason={inactiveReason!} />;
+      case AppScreens.pxgGuest:
+        return <GuestApp />;
     }
   }
 

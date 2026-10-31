@@ -49,6 +49,7 @@ import {
 } from '../../global/selectors';
 import { isUserId } from '../../util/entities/ids';
 import { disableScrolling } from '../../util/scrollLock';
+import { setPxgState, usePxgState } from '../../proxygram/server/store'; // PXG
 import { buildAutoDeletePeriodOptions, DEFAULT_AUTO_DELETE_PERIODS } from '../common/helpers/autoDeletePeriods';
 
 import useAppLayout from '../../hooks/useAppLayout';
@@ -611,6 +612,8 @@ const HeaderMenuContainer = ({
     return [...commandButtons || [], privacyButton].filter(Boolean);
   }, [botCommands, lang, botPrivacyPolicyUrl, isBot]);
 
+  const hasPxgSession = usePxgState((state) => state.session?.level === 'client'); // PXG
+
   const deleteTitle = useMemo(() => {
     if (!chat) return undefined;
 
@@ -684,6 +687,18 @@ const HeaderMenuContainer = ({
               onClick={handleViewGroupInfo}
             >
               {lang(viewInfoLangKey)}
+            </MenuItem>
+          )}
+          {/* PXG: открыть чат гостю через сервер Proxygram */}
+          {hasPxgSession && !savedDialog && (
+            <MenuItem
+              icon="share-filled"
+              onClick={() => {
+                setPxgState({ shareChatId: chatId });
+                closeMenu();
+              }}
+            >
+              {lang('PxgShareTitle')}
             </MenuItem>
           )}
           {canManage && !canEditTopic && (

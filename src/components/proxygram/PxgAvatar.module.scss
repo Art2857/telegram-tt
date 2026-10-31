@@ -1,0 +1,38 @@
+.root {
+  position: relative;
+
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+
+  width: var(--pxg-avatar-size);
+  height: var(--pxg-avatar-size);
+  border-radius: 50%;
+
+  font-size: calc(var(--pxg-avatar-size) * 0.38);
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+
+  background: var(--pxg-avatar-color);
+}
+
+.badge {
+  position: absolute;
+  right: -0.125rem;
+  bottom: -0.125rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+
+  font-size: 0.625rem;
+  color: #fff;
+
+  background: var(--color-primary);
+}

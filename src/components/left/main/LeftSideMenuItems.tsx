@@ -38,6 +38,7 @@ import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
 
 import AttachBotItem from '../../middle/composer/AttachBotItem';
+import PxgMenuItems from '../../proxygram/PxgMenuItems'; // PXG
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import MenuItem from '../../ui/MenuItem';
 import MenuSeparator from '../../ui/MenuSeparator';
@@ -217,6 +218,8 @@ const LeftSideMenuItems = ({
       >
         {lang('MenuContacts')}
       </MenuItem>
+      {/* PXG: раздача чатов и админка */}
+      <PxgMenuItems />
       {isWalletAvailable && (
         <MenuItem
           icon="gram-outline"
