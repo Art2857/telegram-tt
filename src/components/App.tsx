@@ -23,7 +23,7 @@ import { checkSessionLocked, hasStoredSession } from '../util/sessions';
 import { getActionMessageBg, getWallpaperBaseColor } from '../util/wallpaper';
 import { handoffWebLogin } from '../util/webLoginHandoff';
 import { updateSizes } from '../util/windowSize';
-import { usePxgState } from '../proxygram/server/store';
+import { getPxgState, usePxgState } from '../proxygram/server/store';
 
 import useTauriDrag from '../hooks/tauri/useTauriDrag';
 import useAppLayout from '../hooks/useAppLayout';
@@ -95,7 +95,9 @@ const App = ({
   useEffect(() => {
     const hash = getInitialLocationHash();
     // If there is no stored session on first slot, navigate to any other slot with stored session
-    if (!getPendingWebLogin() && !hasStoredSession() && !ACCOUNT_SLOT && !hash) {
+    // PXG: в первом слоте может жить гостевой аккаунт Proxygram — тогда никуда не уводим
+    const isPxgGuestSlot = getPxgState().session?.level === 'guest';
+    if (!getPendingWebLogin() && !hasStoredSession() && !ACCOUNT_SLOT && !hash && !isPxgGuestSlot) {
       const firstLoggedInAccountSlot = getFirstLoggedInAccountSlot();
       if (firstLoggedInAccountSlot) {
         const url = getAccountSlotUrl(firstLoggedInAccountSlot);

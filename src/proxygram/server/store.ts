@@ -2,6 +2,8 @@ import { useEffect, useState } from '../../lib/teact/teact';
 
 import type { AccountDto, StoredSession } from './types';
 
+import { ACCOUNT_SLOT } from '../../util/multiaccount';
+
 export type ConnectionState = 'offline' | 'connecting' | 'online';
 
 export interface PxgState {
@@ -22,7 +24,17 @@ export interface PxgState {
   shareChatId?: string;
 }
 
-const SESSION_KEY = 'pxg-session';
+const SESSION_KEY_PREFIX = 'pxg-session';
+
+/**
+ * У каждого слота аккаунта Web A (`?account=N`) своя сессия Proxygram: в одном браузере могут быть
+ * несколько аккаунтов Telegram и гостевые аккаунты рядом с ними.
+ */
+export function pxgSessionKey(slot?: number) {
+  return slot && slot !== 1 ? `${SESSION_KEY_PREFIX}-${slot}` : SESSION_KEY_PREFIX;
+}
+
+const SESSION_KEY = pxgSessionKey(ACCOUNT_SLOT);
 
 let state: PxgState = {
   session: readStoredSession(),
@@ -61,13 +73,31 @@ export function usePxgState<T>(selector: (current: PxgState) => T): T {
   return value;
 }
 
-export function readStoredSession(): StoredSession | undefined {
+export function readStoredSession(slot = ACCOUNT_SLOT): StoredSession | undefined {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(pxgSessionKey(slot));
     return raw ? JSON.parse(raw) as StoredSession : undefined;
   } catch {
     return undefined;
   }
+}
+
+/** Записать сессию в другой слот — например, открыть просмотр глазами гостя в новой вкладке */
+export function writeSlotSession(slot: number, session: StoredSession) {
+  localStorage.setItem(pxgSessionKey(slot), JSON.stringify(session));
+}
+
+/** Все слоты, где есть сессия Proxygram */
+export function listPxgSessionSlots(): { slot: number; session: StoredSession }[] {
+  const result: { slot: number; session: StoredSession }[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(SESSION_KEY_PREFIX)) continue;
+    const slot = key === SESSION_KEY_PREFIX ? 1 : Number(key.slice(SESSION_KEY_PREFIX.length + 1));
+    const session = Number.isInteger(slot) && slot > 0 ? readStoredSession(slot) : undefined;
+    if (session) result.push({ slot, session });
+  }
+  return result.sort((a, b) => a.slot - b.slot);
 }
 
 function writeStoredSession(session?: StoredSession) {

@@ -13,7 +13,9 @@ import useLang from '../../../hooks/useLang';
 import Button from '../../ui/Button';
 import DropdownMenu from '../../ui/DropdownMenu';
 import MenuItem from '../../ui/MenuItem';
+import MenuSeparator from '../../ui/MenuSeparator';
 import AdminPanel from '../admin/AdminPanel';
+import GuestAccountItems from '../GuestAccountItems';
 import PxgAvatar from '../PxgAvatar';
 import GuestChat from './GuestChat';
 
@@ -73,11 +75,6 @@ const GuestApp = ({ onClose }: OwnProps) => {
     return () => document.removeEventListener('visibilitychange', report);
   }, [activeChat, connection]);
 
-  const signInWithTelegram = () => {
-    signOutPxg();
-    setPxgState({ authChoice: 'telegram' });
-  };
-
   const isAdmin = session?.user.role === 'admin';
   const username = session?.user.username;
 
@@ -108,12 +105,14 @@ const GuestApp = ({ onClose }: OwnProps) => {
                 />
               )}
             >
+              {/* как в Telegram: другие аккаунты (и гостевые, и полные) и «Добавить аккаунт» */}
+              <GuestAccountItems isStandalone />
+              <MenuSeparator />
               {isAdmin && (
                 <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
                   {lang('PxgAdminTitle')}
                 </MenuItem>
               )}
-              <MenuItem icon="key" onClick={signInWithTelegram}>{lang('PxgAuthTelegram')}</MenuItem>
               <MenuItem icon="logout" destructive onClick={signOutPxg}>{lang('PxgSignOut')}</MenuItem>
             </DropdownMenu>
           )}

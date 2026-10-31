@@ -8,6 +8,7 @@ import { temporarilySuspendCacheUpdate } from '../../../global/cache';
 import { getCurrentMaxAccountCount, getCurrentProdAccountCount } from '../../../global/helpers';
 import { IS_SAFARI } from '../../../util/browser/windowEnvironment';
 import { getAccountSlotUrl } from '../../../util/multiaccount';
+import { isGuestSlot } from '../../../proxygram/server/slots'; // PXG
 import { REM } from '../../common/helpers/mediaDimensions';
 
 import useLang from '../../../hooks/useLang';
@@ -16,6 +17,7 @@ import useMultiaccountInfo from '../../../hooks/useMultiaccountInfo';
 
 import Avatar from '../../common/Avatar';
 import FullNameTitle from '../../common/FullNameTitle';
+import GuestAccountItems from '../../proxygram/GuestAccountItems'; // PXG
 import MenuItem from '../../ui/MenuItem';
 import MenuSeparator from '../../ui/MenuSeparator';
 
@@ -91,7 +93,8 @@ const AccountMenuItems = ({
     }
 
     let freeIndex = 1;
-    while (accounts[freeIndex]) {
+    // PXG: слот гостевого аккаунта Proxygram тоже занят
+    while (accounts[freeIndex] || isGuestSlot(freeIndex)) {
       freeIndex += 1;
     }
 
@@ -136,6 +139,8 @@ const AccountMenuItems = ({
             </>
           );
         })}
+      {/* PXG: гостевые аккаунты Proxygram */}
+      <GuestAccountItems onSwitchAccount={onSwitchAccount} />
       {newAccountUrl && (
         <MenuItem
           icon="add"
