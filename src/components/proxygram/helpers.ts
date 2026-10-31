@@ -1,3 +1,4 @@
+import type { MessageDto } from '../../proxygram/server/types';
 import type { LangFn } from '../../util/localization/types';
 import { PxgError } from '../../proxygram/server/types';
 
@@ -50,4 +51,25 @@ export function formatDateTime(iso?: string | null) {
 export function displayName(user?: { username?: string | null; firstName?: string | null; tgUserId?: number } | null) {
   if (!user) return '—';
   return user.firstName || (user.username ? `@${user.username}` : `id${user.tgUserId ?? ''}`);
+}
+
+const MEDIA_LABELS: Record<string, string> = {
+  photo: 'PxgMediaPhoto',
+  video: 'PxgMediaVideo',
+  round: 'PxgMediaRound',
+  gif: 'PxgMediaGif',
+  sticker: 'PxgMediaSticker',
+  voice: 'PxgMediaVoice',
+  audio: 'PxgMediaAudio',
+  poll: 'PxgMediaPoll',
+  geo: 'PxgMediaGeo',
+  geo_live: 'PxgMediaGeo',
+  venue: 'PxgMediaGeo',
+  contact: 'PxgMediaContact',
+};
+
+/** «Фото», «Стикер», «Голосовое»… — для цитаты в ответе и вложений, которых нет в архиве */
+export function mediaLabel(lang: LangFn, message: MessageDto) {
+  const key = MEDIA_LABELS[message.media?.kind ?? ''] ?? 'PxgMediaDocument';
+  return (lang as unknown as (k: string) => string)(key);
 }

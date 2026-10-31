@@ -63,10 +63,12 @@ export interface MessageDto {
   editDate: string | null;
   text: string;
   entities: unknown[];
-  media: { type?: string; key?: string; fileName?: string; mimeType?: string } | null;
-  replyTo: { msgId?: number } | null;
+  media: MediaSummaryDto | null;
+  /** Заголовок ответа в виде TL (messageReplyHeader) */
+  replyTo: { replyToMsgId?: number; quoteText?: string } | null;
   fwdFrom: unknown;
-  reactions: unknown;
+  /** Реакции в виде TL (messageReactions) */
+  reactions: { results?: ReactionCountDto[] } | null;
   groupedId: string | null;
   isOutgoing: boolean;
   isPost: boolean;
@@ -76,6 +78,25 @@ export interface MessageDto {
   changeSeq: string;
   deleted: { at: string; reason: 'delegate' | 'external' } | null;
   sentByUserId: string | null;
+  /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
+  senderName?: string | null;
+}
+
+/** Краткое описание вложения из архива (packages/tg, summarizeMedia) */
+export interface MediaSummaryDto {
+  kind: string;
+  key: string;
+  mimeType?: string;
+  size?: number;
+  fileName?: string;
+  flags?: string[];
+}
+
+export interface ReactionCountDto {
+  reaction: { _: string; emoticon?: string; documentId?: string };
+  count: number;
+  /** Есть — значит, эту реакцию поставил владелец аккаунта */
+  chosenOrder?: number;
 }
 
 export interface MessageVersionDto {
@@ -121,9 +142,20 @@ export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'share
 export type ServerEvent =
   | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }
   | { e: 'access.changed'; d: Record<string, never> }
-  | { e: 'outbox.done'; d: { id: string; status: 'done' | 'failed'; error: string | null; peerId: number } }
+  | { e: 'outbox.done'; d: OutboxDoneDto }
   | { e: 'admin.changed'; d: { topics: AdminTopic[] } }
   | { e: 'session.revoked'; d: Record<string, never> };
+
+/** Итог действия из очереди сервера; приходит только тому, кто его запросил */
+export interface OutboxDoneDto {
+  id: string;
+  kind: 'send' | 'edit' | 'delete' | 'react' | 'read' | 'typing' | 'history';
+  status: 'done' | 'failed';
+  /** history: { imported, complete } */
+  result: unknown;
+  error: string | null;
+  peerId: number;
+}
 
 export class PxgError extends Error {
   readonly code: string;

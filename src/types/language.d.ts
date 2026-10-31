@@ -3535,6 +3535,25 @@ export interface LangPair {
   'PxgShareStatusPaused': undefined;
   'PxgShareStatusRevoked': undefined;
   'PxgShareStatusLost': undefined;
+  'PxgGuestLoadingHistory': undefined;
+  'PxgGuestHistoryStart': undefined;
+  'PxgGuestToday': undefined;
+  'PxgGuestYesterday': undefined;
+  'PxgGuestUnknownSender': undefined;
+  'PxgGuestOwner': undefined;
+  'PxgGuestReplyTo': undefined;
+  'PxgGuestSentByGuest': undefined;
+  'PxgMediaPhoto': undefined;
+  'PxgMediaVideo': undefined;
+  'PxgMediaRound': undefined;
+  'PxgMediaGif': undefined;
+  'PxgMediaSticker': undefined;
+  'PxgMediaVoice': undefined;
+  'PxgMediaAudio': undefined;
+  'PxgMediaPoll': undefined;
+  'PxgMediaGeo': undefined;
+  'PxgMediaContact': undefined;
+  'PxgMediaDocument': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

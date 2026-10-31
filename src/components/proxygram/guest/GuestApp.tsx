@@ -1,13 +1,12 @@
-import type { KeyboardEvent } from 'react';
-import { memo, useEffect, useMemo, useRef, useState } from '../../../lib/teact/teact';
+import { memo, useEffect, useMemo, useState } from '../../../lib/teact/teact';
 
-import type { AccessChat, MessageDto } from '../../../proxygram/server/types';
+import type { AccessChat } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { signOutPxg } from '../../../proxygram/server/session';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
-import { describePxgError, formatTime } from '../helpers';
+import { describePxgError } from '../helpers';
 
 import useLang from '../../../hooks/useLang';
 
@@ -16,11 +15,9 @@ import DropdownMenu from '../../ui/DropdownMenu';
 import MenuItem from '../../ui/MenuItem';
 import AdminPanel from '../admin/AdminPanel';
 import PxgAvatar from '../PxgAvatar';
-import GuestMedia from './GuestMedia';
+import GuestChat from './GuestChat';
 
 import styles from './GuestApp.module.scss';
-
-const PAGE_SIZE = 50;
 
 const chatKey = (chat: { accountId: string; peerId: number }) => `${chat.accountId}:${chat.peerId}`;
 
@@ -151,218 +148,5 @@ const GuestApp = () => {
     </div>
   );
 };
-
-type ChatProps = {
-  chat: AccessChat;
-  onBack: NoneToVoidFunction;
-};
-
-const GuestChat = memo(({ chat, onBack }: ChatProps) => {
-  const lang = useLang();
-  const [messages, setMessages] = useState<MessageDto[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string>();
-  const [isNoticeShown, setIsNoticeShown] = useState(() => !localStorage.getItem('pxg-write-notice-seen'));
-  const listRef = useRef<HTMLDivElement>();
-  const lastReadRef = useRef(0);
-  const { accountId, peerId, permissions } = chat;
-
-  const merge = (incoming: MessageDto[]) => {
-    setMessages((current) => {
-      const byId = new Map(current.map((message) => [message.msgId, message]));
-      incoming.forEach((message) => byId.set(message.msgId, message));
-      return [...byId.values()].sort((a, b) => a.msgId - b.msgId);
-    });
-  };
-
-  const loadLatest = async () => {
-    const page = await pxgRpc.call<MessageDto[]>('messages.history', { accountId, peerId, limit: PAGE_SIZE });
-    merge(page);
-    return page;
-  };
-
-  useEffect(() => {
-    setIsLoading(true);
-    loadLatest()
-      .then((page) => {
-        setHasMore(page.length === PAGE_SIZE);
-        requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }));
-      })
-      .catch((err) => setError(describePxgError(lang, err)))
-      .finally(() => setIsLoading(false));
-
-    // новое, правка, удаление в этом чате — подтягиваем свежую страницу
-    return pxgRpc.on((event) => {
-      if (event.e === 'archive.change' && event.d.accountId === accountId && event.d.peerId === peerId) {
-        const list = listRef.current;
-        const isAtBottom = list ? list.scrollHeight - list.scrollTop - list.clientHeight < 80 : true;
-        void loadLatest().then(() => {
-          if (isAtBottom) requestAnimationFrame(() => list?.scrollTo({ top: list.scrollHeight, behavior: 'smooth' }));
-        });
-      }
-      if (event.e === 'outbox.done' && event.d.peerId === peerId && event.d.status === 'failed') {
-        setError(event.d.error ?? lang('PxgErrorGeneric'));
-      }
-    });
-    // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
-  }, [accountId, peerId]);
-
-  // прочтение отмечается от имени владельца — как и задумано (PLAN.md, 19.8)
-  useEffect(() => {
-    const maxId = messages.at(-1)?.msgId ?? 0;
-    if (!permissions.markRead || maxId <= lastReadRef.current || document.visibilityState !== 'visible') return;
-    lastReadRef.current = maxId;
-    void pxgRpc.call('messages.read', { accountId, peerId, maxId }).catch(() => undefined);
-  }, [accountId, messages, peerId, permissions.markRead]);
-
-  const loadOlder = async () => {
-    const oldest = messages[0]?.msgId;
-    if (!oldest || isLoading) return;
-    setIsLoading(true);
-    const list = listRef.current;
-    const fromBottom = list ? list.scrollHeight - list.scrollTop : 0;
-    try {
-      const page = await pxgRpc.call<MessageDto[]>('messages.history', {
-        accountId, peerId, beforeMsgId: oldest, limit: PAGE_SIZE,
-      });
-      merge(page);
-      setHasMore(page.length === PAGE_SIZE);
-      requestAnimationFrame(() => list?.scrollTo({ top: list.scrollHeight - fromBottom }));
-    } catch (err) {
-      setError(describePxgError(lang, err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const send = async () => {
-    const text = draft.trim();
-    if (!text) return;
-    setDraft('');
-    setError(undefined);
-    try {
-      await pxgRpc.call('messages.send', { accountId, peerId, text });
-    } catch (err) {
-      setDraft(text);
-      setError(describePxgError(lang, err));
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void send();
-    }
-  };
-
-  const dismissNotice = () => {
-    localStorage.setItem('pxg-write-notice-seen', '1');
-    setIsNoticeShown(false);
-  };
-
-  return (
-    <div className={styles.chat}>
-      <header className={styles.chatHeader}>
-        <Button
-          round
-          size="smaller"
-          color="translucent"
-          iconName="arrow-left"
-          className={styles.backButton}
-          onClick={onBack}
-          ariaLabel={lang('PxgGuestBack')}
-        />
-        <PxgAvatar seed={`${accountId}:${peerId}`} title={chat.title} size={42} isProxy />
-        <div className={styles.headerTitle}>
-          <h3>{chat.title ?? lang('PxgGuestUnknownChat')}</h3>
-          <span className={styles.subtitle}>{lang('PxgGuestViaProxy')}</span>
-        </div>
-      </header>
-
-      <div ref={listRef} className={buildClassName(styles.messages, 'custom-scroll')}>
-        {hasMore && messages.length > 0 && (
-          <div className={styles.loadMore}>
-            <Button size="smaller" color="translucent" pill fluid={false} isLoading={isLoading} onClick={loadOlder}>
-              {lang('PxgGuestLoadOlder')}
-            </Button>
-          </div>
-        )}
-        {!isLoading && messages.length === 0 && <p className={styles.empty}>{lang('PxgGuestNoMessages')}</p>}
-        {messages.map((message) => (
-          <GuestMessage key={message.msgId} message={message} chat={chat} />
-        ))}
-      </div>
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      {permissions.write ? (
-        <footer className={styles.composer}>
-          {isNoticeShown && (
-            <div className={styles.notice}>
-              <span className={styles.noticeText}>{lang('PxgGuestWriteNotice')}</span>
-              <Button
-                size="tiny"
-                color="translucent"
-                isText
-                fluid
-                className={styles.noticeButton}
-                onClick={dismissNotice}
-              >
-                {lang('PxgGuestNoticeOk')}
-              </Button>
-            </div>
-          )}
-          <div className={styles.inputRow}>
-            <textarea
-              className={styles.input}
-              rows={1}
-              value={draft}
-              placeholder={lang('PxgGuestMessagePlaceholder')}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <Button
-              round
-              color="secondary"
-              iconName="send"
-              disabled={!draft.trim()}
-              onClick={() => void send()}
-              ariaLabel={lang('PxgGuestSend')}
-            />
-          </div>
-        </footer>
-      ) : (
-        <footer className={styles.readOnly}>{lang('PxgGuestReadOnly')}</footer>
-      )}
-    </div>
-  );
-});
-
-const GuestMessage = memo(({ message, chat }: { message: MessageDto; chat: AccessChat }) => {
-  const lang = useLang();
-
-  if (message.isService) {
-    return <div className={styles.service}>{message.text || lang('PxgGuestServiceMessage')}</div>;
-  }
-
-  return (
-    <div className={buildClassName(styles.messageRow, message.isOutgoing && styles.outgoing)}>
-      <div className={buildClassName(styles.bubble, message.deleted && styles.deleted)}>
-        {message.media && (
-          <GuestMedia message={message} canDownload={chat.permissions.download} />
-        )}
-        {message.text && <div className={styles.text}>{message.text}</div>}
-        <div className={styles.meta}>
-          {message.deleted && <span className={styles.deletedMark}>{lang('PxgDeleted')}</span>}
-          {message.editDate && !message.deleted && <span>{lang('PxgGuestEdited')}</span>}
-          {message.sentByUserId && <span>✍</span>}
-          <span>{formatTime(message.date)}</span>
-        </div>
-      </div>
-    </div>
-  );
-});
 
 export default memo(GuestApp);
