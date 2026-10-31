@@ -58,3 +58,6 @@ export * from './misc';
 
 export * from './wallet';
 export * from './tonConnect';
+
+// PXG: вход сервера по токену, SRP и Start у бота Proxygram
+export * from './proxygram';

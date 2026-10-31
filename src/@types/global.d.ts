@@ -17,6 +17,8 @@ interface ImportMetaEnv {
   readonly TG_TELEGRAM_API_HASH?: string;
   readonly TG_TELEGRAM_API_ID?: string;
   readonly TG_TEST_SESSION?: string;
+  // PXG: адрес сервера Proxygram; по умолчанию /pxg на том же origin
+  readonly TG_PXG_SERVER_URL?: string;
 }
 
 declare namespace React {

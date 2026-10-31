@@ -182,6 +182,7 @@ export default defineConfig(({ mode }): UserConfig => {
     TG_TELEGRAM_API_ID: telegramApiId,
     TG_TELEGRAM_API_HASH: telegramApiHash,
     TG_TEST_SESSION: env.TEST_SESSION || '',
+    TG_PXG_SERVER_URL: env.PXG_SERVER_URL || '', // PXG
   });
 
   return {
@@ -212,6 +213,15 @@ export default defineConfig(({ mode }): UserConfig => {
         'Service-Worker-Allowed': '/',
       },
       https: getHttpsConfig(httpsCertPath, httpsKeyPath),
+      // PXG: сервер Proxygram (gateway) на том же origin — без CORS; WebSocket тоже
+      proxy: {
+        '/pxg': {
+          target: env.PXG_GATEWAY_URL || 'http://127.0.0.1:8080',
+          changeOrigin: true,
+          ws: true,
+          rewrite: (path) => path.replace(/^\/pxg/, ''),
+        },
+      },
       warmup: {
         clientFiles: DEV_BUNDLE_WARMUP_CLIENT_FILES,
       },
