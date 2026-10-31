@@ -1,10 +1,13 @@
-import { memo, useMemo, useState } from '../../lib/teact/teact';
+import { memo, useEffect, useMemo, useState } from '../../lib/teact/teact';
 
-import type { ApiMessage } from '../../api/types';
+import type { ApiMessage, PxgEditVersion } from '../../api/types';
+import type { MessageVersionDto } from '../../proxygram/server/types';
 
 import buildClassName from '../../util/buildClassName';
 import { formatDateTime, secondsToDate } from '../../util/localization/dateFormat';
 import { diffWords } from '../../proxygram/archive/editHistory';
+import { getOwnAccountId } from '../../proxygram/server/ownAccount';
+import { pxgRpc } from '../../proxygram/server/rpc';
 import renderText from '../common/helpers/renderText';
 
 import useLang from '../../hooks/useLang';
@@ -31,9 +34,27 @@ type VersionView = {
 const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
   const lang = useLang();
   const [shouldShowDiff, setShouldShowDiff] = useState(true);
+  // Устройство правку не застало (было закрыто) — берём версии из серверного архива своего аккаунта
+  const [serverHistory, setServerHistory] = useState<PxgEditVersion[]>();
+  const localHistory = message.pxgEditHistory;
+
+  useEffect(() => {
+    if (!isOpen || localHistory?.length || !message.isEdited) return;
+    const accountId = getOwnAccountId();
+    if (!accountId) return;
+    pxgRpc.call<MessageVersionDto[]>('archive.versions', {
+      accountId, peerId: Number(message.chatId), msgId: message.id,
+    })
+      .then((rows) => setServerHistory(rows.map((row) => ({
+        text: { text: row.text },
+        date: row.editDate ? Math.floor(Date.parse(row.editDate) / 1000) : message.date,
+        capturedAt: Math.floor(Date.parse(row.capturedAt) / 1000),
+      }))))
+      .catch(() => undefined);
+  }, [isOpen, localHistory, message.chatId, message.date, message.id, message.isEdited]);
 
   const versions = useMemo(() => {
-    const history = message.pxgEditHistory ?? [];
+    const history = localHistory?.length ? localHistory : serverHistory ?? [];
     const texts = [...history.map((version) => version.text?.text ?? ''), message.content.text?.text ?? ''];
     const dates = [...history.map((version) => version.date), message.editDate ?? message.date];
 
@@ -47,9 +68,9 @@ const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
       text,
       previousText: index > 0 ? texts[index - 1] : undefined,
     })).reverse();
-  }, [lang, message]);
+  }, [lang, localHistory, message, serverHistory]);
 
-  const hasLostVersions = message.isEdited && !message.pxgEditHistory?.length;
+  const hasLostVersions = message.isEdited && !localHistory?.length && !serverHistory?.length;
 
   return (
     <Modal isOpen={isOpen} title={lang('PxgEditHistoryTitle')} hasCloseButton onClose={onClose}>

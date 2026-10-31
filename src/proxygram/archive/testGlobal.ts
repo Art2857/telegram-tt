@@ -1,7 +1,12 @@
 import type { ApiChat, ApiMessage } from '../../api/types';
 import type { GlobalState } from '../../global/types';
+import type { Thread } from '../../types';
+import { MAIN_THREAD_ID } from '../../api/types';
 
-import { INITIAL_GLOBAL_STATE } from '../../global/initialState';
+import { INITIAL_GLOBAL_STATE, INITIAL_TAB_STATE } from '../../global/initialState';
+
+/** Вкладка, от имени которой тесты читают и пишут состояние ленты */
+export const TEST_TAB_ID = 1;
 
 // Минимальное глобальное состояние для тестов модулей архива
 
@@ -26,7 +31,11 @@ export function buildGlobal(messages: ApiMessage[]): GlobalState {
   };
   const byChatId: GlobalState['messages']['byChatId'] = {};
   messages.forEach((message) => {
-    byChatId[message.chatId] ??= { byId: {}, threadsById: {} } as GlobalState['messages']['byChatId'][string];
+    // основной поток есть у любого открытого чата — без него Web A не меняет списки сообщений
+    byChatId[message.chatId] ??= {
+      byId: {},
+      threadsById: { [MAIN_THREAD_ID]: { localState: {} } as Thread },
+    } as unknown as GlobalState['messages']['byChatId'][string];
     byChatId[message.chatId].byId[message.id] = message;
   });
 
@@ -34,5 +43,6 @@ export function buildGlobal(messages: ApiMessage[]): GlobalState {
     ...INITIAL_GLOBAL_STATE,
     chats: { ...INITIAL_GLOBAL_STATE.chats, byId: chats },
     messages: { ...INITIAL_GLOBAL_STATE.messages, byChatId },
+    byTabId: { [TEST_TAB_ID]: { ...INITIAL_TAB_STATE, id: TEST_TAB_ID } },
   };
 }
