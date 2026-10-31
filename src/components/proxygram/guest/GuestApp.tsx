@@ -21,11 +21,20 @@ import styles from './GuestApp.module.scss';
 
 const chatKey = (chat: { accountId: string; peerId: number }) => `${chat.accountId}:${chat.peerId}`;
 
+type OwnProps = {
+  /**
+   * Открыт поверх полного клиента («Открыто мне»): вместо меню выхода — кнопка «Закрыть»,
+   * админку и выход держит сам полный клиент.
+   */
+  onClose?: NoneToVoidFunction;
+};
+
 /**
  * Режим гостя: только чаты, открытые этому человеку, через сервер (PLAN.md, 7.7–7.8).
- * Сессии Telegram на устройстве нет — всё идёт через WebSocket RPC.
+ * Сессии Telegram на устройстве нет — всё идёт через WebSocket RPC. Тот же экран открывается
+ * и поверх полного клиента — для чатов, которые открыли этому человеку другие.
  */
-const GuestApp = () => {
+const GuestApp = ({ onClose }: OwnProps) => {
   const lang = useLang();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -73,36 +82,49 @@ const GuestApp = () => {
   const username = session?.user.username;
 
   return (
-    <div className={styles.root}>
+    <div className={buildClassName(styles.root, onClose && styles.overlay)}>
       <aside className={buildClassName(styles.sidebar, activeChat && styles.sidebarHidden)}>
         <header className={styles.sidebarHeader}>
-          <DropdownMenu
-            trigger={({ onTrigger, isOpen }) => (
-              <Button
-                round
-                size="smaller"
-                color="translucent"
-                iconName="hamburger"
-                onClick={onTrigger}
-                className={isOpen ? 'active' : undefined}
-                ariaLabel={lang('PxgGuestMenu')}
-              />
-            )}
-          >
-            {isAdmin && (
-              <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
-                {lang('PxgAdminTitle')}
-              </MenuItem>
-            )}
-            <MenuItem icon="key" onClick={signInWithTelegram}>{lang('PxgAuthTelegram')}</MenuItem>
-            <MenuItem icon="logout" destructive onClick={signOutPxg}>{lang('PxgSignOut')}</MenuItem>
-          </DropdownMenu>
+          {onClose ? (
+            <Button
+              round
+              size="smaller"
+              color="translucent"
+              iconName="close"
+              onClick={onClose}
+              ariaLabel={lang('Close')}
+            />
+          ) : (
+            <DropdownMenu
+              trigger={({ onTrigger, isOpen }) => (
+                <Button
+                  round
+                  size="smaller"
+                  color="translucent"
+                  iconName="hamburger"
+                  onClick={onTrigger}
+                  className={isOpen ? 'active' : undefined}
+                  ariaLabel={lang('PxgGuestMenu')}
+                />
+              )}
+            >
+              {isAdmin && (
+                <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
+                  {lang('PxgAdminTitle')}
+                </MenuItem>
+              )}
+              <MenuItem icon="key" onClick={signInWithTelegram}>{lang('PxgAuthTelegram')}</MenuItem>
+              <MenuItem icon="logout" destructive onClick={signOutPxg}>{lang('PxgSignOut')}</MenuItem>
+            </DropdownMenu>
+          )}
           <div className={styles.headerTitle}>
             <h3>{lang('PxgGuestChatsTitle')}</h3>
             <span className={styles.subtitle}>
-              {connection === 'online'
-                ? lang('PxgGuestSignedInAs', { name: username ? `@${username}` : session?.user.firstName ?? '' })
-                : lang('PxgGuestConnecting')}
+              {connection !== 'online'
+                ? lang('PxgGuestConnecting')
+                : onClose
+                  ? lang('PxgSharedWithMeHint')
+                  : lang('PxgGuestSignedInAs', { name: username ? `@${username}` : session?.user.firstName ?? '' })}
             </span>
           </div>
         </header>
@@ -110,7 +132,9 @@ const GuestApp = () => {
         <div className={buildClassName(styles.chatList, 'custom-scroll')}>
           {error && <p className={styles.empty}>{error}</p>}
           {chats?.length === 0 && (
-            <p className={styles.empty}>{lang('PxgGuestNoChats', { username: username ?? '' })}</p>
+            <p className={styles.empty}>
+              {username ? lang('PxgGuestNoChats', { username }) : lang('PxgGuestNoChatsNoUsername')}
+            </p>
           )}
           {chats?.map((chat) => {
             const key = chatKey(chat);
@@ -144,7 +168,7 @@ const GuestApp = () => {
         )}
       </main>
 
-      {isAdminOpen && <AdminPanel />}
+      {isAdminOpen && !onClose && <AdminPanel />}
     </div>
   );
 };

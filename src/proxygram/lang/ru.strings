@@ -211,3 +211,6 @@
 "PxgGuestUploading" = "Загрузка… {percent}%";
 "PxgGuestFileTooLarge" = "Файл больше 50 МБ";
 "PxgGuestCaptionPlaceholder" = "Подпись";
+"PxgSharedWithMe" = "Открыто мне";
+"PxgSharedWithMeHint" = "Чаты, которые вам открыли другие";
+"PxgGuestNoChatsNoUsername" = "Вам пока ничего не открыли. Попросите владельца поделиться чатом с вами.";

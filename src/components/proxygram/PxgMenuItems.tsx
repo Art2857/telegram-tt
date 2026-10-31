@@ -11,11 +11,16 @@ const PxgMenuItems = () => {
   const lang = useLang();
   const session = usePxgState((state) => state.session);
   const isSharing = usePxgState((state) => state.accounts?.some((account) => account.status === 'active'));
+  const sharedCount = usePxgState((state) => state.sharedCount);
 
   if (!session) return undefined;
 
   return (
     <>
+      <MenuItem icon="folder" onClick={() => setPxgState({ isSharedOpen: true })}>
+        <span className="menu-item-name">{lang('PxgSharedWithMe')}</span>
+        {Boolean(sharedCount) && <div className="right-badge">{sharedCount}</div>}
+      </MenuItem>
       <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
         <span className="menu-item-name">{lang('PxgMenuSharing')}</span>
         {isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}

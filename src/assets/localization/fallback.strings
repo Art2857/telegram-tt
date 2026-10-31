@@ -4724,3 +4724,6 @@
 "PxgGuestUploading" = "Uploading… {percent}%";
 "PxgGuestFileTooLarge" = "The file is larger than 50 MB";
 "PxgGuestCaptionPlaceholder" = "Caption";
+"PxgSharedWithMe" = "Shared with me";
+"PxgSharedWithMeHint" = "Chats other people opened for you";
+"PxgGuestNoChatsNoUsername" = "Nobody has shared a chat with you yet. Ask the owner to share one with you.";

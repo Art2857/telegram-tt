@@ -3565,6 +3565,9 @@ export interface LangPair {
   'PxgGuestRemoveAttachment': undefined;
   'PxgGuestFileTooLarge': undefined;
   'PxgGuestCaptionPlaceholder': undefined;
+  'PxgSharedWithMe': undefined;
+  'PxgSharedWithMeHint': undefined;
+  'PxgGuestNoChatsNoUsername': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

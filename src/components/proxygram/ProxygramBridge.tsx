@@ -11,6 +11,7 @@ import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/st
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
+import GuestApp from './guest/GuestApp';
 import ShareChatModal from './ShareChatModal';
 import TombstonesLoader from './TombstonesLoader';
 
@@ -37,6 +38,7 @@ const ProxygramBridge = ({ currentUserId }: StateProps) => {
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const shareChatId = usePxgState((state) => state.shareChatId);
+  const isSharedOpen = usePxgState((state) => state.isSharedOpen);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
   const ownAccountId = usePxgState((state) => state.accounts?.find(
     (account) => String(account.tgUserId) === currentUserId,
@@ -79,8 +81,21 @@ const ProxygramBridge = ({ currentUserId }: StateProps) => {
     }).catch(() => undefined);
   }, [connection, currentUserId, hasOwnSession]);
 
+  // Сколько чатов открыли этому человеку — для пункта меню «Открыто мне»; доступ выдали или отозвали — пересчёт
+  useEffect(() => {
+    if (!hasOwnSession || connection !== 'online') return undefined;
+    const count = () => pxgRpc.call<unknown[]>('access.chats')
+      .then((chats) => setPxgState({ sharedCount: chats.length }))
+      .catch(() => undefined);
+    void count();
+    return pxgRpc.on((event) => {
+      if (event.e === 'access.changed') void count();
+    });
+  }, [connection, hasOwnSession]);
+
   return (
     <>
+      {isSharedOpen && hasOwnSession && <GuestApp onClose={() => setPxgState({ isSharedOpen: false })} />}
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
       {isConnectOpen && <ConnectServerModal />}
       {shareChatId && <ShareChatModal chatId={shareChatId} />}
