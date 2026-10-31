@@ -11,8 +11,9 @@ const PACKS: Record<string, LangPack['strings']> = {
 
 const KEY_PREFIX = 'Pxg';
 
-export function getProxygramString(langKey: string, langCode: string | undefined) {
-  if (!langCode || !langKey.startsWith(KEY_PREFIX)) return undefined;
+export function getProxygramString(langKey: string | undefined, langCode: string | undefined) {
+  // Web A местами зовёт lang() без ключа (например, `titleKey` у служебных чатов) — это не ошибка
+  if (!langCode || typeof langKey !== 'string' || !langKey.startsWith(KEY_PREFIX)) return undefined;
 
   return PACKS[langCode.split('-')[0]]?.[langKey];
 }
