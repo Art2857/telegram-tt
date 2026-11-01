@@ -80,19 +80,13 @@ export async function downloadMedia(
       signed = await pxgRpc.call(...request);
       break;
     } catch (err) {
+      // A document without a Telegram thumbnail gets an empty preview, so Web A keeps the emoji fallback
+      if (catalog?.isThumbnail && err instanceof PxgError && err.code === 'not_found') return buildEmptyPreview();
       if (!(err instanceof PxgError) || err.code !== 'media_pending' || attempt === MEDIA_WAIT_ATTEMPTS - 1) throw err;
       await pause(MEDIA_WAIT_INTERVAL_MS);
     }
   }
   if (!signed) return undefined;
-  // Owner's catalog has no separate thumbnails: a static sticker is its own preview
-  if (catalog?.isThumbnail && !signed.mimeType.startsWith('image/')) {
-    const bytes = Uint8Array.from(atob(EMPTY_THUMBNAIL), (char) => char.charCodeAt(0));
-    return {
-      dataBlob: new Blob([bytes], { type: 'image/png' }), arrayBuffer: undefined, mimeType: 'image/png',
-      fullSize: bytes.length,
-    };
-  }
   const headers: Record<string, string> = {};
   if (start !== undefined || end !== undefined) {
     headers.Range = `bytes=${start || 0}-${end ?? ''}`;
@@ -112,13 +106,22 @@ export async function downloadMedia(
   };
 }
 
+function buildEmptyPreview() {
+  const bytes = Uint8Array.from(atob(EMPTY_THUMBNAIL), (char) => char.charCodeAt(0));
+  const preview = new Blob([bytes], { type: 'image/png' });
+  return { dataBlob: preview, arrayBuffer: undefined, mimeType: 'image/png', fullSize: preview.size };
+}
+
 /** Message files and owner's stickers are tied to the session that built their IDs; avatars are tied to a peer */
 function buildMediaRequest(
   url: string, userId: string, catalog: ReturnType<typeof parseProxyCatalogHash>,
 ): [string, Record<string, unknown>] | undefined {
   if (catalog) {
     if (catalog.userId !== userId) return undefined;
-    return ['stickers.url', { accountId: catalog.accountId, documentId: catalog.documentId }];
+    // The preview is the document's own Telegram thumbnail, as in the official client
+    return ['stickers.url', {
+      accountId: catalog.accountId, documentId: catalog.documentId, thumb: catalog.isThumbnail || undefined,
+    }];
   }
   const message = parseProxyMediaHash(url);
   if (message) {
