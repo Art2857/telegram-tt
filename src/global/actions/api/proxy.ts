@@ -1,17 +1,20 @@
-import type { ChatUnreadDto } from '../../../proxygram/server/types';
+import type { ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
 import type { ActionReturnType } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
+import { MAIN_THREAD_ID } from '../../../api/types';
 import { LoadMoreDirection } from '../../../types';
 
+import { ARCHIVED_FOLDER_ID } from '../../../config';
 import { buildCollectionByKey } from '../../../util/iteratees';
 import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
-import { emitProxyUpdate, getProxyPeerId, setProxyUpdateHandler } from '../../../api/proxy';
+import { emitProxyUpdate, getProxyPeerId, isProxyGuest, setProxyUpdateHandler } from '../../../api/proxy';
 import { buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
 import { buildProxyReadStates, fetchProxyChats } from '../../../api/proxy/methods';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
+import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE } from '../../initialState';
 import {
@@ -21,7 +24,9 @@ import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import { updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
-import { selectChatMessage, selectCurrentMessageList } from '../../selectors';
+import {
+  selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException,
+} from '../../selectors';
 
 let loadGeneration = 0;
 
@@ -102,7 +107,23 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
     global = updateChats(global, buildCollectionByKey(result.chats, 'id'));
     global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
     global = replaceMessages(global, result.messages);
-    global = addChatListIds(global, 'active', result.chatIds);
+    const archivedIds = new Set(result.archivedChatIds);
+    global = addChatListIds(global, 'active', result.chatIds.filter((id) => !archivedIds.has(id)));
+    global = addChatListIds(global, 'archived', result.archivedChatIds);
+    if (isProxyGuest()) {
+      // A guest slot has only shared chats, so the pinned order is entirely the guest's own
+      global = {
+        ...global,
+        chats: {
+          ...global.chats,
+          orderedPinnedIds: {
+            ...global.chats.orderedPinnedIds,
+            active: result.pinnedChatIds.filter((id) => !archivedIds.has(id)),
+            archived: result.pinnedChatIds.filter((id) => archivedIds.has(id)),
+          },
+        },
+      };
+    }
     global = updateChatsLastMessageId(global, result.lastMessageByChatId);
     // Mutes of shared chats are stored by the server for every device of the guest
     global = addNotifyExceptions(global, Object.fromEntries(result.chatIds.map((id) => [
@@ -110,6 +131,14 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
     ])));
     result.threadInfos.forEach((info) => {
       global = updateThreadInfo(global, info);
+    });
+    // An open forum topic needs its thread before the feed arrives: Web A drops listed IDs of an unknown thread,
+    // and the topics themselves are loaded later by the forum panel
+    Object.values(global.byTabId).forEach(({ id: tabId }) => {
+      const list = selectCurrentMessageList(global, tabId);
+      const chat = list && global.chats.byId[list.chatId];
+      if (!chat?.pxgProxy || !chat.isForum || list!.threadId === MAIN_THREAD_ID) return;
+      global = updateThreadInfo(global, { chatId: chat.id, threadId: list!.threadId, isCommentsInfo: false });
     });
     global = updateMainThreadReadStates(global, result.threadReadStatesById);
     global = updateProxyFolder(global);
@@ -156,9 +185,30 @@ addActionHandler('refreshProxyMessage', async (global, actions, { accountId, pee
     actions.apiUpdate(current ? {
       '@type': 'updateMessage', id: msgId, chatId: id, message: { ...result.message, isDeleting: false }, isFull: true,
     } : { '@type': 'newMessage', id: msgId, chatId: id, message: result.message });
+    // As in Telegram, a new incoming message brings an unmuted chat back from the archive
+    global = getGlobal();
+    const updatedChat = global.chats.byId[id];
+    if (!current && !result.message.isOutgoing && updatedChat?.folderId === ARCHIVED_FOLDER_ID
+      && !getIsChatMuted(updatedChat, selectNotifyDefaults(global), selectNotifyException(global, id))) {
+      void callApi('toggleChatArchived', { chat: updatedChat, folderId: 0 });
+    }
   } catch {
     // Reconnect reloads proxy history with a fresh access check
   }
+});
+
+/** Another device of the guest muted, pinned or archived a shared chat */
+addActionHandler('applyProxyChatState', (global, actions, state: ChatStateDto): ActionReturnType => {
+  const id = getProxyPeerId(state.accountId, state.peerId);
+  const chat = global.chats.byId[id];
+  if (!chat?.pxgProxy || !isProxyGuest()) return;
+  const folderId = state.archivedAt ? ARCHIVED_FOLDER_ID : 0;
+  emitProxyUpdate({ '@type': 'updateChatNotifySettings', chatId: id, settings: { mutedUntil: state.mutedUntil || 0 } });
+  if ((chat.folderId || 0) !== folderId) {
+    emitProxyUpdate({ '@type': 'updateChatPinned', id, isPinned: false });
+    emitProxyUpdate({ '@type': 'updateChatListType', id, folderId });
+  }
+  emitProxyUpdate({ '@type': 'updateChatPinned', id, isPinned: Boolean(state.pinnedAt) });
 });
 
 /** Another device of the guest read a chat or a topic: the counters come from the server again */

@@ -57,7 +57,14 @@ export interface AccessChat {
   restricted: AccessRestriction | null;
   /** Гость заглушил чат у себя, unix-секунды */
   mutedUntil: number | null;
+  /** Закреплён в списке гостя (позже закреплённый — выше), unix-секунды */
+  pinnedAt: number | null;
+  /** В архиве списка гостя, unix-секунды */
+  archivedAt: number | null;
 }
+
+/** Своё место чата в списке гостя; приходит в ответ на chats.mute/pin/archive и событием chats.state */
+export type ChatStateDto = Pick<AccessChat, 'accountId' | 'peerId' | 'mutedUntil' | 'pinnedAt' | 'archivedAt'>;
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
 
@@ -299,7 +306,8 @@ export type ServerEvent =
   | { e: 'session.revoked'; d: Record<string, never> }
   | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } }
   | { e: 'topics.changed'; d: { accountId: string; peerId: number } }
-  | { e: 'read.changed'; d: { accountId: string; peerId: number; topicId: number | null } };
+  | { e: 'read.changed'; d: { accountId: string; peerId: number; topicId: number | null } }
+  | { e: 'chats.state'; d: ChatStateDto };
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

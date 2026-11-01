@@ -4,7 +4,7 @@ import type { ApiMessage, ApiOnProgress } from '../types';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
-import { LOCAL_MESSAGES_LIMIT } from '../../config';
+import { ARCHIVED_FOLDER_ID, LOCAL_MESSAGES_LIMIT } from '../../config';
 import { getServerTime } from '../../util/serverTime';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
@@ -136,11 +136,25 @@ export async function markMessageListRead({
   chat, threadId, maxId,
 }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
-  // The server always keeps the guest's own counters and marks the chat read for the owner only with `markRead`
-  if (!peer || !maxId) return;
+  if (!peer) return;
   // A forum topic is read on its own, like `messages.readDiscussion` in Telegram
   const topicId = chat.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
-  await pxgRpc.call('messages.read', { ...peer, maxId, topicId }).catch(() => undefined);
+  // Without `maxId` the whole chat is read from the chat list, up to the latest message the guest can see
+  const readMaxId = maxId || (await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
+    ...peer, topicId, limit: 1,
+  }).catch(() => undefined))?.messages[0]?.msgId;
+  if (!readMaxId) return;
+  // The server always keeps the guest's own counters and marks the chat read for the owner only with `markRead`
+  const isRead = await pxgRpc.call('messages.read', { ...peer, maxId: readMaxId, topicId })
+    .then(() => true, () => false);
+  if (isRead && !maxId) {
+    emitProxyUpdate({
+      '@type': 'updateThreadReadState',
+      chatId: chat.id,
+      threadId,
+      readState: { unreadCount: 0, lastReadInboxMessageId: readMaxId },
+    });
+  }
 }
 
 export async function sendMessageAction({ peer: target, action }: MethodArgs<'sendMessageAction'>[0]) {
@@ -219,6 +233,33 @@ export async function updateChatNotifySettings({ chat, settings }: MethodArgs<'u
   if (!peer || settings.mutedUntil === undefined) return;
   emitProxyUpdate({ '@type': 'updateChatNotifySettings', chatId: chat.id, settings });
   await pxgRpc.call('chats.mute', { ...peer, mutedUntil: settings.mutedUntil }).catch(emitProxyError);
+}
+
+/** Pins and the archive belong to the guest's own chat list and are shared by all of their devices */
+export async function toggleChatPinned({ chat, shouldBePinned }: MethodArgs<'toggleChatPinned'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await pxgRpc.call('chats.pin', { ...peer, pinned: shouldBePinned });
+    emitProxyUpdate({ '@type': 'updateChatPinned', id: chat.id, isPinned: shouldBePinned });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** Moving between the list and the archive drops the pin: each list has its own pinned chats */
+export async function toggleChatArchived({ chat, folderId }: MethodArgs<'toggleChatArchived'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  try {
+    await pxgRpc.call('chats.archive', { ...peer, archived: folderId === ARCHIVED_FOLDER_ID });
+  } catch (err) {
+    emitProxyError(err);
+    return undefined;
+  }
+  emitProxyUpdate({ '@type': 'updateChatPinned', id: chat.id, isPinned: false });
+  emitProxyUpdate({ '@type': 'updateChatListType', id: chat.id, folderId });
+  return true as const;
 }
 
 function emitProxyError(err: unknown) {

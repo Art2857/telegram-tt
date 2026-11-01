@@ -82,6 +82,7 @@ import type { ApiCredentials } from '../../components/payment/PaymentModal';
 import type { FoldersActions } from '../../hooks/reducers/useFoldersReducer';
 import type { ReducerAction } from '../../hooks/useReducer';
 import type { P2pMessage } from '../../lib/vibecalls';
+import type { ChatStateDto } from '../../proxygram/server/types';
 import type {
   AccountSettings,
   AttachmentCompression,
@@ -146,6 +147,7 @@ export interface ActionPayloads {
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   refreshProxyUnread: { accountId: string; peerId: number; topicId: number | null };
+  applyProxyChatState: ChatStateDto;
   // system
   init: ({
     isMasterTab?: boolean;

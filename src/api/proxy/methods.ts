@@ -5,14 +5,14 @@ import type { ApiChat, ApiMessage, ApiPeer, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
 
-import { TOPICS_SLICE } from '../../config';
+import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
 import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
   buildProxyChat, buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser,
 } from './builders';
-import { emitProxyUpdate, getProxyPeerId, resolveProxyPeer } from './index';
+import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
 import {
@@ -21,7 +21,7 @@ import {
 } from './stickers';
 import {
   answerCallbackButton, deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage,
-  sendMessageAction, sendPollVote, sendReaction, updateChatNotifySettings,
+  sendMessageAction, sendPollVote, sendReaction, toggleChatArchived, toggleChatPinned, updateChatNotifySettings,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -51,6 +51,8 @@ const methods = {
   answerCallbackButton,
   sendPollVote,
   updateChatNotifySettings,
+  toggleChatPinned,
+  toggleChatArchived,
   sendReaction,
   markMessageListRead,
   sendMessageAction,
@@ -122,7 +124,12 @@ export async function fetchProxyChats() {
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
     })),
     threadReadStatesById: buildProxyReadStates(unread),
-    orderedPinnedIds: undefined,
+    archivedChatIds: chats.filter((chat) => chat.folderId === ARCHIVED_FOLDER_ID).map((chat) => chat.id),
+    // Pins belong to the guest's own list; the latest pinned chat goes first, as in Telegram
+    pinnedChatIds: isProxyGuest() ? access.map((item, index) => ({ id: chats[index].id, pinnedAt: item.pinnedAt }))
+      .filter((item) => item.pinnedAt)
+      .sort((a, b) => b.pinnedAt! - a.pinnedAt!)
+      .map((item) => item.id) : [],
     totalChatCount: chats.length,
     isFullyLoaded: true as const,
   };
@@ -135,8 +142,16 @@ export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, Th
   }]));
 }
 
+/** The main list and the archive are slices of the same accesses */
 async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {
-  return archived ? fetchEmptyChats() : fetchProxyChats();
+  const result = await fetchProxyChats();
+  if (!result) return undefined;
+  const archivedIds = new Set(result.archivedChatIds);
+  const isInList = (id: string) => archivedIds.has(id) === Boolean(archived);
+  const chatIds = result.chatIds.filter(isInList);
+  return {
+    ...result, chatIds, orderedPinnedIds: result.pinnedChatIds.filter(isInList), totalChatCount: chatIds.length,
+  };
 }
 
 async function fetchMessages({

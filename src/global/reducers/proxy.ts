@@ -18,6 +18,11 @@ export function clearProxyChats<T extends GlobalState>(global: T): T {
         active: global.chats.listIds.active?.filter(keepId),
         archived: global.chats.listIds.archived?.filter(keepId),
       },
+      orderedPinnedIds: {
+        ...global.chats.orderedPinnedIds,
+        active: global.chats.orderedPinnedIds.active?.filter(keepId),
+        archived: global.chats.orderedPinnedIds.archived?.filter(keepId),
+      },
       fullInfoById: Object.fromEntries(Object.entries(global.chats.fullInfoById).filter(([id]) => keepId(id))),
       // A topic access may have narrowed: the forum panel reloads the topics it is allowed to see
       topicsInfoById: Object.fromEntries(Object.entries(global.chats.topicsInfoById).filter(([id]) => keepId(id))),

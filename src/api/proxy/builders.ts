@@ -5,9 +5,10 @@ import type {
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
+import { ARCHIVED_FOLDER_ID } from '../../config';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
-import { getProxyPeerId } from './index';
+import { getProxyPeerId, isProxyGuest } from './index';
 import { buildProxyMedia } from './media';
 
 /** Telegram's blue topic icon, used when the topic has no color */
@@ -26,6 +27,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       : chat.type === 'channel' ? 'chatTypeChannel' : 'chatTypeSuperGroup',
     title: chat.title || chat.username || String(chat.peerId),
     avatarPhotoId: chat.photoId || undefined,
+    // The guest's own archive; a full login keeps shared chats in their local folder
+    folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
     isProtected: !chat.permissions.forwardOut,

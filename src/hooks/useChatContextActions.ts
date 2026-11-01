@@ -15,6 +15,7 @@ import { IS_TAURI } from '../util/browser/globalEnvironment';
 import { IS_OPEN_IN_NEW_TAB_SUPPORTED } from '../util/browser/windowEnvironment';
 import { isUserId } from '../util/entities/ids';
 import { buildCollectionByCallback, compact } from '../util/iteratees';
+import { isProxyPeerId } from '../api/proxy/ids';
 import useSelector, { useShallowSelector } from './data/useSelector';
 import useLang from './useLang';
 
@@ -192,15 +193,17 @@ const useChatContextActions = ({
         handler: handleMute,
       };
 
-    // PXG: In a shared chat only muting stays with the guest; everything else would act on the owner's account
-    if (chat.pxgProxy) return [actionMute];
+    // PXG: A shared chat offers only what stays with the viewer; everything else would act on the owner's account.
+    // A full login keeps shared chats in a local folder, a guest also manages their own list (see below)
+    const isGuestChat = Boolean(chat.pxgProxy && currentUserId && isProxyPeerId(currentUserId));
+    if (chat.pxgProxy && !isGuestChat) return [actionMute];
 
     // A community has no message history, so most chat actions do not apply
     if (isChatCommunity(chat)) {
       return compact([actionPin, actionMute]);
     }
 
-    if (isInSearch) {
+    if (isInSearch && !isGuestChat) {
       return compact([
         actionOpenInNewTab, actionQuickPreview, actionPin, actionAddToFolder, actionMute,
       ]);
@@ -229,6 +232,12 @@ const useChatContextActions = ({
     const actionArchive: MenuItemContextAction = isChatArchived(chat)
       ? { title: lang('Unarchive'), icon: 'unarchive', handler: () => toggleChatArchived({ id: chat.id }) }
       : { title: lang('Archive'), icon: 'archive', handler: () => toggleChatArchived({ id: chat.id }) };
+
+    if (isGuestChat) {
+      return compact([
+        actionMarkAsRead, !isInSearch && actionPin, actionMute, !isInSearch && folderId === undefined && actionArchive,
+      ]);
+    }
 
     const canReport = handleReport && !user && (isChatChannel(chat) || isChatGroup(chat));
     const actionReport = canReport
