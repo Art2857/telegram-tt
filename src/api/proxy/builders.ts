@@ -48,6 +48,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     pxgProxy: {
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
       restricted: chat.restricted || undefined,
+      providerName: chat.providerName || undefined,
     },
   };
 }

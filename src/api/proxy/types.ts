@@ -5,6 +5,8 @@ export type ProxyChatInfo = {
   peerId: number;
   permissions: Permissions;
   restricted?: AccessRestriction;
+  /** The owner's account the guest writes on behalf of */
+  providerName?: string;
 };
 
 export const PROXY_FOLDER_ID = -2;

@@ -55,6 +55,8 @@ export interface AccessChat {
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
   restricted: AccessRestriction | null;
+  /** Имя аккаунта владельца: гость пишет от его имени */
+  providerName: string | null;
   /** Гость заглушил чат у себя, unix-секунды */
   mutedUntil: number | null;
   /** Закреплён в списке гостя (позже закреплённый — выше), unix-секунды */

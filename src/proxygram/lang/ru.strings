@@ -332,3 +332,5 @@
 "PxgSharedWithMeHint" = "Чаты, которые вам открыли другие";
 "PxgGuestNoChatsNoUsername" = "Вам пока ничего не открыли. Попросите владельца поделиться чатом с вами.";
 "PxgChatNotShared" = "Этот чат вам не открыт";
+"PxgWriteAsOwner" = "Вы пишете от имени {name}: собеседник видит {name}, а не вас. {name} видит, что это написали вы.";
+"PxgViaOwner" = "через {name}";

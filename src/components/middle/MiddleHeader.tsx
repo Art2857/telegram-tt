@@ -292,6 +292,9 @@ const MiddleHeader = ({
       : undefined;
 
     const realChatId = isSavedDialog ? String(threadId) : chatId;
+    // PXG: A shared chat says whose account the viewer writes from; a forum topic keeps its message count
+    const proxyStatus = chat?.pxgProxy?.providerName && threadId === MAIN_THREAD_ID
+      ? lang('PxgViaOwner', { name: chat.pxgProxy.providerName }) : undefined;
 
     const displayChatId = chat?.isMonoforum ? chat.linkedMonoforumId! : realChatId;
     return (
@@ -311,7 +314,7 @@ const MiddleHeader = ({
               userId={displayChatId}
               threadId={!isSavedDialog ? threadId : undefined}
               typingStatusByPeerId={typingStatusByPeerId}
-              status={connectionStatusText || savedMessagesStatus}
+              status={connectionStatusText || savedMessagesStatus || proxyStatus}
               withDots={Boolean(connectionStatusText)}
               withFullInfo={threadId === MAIN_THREAD_ID}
               withMediaViewer={threadId === MAIN_THREAD_ID}
@@ -330,7 +333,7 @@ const MiddleHeader = ({
               threadId={!isSavedDialog ? threadId : undefined}
               typingStatusByPeerId={typingStatusByPeerId}
               withMonoforumStatus={chat?.isMonoforum}
-              status={connectionStatusText || savedMessagesStatus}
+              status={connectionStatusText || savedMessagesStatus || proxyStatus}
               withDots={Boolean(connectionStatusText)}
               withMediaViewer={threadId === MAIN_THREAD_ID}
               withFullInfo={threadId === MAIN_THREAD_ID}

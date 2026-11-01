@@ -214,6 +214,7 @@ import VoiceRecordBar from '../middle/composer/VoiceRecordBar';
 import WebPagePreview from '../middle/composer/WebPagePreview';
 import MessageEffect from '../middle/message/MessageEffect';
 import ReactionSelector from '../middle/message/reactions/ReactionSelector';
+import ProxyWriteNotice from '../proxygram/ProxyWriteNotice';
 import Button from '../ui/Button';
 import MediaEditor from '../ui/mediaEditor/MediaEditor.async';
 import ResponsiveHoverButton from '../ui/ResponsiveHoverButton';
@@ -2835,6 +2836,9 @@ const Composer = ({
         sendAsPeerIds={sendAsPeerIds}
         isCurrentUserPremium={isCurrentUserPremium}
       />
+      {isInMessageList && chat?.pxgProxy && (
+        <ProxyWriteNotice accountId={chat.pxgProxy.accountId} providerName={chat.pxgProxy.providerName} />
+      )}
       {isInMessageList && (
         <>
           <ComposerEmbeddedMessage

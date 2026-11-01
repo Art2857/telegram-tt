@@ -6038,6 +6038,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestUploading': {
     'percent': V;
   };
+  'PxgWriteAsOwner': {
+    'name': V;
+  };
+  'PxgViaOwner': {
+    'name': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7043,7 +7049,9 @@ export interface LangKeyGroups {
       | 'PxgAdminBlockConfirm'
       | 'PxgAdminEndSessionConfirm'
       | 'PxgAdminDisconnectConfirm'
-      | 'PxgAdminRevokeConfirm';
+      | 'PxgAdminRevokeConfirm'
+      | 'PxgWriteAsOwner'
+      | 'PxgViaOwner';
     variables: 'name';
   };
   'limit,premiumLimit': {

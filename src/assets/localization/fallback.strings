@@ -4845,3 +4845,5 @@
 "PxgSharedWithMeHint" = "Chats other people opened for you";
 "PxgGuestNoChatsNoUsername" = "Nobody has shared a chat with you yet. Ask the owner to share one with you.";
 "PxgChatNotShared" = "This chat is not shared with you";
+"PxgWriteAsOwner" = "You write on behalf of {name}: the other side sees {name}, not you. {name} sees that it was you.";
+"PxgViaOwner" = "via {name}";
