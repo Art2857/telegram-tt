@@ -23,7 +23,9 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendDocs: chat.permissions.sendMedia ? undefined : true,
       sendStickers: chat.permissions.useOwnerStickers ? undefined : true,
       sendGifs: chat.permissions.useOwnerStickers ? undefined : true,
-      sendPolls: true, sendVoices: true, sendRoundvideos: true,
+      sendVoices: chat.permissions.sendMedia ? undefined : true,
+      sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
+      sendPolls: true,
     },
     pxgProxy: { accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions },
   };
@@ -72,12 +74,24 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     pxgSentByUserId: dto.sentByUserId || undefined,
     pxgIsOwn: dto.sentByUserId === getPxgState().session?.user.id,
     isProtected: !chat.pxgProxy?.permissions.forwardOut,
-    isForwardingAllowed: false,
+    isForwardingAllowed: chat.pxgProxy?.permissions.forwardOut || undefined,
+    forwardInfo: buildForwardInfo(dto),
     replyInfo: dto.replyTo?.replyToMsgId ? {
       type: 'message', replyToMsgId: dto.replyTo.replyToMsgId,
       quoteText: dto.replyTo.quoteText ? { text: dto.replyTo.quoteText } : undefined,
     } : undefined,
     reactions: reactions?.length ? { results: reactions } : undefined,
+  };
+}
+
+function buildForwardInfo(dto: MessageDto): ApiMessage['forwardInfo'] {
+  const header = dto.fwdFrom as { date?: number; channelPost?: number } | null;
+  if (!header) return undefined;
+  // The original author is shown by name only: their Telegram ID belongs to the provider's session
+  return {
+    date: header.date || parseDate(dto.date),
+    isChannelPost: Boolean(header.channelPost),
+    hiddenUserName: dto.forwardName || '?',
   };
 }
 

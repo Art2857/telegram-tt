@@ -85,7 +85,7 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
     Object.values(global.byTabId).forEach(({ id: tabId, mediaViewer }) => {
       const chatId = selectCurrentMessageList(global, tabId)?.chatId;
       if (chatId && isProxyPeerId(chatId) && !allowedIds.has(chatId)) actions.openChat({ id: undefined, tabId });
-      if (mediaViewer.chatId && isProxyPeerId(mediaViewer.chatId) && !allowedIds.has(mediaViewer.chatId)) {
+      if (mediaViewer?.chatId && isProxyPeerId(mediaViewer.chatId) && !allowedIds.has(mediaViewer.chatId)) {
         actions.closeMediaViewer({ tabId });
       }
     });
@@ -118,7 +118,7 @@ addActionHandler('clearProxyChats', (global, actions): ActionReturnType => {
   Object.values(global.byTabId).forEach(({ id: tabId, mediaViewer }) => {
     const chatId = selectCurrentMessageList(global, tabId)?.chatId;
     if (chatId && isProxyPeerId(chatId)) actions.openChat({ id: undefined, tabId });
-    if (mediaViewer.chatId && isProxyPeerId(mediaViewer.chatId)) actions.closeMediaViewer({ tabId });
+    if (mediaViewer?.chatId && isProxyPeerId(mediaViewer.chatId)) actions.closeMediaViewer({ tabId });
   });
   global = getGlobal();
   return clearProxyChats(global);

@@ -15,6 +15,7 @@ import { parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 
 const DELETE_BATCH_SIZE = 20;
+const MAX_WAVEFORM_LENGTH = 100;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
@@ -42,12 +43,22 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     // The owner's sticker or GIF must come from the catalog of the chat's provider account
     const catalogItem = sticker || gif ? parseProxyCatalogId((sticker || gif)!.id) : undefined;
     if ((sticker || gif) && catalogItem?.accountId !== peer.accountId) throw new PxgError('unsupported');
-    let file: { uploadId: string } | undefined;
+    let file: Record<string, unknown> | undefined;
     if (attachment) {
+      // Self-destructing media is never sent through the server: the archive could not honor the timer
+      if (attachment.ttlSeconds) throw new PxgError('unsupported');
       const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
       const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
       const uploaded = await uploadFile(upload, peer, (fraction) => onProgress?.(fraction));
-      file = { uploadId: uploaded.uploadId };
+      const { voice, quick, isRoundVideo } = attachment;
+      file = {
+        uploadId: uploaded.uploadId,
+        kind: voice ? 'voice' : isRoundVideo ? 'round' : undefined,
+        duration: voice?.duration ?? (isRoundVideo ? quick?.duration : undefined),
+        waveform: voice?.waveform.slice(0, MAX_WAVEFORM_LENGTH),
+        width: isRoundVideo ? quick?.width : undefined,
+        height: isRoundVideo ? quick?.height : undefined,
+      };
     }
     if (onProgress?.isCanceled) throw new PxgError('canceled');
     const result = await runProxyJob('messages.send', {
@@ -127,6 +138,31 @@ export async function sendMessageAction({ peer: target, action }: MethodArgs<'se
   if (action.type !== 'typing' && action.type !== 'cancel') return undefined;
   await pxgRpc.call('messages.typing', { ...peer, action: action.type }).catch(() => undefined);
   return true as const;
+}
+
+/** Between chats of one provider account Telegram forwards natively; other targets are not supported */
+export async function forwardMessages({
+  fromChat, toChat, messages, isSilent, noAuthors, noCaptions,
+}: MethodArgs<'forwardMessages'>[0]): Promise<void> {
+  const source = resolveProxyPeer(fromChat.id);
+  const target = resolveProxyPeer(toChat.id);
+  try {
+    if (!source || !target || source.accountId !== target.accountId) throw new PxgError('unsupported');
+    const result = await runProxyJob('messages.forward', {
+      accountId: target.accountId, fromPeerId: source.peerId, peerId: target.peerId,
+      msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions,
+    }) as { msgIds: number[] };
+    const forwarded = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
+      ...target, msgIds: result.msgIds,
+    });
+    forwarded.messages.forEach((dto) => {
+      emitProxyUpdate({
+        '@type': 'newMessage', id: dto.msgId, chatId: toChat.id, message: buildProxyMessage(dto, toChat),
+      });
+    });
+  } catch (err) {
+    emitProxyError(err);
+  }
 }
 
 function emitProxyError(err: unknown) {

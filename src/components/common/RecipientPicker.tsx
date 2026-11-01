@@ -20,7 +20,7 @@ import {
 import { filterPeersByQuery } from '../../global/helpers/peers';
 import {
   filterChatIdsByType, selectCanInviteToChat, selectChat, selectChatFullInfo,
-  selectIsMonoforumAdmin, selectTopic, selectUser,
+  selectIsMonoforumAdmin, selectTabState, selectTopic, selectUser,
 } from '../../global/selectors';
 import { selectCurrentLimit } from '../../global/selectors/limits';
 import { unique } from '../../util/iteratees';
@@ -219,7 +219,9 @@ const RecipientPicker = ({
       currentUserId,
     );
 
-    return filterChatIdsByType(global, sorted, filter);
+    // PXG: Proxy chats forward natively only between chats of one provider account
+    return filterChatIdsByType(global, sorted, filter)
+      .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id));
   }, [
     isOpen,
     pinnedIds,
@@ -241,7 +243,9 @@ const RecipientPicker = ({
     const global = getGlobal();
     const source = topPeerIds?.length ? topPeerIds : (contactIds || []);
     const allowed = source.filter((id) => getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable));
-    return filterChatIdsByType(global, allowed, filter).slice(0, RECENT_CONTACTS_LIMIT);
+    return filterChatIdsByType(global, allowed, filter)
+      .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id)) // PXG
+      .slice(0, RECENT_CONTACTS_LIMIT);
   }, [topPeerIds, contactIds, filter, isForwarding, shouldFilterInviteable]);
 
   const hasSelectedChips = isMultiSelect && selectedIds.length > 0;
@@ -380,6 +384,15 @@ function getIsRecipientAllowed(
   const chatFullInfo = selectChatFullInfo(global, id);
   // TODO: Handle bulk check with API call
   return !chatFullInfo || getCanPostInChat(chat, undefined, undefined, chatFullInfo);
+}
+
+// PXG: The server forwards between chats of one provider account only, and the guest needs `write` in the target
+function getIsProxyForwardAllowed(global: GlobalState, id: string) {
+  const fromChatId = selectTabState(global).forwardMessages.fromChatId;
+  const source = fromChatId ? selectChat(global, fromChatId)?.pxgProxy : undefined;
+  const target = selectChat(global, id)?.pxgProxy;
+  if (!source || !target) return !source && !target;
+  return source.accountId === target.accountId && target.permissions.write;
 }
 
 export default memo(withGlobal<OwnProps>(

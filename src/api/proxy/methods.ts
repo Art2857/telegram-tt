@@ -16,7 +16,7 @@ import {
   fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
-  deleteMessages, editMessage, markMessageListRead, sendMessage, sendMessageAction,
+  deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage, sendMessageAction,
   sendReaction } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -38,6 +38,7 @@ const methods = {
   sendMessage,
   editMessage,
   deleteMessages,
+  forwardMessages,
   sendReaction,
   markMessageListRead,
   sendMessageAction,

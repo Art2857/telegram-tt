@@ -78,6 +78,8 @@ export interface MessageDto {
   version: number;
   changeSeq: string;
   deleted: { at: string; reason: 'delegate' | 'external' } | null;
+  /** Пересланное: имя автора оригинала */
+  forwardName?: string | null;
   sentByUserId: string | null;
   /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
   senderName?: string | null;
