@@ -15,6 +15,7 @@ import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/st
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
+import LocalArchiveLoader from './LocalArchiveLoader';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
 import TombstonesLoader from './TombstonesLoader';
@@ -147,6 +148,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   return (
     <>
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
+      {currentUserId && !isProxyPeerId(currentUserId) && <LocalArchiveLoader ownerId={currentUserId} />}
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && (
         <ShareChatModal chatId={shareChatId} folder={shareFolder} topic={shareTopic} />

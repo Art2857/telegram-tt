@@ -13,9 +13,10 @@ import { getServerTime } from '../../util/serverTime';
  */
 export function keepDeletedMessages<T extends GlobalState>(
   global: T, chatId: string | undefined, ids: number[],
-): { global: T; remainingIds: number[] } {
+): { global: T; remainingIds: number[]; kept: ApiMessage[] } {
   const now = getServerTime();
   const remainingIds: number[] = [];
+  const kept: ApiMessage[] = [];
 
   ids.forEach((id) => {
     const messageChatId = chatId ?? selectCommonBoxChatId(global, id);
@@ -29,9 +30,10 @@ export function keepDeletedMessages<T extends GlobalState>(
     }
 
     global = updateChatMessage(global, messageChatId, id, { pxgDeletedAt: now });
+    kept.push({ ...message, pxgDeletedAt: now });
   });
 
-  return { global, remainingIds };
+  return { global, remainingIds, kept };
 }
 
 function canKeepDeleted(message: ApiMessage) {

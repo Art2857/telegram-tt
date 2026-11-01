@@ -27,6 +27,7 @@ import { getServerTime } from '../../../util/serverTime';
 import { callApi } from '../../../api/gramjs';
 import { recordEditVersion } from '../../../proxygram/archive/editHistory';
 import { keepDeletedMessages } from '../../../proxygram/archive/keepDeletedMessages';
+import { archiveDeletedMessages, archiveEditVersions } from '../../../proxygram/archive/localArchive';
 import {
   addPaidReaction,
   checkIfHasUnreadReactions,
@@ -669,6 +670,11 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         global = clearMessageSummary(global, chatId, id);
         // PXG: история правок — сохранить прежнюю версию до применения новой
         global = recordEditVersion(global, chatId, id, currentMessage, message);
+        // PXG: версии переживают перезагрузку и без сервера (L1)
+        const editedMessage = selectChatMessage(global, chatId, id);
+        if (global.currentUserId && editedMessage && editedMessage.pxgEditHistory !== currentMessage.pxgEditHistory) {
+          void archiveEditVersions(global.currentUserId, editedMessage);
+        }
       }
 
       global = updateWithLocalMedia(global, chatId, id, false, message);
@@ -1668,6 +1674,8 @@ export function deleteMessages<T extends GlobalState>(
   const kept = keepDeletedMessages(global, chatId, ids);
   global = kept.global;
   ids = kept.remainingIds;
+  // PXG: удалённое переживает перезагрузку и без сервера (L1)
+  if (kept.kept.length && global.currentUserId) void archiveDeletedMessages(global.currentUserId, kept.kept);
   if (!ids.length) {
     setGlobal(global);
     return;

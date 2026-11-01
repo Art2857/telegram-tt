@@ -10,7 +10,7 @@ import { selectChatMessage, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 
 /** Значок вложения: тип файла известен, а самого объекта Web A у надгробия нет */
-const MEDIA_ICONS: Record<string, string> = {
+export const MEDIA_ICONS: Record<string, string> = {
   photo: '🖼',
   video: '🎬',
   round: '⏺',
@@ -46,25 +46,25 @@ export function tombstoneToApiMessage(dto: MessageDto, chatId: string): ApiMessa
 }
 
 /**
- * Вставляет надгробия в ленту основного потока чата: в сообщения, в список загруженных
- * и в видимое окно — те, что попадают между уже показанными сообщениями, а если окно
- * дошло до конца чата, то и удалённые после последнего живого сообщения.
+ * Вставляет надгробия (с сервера или из локального архива) в ленту основного потока чата:
+ * в сообщения, в список загруженных и в видимое окно — те, что попадают между уже показанными
+ * сообщениями, а если окно дошло до конца чата, то и удалённые после последнего живого сообщения.
  */
 export function insertTombstones<T extends GlobalState>(
   global: T,
   chatId: string,
-  tombstones: MessageDto[],
+  tombstones: ApiMessage[],
   options: { isAtEnd?: boolean },
   ...[tabId = getCurrentTabId()]: TabArgs<T>
 ): T {
-  const fresh = tombstones.filter((dto) => !selectChatMessage(global, chatId, dto.msgId));
+  const fresh = tombstones.filter((message) => !selectChatMessage(global, chatId, message.id));
   if (fresh.length === 0) return global;
 
   const byId: Record<number, ApiMessage> = {};
-  fresh.forEach((dto) => {
-    byId[dto.msgId] = tombstoneToApiMessage(dto, chatId);
+  fresh.forEach((message) => {
+    byId[message.id] = message;
   });
-  const ids = fresh.map((dto) => dto.msgId);
+  const ids = fresh.map((message) => message.id);
 
   global = addChatMessagesById(global, chatId, byId);
   global = updateListedIds(global, chatId, MAIN_THREAD_ID, ids);

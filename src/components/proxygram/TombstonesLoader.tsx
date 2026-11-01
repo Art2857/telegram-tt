@@ -7,7 +7,7 @@ import { MAIN_THREAD_ID } from '../../api/types';
 import { selectChatLastMessageId, selectCurrentMessageList, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import { isProxyPeerId } from '../../api/proxy/ids';
-import { applyAttribution, insertTombstones } from '../../proxygram/archive/serverTombstones';
+import { applyAttribution, insertTombstones, tombstoneToApiMessage } from '../../proxygram/archive/serverTombstones';
 import { pxgRpc } from '../../proxygram/server/rpc';
 
 type OwnProps = {
@@ -62,7 +62,10 @@ const TombstonesLoader = ({
           const entries = [...(attributionRef.current.get(chatId) ?? []), ...attribution];
           attributionRef.current.set(chatId, entries);
           let global = getGlobal();
-          if (tombstones.length) global = insertTombstones(global, chatId, tombstones, { isAtEnd }, getCurrentTabId());
+          if (tombstones.length) {
+            const messages = tombstones.map((dto) => tombstoneToApiMessage(dto, chatId));
+            global = insertTombstones(global, chatId, messages, { isAtEnd }, getCurrentTabId());
+          }
           global = applyAttribution(global, chatId, entries);
           setGlobal(global);
         })

@@ -12,5 +12,5 @@
 Пересобрать растровые версии:
 
 ```bash
-node branding/generate-icons.mjs
+node branding/generate-icons.ts
 ```

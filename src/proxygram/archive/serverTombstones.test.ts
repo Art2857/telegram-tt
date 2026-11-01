@@ -40,6 +40,11 @@ function tombstone(msgId: number, overrides: Partial<MessageDto> = {}): MessageD
   };
 }
 
+/** Удалённые сообщения сервера в виде сообщений Web A */
+function deleted(...ids: number[]) {
+  return ids.map((id) => tombstoneToApiMessage(tombstone(id), PRIVATE_CHAT));
+}
+
 /** Лента чата: загружены и видны сообщения 10, 12, 14 */
 function globalWithViewport(): GlobalState {
   let global = buildGlobal([10, 12, 14].map((id) => buildMessage(PRIVATE_CHAT, id)));
@@ -50,7 +55,7 @@ function globalWithViewport(): GlobalState {
 describe('надгробия из серверного архива', () => {
   it('удалённое встаёт между видимыми сообщениями с пометкой и временем удаления', () => {
     const global = insertTombstones(
-      globalWithViewport(), PRIVATE_CHAT, [tombstone(11), tombstone(13)], {}, TEST_TAB_ID,
+      globalWithViewport(), PRIVATE_CHAT, deleted(11, 13), {}, TEST_TAB_ID,
     );
 
     expect(selectViewportIds(global, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([10, 11, 12, 13, 14]);
@@ -63,20 +68,20 @@ describe('надгробия из серверного архива', () => {
 
   it('за пределами окна — только в загруженных; после последнего — если окно дошло до конца чата', () => {
     const outside = insertTombstones(
-      globalWithViewport(), PRIVATE_CHAT, [tombstone(5), tombstone(20)], {}, TEST_TAB_ID,
+      globalWithViewport(), PRIVATE_CHAT, deleted(5, 20), {}, TEST_TAB_ID,
     );
     expect(selectViewportIds(outside, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([10, 12, 14]);
     expect(selectListedIds(outside, PRIVATE_CHAT, MAIN_THREAD_ID)).toEqual([5, 10, 12, 14, 20]);
 
     const atEnd = insertTombstones(
-      globalWithViewport(), PRIVATE_CHAT, [tombstone(20)], { isAtEnd: true }, TEST_TAB_ID,
+      globalWithViewport(), PRIVATE_CHAT, deleted(20), { isAtEnd: true }, TEST_TAB_ID,
     );
     expect(selectViewportIds(atEnd, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([10, 12, 14, 20]);
   });
 
   it('уже известное сообщение не подменяется', () => {
     const global = globalWithViewport();
-    expect(insertTombstones(global, PRIVATE_CHAT, [tombstone(12)], {}, TEST_TAB_ID)).toBe(global);
+    expect(insertTombstones(global, PRIVATE_CHAT, deleted(12), {}, TEST_TAB_ID)).toBe(global);
   });
 
   it('вложение без объекта Web A — значок типа перед текстом', () => {
