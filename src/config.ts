@@ -34,7 +34,7 @@ export const BETA_CHANGELOG_URL = 'https://telegra.ph/WebA-Beta-03-20';
 export const DEBUG_GRAMJS = false;
 
 export const PAGE_TITLE = import.meta.env.TG_APP_TITLE;
-export const PAGE_TITLE_TAURI = 'Telegram Air';
+export const PAGE_TITLE_TAURI = APP_NAME; // PXG: своё название
 export const TELEGRAM_API_ID = Number(import.meta.env.TG_TELEGRAM_API_ID);
 export const TELEGRAM_API_HASH = import.meta.env.TG_TELEGRAM_API_HASH;
 export const TEST_SESSION = import.meta.env.TG_TEST_SESSION;

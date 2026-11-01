@@ -18,6 +18,16 @@ export default function initTauriApi() {
     return core.invoke<boolean>('open_new_window_cmd', { url });
   }
 
+  async function isAutostartEnabled() {
+    const core = await corePromise;
+    return core.invoke<boolean>('plugin:autostart|is_enabled');
+  }
+
+  async function setAutostart(isEnabled: boolean) {
+    const core = await corePromise;
+    return core.invoke<void>(isEnabled ? 'plugin:autostart|enable' : 'plugin:autostart|disable');
+  }
+
   async function setWindowTitle(title: string) {
     const core = await corePromise;
     return core.invoke<void>('set_window_title', { title });
@@ -33,5 +43,7 @@ export default function initTauriApi() {
     checkUpdate: () => import('@tauri-apps/plugin-updater').then(({ check }) => check()),
     getCurrentWindow: () => import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow()),
     setWindowTitle,
+    isAutostartEnabled,
+    setAutostart,
   });
 }

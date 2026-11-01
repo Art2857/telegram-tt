@@ -4847,3 +4847,5 @@
 "PxgChatNotShared" = "This chat is not shared with you";
 "PxgWriteAsOwner" = "You write on behalf of {name}: the other side sees {name}, not you. {name} sees that it was you.";
 "PxgViaOwner" = "via {name}";
+"PxgAutostart" = "Start with the system";
+"PxgAutostartHint" = "The app opens in the tray and keeps receiving messages";

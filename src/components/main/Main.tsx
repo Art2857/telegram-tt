@@ -464,7 +464,8 @@ const Main = ({
   useTauriEvent<string>('deeplink', (event) => {
     try {
       const url = event.payload || '';
-      const decodedUrl = decodeURIComponent(url);
+      // PXG: The desktop app owns `proxygram://` so it never takes over `tg://` links from Telegram Desktop
+      const decodedUrl = decodeURIComponent(url).replace(/^proxygram:/, 'tg:');
       processDeepLink(decodedUrl, { type: 'inner' });
     } catch (e) {
       if (DEBUG) {

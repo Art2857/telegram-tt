@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useState } from '../../../lib/teact/teact
 
 import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
 
+import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
@@ -560,42 +561,67 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
   if (!data) return <Loading error={error} lang={lang} />;
 
   return (
-    <table className={styles.table}>
-      <tbody>
-        {data.map((row) => (
-          <tr key={row.id}>
-            <td>
-              <div className={styles.name}>
-                {row.online && <span className={styles.onlineDot} />}
-                {row.deviceName ?? row.platform ?? '—'}
-              </div>
-              <div className={styles.secondary}>
-                {row.isCurrent ? lang('PxgSettingsThisDevice') : row.ip ?? ''}
-              </div>
-            </td>
-            <td>{row.level === 'client' ? lang('PxgLevelClient') : lang('PxgLevelGuest')}</td>
-            <td className={styles.secondary}>{formatDateTime(row.lastActiveAt)}</td>
-            <td className={styles.actions}>
-              {!row.isCurrent && (
-                <Button
-                  size="tiny"
-                  color="danger"
-                  isText
-                  onClick={() => ask(t('PxgSettingsEndConfirm'), lang('PxgSettingsEnd'), async () => {
-                    await pxgRpc.call('sessions.revoke', { sessionId: row.id });
-                    reload();
-                  })}
-                >
-                  {lang('PxgSettingsEnd')}
-                </Button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <>
+      {IS_TAURI && <AutostartToggle lang={lang} />}
+      <table className={styles.table}>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.id}>
+              <td>
+                <div className={styles.name}>
+                  {row.online && <span className={styles.onlineDot} />}
+                  {row.deviceName ?? row.platform ?? '—'}
+                </div>
+                <div className={styles.secondary}>
+                  {row.isCurrent ? lang('PxgSettingsThisDevice') : row.ip ?? ''}
+                </div>
+              </td>
+              <td>{row.level === 'client' ? lang('PxgLevelClient') : lang('PxgLevelGuest')}</td>
+              <td className={styles.secondary}>{formatDateTime(row.lastActiveAt)}</td>
+              <td className={styles.actions}>
+                {!row.isCurrent && (
+                  <Button
+                    size="tiny"
+                    color="danger"
+                    isText
+                    onClick={() => ask(t('PxgSettingsEndConfirm'), lang('PxgSettingsEnd'), async () => {
+                      await pxgRpc.call('sessions.revoke', { sessionId: row.id });
+                      reload();
+                    })}
+                  >
+                    {lang('PxgSettingsEnd')}
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 });
+
+/** The desktop app can start with the system and stay in the tray (PLAN.md 16) */
+function AutostartToggle({ lang }: { lang: Lang }) {
+  const [isEnabled, setIsEnabled] = useState<boolean | undefined>();
+
+  useEffect(() => {
+    window.tauri.isAutostartEnabled().then(setIsEnabled).catch(() => undefined);
+  }, []);
+
+  if (isEnabled === undefined) return undefined;
+
+  return (
+    <Checkbox
+      label={lang('PxgAutostart')}
+      subLabel={lang('PxgAutostartHint')}
+      checked={isEnabled}
+      onCheck={(isChecked) => {
+        window.tauri.setAutostart(isChecked).then(() => setIsEnabled(isChecked)).catch(() => undefined);
+      }}
+    />
+  );
+}
 
 function describeTarget(t: Translate, share: ShareRow) {
   if (share.label) return share.label;

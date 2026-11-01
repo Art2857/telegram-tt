@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Permissions available to Telegram app content",
+  "description": "Permissions available to Proxygram app content",
   "local": true,
   "webviews": ["*"],
   "permissions": [
@@ -18,6 +18,9 @@
     "notification:allow-is-permission-granted",
     "notification:allow-notify",
     "notification:allow-request-permission",
-    "shell:default"
+    "shell:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

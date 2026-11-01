@@ -10,6 +10,8 @@ type TauriApi = {
   checkUpdate: () => Promise<Update | null>;
   getCurrentWindow: () => Promise<TauriWindow>;
   setWindowTitle: (title: string) => Promise<void>;
+  isAutostartEnabled: () => Promise<boolean>;
+  setAutostart: (isEnabled: boolean) => Promise<void>;
 };
 
 declare global {

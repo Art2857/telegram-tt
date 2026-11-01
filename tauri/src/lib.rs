@@ -67,13 +67,16 @@ pub static LAST_URL: LazyLock<std::sync::Mutex<String>> =
 
 pub const DEFAULT_WINDOW_TITLE: &str = match std::option_env!("APP_TITLE") {
   Some(title) => title,
-  None => "Telegram Air",
+  None => "Proxygram",
 };
 
 pub const BASE_URL: &str = match std::option_env!("BASE_URL") {
   Some(url) => url,
   None => "http://localhost:1234",
 };
+
+/// Passed by the system autostart entry: the app starts in the tray without a window
+pub const AUTOSTART_ARG: &str = "--autostart";
 
 pub const WITH_UPDATER: &str = match std::option_env!("WITH_UPDATER") {
   Some(str) => str,
@@ -118,6 +121,10 @@ pub fn run() {
     .plugin(tauri_plugin_log::Builder::default().build())
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_deep_link::init())
+    .plugin(tauri_plugin_autostart::init(
+      tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+      Some(vec![AUTOSTART_ARG]),
+    ))
     .plugin(tauri_plugin_process::init());
 
   let app = app.on_window_event(|window, event| match event {
@@ -171,8 +178,12 @@ pub fn run() {
     // Manage app state
     app.manage(AppState::new(AppStateStruct::default()));
 
-    let _main_window = open_new_window(app.handle().clone(), BASE_URL.to_string())
+    let main_window = open_new_window(app.handle().clone(), BASE_URL.to_string())
       .expect("Failed to open main window");
+    // Started with the system: the client keeps receiving messages in the tray until the user opens it
+    if std::env::args().any(|arg| arg == AUTOSTART_ARG) {
+      main_window.hide().unwrap_or_default();
+    }
 
     let deeplink = Deeplink::init();
     if let Err(err) = deeplink.setup(app.handle()) {
