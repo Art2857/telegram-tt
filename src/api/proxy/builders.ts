@@ -25,6 +25,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     type: chat.peerId > 0 ? 'chatTypePrivate'
       : chat.type === 'channel' ? 'chatTypeChannel' : 'chatTypeSuperGroup',
     title: chat.title || chat.username || String(chat.peerId),
+    avatarPhotoId: chat.photoId || undefined,
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
     isProtected: !chat.permissions.forwardOut,
@@ -48,8 +49,9 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
   };
 }
 
-export function buildProxyUser(accountId: string, userId: number, name?: string): ApiUser {
-  return {
+/** `null` means the user has no photo; an omitted `photoId` keeps the avatar already known from other messages */
+export function buildProxyUser(accountId: string, userId: number, name?: string, photoId?: string | null): ApiUser {
+  const user: ApiUser = {
     id: getProxyPeerId(accountId, userId),
     type: 'userTypeRegular',
     isMin: false,
@@ -57,6 +59,8 @@ export function buildProxyUser(accountId: string, userId: number, name?: string)
     phoneNumber: '',
     noStatus: true,
   };
+  if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;
+  return user;
 }
 
 export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {

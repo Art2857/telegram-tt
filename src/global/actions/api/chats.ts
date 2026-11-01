@@ -47,6 +47,7 @@ import { isLocalMessageId } from '../../../util/keys/messageKey';
 import { debounce, pause, throttle } from '../../../util/schedulers';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
 import { callApi } from '../../../api/gramjs';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import {
   getIsSavedDialog,
   isChatArchived,
@@ -235,6 +236,12 @@ addActionHandler('openChat', (global, actions, payload): ActionReturnType => {
   const targetChat = id ? selectChat(global, id) : undefined;
   if (targetChat && isChatCommunity(targetChat)) {
     actions.openCommunityPanel({ communityId: id!, tabId });
+    return;
+  }
+
+  // A provider account's user is reachable only through a shared chat, so there is no private chat to open
+  if (id && !targetChat && isProxyPeerId(id) && selectUser(global, id)) {
+    actions.showNotification({ message: { key: 'PxgChatNotShared' }, tabId });
     return;
   }
 

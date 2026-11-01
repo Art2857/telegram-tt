@@ -3674,6 +3674,7 @@ export interface LangPair {
   'PxgSharedWithMe': undefined;
   'PxgSharedWithMeHint': undefined;
   'PxgGuestNoChatsNoUsername': undefined;
+  'PxgChatNotShared': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {

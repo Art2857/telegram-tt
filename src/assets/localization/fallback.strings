@@ -4844,3 +4844,4 @@
 "PxgSharedWithMe" = "Shared with me";
 "PxgSharedWithMeHint" = "Chats other people opened for you";
 "PxgGuestNoChatsNoUsername" = "Nobody has shared a chat with you yet. Ask the owner to share one with you.";
+"PxgChatNotShared" = "This chat is not shared with you";

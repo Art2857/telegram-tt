@@ -49,6 +49,8 @@ export interface AccessChat {
   title: string | null;
   username: string | null;
   type: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
+  /** ID текущего фото чата или собеседника; сам аватар — через media.avatar */
+  photoId: string | null;
   permissions: Permissions;
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
@@ -113,6 +115,8 @@ export interface MessageDto {
   sentByUserId: string | null;
   /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
   senderName?: string | null;
+  /** ID фото профиля отправителя — аватар через media.avatar */
+  senderPhotoId?: string | null;
   /** Служебное сообщение: что произошло */
   action?: ServiceActionDto;
 }

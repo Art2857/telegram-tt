@@ -9,7 +9,9 @@ import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { resolveProxyPeer } from './index';
-import { buildProxyMediaId, parseProxyCatalogHash, parseProxyMediaHash } from './mediaIds';
+import {
+  buildProxyMediaId, parseProxyAvatarHash, parseProxyCatalogHash, parseProxyMediaHash,
+} from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
 const MEDIA_WAIT_ATTEMPTS = 15;
@@ -67,21 +69,13 @@ export async function downloadMedia(
   { url, mediaFormat, start, end }: MethodArgs<'downloadMedia'>[0],
   onProgress?: MethodArgs<'downloadMedia'>[1],
 ) {
+  const userId = getPxgState().session?.user.id;
   const catalog = parseProxyCatalogHash(url);
-  const target = catalog || parseProxyMediaHash(url);
-  if (!target || target.userId !== getPxgState().session?.user.id) return undefined;
-  let request: [string, Record<string, unknown>];
-  if (catalog) {
-    request = ['stickers.url', { accountId: catalog.accountId, documentId: catalog.documentId }];
-  } else {
-    const message = target as NonNullable<ReturnType<typeof parseProxyMediaHash>>;
-    const peer = resolveProxyPeer(message.chatId);
-    if (!peer) return undefined;
-    request = ['media.url', { ...peer, msgId: message.msgId }];
-  }
-  let signed: { url: string; mimeType: string; size: number } | undefined;
+  const request = userId && buildMediaRequest(url, userId, catalog);
+  if (!request) return undefined;
+  let signed: { url: string; mimeType: string; size?: number } | undefined;
   for (let attempt = 0; attempt < MEDIA_WAIT_ATTEMPTS; attempt++) {
-    if (onProgress?.isCanceled || target.userId !== getPxgState().session?.user.id) return undefined;
+    if (onProgress?.isCanceled || userId !== getPxgState().session?.user.id) return undefined;
     try {
       signed = await pxgRpc.call(...request);
       break;
@@ -107,13 +101,33 @@ export async function downloadMedia(
   if (!response.ok) throw new PxgError(`http_${response.status}`);
   // Files outside the archive arrive while the server is still fetching them from Telegram
   const buffer = await readResponse(response, Number(response.headers.get('content-length')), onProgress);
-  if (!buffer || onProgress?.isCanceled || target.userId !== getPxgState().session?.user.id) return undefined;
+  if (!buffer || onProgress?.isCanceled || userId !== getPxgState().session?.user.id) return undefined;
   onProgress?.(1);
   const mimeType = signed.mimeType || response.headers.get('content-type') || 'application/octet-stream';
   const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
-  return { dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size };
+  return {
+    dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size ?? buffer.byteLength,
+  };
+}
+
+/** Message files and owner's stickers are tied to the session that built their IDs; avatars are tied to a peer */
+function buildMediaRequest(
+  url: string, userId: string, catalog: ReturnType<typeof parseProxyCatalogHash>,
+): [string, Record<string, unknown>] | undefined {
+  if (catalog) {
+    if (catalog.userId !== userId) return undefined;
+    return ['stickers.url', { accountId: catalog.accountId, documentId: catalog.documentId }];
+  }
+  const message = parseProxyMediaHash(url);
+  if (message) {
+    const peer = message.userId === userId ? resolveProxyPeer(message.chatId) : undefined;
+    return peer && ['media.url', { ...peer, msgId: message.msgId }];
+  }
+  const avatarPeerId = parseProxyAvatarHash(url);
+  const peer = avatarPeerId && resolveProxyPeer(avatarPeerId);
+  return peer ? ['media.avatar', { ...peer }] : undefined;
 }
 
 async function readResponse(

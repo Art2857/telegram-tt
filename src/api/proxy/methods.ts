@@ -92,7 +92,7 @@ export async function fetchProxyChats() {
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
-    buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined)
+    buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId)
   ));
   const pages = await Promise.all(chats.map(async (chat) => {
     try {
@@ -161,7 +161,7 @@ async function fetchMessages({
     });
   }
   const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
-    buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined)
+    buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined, dto.senderPhotoId)
   ));
   result.messages.forEach((dto) => emitRelated(dto));
   return {
@@ -234,7 +234,7 @@ function emitRelated(dto: MessageDto) {
     emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
   });
   if (!dto.senderId || dto.senderId < 0) return;
-  const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined);
+  const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId);
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
 }
 
@@ -257,7 +257,7 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
   const access = await pxgRpc.call<AccessChat[]>('access.chats');
   const chat = access.find((item) => getProxyPeerId(item.accountId, item.peerId) === id);
   if (!chat) return undefined;
-  const user = buildProxyUser(peer.accountId, peer.peerId, chat.title || chat.username || undefined);
+  const user = buildProxyUser(peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId);
   return { user, fullInfo: {}, users: [user], chats: [], userStatusesById: {} };
 }
 

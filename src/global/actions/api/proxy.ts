@@ -4,6 +4,7 @@ import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { LoadMoreDirection } from '../../../types';
 
 import { buildCollectionByKey } from '../../../util/iteratees';
+import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
 import { emitProxyUpdate, getProxyPeerId, setProxyUpdateHandler } from '../../../api/proxy';
 import { buildProxyUser } from '../../../api/proxy/builders';
@@ -63,6 +64,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     },
   };
   setGlobal(global);
+  // Telegram's peer colors never reach a guest, so avatar placeholders and names use the built-in palette
+  if (!global.peerColors) updatePeerColors({});
   actions.loadProxyChats();
 });
 

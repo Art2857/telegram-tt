@@ -331,3 +331,4 @@
 "PxgSharedWithMe" = "Открыто мне";
 "PxgSharedWithMeHint" = "Чаты, которые вам открыли другие";
 "PxgGuestNoChatsNoUsername" = "Вам пока ничего не открыли. Попросите владельца поделиться чатом с вами.";
+"PxgChatNotShared" = "Этот чат вам не открыт";
