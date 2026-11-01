@@ -57,6 +57,27 @@ export interface AccessChat {
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
 
+export type InlineButtonDto =
+  | { kind: 'callback'; text: string; data: string }
+  | { kind: 'url'; text: string; url: string }
+  | { kind: 'unsupported'; text: string };
+
+export interface PollDto {
+  id: string;
+  question: string;
+  questionEntities: unknown[];
+  answers: { text: string; option: string }[];
+  isClosed: boolean;
+  isPublic: boolean;
+  isMultipleChoice: boolean;
+  isQuiz: boolean;
+  results: {
+    totalVoters: number;
+    answers: { option: string; voters: number; isChosen: boolean; isCorrect: boolean }[];
+    solution: string | null;
+  } | null;
+}
+
 export interface MessageDto {
   isMediaUnavailable?: boolean;
   accountId: string;
@@ -84,6 +105,9 @@ export interface MessageDto {
   deleted: { at: string; reason: 'delegate' | 'external' } | null;
   /** Пересланное: имя автора оригинала */
   forwardName?: string | null;
+  /** Встроенные кнопки бота; data и варианты опроса — base64, гость отправляет их обратно серверу */
+  buttons?: InlineButtonDto[][];
+  poll?: PollDto;
   sentByUserId: string | null;
   /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
   senderName?: string | null;

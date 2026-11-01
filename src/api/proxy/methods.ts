@@ -7,7 +7,7 @@ import { PROXY_REACTION_EMOJIS } from './types';
 import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
-import { buildProxyChat, buildProxyMessage, buildProxyUser } from './builders';
+import { buildProxyChat, buildProxyMessage, buildProxyPoll, buildProxyUser } from './builders';
 import { emitProxyUpdate, getProxyPeerId, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
@@ -16,8 +16,9 @@ import {
   fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
-  deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage, sendMessageAction,
-  sendReaction } from './writes';
+  answerCallbackButton, deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage,
+  sendMessageAction, sendPollVote, sendReaction,
+} from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
 const HISTORY_WAIT_MS = 10_000;
@@ -39,6 +40,8 @@ const methods = {
   editMessage,
   deleteMessages,
   forwardMessages,
+  answerCallbackButton,
+  sendPollVote,
   sendReaction,
   markMessageListRead,
   sendMessageAction,
@@ -91,6 +94,7 @@ export async function fetchProxyChats() {
   const messages = pages.flatMap((page, index) => (
     page?.messages.map((dto) => buildProxyMessage(dto, chats[index])) || []
   ));
+  pages.forEach((page) => page?.messages.forEach((dto) => emitRelated(dto)));
   return {
     chats, users, messages,
     chatIds: chats.map((chat) => chat.id),
@@ -132,7 +136,7 @@ async function fetchMessages({ chat, offsetId, addOffset = 0, limit }: MethodArg
   const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
     buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined)
   ));
-  result.messages.forEach((dto) => emitSender(dto));
+  result.messages.forEach((dto) => emitRelated(dto));
   return {
     messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
     users, chats: [], count: result.count, topics: [],
@@ -143,7 +147,7 @@ async function fetchMessage({ chat, messageId }: MethodArgs<'fetchMessage'>[0]) 
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: [messageId] });
-  result.messages.forEach((dto) => emitSender(dto));
+  result.messages.forEach((dto) => emitRelated(dto));
   return result.messages[0] ? { message: buildProxyMessage(result.messages[0], chat) } : undefined;
 }
 
@@ -151,11 +155,14 @@ async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessages
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: messageIds });
-  result.messages.forEach((dto) => emitSender(dto));
+  result.messages.forEach((dto) => emitRelated(dto));
   return result.messages.map((dto) => buildProxyMessage(dto, chat));
 }
 
-function emitSender(dto: MessageDto) {
+/** The sender profile and the poll live in their own parts of the global state */
+function emitRelated(dto: MessageDto) {
+  const poll = buildProxyPoll(dto);
+  if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
   if (!dto.senderId || dto.senderId < 0) return;
   const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined);
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
@@ -240,7 +247,7 @@ async function buildSearchResult(result: WindowResult) {
   const messages = result.messages.flatMap((dto): ApiMessage[] => {
     const chat = byId.get(getProxyPeerId(dto.accountId, dto.peerId));
     if (!chat) return [];
-    emitSender(dto);
+    emitRelated(dto);
     return [buildProxyMessage(dto, chat)];
   });
   chats.forEach((chat) => emitProxyUpdate({ '@type': 'updateChat', id: chat.id, chat }));

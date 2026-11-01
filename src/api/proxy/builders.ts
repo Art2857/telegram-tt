@@ -1,5 +1,7 @@
 import type { AccessChat, MessageDto } from '../../proxygram/server/types';
-import type { ApiChat, ApiMessage, ApiReactionCount, ApiUser } from '../types';
+import type {
+  ApiChat, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiReactionCount, ApiUser,
+} from '../types';
 
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
@@ -67,9 +69,10 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     date: parseDate(dto.date),
     isOutgoing: dto.isOutgoing,
     senderId: dto.senderId ? getProxyPeerId(dto.accountId, dto.senderId) : undefined,
-    content: { ...media, text: dto.text ? {
+    content: { ...media, pollId: dto.poll?.id, text: dto.text ? {
       text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId),
     } : undefined },
+    inlineButtons: buildInlineButtons(dto, chat),
     pxgMediaFallback: mediaFallback,
     editDate: dto.editDate ? parseDate(dto.editDate) : undefined,
     isEdited: dto.version > 1 || undefined,
@@ -84,6 +87,47 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
       quoteText: dto.replyTo.quoteText ? { text: dto.replyTo.quoteText } : undefined,
     } : undefined,
     reactions: reactions?.length ? { results: reactions } : undefined,
+  };
+}
+
+/** Bot callbacks act on behalf of the owner and need `interact`; links open like any other link */
+function buildInlineButtons(dto: MessageDto, chat: ApiChat): ApiKeyboardButtons | undefined {
+  if (!dto.buttons?.length) return undefined;
+  const canInteract = chat.pxgProxy?.permissions.interact;
+  return dto.buttons.map((row) => row.map((button): ApiKeyboardButton => {
+    if (button.kind === 'url') return { text: button.text, action: { type: 'url', url: button.url } };
+    if (button.kind === 'callback' && canInteract) {
+      return { text: button.text, action: { type: 'callback', data: button.data } };
+    }
+    return { text: button.text, action: { type: 'unsupported' } };
+  }));
+}
+
+export function buildProxyPoll(dto: MessageDto): ApiMessagePoll | undefined {
+  const { poll } = dto;
+  if (!poll) return undefined;
+  return {
+    mediaType: 'poll',
+    summary: {
+      id: poll.id,
+      hash: poll.id,
+      isClosed: poll.isClosed || undefined,
+      isPublic: poll.isPublic || undefined,
+      isMultipleChoice: poll.isMultipleChoice || undefined,
+      isQuiz: poll.isQuiz || undefined,
+      question: { text: poll.question, entities: buildProxyEntities(poll.questionEntities, dto.accountId) },
+      answers: poll.answers.map(({ text, option }) => ({ text: { text }, option })),
+    },
+    results: {
+      totalVoters: poll.results?.totalVoters,
+      solution: poll.results?.solution || undefined,
+      resultByOption: poll.results ? Object.fromEntries(poll.results.answers.map((answer) => [answer.option, {
+        option: answer.option,
+        votersCount: answer.voters,
+        isChosen: answer.isChosen || undefined,
+        isCorrect: answer.isCorrect || undefined,
+      }])) : undefined,
+    },
   };
 }
 

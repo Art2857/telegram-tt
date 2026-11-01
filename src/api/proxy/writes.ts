@@ -8,7 +8,7 @@ import { getServerTime } from '../../util/serverTime';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { uploadFile } from '../../proxygram/server/upload';
-import { buildProxyMessage } from './builders';
+import { buildProxyMessage, buildProxyPoll } from './builders';
 import { buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
 import { parseProxyCatalogId } from './mediaIds';
@@ -160,6 +160,42 @@ export async function forwardMessages({
         '@type': 'newMessage', id: dto.msgId, chatId: toChat.id, message: buildProxyMessage(dto, toChat),
       });
     });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** The bot's answer arrives through the owner's session: a toast, an alert or a link */
+export async function answerCallbackButton({ chatId, messageId, data }: MethodArgs<'answerCallbackButton'>[0]) {
+  const peer = resolveProxyPeer(chatId);
+  if (!peer || !data) return undefined;
+  try {
+    const answer = await runProxyJob('messages.botCallback', { ...peer, msgId: messageId, data }) as {
+      message: string | null; alert: boolean; url: string | null;
+    };
+    return {
+      message: answer.message || undefined,
+      alert: answer.alert || undefined,
+      url: answer.url || undefined,
+      cacheTime: 0,
+    };
+  } catch (err) {
+    emitProxyError(err);
+    return undefined;
+  }
+}
+
+/** The vote is the owner's single vote; fresh results replace the poll in the state */
+export async function sendPollVote({ chat, messageId, options }: MethodArgs<'sendPollVote'>[0]): Promise<void> {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('polls.vote', { ...peer, msgId: messageId, options });
+    const result = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
+      ...peer, msgIds: [messageId],
+    });
+    const poll = result.messages[0] && buildProxyPoll(result.messages[0]);
+    if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
   } catch (err) {
     emitProxyError(err);
   }
