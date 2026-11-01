@@ -201,6 +201,14 @@ export async function sendPollVote({ chat, messageId, options }: MethodArgs<'sen
   }
 }
 
+/** Muting stays with the guest: the owner's notification settings never change */
+export async function updateChatNotifySettings({ chat, settings }: MethodArgs<'updateChatNotifySettings'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer || settings.mutedUntil === undefined) return;
+  emitProxyUpdate({ '@type': 'updateChatNotifySettings', chatId: chat.id, settings });
+  await pxgRpc.call('chats.mute', { ...peer, mutedUntil: settings.mutedUntil }).catch(emitProxyError);
+}
+
 function emitProxyError(err: unknown) {
   emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : 'Unknown error' } });
 }

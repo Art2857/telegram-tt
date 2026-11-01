@@ -34,6 +34,8 @@ import {
   selectTopicFromMessage,
 } from '../global/selectors';
 import { callApi } from '../api/gramjs';
+import { isProxyGuest } from '../api/proxy'; // PXG
+import { subscribePxgPush } from '../proxygram/push'; // PXG
 import { IS_TAURI } from './browser/globalEnvironment';
 import { IS_SERVICE_WORKER_SUPPORTED, IS_TOUCH_ENV } from './browser/windowEnvironment';
 import jsxToHtml from './element/jsxToHtml';
@@ -240,6 +242,13 @@ export async function subscribe() {
   const { setDeviceToken, updateWebNotificationSettings } = getActions();
   let hasWebNotifications = false;
   let hasPushNotifications = false;
+  // PXG: A guest slot receives pushes from the Proxygram server, not from Telegram
+  if (isProxyGuest()) {
+    hasPushNotifications = await subscribePxgPush().catch(() => false);
+    hasWebNotifications = hasPushNotifications || await requestPermission();
+    updateWebNotificationSettings({ hasWebNotifications, hasPushNotifications });
+    return;
+  }
   if (!checkIfPushSupported()) {
     // Ask for notification permissions only if service worker notifications are not supported
     // As pushManager.subscribe automatically triggers permission popup

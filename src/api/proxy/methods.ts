@@ -17,7 +17,7 @@ import {
 } from './stickers';
 import {
   answerCallbackButton, deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage,
-  sendMessageAction, sendPollVote, sendReaction,
+  sendMessageAction, sendPollVote, sendReaction, updateChatNotifySettings,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -42,6 +42,7 @@ const methods = {
   forwardMessages,
   answerCallbackButton,
   sendPollVote,
+  updateChatNotifySettings,
   sendReaction,
   markMessageListRead,
   sendMessageAction,
@@ -101,7 +102,10 @@ export async function fetchProxyChats() {
     lastMessageByChatId: Object.fromEntries(messages.map((message) => [message.chatId, message.id])),
     userStatusesById: {},
     draftsById: {},
-    notifyExceptionById: {},
+    // A guest mutes a shared chat only for themselves; the server keeps it for every device and for pushes
+    notifyExceptionById: Object.fromEntries(access.flatMap((item, index) => (
+      item.mutedUntil ? [[chats[index].id, { mutedUntil: item.mutedUntil }]] : []
+    ))),
     threadInfos: chats.map((chat, index) => ({
       chatId: chat.id, threadId: MAIN_THREAD_ID, isCommentsInfo: false as const,
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,

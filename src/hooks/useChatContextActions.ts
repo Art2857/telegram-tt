@@ -117,7 +117,6 @@ const useChatContextActions = ({
   }, [chat, isSavedDialog, lang]);
 
   const preparedActions = useMemo(() => {
-    if (chat?.pxgProxy) return undefined;
     if (!chat || isPreview) {
       return undefined;
     }
@@ -192,6 +191,9 @@ const useChatContextActions = ({
         icon: 'mute',
         handler: handleMute,
       };
+
+    // PXG: In a shared chat only muting stays with the guest; everything else would act on the owner's account
+    if (chat.pxgProxy) return [actionMute];
 
     // A community has no message history, so most chat actions do not apply
     if (isChatCommunity(chat)) {

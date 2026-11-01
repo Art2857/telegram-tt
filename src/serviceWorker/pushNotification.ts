@@ -40,7 +40,12 @@ type FocusMessageData = {
   messageId?: number;
   reaction?: string;
   shouldReplaceHistory?: boolean;
+  pxg?: PxgPushTarget;
 };
+
+// PXG: The Proxygram server pushes new messages of shared chats to guests
+type PxgPushTarget = { accountId: string; peerId: number; msgId: number };
+type PxgPushData = { pxg: PxgPushTarget; title: string; body: string };
 
 type CloseNotificationData = {
   lastReadInboxMessageId?: number;
@@ -149,6 +154,16 @@ function showNotification({
   ]);
 }
 
+function showPxgNotification({ pxg, title, body }: PxgPushData) {
+  return self.registration.showNotification(title || APP_NAME, {
+    body,
+    data: { pxg },
+    icon: 'icon-192x192.png',
+    badge: 'icon-192x192.png',
+    tag: `pxg:${pxg.accountId}:${pxg.peerId}`,
+  });
+}
+
 async function closeNotifications({
   chatId,
   lastReadInboxMessageId,
@@ -177,6 +192,12 @@ export function handlePush(e: PushEvent) {
 
   const data = getPushData(e);
 
+  // PXG: A shared chat has no Telegram ID here; the client resolves it on click
+  if (data && 'pxg' in data) {
+    e.waitUntil(showPxgNotification(data as unknown as PxgPushData));
+    return;
+  }
+
   // Do not show muted notifications
   if (!data || data.mute === Boolean.True) return;
 
@@ -192,8 +213,11 @@ export function handlePush(e: PushEvent) {
 }
 
 async function focusChatMessage(client: WindowClient, data: FocusMessageData) {
-  if (!data.chatId) return;
-  client.postMessage({
+  if (!data.chatId && !data.pxg) return;
+  client.postMessage(data.pxg ? {
+    type: 'pxgFocusChat',
+    payload: data.pxg,
+  } : {
     type: 'focusMessage',
     payload: data,
   });

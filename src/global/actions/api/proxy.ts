@@ -11,7 +11,9 @@ import { fetchProxyChats } from '../../../api/proxy/methods';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE } from '../../initialState';
-import { addChatListIds, updateChats, updateChatsLastMessageId, updateUsers } from '../../reducers';
+import {
+  addChatListIds, addNotifyExceptions, updateChats, updateChatsLastMessageId, updateUsers,
+} from '../../reducers';
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import { updateThreadInfo } from '../../reducers/threads';
@@ -96,6 +98,10 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
     global = replaceMessages(global, result.messages);
     global = addChatListIds(global, 'active', result.chatIds);
     global = updateChatsLastMessageId(global, result.lastMessageByChatId);
+    // Mutes of shared chats are stored by the server for every device of the guest
+    global = addNotifyExceptions(global, Object.fromEntries(result.chatIds.map((id) => [
+      id, result.notifyExceptionById[id] || { mutedUntil: 0 },
+    ])));
     result.threadInfos.forEach((info) => {
       global = updateThreadInfo(global, info);
     });

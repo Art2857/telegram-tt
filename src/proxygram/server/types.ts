@@ -53,6 +53,8 @@ export interface AccessChat {
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
   restricted: AccessRestriction | null;
+  /** Гость заглушил чат у себя, unix-секунды */
+  mutedUntil: number | null;
 }
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';

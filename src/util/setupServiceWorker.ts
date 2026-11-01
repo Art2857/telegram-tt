@@ -1,6 +1,7 @@
 import { getActions } from '../global';
 
 import { DEBUG, DEBUG_MORE, IS_TEST } from '../config';
+import { getProxyPeerId } from '../api/proxy';
 // eslint-disable-next-line import-x/default
 import serviceWorkerUrl from '../serviceWorker/service.worker.ts?worker&url';
 import { IS_ANDROID, IS_IOS, IS_SERVICE_WORKER_SUPPORTED } from './browser/windowEnvironment';
@@ -30,6 +31,10 @@ function handleWorkerMessage(e: MessageEvent) {
   switch (action.type) {
     case 'focusMessage':
       dispatch.focusMessage?.(payload as any);
+      break;
+    // PXG: A push of the Proxygram server names the shared chat by its provider account and peer
+    case 'pxgFocusChat':
+      dispatch.focusMessage?.({ chatId: getProxyPeerId(payload.accountId, payload.peerId), messageId: payload.msgId });
       break;
     case 'playNotificationSound':
       playNotifySoundDebounced(action.payload.id);
