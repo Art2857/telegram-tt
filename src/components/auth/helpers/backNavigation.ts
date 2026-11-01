@@ -1,4 +1,5 @@
-import { getAccountSlotUrl, getFirstLoggedInAccountSlot } from '../../../util/multiaccount';
+import { ACCOUNT_SLOT, getAccountSlotUrl, getFirstLoggedInAccountSlot } from '../../../util/multiaccount';
+import { listGuestSlots } from '../../../proxygram/server/slots';
 
 export function navigateBack() {
   const currentUrl = new URL(window.location.href);
@@ -9,6 +10,14 @@ export function navigateBack() {
     return;
   }
 
-  const url = getAccountSlotUrl(getFirstLoggedInAccountSlot() || 1);
+  // PXG: a guest account is a slot too, and it can be the only one besides the slot being added
+  const guestSlot = listGuestSlots().find(({ slot }) => slot !== (ACCOUNT_SLOT || 1))?.slot;
+  const url = getAccountSlotUrl(getFirstLoggedInAccountSlot() || guestSlot || 1);
   window.location.href = url;
+}
+
+/** PXG: whether the auth screen is adding one more account, so it can be cancelled */
+export function hasOtherAccount() {
+  const slot = ACCOUNT_SLOT || 1;
+  return Boolean(getFirstLoggedInAccountSlot()) || listGuestSlots().some((item) => item.slot !== slot);
 }

@@ -44,7 +44,7 @@ export function getDeviceInfo() {
   return { name: `${browser} · ${platform}`, platform };
 }
 
-export function startLogin(params: { username?: string; level: SessionLevel }) {
+export function startLogin(params: { username?: string; phone?: string; level: SessionLevel }) {
   return post<LoginStart>('/auth/guest/start', { ...params, device: getDeviceInfo() });
 }
 

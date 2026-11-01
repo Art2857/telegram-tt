@@ -1,10 +1,12 @@
-import { memo } from '../../../lib/teact/teact';
+import { memo, useState } from '../../../lib/teact/teact';
 
 import { setPxgState } from '../../../proxygram/server/store';
+import { hasOtherAccount, navigateBack } from '../../auth/helpers/backNavigation';
 
 import useLang from '../../../hooks/useLang';
 
 import Icon from '../../common/icons/Icon';
+import Button from '../../ui/Button';
 import UnofficialNotice from '../UnofficialNotice';
 
 import styles from './AuthChoice.module.scss';
@@ -12,9 +14,22 @@ import styles from './AuthChoice.module.scss';
 /** Первый экран: два способа входа в одном клиенте (PLAN.md, 7.1 и 7.3) */
 const AuthChoice = () => {
   const lang = useLang();
+  // Adding one more account can be cancelled: back to the account this slot was opened from
+  const [canCancel] = useState(hasOtherAccount);
 
   return (
     <div className={styles.root}>
+      {canCancel && (
+        <Button
+          size="smaller"
+          round
+          color="translucent"
+          className={styles.close}
+          iconName="close"
+          ariaLabel={lang('Cancel')}
+          onClick={navigateBack}
+        />
+      )}
       <div className="auth-form">
         <div id="logo" />
         <h1>{lang('PxgAuthChoiceTitle')}</h1>

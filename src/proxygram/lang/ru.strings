@@ -15,8 +15,8 @@
 "PxgAuthGuestHint" = "Только чаты, которыми с вами поделились. Подтверждение — в нашем боте, доступа к вашему Telegram мы не получаем.";
 "PxgAuthOtherMethod" = "Другой способ входа";
 "PxgGuestTitle" = "Вход гостем";
-"PxgGuestNote" = "Введите свой ник в Telegram — бот пришлёт код.";
-"PxgGuestUsername" = "Ник в Telegram";
+"PxgGuestNote" = "Введите свой ник или номер телефона в Telegram — бот пришлёт код.";
+"PxgGuestUsername" = "Ник или номер телефона";
 "PxgGuestGetCode" = "Получить код";
 "PxgGuestViaBot" = "Войти через бота в Telegram";
 "PxgGuestCodeTitle" = "Введите код";
@@ -63,7 +63,7 @@
 "PxgErrorAlreadyExists" = "Уже есть";
 "PxgErrorNotRegistered" = "Этот человек ещё не входил в Proxygram";
 "PxgErrorGeneric" = "Что-то пошло не так";
-"PxgErrorUsername" = "Ник — 5–32 латинские буквы, цифры или _";
+"PxgErrorUsername" = "Введите ник (5–32 латинские буквы, цифры или _) или номер с кодом страны";
 "PxgMenuSharing" = "Раздача чатов";
 "PxgMenuSharingOn" = "вкл";
 "PxgSettingsTitle" = "Настройки Proxygram";
@@ -343,3 +343,4 @@
 "PxgAdminWarnDisk" = "Диск хранилища занят на {percent}%: освободите место или сократите срок хранения файлов";
 "PxgGuestDeeplinkFirst" = "Бот не может написать {username} первым: этот аккаунт ещё не запускал бота. Откройте бота в Telegram этого аккаунта и нажмите Start — это устройство войдёт само.";
 "PxgGuestDeeplinkScan" = "Telegram на телефоне? Наведите на код камеру.";
+"PxgGuestDeeplinkPhone" = "Бот пока не знает номер {phone}. Откройте бота в Telegram этого аккаунта и нажмите Start — это устройство войдёт само. Там же можно поделиться номером, тогда в следующий раз код придёт сразу.";

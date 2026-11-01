@@ -270,3 +270,9 @@
   top: 1rem;
   left: 1rem;
 }
+
+// The "cancel adding an account" cross moves aside for the back arrow
+.pxg-auth-telegram .auth-close {
+  right: 1rem;
+  left: auto;
+}

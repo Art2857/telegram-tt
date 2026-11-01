@@ -6059,6 +6059,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestDeeplinkFirst': {
     'username': V;
   };
+  'PxgGuestDeeplinkPhone': {
+    'phone': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7384,7 +7387,8 @@ export interface LangKeyGroups {
   'phone': {
     keys:
       | 'UsernameByPhoneNotFound'
-      | 'FragmentPhoneTitle';
+      | 'FragmentPhoneTitle'
+      | 'PxgGuestDeeplinkPhone';
     variables: 'phone';
   };
   'query': {

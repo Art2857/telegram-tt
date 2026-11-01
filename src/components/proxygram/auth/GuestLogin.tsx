@@ -20,6 +20,11 @@ import styles from './AuthChoice.module.scss';
 
 const POLL_INTERVAL_MS = 2000;
 const CODE_LENGTH = 6;
+// Telegram usernames start with a letter, so digits are always a phone number
+const PHONE_INPUT = /^\+?[\d\s().-]{7,24}$/;
+const USERNAME_INPUT = /^@?\w{5,32}$/;
+
+type RequestedLogin = { kind: 'username' | 'phone'; value: string };
 
 /** Вход гостя (PLAN.md, 7.2): ник → код от бота, или Start в боте по ссылке */
 const GuestLogin = () => {
@@ -27,8 +32,8 @@ const GuestLogin = () => {
   const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [request, setRequest] = useState<LoginStart>();
-  // The username the code was asked for: the bot cannot message it first, so it falls back to the link
-  const [requestedUsername, setRequestedUsername] = useState<string>();
+  // What the code was asked for: the bot cannot message an unknown person first, so it falls back to the link
+  const [requestedLogin, setRequestedLogin] = useState<RequestedLogin>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,16 +58,23 @@ const GuestLogin = () => {
     };
   }, [lang, request]);
 
-  async function begin(withUsername: boolean) {
+  async function begin(withLogin: boolean) {
     setError(undefined);
     setIsLoading(true);
     try {
-      const name = withUsername ? username.trim().replace(/^@/, '') : undefined;
-      const started = await startLogin({ username: name, level: 'guest' });
+      const value = username.trim();
+      const login: RequestedLogin | undefined = !withLogin ? undefined : PHONE_INPUT.test(value)
+        ? { kind: 'phone', value }
+        : { kind: 'username', value: value.replace(/^@/, '') };
+      const started = await startLogin({
+        username: login?.kind === 'username' ? login.value : undefined,
+        phone: login?.kind === 'phone' ? login.value : undefined,
+        level: 'guest',
+      });
       setRequest(started);
-      setRequestedUsername(name);
-      // A username fallback explains itself first: the guest's Telegram is often on another device
-      if (started.delivery === 'deeplink' && !name) window.open(started.deeplink, '_blank', 'noopener');
+      setRequestedLogin(login);
+      // A fallback for the entered login explains itself first: the guest's Telegram is often on another device
+      if (started.delivery === 'deeplink' && !login) window.open(started.deeplink, '_blank', 'noopener');
     } catch (err) {
       setError(describePxgError(lang, err));
     } finally {
@@ -86,7 +98,8 @@ const GuestLogin = () => {
 
   const handleUsernameSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (/^@?\w{5,32}$/.test(username.trim())) void begin(true);
+    const value = username.trim();
+    if (USERNAME_INPUT.test(value) || PHONE_INPUT.test(value)) void begin(true);
     else setError(lang('PxgErrorUsername'));
   };
 
@@ -153,9 +166,10 @@ const GuestLogin = () => {
       <>
         <h1>{lang('PxgGuestDeeplinkTitle')}</h1>
         <p className="note">
-          {requestedUsername
-            ? lang('PxgGuestDeeplinkFirst', { username: `@${requestedUsername}` })
-            : lang('PxgGuestDeeplinkNote')}
+          {requestedLogin?.kind === 'username'
+            && lang('PxgGuestDeeplinkFirst', { username: `@${requestedLogin.value}` })}
+          {requestedLogin?.kind === 'phone' && lang('PxgGuestDeeplinkPhone', { phone: requestedLogin.value })}
+          {!requestedLogin && lang('PxgGuestDeeplinkNote')}
         </p>
         <BotLinkQr link={deeplink} />
         <p className={styles.hint}>{lang('PxgGuestDeeplinkScan')}</p>

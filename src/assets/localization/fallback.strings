@@ -4528,8 +4528,8 @@
 "PxgAuthGuestHint" = "Only chats shared with you. You confirm it is you in our bot — we get no access to your Telegram.";
 "PxgAuthOtherMethod" = "Other sign-in method";
 "PxgGuestTitle" = "Guest sign-in";
-"PxgGuestNote" = "Enter your Telegram username — our bot will send you a code.";
-"PxgGuestUsername" = "Telegram username";
+"PxgGuestNote" = "Enter your Telegram username or phone number — our bot will send you a code.";
+"PxgGuestUsername" = "Username or phone number";
 "PxgGuestGetCode" = "Get code";
 "PxgGuestViaBot" = "Sign in via the bot in Telegram";
 "PxgGuestCodeTitle" = "Enter the code";
@@ -4576,7 +4576,7 @@
 "PxgErrorAlreadyExists" = "Already exists";
 "PxgErrorNotRegistered" = "This person has not signed in to Proxygram yet";
 "PxgErrorGeneric" = "Something went wrong";
-"PxgErrorUsername" = "A username is 5–32 letters, digits or underscores";
+"PxgErrorUsername" = "Enter a username (5–32 letters, digits or underscores) or a phone number with the country code";
 "PxgMenuSharing" = "Share chats";
 "PxgMenuSharingOn" = "on";
 "PxgSettingsTitle" = "Proxygram settings";
@@ -4856,3 +4856,4 @@
 "PxgAdminWarnDisk" = "The storage disk is {percent}% full: free up space or shorten how long files are kept";
 "PxgGuestDeeplinkFirst" = "The bot can't message {username} first: this account hasn't started the bot yet. Open the bot in that account's Telegram and tap Start — this device will sign in by itself.";
 "PxgGuestDeeplinkScan" = "Telegram on your phone? Point the camera at the code.";
+"PxgGuestDeeplinkPhone" = "The bot doesn't know {phone} yet. Open the bot in that account's Telegram and tap Start — this device will sign in by itself. You can share your number there, so next time the code arrives right away.";
