@@ -3680,6 +3680,7 @@ export interface LangPair {
   'PxgShareSelfChat': undefined;
   'PxgAdminStatMedia': undefined;
   'PxgAdminStatDisk': undefined;
+  'PxgGuestDeeplinkScan': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -6055,6 +6056,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminWarnDisk': {
     'percent': V;
   };
+  'PxgGuestDeeplinkFirst': {
+    'username': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -6921,7 +6925,8 @@ export interface LangKeyGroups {
       | 'CocoonFeature1Text'
       | 'FragmentUsernameTitle'
       | 'PxgGuestNoChats'
-      | 'PxgShareNotRegistered';
+      | 'PxgShareNotRegistered'
+      | 'PxgGuestDeeplinkFirst';
     variables: 'username';
   };
   'limit,limit2': {

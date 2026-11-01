@@ -55,6 +55,23 @@
   color: var(--color-text-secondary);
 }
 
+.qr {
+  overflow: hidden;
+
+  width: 12.5rem;
+  height: 12.5rem;
+  margin: 0 auto 1rem;
+  border-radius: var(--border-radius-default-small, 0.75rem);
+
+  background: #ffffff;
+}
+
+.link {
+  user-select: all;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
 .back {
   position: absolute;
   top: 1rem;

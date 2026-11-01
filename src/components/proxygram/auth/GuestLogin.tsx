@@ -3,6 +3,7 @@ import { memo, useEffect, useState } from '../../../lib/teact/teact';
 
 import type { LoginStart } from '../../../proxygram/server/types';
 
+import buildClassName from '../../../util/buildClassName';
 import { pollLogin, startLogin, verifyLoginCode } from '../../../proxygram/server/http';
 import { setPxgSession } from '../../../proxygram/server/session';
 import { setPxgState } from '../../../proxygram/server/store';
@@ -13,6 +14,7 @@ import useLang from '../../../hooks/useLang';
 import Button from '../../ui/Button';
 import InputText from '../../ui/InputText';
 import UnofficialNotice from '../UnofficialNotice';
+import BotLinkQr from './BotLinkQr';
 
 import styles from './AuthChoice.module.scss';
 
@@ -25,6 +27,8 @@ const GuestLogin = () => {
   const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [request, setRequest] = useState<LoginStart>();
+  // The username the code was asked for: the bot cannot message it first, so it falls back to the link
+  const [requestedUsername, setRequestedUsername] = useState<string>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,9 +57,12 @@ const GuestLogin = () => {
     setError(undefined);
     setIsLoading(true);
     try {
-      const started = await startLogin({ username: withUsername ? username.trim() : undefined, level: 'guest' });
+      const name = withUsername ? username.trim().replace(/^@/, '') : undefined;
+      const started = await startLogin({ username: name, level: 'guest' });
       setRequest(started);
-      if (started.delivery === 'deeplink') window.open(started.deeplink, '_blank', 'noopener');
+      setRequestedUsername(name);
+      // A username fallback explains itself first: the guest's Telegram is often on another device
+      if (started.delivery === 'deeplink' && !name) window.open(started.deeplink, '_blank', 'noopener');
     } catch (err) {
       setError(describePxgError(lang, err));
     } finally {
@@ -145,10 +152,17 @@ const GuestLogin = () => {
     return (
       <>
         <h1>{lang('PxgGuestDeeplinkTitle')}</h1>
-        <p className="note">{lang('PxgGuestDeeplinkNote')}</p>
+        <p className="note">
+          {requestedUsername
+            ? lang('PxgGuestDeeplinkFirst', { username: `@${requestedUsername}` })
+            : lang('PxgGuestDeeplinkNote')}
+        </p>
+        <BotLinkQr link={deeplink} />
+        <p className={styles.hint}>{lang('PxgGuestDeeplinkScan')}</p>
         <Button className="auth-button" href={deeplink} onClick={() => window.open(deeplink, '_blank', 'noopener')}>
           {lang('PxgGuestOpenBot')}
         </Button>
+        <p className={buildClassName(styles.hint, styles.link)}>{deeplink}</p>
         <p className="note">{error ?? lang('PxgGuestWaiting')}</p>
       </>
     );

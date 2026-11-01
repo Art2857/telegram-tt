@@ -4854,3 +4854,5 @@
 "PxgAdminStatMedia" = "Archive files";
 "PxgAdminStatDisk" = "Disk used";
 "PxgAdminWarnDisk" = "The storage disk is {percent}% full: free up space or shorten how long files are kept";
+"PxgGuestDeeplinkFirst" = "The bot can't message {username} first: this account hasn't started the bot yet. Open the bot in that account's Telegram and tap Start — this device will sign in by itself.";
+"PxgGuestDeeplinkScan" = "Telegram on your phone? Point the camera at the code.";

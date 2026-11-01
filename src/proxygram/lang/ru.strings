@@ -341,3 +341,5 @@
 "PxgAdminStatMedia" = "Файлы архива";
 "PxgAdminStatDisk" = "Диск занят";
 "PxgAdminWarnDisk" = "Диск хранилища занят на {percent}%: освободите место или сократите срок хранения файлов";
+"PxgGuestDeeplinkFirst" = "Бот не может написать {username} первым: этот аккаунт ещё не запускал бота. Откройте бота в Telegram этого аккаунта и нажмите Start — это устройство войдёт само.";
+"PxgGuestDeeplinkScan" = "Telegram на телефоне? Наведите на код камеру.";
