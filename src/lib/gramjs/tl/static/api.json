@@ -19,6 +19,7 @@
     "auth.dropTempAuthKeys",
     "auth.exportLoginToken",
     "auth.importLoginToken",
+    "auth.acceptLoginToken",
     "auth.initPasskeyLogin",
     "auth.finishPasskeyLogin",
     "account.registerDevice",

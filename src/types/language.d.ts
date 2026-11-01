@@ -3677,6 +3677,9 @@ export interface LangPair {
   'PxgChatNotShared': undefined;
   'PxgAutostart': undefined;
   'PxgAutostartHint': undefined;
+  'PxgShareSelfChat': undefined;
+  'PxgAdminStatMedia': undefined;
+  'PxgAdminStatDisk': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -6049,6 +6052,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgFloodDelay': {
     'seconds': V;
   };
+  'PxgAdminWarnDisk': {
+    'percent': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7470,7 +7476,8 @@ export interface LangKeyGroups {
       | 'GiftCraftSuccessChance'
       | 'PaidMessageTransactionDescription'
       | 'StarTransactionCommission'
-      | 'PxgGuestUploading';
+      | 'PxgGuestUploading'
+      | 'PxgAdminWarnDisk';
     variables: 'percent';
   };
   'receiver': {

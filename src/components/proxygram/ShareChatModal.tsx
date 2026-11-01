@@ -464,6 +464,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           {!editing && guest?.user && (
             <p className={styles.ok}>{lang('PxgShareFound', { name: displayName(guest.user) })}</p>
           )}
+          {/* PLAN.md 13: sharing a private chat with its own counterpart */}
+          {!editing && guest?.user && !topic && peerId === guest.user.tgUserId && (
+            <p className={styles.secondary}>{lang('PxgShareSelfChat')}</p>
+          )}
           {!editing && !isInviting && (
             <Button size="smaller" isText fluid={false} onClick={startInvite}>{lang('PxgInviteCreate')}</Button>
           )}

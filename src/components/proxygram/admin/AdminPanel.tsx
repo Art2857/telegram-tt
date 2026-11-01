@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useState } from '../../../lib/teact/teact
 import type { AdminTopic, ImportStateDto } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
+import { formatFileSize } from '../../../util/textFormat';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
@@ -28,6 +29,7 @@ type Overview = {
   shares: Partial<Record<string, number>>;
   outbox: Partial<Record<string, number>>;
   archive: { messagesEstimate: number; messagesLastDay: number };
+  storage: { mediaBytes: number; disk: { totalBytes: number; freeBytes: number } | null };
 };
 
 type PresenceRow = {
@@ -114,6 +116,9 @@ type OutboxRow = {
 };
 
 type Confirm = { text: string; label: string; action: () => Promise<unknown> };
+
+/** PLAN.md 13: the admin is warned before the storage disk runs out */
+const DISK_WARNING_PERCENT = 80;
 
 const TABS = [
   { key: 'overview', title: 'PxgAdminOverview' },
@@ -284,6 +289,9 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
   const reading = presence.data?.filter((row) => row.chat) ?? [];
   const accountsTotal = Object.values(data.accounts).reduce<number>((sum, n) => sum + (n ?? 0), 0);
   const brokenAccounts = (data.accounts.auth_lost ?? 0) + (data.accounts.flood ?? 0);
+  const { disk } = data.storage;
+  const diskPercent = disk?.totalBytes ? Math.round((1 - disk.freeBytes / disk.totalBytes) * 100) : undefined;
+  const isDiskFull = diskPercent !== undefined && diskPercent >= DISK_WARNING_PERCENT;
 
   const stats: [string, number | string, string?][] = [
     [lang('PxgAdminStatUsers'), data.users.total],
@@ -294,12 +302,15 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
     [lang('PxgAdminStatShares'), data.shares.active ?? 0],
     [lang('PxgAdminStatArchive'), data.archive.messagesLastDay],
     [lang('PxgAdminStatQueue'), (data.outbox.pending ?? 0) + (data.outbox.running ?? 0)],
+    [lang('PxgAdminStatMedia'), formatFileSize(lang, data.storage.mediaBytes)],
+    [lang('PxgAdminStatDisk'), diskPercent !== undefined ? `${diskPercent}%` : '—'],
   ];
 
   return (
     <>
-      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0) && (
+      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0 || isDiskFull) && (
         <div className={styles.warning}>
+          {isDiskFull && <div>{t(lang, 'PxgAdminWarnDisk', { percent: diskPercent })}</div>}
           {brokenAccounts > 0 && <div>{t(lang, 'PxgAdminWarnAccounts', { count: brokenAccounts })}</div>}
           {(data.outbox.failed ?? 0) > 0 && (
             <div>{t(lang, 'PxgAdminWarnQueue', { count: data.outbox.failed ?? 0 })}</div>

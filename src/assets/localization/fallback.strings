@@ -4850,3 +4850,7 @@
 "PxgAutostart" = "Start with the system";
 "PxgAutostartHint" = "The app opens in the tray and keeps receiving messages";
 "PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";
+"PxgShareSelfChat" = "This is your chat with this very person: they will be writing to themselves on your behalf.";
+"PxgAdminStatMedia" = "Archive files";
+"PxgAdminStatDisk" = "Disk used";
+"PxgAdminWarnDisk" = "The storage disk is {percent}% full: free up space or shorten how long files are kept";
