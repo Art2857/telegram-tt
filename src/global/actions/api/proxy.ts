@@ -121,6 +121,8 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
             active: result.pinnedChatIds.filter((id) => !archivedIds.has(id)),
             archived: result.pinnedChatIds.filter((id) => archivedIds.has(id)),
           },
+          // Every access arrives at once: an empty list is final rather than still loading
+          isFullyLoaded: { ...global.chats.isFullyLoaded, active: true, archived: true },
         },
       };
     }

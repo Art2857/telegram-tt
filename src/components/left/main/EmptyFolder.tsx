@@ -6,6 +6,8 @@ import type { FolderEditDispatch } from '../../../hooks/reducers/useFoldersReduc
 import { SettingsScreens } from '../../../types';
 
 import { selectAnimatedEmoji, selectChatFolder } from '../../../global/selectors';
+import { isProxyGuest } from '../../../api/proxy';
+import { getPxgState } from '../../../proxygram/server/store';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useLang from '../../../hooks/useLang';
@@ -40,6 +42,16 @@ const EmptyFolder = ({
     openSettingsScreen({ screen: SettingsScreens.FoldersEditFolderFromChatList });
   }, [chatFolder, foldersDispatch]);
 
+  function renderDescription() {
+    if (chatFolder) return lang('ChatListEmptyChatListFilterText');
+    // PXG: a guest sees only what owners share, so an empty list tells whom to ask
+    if (isProxyGuest()) {
+      const username = getPxgState().session?.user.username;
+      return username ? lang('PxgGuestNoChats', { username }) : lang('PxgGuestNoChatsNoUsername');
+    }
+    return lang('ChatEmptyChat');
+  }
+
   return (
     <div className={styles.root}>
       <div className={styles.sticker}>
@@ -47,7 +59,7 @@ const EmptyFolder = ({
       </div>
       <h3 className={styles.title} dir="auto">{lang('FilterNoChatsToDisplay')}</h3>
       <p className={styles.description} dir="auto">
-        {lang(chatFolder ? 'ChatListEmptyChatListFilterText' : 'ChatEmptyChat')}
+        {renderDescription()}
       </p>
       {chatFolder && (
         <Button

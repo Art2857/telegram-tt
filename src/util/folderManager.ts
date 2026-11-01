@@ -262,12 +262,8 @@ export function updateFolderManager(global: GlobalState) {
   ));
 
   let affectedFolderIds: number[] = [];
-
-  if (isAllFullyLoadedChanged || isArchivedFullyLoadedChanged || isSavedFolderFullyLoadedChanged) {
-    affectedFolderIds = affectedFolderIds.concat(
-      updateFullyLoaded(global, isArchivedFullyLoadedChanged, isSavedFolderFullyLoadedChanged),
-    );
-  }
+  const isFullyLoadedChanged = isAllFullyLoadedChanged || isArchivedFullyLoadedChanged
+    || isSavedFolderFullyLoadedChanged;
 
   if (!(
     isAllFolderChanged || isArchivedFolderChanged || isSavedFolderChanged || areFoldersChanged
@@ -275,8 +271,8 @@ export function updateFolderManager(global: GlobalState) {
     || areSavedLastMessageIdsChanged || areAllLastMessageIdsChanged || areThreadsByChatChanged
   )
   ) {
-    if (affectedFolderIds.length) {
-      updateResults(affectedFolderIds);
+    if (isFullyLoadedChanged) {
+      updateResults(updateFullyLoaded(global, isArchivedFullyLoadedChanged, isSavedFolderFullyLoadedChanged));
     }
 
     return;
@@ -287,6 +283,14 @@ export function updateFolderManager(global: GlobalState) {
   const prevSavedFolderListIds = prevGlobal.savedFolderListIds;
 
   updateFolders(global, isAllFolderChanged, isArchivedFolderChanged, isSavedFolderChanged, areFoldersChanged);
+
+  // PXG: after the folder summaries, so a list that arrives empty together with its "fully loaded" flag
+  // still gets its (empty) ordered IDs instead of an endless loader
+  if (isFullyLoadedChanged) {
+    affectedFolderIds = affectedFolderIds.concat(
+      updateFullyLoaded(global, isArchivedFullyLoadedChanged, isSavedFolderFullyLoadedChanged),
+    );
+  }
 
   affectedFolderIds = affectedFolderIds.concat(updateChats(
     global,
