@@ -15,6 +15,7 @@ import { getCurrentTabId, subscribeToMasterChange } from '../../../util/establis
 import generateUniqueId from '../../../util/generateUniqueId';
 import { ACCOUNT_SLOT, DATA_BROADCAST_CHANNEL_NAME } from '../../../util/multiaccount';
 import { pause, throttleWithTickEnd } from '../../../util/schedulers';
+import { getPxgState } from '../../../proxygram/server/store';
 import { isProxyGuest, setProxyUpdateHandler, tryCallProxyApi } from '../../proxy';
 import { isProxyPeerId } from '../../proxy/ids';
 
@@ -77,8 +78,15 @@ let isInited = false;
 export function initApi(onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) {
   updateCallback = onUpdate;
   setProxyUpdateHandler(onUpdate);
-  // PXG: A guest uses the server transport without creating a Telegram worker
-  if (isProxyGuest()) return Promise.resolve();
+  // PXG: A guest uses the server transport without creating a Telegram worker. Becoming the master tab resets
+  // the connection state, so report the server connection instead
+  if (isProxyGuest()) {
+    onUpdate({
+      '@type': 'updateConnectionState',
+      connectionState: getPxgState().connection === 'online' ? 'connectionStateReady' : 'connectionStateConnecting',
+    });
+    return Promise.resolve();
+  }
 
   if (!isMasterTab) {
     initApiOnMasterTab(initialArgs);

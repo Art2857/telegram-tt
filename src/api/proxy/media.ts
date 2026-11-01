@@ -87,12 +87,40 @@ export async function downloadMedia(
   }
   const response = await fetch(`${PXG_SERVER_URL}${signed.url}`, { headers });
   if (!response.ok) throw new PxgError(`http_${response.status}`);
-  const buffer = await response.arrayBuffer();
-  if (onProgress?.isCanceled || target.userId !== getPxgState().session?.user.id) return undefined;
+  // Files outside the archive arrive while the server is still fetching them from Telegram
+  const buffer = await readResponse(response, Number(response.headers.get('content-length')), onProgress);
+  if (!buffer || onProgress?.isCanceled || target.userId !== getPxgState().session?.user.id) return undefined;
   onProgress?.(1);
   const mimeType = signed.mimeType || response.headers.get('content-type') || 'application/octet-stream';
   const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
   return { dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size };
+}
+
+async function readResponse(
+  response: Response, total: number, onProgress?: MethodArgs<'downloadMedia'>[1],
+): Promise<ArrayBuffer | undefined> {
+  if (!response.body || !onProgress || !total) return response.arrayBuffer();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (onProgress.isCanceled) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+    loaded += value.length;
+    onProgress(Math.min(loaded / total, 1));
+  }
+  const result = new Uint8Array(loaded);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return result.buffer;
 }
