@@ -12,6 +12,7 @@ import { selectCommunityPanelId } from '../../../global/selectors';
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import { IS_TOUCH_ENV } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useSelector from '../../../hooks/data/useSelector';
 import useInterval from '../../../hooks/schedulers/useInterval';
@@ -72,6 +73,7 @@ const LeftMain = ({
   isFoldersSidebarShown,
 }: OwnProps) => {
   const { openLeftColumnContent } = getActions();
+  const isGuest = useSelector((global) => Boolean(global.currentUserId && isProxyPeerId(global.currentUserId)));
   const [isNewChatButtonShown, setIsNewChatButtonShown] = useState(IS_TOUCH_ENV);
   const [tauriUpdate, setTauriUpdate] = useState<Update>();
   const [isTauriUpdateDownloading, setIsTauriUpdateDownloading] = useState(false);
@@ -270,13 +272,15 @@ const LeftMain = ({
           onCloseAnimationEnd={handleForumPanelAnimationEnd}
         />
       )}
-      <NewChatButton
-        isShown={isNewChatButtonShown}
-        onNewPrivateChat={handleSelectContacts}
-        onNewChannel={handleSelectNewChannel}
-        onNewGroup={handleSelectNewGroup}
-        isAccountFrozen={isAccountFrozen}
-      />
+      {!isGuest && (
+        <NewChatButton
+          isShown={isNewChatButtonShown}
+          onNewPrivateChat={handleSelectContacts}
+          onNewChannel={handleSelectNewChannel}
+          onNewGroup={handleSelectNewGroup}
+          isAccountFrozen={isAccountFrozen}
+        />
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { orderBy } from '../../util/iteratees';
 import { formatRecentTimestamp, secondsToDate } from '../../util/localization/dateFormat';
 import { formatPhoneNumber } from '../../util/phoneNumber';
 import { getServerTime } from '../../util/serverTime';
+import { isProxyPeerId } from '../../api/proxy/ids';
 
 const BOT_STATUS_KEYS: Record<string, RegularLangKey> = {
   app: 'BotStatusApp',
@@ -160,7 +161,8 @@ export function isUserBot(user: ApiUser) {
 }
 
 export function getCanAddContact(user: ApiUser) {
-  return !user.isSelf && !user.isContact && !isUserBot(user) && user.id !== ANONYMOUS_USER_ID;
+  return !isProxyPeerId(user.id) && !user.isSelf && !user.isContact && !isUserBot(user)
+    && user.id !== ANONYMOUS_USER_ID;
 }
 
 export function sortUserIds(

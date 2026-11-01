@@ -13,6 +13,7 @@ import { selectTabState } from '../../../global/selectors';
 import { selectSharedSettings } from '../../../global/selectors/sharedState';
 import { parseDateString } from '../../../util/dates/dateMath';
 import { resolveTransitionName } from '../../../util/resolveTransitionName';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useHistoryBack from '../../../hooks/useHistoryBack';
 import useKeyboardListNavigation from '../../../hooks/useKeyboardListNavigation';
@@ -40,6 +41,7 @@ export type OwnProps = {
 };
 
 type StateProps = {
+  isGuest: boolean;
   currentContent?: GlobalSearchContent;
   chatId?: string;
   animationLevel: AnimationLevel;
@@ -66,12 +68,14 @@ const CHAT_TABS: TabInfo[] = [
   { type: GlobalSearchContent.ChatList, key: 'SearchTabMessages' },
   ...TABS.slice(3), // Skip ChatList, ChannelList and BotApps, replaced with All Messages
 ];
+const GUEST_UNAVAILABLE_SEARCH_CONTENTS = new Set([GlobalSearchContent.BotApps, GlobalSearchContent.PublicPosts]);
 
 const LeftSearch = ({
   searchQuery,
   searchDate,
   isActive,
   currentContent = GlobalSearchContent.ChatList,
+  isGuest,
   chatId,
   animationLevel,
   onReset,
@@ -93,11 +97,11 @@ const LeftSearch = ({
 
   const tabs = useMemo(() => {
     const arr = chatId ? CHAT_TABS : TABS;
-    return arr.map((tab) => ({
+    return arr.filter((tab) => !isGuest || !GUEST_UNAVAILABLE_SEARCH_CONTENTS.has(tab.type)).map((tab) => ({
       ...tab,
       title: lang(tab.key),
     }));
-  }, [chatId, lang]);
+  }, [chatId, lang, isGuest]);
 
   const activeTab = Math.max(0, tabs.findIndex((tab) => tab.type === currentContent));
   const activeContent = tabs[activeTab]?.type ?? currentContent;
@@ -207,6 +211,9 @@ export default memo(withGlobal<OwnProps>(
     const { currentContent, chatId } = selectTabState(global).globalSearch;
     const { animationLevel } = selectSharedSettings(global);
 
-    return { currentContent, chatId, animationLevel };
+    return {
+      currentContent, chatId, animationLevel,
+      isGuest: Boolean(global.currentUserId && isProxyPeerId(global.currentUserId)),
+    };
   },
 )(LeftSearch));

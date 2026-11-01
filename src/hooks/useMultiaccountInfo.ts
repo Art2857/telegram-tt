@@ -10,6 +10,7 @@ import { preloadImage } from '../util/files';
 import { resizeImage } from '../util/imageResize';
 import { ACCOUNT_SLOT, getAccountsInfo, storeAccountData } from '../util/multiaccount';
 import { addSessionStoreChangeListener } from '../util/passcode/sessionStore';
+import { isProxyPeerId } from '../api/proxy/ids';
 import useSelector from './data/useSelector';
 import useInterval from './schedulers/useInterval';
 import useLastCallback from './useLastCallback';
@@ -21,7 +22,7 @@ const REFRESH_INTERVAL = 1000 * 60;
 const PREVIEW_SIZE = 72;
 
 export default function useMultiaccountInfo(currentUser?: ApiUser) {
-  const isUpdater = Boolean(currentUser) && getGlobal().auth.rememberMe;
+  const isUpdater = Boolean(currentUser) && !isProxyPeerId(currentUser.id) && getGlobal().auth.rememberMe;
   const isSynced = useSelector(selectIsSynced);
 
   const [accountsInfo, setAccountsInfo] = useState(() => getAccountsInfo());

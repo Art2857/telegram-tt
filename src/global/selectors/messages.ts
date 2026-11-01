@@ -594,6 +594,21 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
   }
 
   const chatFullInfo = selectChatFullInfo(global, message.chatId);
+  // PXG: Only implemented native operations are exposed
+  if (chat.pxgProxy) {
+    const { permissions } = chat.pxgProxy;
+    const isOwn = message.pxgIsOwn;
+    const canManage = message.isOutgoing && permissions.manageOwnerOutgoing;
+    const isSaved = !isLocalMessageId(message.id) && !message.pxgDeletedAt;
+    const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage);
+    const canDelete = isSaved && ((isOwn && permissions.deleteOwn) || canManage);
+    return {
+      noOptions: false, canCopy: true, canSelect: true,
+      canReply: permissions.write && isSaved,
+      canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete,
+      canDownload: permissions.download && Boolean(selectMessageDownloadableMedia(global, message)),
+    };
+  }
   const isPrivate = isUserId(chat.id);
   const isChatWithSelf = selectIsChatWithSelf(global, message.chatId);
   const isBasicGroup = isChatBasicGroup(chat);
@@ -1323,6 +1338,8 @@ export function selectSponsoredMessage<T extends GlobalState>(global: T, chatId:
 
 export function selectDefaultReaction<T extends GlobalState>(global: T, chatId: string) {
   if (chatId === SERVICE_NOTIFICATIONS_USER_ID) return undefined;
+  const proxy = selectChat(global, chatId)?.pxgProxy;
+  if (proxy && !proxy.permissions.react) return undefined;
 
   const isPrivate = isUserId(chatId);
   const defaultReaction = global.config?.defaultReaction;

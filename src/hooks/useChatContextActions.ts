@@ -117,6 +117,7 @@ const useChatContextActions = ({
   }, [chat, isSavedDialog, lang]);
 
   const preparedActions = useMemo(() => {
+    if (chat?.pxgProxy) return undefined;
     if (!chat || isPreview) {
       return undefined;
     }

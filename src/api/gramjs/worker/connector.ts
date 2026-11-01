@@ -4,6 +4,7 @@ import type { ApiError, ApiInitialArgs, ApiOnProgress, OnApiUpdate } from '../..
 import type { LocalDb } from '../localDb';
 import type { MethodArgs, MethodResponse, Methods } from '../methods/types';
 import type { OriginPayload, ThenArg, WorkerMessageEvent } from './types';
+import { PROXY_FOLDER_ID } from '../../proxy/types';
 
 import { DEBUG, IGNORE_UNHANDLED_ERRORS } from '../../../config';
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
@@ -14,6 +15,8 @@ import { getCurrentTabId, subscribeToMasterChange } from '../../../util/establis
 import generateUniqueId from '../../../util/generateUniqueId';
 import { ACCOUNT_SLOT, DATA_BROADCAST_CHANNEL_NAME } from '../../../util/multiaccount';
 import { pause, throttleWithTickEnd } from '../../../util/schedulers';
+import { isProxyGuest, setProxyUpdateHandler, tryCallProxyApi } from '../../proxy';
+import { isProxyPeerId } from '../../proxy/ids';
 
 type RequestState = {
   messageId: string;
@@ -73,6 +76,9 @@ let isInited = false;
 
 export function initApi(onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs) {
   updateCallback = onUpdate;
+  setProxyUpdateHandler(onUpdate);
+  // PXG: A guest uses the server transport without creating a Telegram worker
+  if (isProxyGuest()) return Promise.resolve();
 
   if (!isMasterTab) {
     initApiOnMasterTab(initialArgs);
@@ -204,6 +210,7 @@ export function callApiOnMasterTab(payload: any) {
 }
 
 export function setShouldEnableDebugLog(value: boolean) {
+  if (isProxyGuest()) return Promise.resolve(undefined);
   return makeRequest({
     type: 'toggleDebugMode',
     isEnabled: value,
@@ -261,6 +268,28 @@ export function callApiLocal<T extends keyof Methods>(
 }
 
 export function callApi<T extends keyof Methods>(fnName: T, ...args: MethodArgs<T>): EnsurePromise<MethodResponse<T>> {
+  // PXG: A mixed list must still update polling for real Telegram channels
+  if (fnName === 'setOpenedChannelIds') {
+    const ids = args[0] as string[];
+    if (ids.some(isProxyPeerId)) {
+      return callApi('setOpenedChannelIds', ids.filter((id) => !isProxyPeerId(id))) as EnsurePromise<MethodResponse<T>>;
+    }
+  }
+  // PXG: Local folders never reach Telegram, including drag-to-reorder requests
+  if (fnName === 'sortChatFolders') {
+    const ids = args[0] as number[];
+    if (ids.includes(PROXY_FOLDER_ID)) {
+      return callApi('sortChatFolders', ids.filter((id) => id !== PROXY_FOLDER_ID)) as EnsurePromise<MethodResponse<T>>;
+    }
+  }
+  if ((fnName === 'deleteChatFolder' && args[0] === PROXY_FOLDER_ID)
+    || (fnName === 'editChatFolder' && (args[0] as { id: number }).id === PROXY_FOLDER_ID)) {
+    return Promise.resolve(undefined) as EnsurePromise<MethodResponse<T>>;
+  }
+  // PXG: Route proxy peers before queuing or forwarding anything to the GramJS worker
+  const proxyCall = tryCallProxyApi(fnName, ...args);
+  if (proxyCall) return proxyCall;
+
   if (!isInited && isMasterTab) {
     if (NO_QUEUE_BEFORE_INIT.has(fnName)) {
       return Promise.resolve(undefined) as EnsurePromise<MethodResponse<T>>;

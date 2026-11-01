@@ -262,7 +262,7 @@ export function selectCanBanUsers<T extends GlobalState>(global: T, chatId: stri
 
 export function selectCanShareFolder<T extends GlobalState>(global: T, folderId: number) {
   const folder = selectChatFolder(global, folderId);
-  if (!folder) return false;
+  if (!folder || folder.pxgLocal) return false;
 
   const {
     bots, groups, channels, contacts, nonContacts, includedChatIds, pinnedChatIds,

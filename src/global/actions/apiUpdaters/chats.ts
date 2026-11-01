@@ -27,6 +27,7 @@ import {
   updatePeerStoriesHidden,
   updateTopic,
 } from '../../reducers';
+import { updateProxyFolder } from '../../reducers/proxy';
 import { removeUnreadReactions } from '../../reducers/reactions';
 import { updateTabState } from '../../reducers/tabs';
 import { addUnreadMessageToCounter, replaceThreadLocalStateParam } from '../../reducers/threads';
@@ -222,15 +223,16 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
 
     case 'newMessage': {
       const { chatId, id, message } = update;
-
-      const isOur = message.senderId ? message.senderId === global.currentUserId : message.isOutgoing;
+      const chat = selectChat(global, chatId);
+      // PXG: Outgoing messages use the provider's sender, while the current guest has its own identity
+      const isOur = chat?.pxgProxy ? message.isOutgoing
+        : message.senderId ? message.senderId === global.currentUserId : message.isOutgoing;
       if (isOur && !message.isFromScheduled) {
         return undefined;
       }
 
       const isLocal = isLocalMessageId(id);
 
-      const chat = selectChat(global, chatId);
       if (!chat) {
         return undefined;
       }
@@ -422,13 +424,13 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateChatFoldersOrder': {
       const { orderedIds } = update;
 
-      return {
+      return updateProxyFolder({
         ...global,
         chatFolders: {
           ...global.chatFolders,
           orderedIds,
         },
-      };
+      });
     }
 
     case 'updateRecommendedChatFolders': {

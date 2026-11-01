@@ -8,6 +8,7 @@ import { temporarilySuspendCacheUpdate } from '../../../global/cache';
 import { getCurrentMaxAccountCount, getCurrentProdAccountCount } from '../../../global/helpers';
 import { IS_SAFARI } from '../../../util/browser/windowEnvironment';
 import { getAccountSlotUrl } from '../../../util/multiaccount';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import { isGuestSlot } from '../../../proxygram/server/slots'; // PXG
 import { REM } from '../../common/helpers/mediaDimensions';
 
@@ -103,6 +104,12 @@ const AccountMenuItems = ({
 
   return (
     <>
+      {isProxyPeerId(currentUser.id) && (
+        <MenuItem icon="user" onClick={onSelectCurrent}>
+          <span className="menu-item-name">{currentUser.firstName}</span>
+          <span className="menu-item-badge">{lang('PxgLevelGuest')}</span>
+        </MenuItem>
+      )}
       {Object.entries(accounts || {})
         .sort(([, account]) => (account.userId === currentUser.id ? -1 : 1))
         .map(([slot, account], index, arr) => {

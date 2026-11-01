@@ -41,7 +41,7 @@ import UiLoader from './common/UiLoader';
 import AppInactive from './main/AppInactive';
 import LockScreen from './main/LockScreen.async';
 import Main from './main/Main.async';
-import GuestApp from './proxygram/guest/GuestApp';
+import NativeGuest from './proxygram/NativeGuest';
 // import Test from './test/demo/MessageTextStreamingTest';
 import Transition from './ui/Transition';
 
@@ -233,7 +233,7 @@ const App = ({
       case AppScreens.inactive:
         return <AppInactive inactiveReason={inactiveReason!} />;
       case AppScreens.pxgGuest:
-        return <GuestApp />;
+        return <NativeGuest isMobile={isMobile} />;
     }
   }
 

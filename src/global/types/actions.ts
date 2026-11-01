@@ -138,6 +138,12 @@ import type { AiEditorContent, ReactionDeletionContext, TabState } from './tabSt
 export type WithTabId = { tabId?: number };
 
 export interface ActionPayloads {
+  loadProxyChats: undefined;
+  clearProxyChats: undefined;
+  initProxyGuest: undefined;
+  resetProxyGuest: undefined;
+  refreshProxyMessage: { accountId: string; peerId: number; msgId: number };
+  refreshProxyHistory: { accountId: string; peerId: number };
   // system
   init: ({
     isMasterTab?: boolean;

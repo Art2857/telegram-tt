@@ -76,7 +76,7 @@ export function selectCanManage<T extends GlobalState>(
 ) {
   const chat = selectChat(global, chatId);
   const isRestricted = selectIsChatRestricted(global, chatId);
-  if (!chat || isRestricted || chat.isMonoforum) return false;
+  if (!chat || chat.pxgProxy || isRestricted || chat.isMonoforum) return false;
 
   const isPrivate = isUserId(chat.id);
   const user = isPrivate ? selectUser(global, chatId) : undefined;
@@ -98,7 +98,7 @@ export function selectCanManageAutoDelete<T extends GlobalState>(
   chatId: string,
 ) {
   const chat = selectChat(global, chatId);
-  if (!chat || selectIsChatRestricted(global, chatId) || chat.isMonoforum) return false;
+  if (!chat || chat.pxgProxy || selectIsChatRestricted(global, chatId) || chat.isMonoforum) return false;
 
   if (
     selectIsChatWithSelf(global, chatId)

@@ -32,6 +32,11 @@ export function replaceChatListIds<T extends GlobalState>(
   type: ChatListType,
   newIds: string[] | undefined,
 ): T {
+  // PXG: Telegram pagination does not own the local proxy dialogs
+  if (type === 'active' && newIds) {
+    const proxyIds = global.chats.listIds.active?.filter((id) => global.chats.byId[id]?.pxgProxy) || [];
+    newIds = Array.from(new Set([...newIds, ...proxyIds]));
+  }
   return {
     ...global,
     chats: {

@@ -52,6 +52,7 @@ import { getSystemTheme } from '../util/systemTheme';
 import { getDefaultPatternColor } from '../util/wallpaper';
 import { migrateLegacyWallpaperBlobs, prefetchWallpaperUrl } from '../util/wallpaperStorage';
 import { buildPageAudioById } from './helpers/buildPageAudioById';
+import { clearProxyChats } from './reducers/proxy';
 import { selectSharedSettings } from './selectors/sharedState';
 import { selectThreadInfo } from './selectors/threads';
 import { addActionHandler, getGlobal } from './index';
@@ -304,6 +305,8 @@ export function migrateCache(cached: GlobalState, initialState: GlobalState) {
     unsafeMigrateCache(cached, initialState);
     pruneExpiredEphemeralMessages(cached);
     clearCachedDraftLocalFlags(cached);
+    // PXG: Revalidate accesses before restoring any proxy history from disk
+    Object.assign(cached, clearProxyChats(cached));
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

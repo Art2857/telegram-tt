@@ -599,7 +599,7 @@ export default memo(withGlobal<OwnProps>(
     const isOwner = chat?.isOwner;
     const isChatWithBot = chatId ? selectIsChatWithBot(global, chatId) : undefined;
     const willDeleteForCurrentUserOnly = (chat && isChatBasicGroup(chat) && !canDeleteForAll) || isChatWithBot;
-    const willDeleteForAll = chat && (isChatSuperGroup(chat) || isChannel);
+    const willDeleteForAll = chat && (Boolean(chat.pxgProxy) || isChatSuperGroup(chat) || isChannel);
 
     return {
       chat,
@@ -607,7 +607,7 @@ export default memo(withGlobal<OwnProps>(
       isSuperGroup,
       messageIds,
       currentUserId: global.currentUserId,
-      canDeleteForAll: !isSchedule && canDeleteForAll,
+      canDeleteForAll: !chat?.pxgProxy && !isSchedule && canDeleteForAll,
       contactUser,
       willDeleteForCurrentUserOnly,
       willDeleteForAll,

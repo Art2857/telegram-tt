@@ -32,9 +32,12 @@ const ReactionSelectorReaction = ({
   isLocked,
   onToggleReaction,
 }: OwnProps) => {
-  const mediaAppearData = useMedia(`sticker${reaction.appearAnimation?.id}`, !isReady || noAppearAnimation);
-  const mediaData = useMedia(`document${reaction.selectAnimation?.id}`, !isReady || noAppearAnimation);
-  const staticIconData = useMedia(`document${reaction.staticIcon?.id}`, !noAppearAnimation);
+  const mediaAppearData = useMedia(reaction.appearAnimation?.id ? `sticker${reaction.appearAnimation.id}` : undefined,
+    !isReady || noAppearAnimation);
+  const mediaData = useMedia(reaction.selectAnimation?.id ? `document${reaction.selectAnimation.id}` : undefined,
+    !isReady || noAppearAnimation);
+  const staticIconData = useMedia(reaction.staticIcon?.id ? `document${reaction.staticIcon.id}` : undefined,
+    !noAppearAnimation);
   const [isAnimationLoaded, markAnimationLoaded] = useFlag();
 
   const [isFirstPlay, , unmarkIsFirstPlay] = useFlag(true);
@@ -42,6 +45,18 @@ const ReactionSelectorReaction = ({
 
   function handleClick() {
     onToggleReaction(reaction.reaction);
+  }
+
+  if (!reaction.appearAnimation && !reaction.selectAnimation && !reaction.staticIcon) {
+    return (
+      <div
+        className={buildClassName(styles.root, chosen && styles.chosen)}
+        onClick={handleClick}
+        style={`font-size: ${REACTION_SIZE}px`}
+      >
+        {reaction.reaction.emoticon}
+      </div>
+    );
   }
 
   return (

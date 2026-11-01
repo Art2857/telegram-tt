@@ -1054,7 +1054,7 @@ export default memo(withGlobal<OwnProps>(
       isMessageProtected: isProtected,
       canCopyLink: !message.isEphemeral && !isScheduled && canCopyLink,
       canSelect: !message.isEphemeral && canSelect,
-      canDownload: !isProtected && canDownload,
+      canDownload: (chat?.pxgProxy?.permissions.download || !isProtected) && canDownload,
       canSaveGif: !isProtected && canSaveGif,
       canRevote: !message.isEphemeral && canRevote,
       canClosePoll: !message.isEphemeral && !isScheduled && canClosePoll,
@@ -1069,6 +1069,7 @@ export default memo(withGlobal<OwnProps>(
       hasFullInfo: Boolean(chatFullInfo),
       canShowReactionsCount: !message.isEphemeral && canShowReactionsCount,
       canShowReactionList: !message.isEphemeral && !isLocal && !isAction && !isScheduled && !hasTtl
+        && (!chat?.pxgProxy || chat.pxgProxy.permissions.react)
         && !(chat && !isPrivate && !isChatAdmin(chat) && isUserRightBanned(chat, 'sendReactions', chatFullInfo)),
       canBuyPremium: !message.isEphemeral && !isCurrentUserPremium && !selectIsPremiumPurchaseBlocked(global),
       customEmojiSetsInfo: message.isEphemeral ? undefined : customEmojiSetsInfo,

@@ -1,5 +1,9 @@
 import { memo } from '../../lib/teact/teact';
+import { getActions, getGlobal } from '../../global';
 
+import { PROXY_FOLDER_ID } from '../../api/proxy/types';
+
+import { signOutPxg } from '../../proxygram/server/session';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
 
 import useLang from '../../hooks/useLang';
@@ -8,6 +12,7 @@ import MenuItem from '../ui/MenuItem';
 
 /** PXG: пункты главного меню — раздача своих чатов и админка (только администраторам) */
 const PxgMenuItems = () => {
+  const { setActiveChatFolder, showNotification } = getActions();
   const lang = useLang();
   const session = usePxgState((state) => state.session);
   const isSharing = usePxgState((state) => state.accounts?.some((account) => account.status === 'active'));
@@ -17,18 +22,32 @@ const PxgMenuItems = () => {
 
   return (
     <>
-      <MenuItem icon="folder" onClick={() => setPxgState({ isSharedOpen: true })}>
-        <span className="menu-item-name">{lang('PxgSharedWithMe')}</span>
-        {Boolean(sharedCount) && <div className="right-badge">{sharedCount}</div>}
-      </MenuItem>
-      <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
-        <span className="menu-item-name">{lang('PxgMenuSharing')}</span>
-        {isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
-      </MenuItem>
+      {session.level === 'client' && (
+        <MenuItem
+          icon="folder"
+          onClick={() => {
+            const index = getGlobal().chatFolders.orderedIds?.indexOf(PROXY_FOLDER_ID) ?? -1;
+            if (index >= 0) setActiveChatFolder({ activeChatFolder: index });
+            else showNotification({ message: { key: 'PxgGuestNoChatsNoUsername' } });
+          }}
+        >
+          <span className="menu-item-name">{lang('PxgSharedWithMe')}</span>
+          {Boolean(sharedCount) && <div className="right-badge">{sharedCount}</div>}
+        </MenuItem>
+      )}
+      {session.level === 'client' && (
+        <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
+          <span className="menu-item-name">{lang('PxgMenuSharing')}</span>
+          {isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
+        </MenuItem>
+      )}
       {session.user.role === 'admin' && (
         <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
           {lang('PxgAdminTitle')}
         </MenuItem>
+      )}
+      {session.level === 'guest' && (
+        <MenuItem icon="logout" destructive onClick={signOutPxg}>{lang('PxgSignOut')}</MenuItem>
       )}
     </>
   );

@@ -46,6 +46,7 @@ import { copyTextToClipboard } from '../../../util/clipboard';
 import { formatPhoneNumberWithCode } from '../../../util/phoneNumber';
 import stopEvent from '../../../util/stopEvent';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import { ChatAnimationTypes } from '../../left/main/hooks';
 import formatUsername from '../helpers/formatUsername';
 import renderText from '../helpers/renderText';
@@ -516,7 +517,7 @@ const ChatExtra = ({
             </div>
           </ListItem>
         )}
-        {!isOwnProfile && !isInSettings && (
+        {!isProxyPeerId(chatOrUserId) && !isOwnProfile && !isInSettings && (
           <ListItem
             icon="notifications-filled"
             iconBg="red"

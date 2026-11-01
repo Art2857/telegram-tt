@@ -1,5 +1,6 @@
 import './api/initial';
 import './api/chats';
+import './api/proxy';
 import './api/messages';
 import './api/symbols';
 import './api/globalSearch';

@@ -7,6 +7,7 @@ import type {
 } from '../../../api/types';
 import type { LangFn } from '../../../util/localization';
 
+import { selectChat } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import {
   formatCalendarDate, formatCompactTimestamp, formatDateTime, isSameLocalDay, secondsToDate,
@@ -14,8 +15,10 @@ import {
 import { formatStarsAsIcon } from '../../../util/localization/format';
 import { getRepeatPeriodText } from '../../../util/scheduledMessages';
 import { formatIntegerCompact } from '../../../util/textFormat';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import renderText from '../../common/helpers/renderText';
 
+import useSelector from '../../../hooks/data/useSelector';
 import useFlag from '../../../hooks/useFlag';
 import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
@@ -74,6 +77,8 @@ const MessageMeta = ({
   const [isActivated, markActivated] = useFlag();
 
   const lang = useLang();
+  const canSeeEditHistory = useSelector((global) => !isProxyPeerId(message.chatId)
+    || selectChat(global, message.chatId)?.pxgProxy?.permissions.seeArchive);
 
   function handleImportedClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -182,6 +187,9 @@ const MessageMeta = ({
         onClick={onClick}
         data-ignore-on-paste
       >
+        {message.pxgSentByUserId && (
+          <span className="message-delegated" title={lang('PxgGuestSentByGuest')}>✍ </span>
+        )}
         {effectEmoji && (
           <span className="message-effect-icon" onClick={onEffectClick}>
             {renderText(effectEmoji)}
@@ -234,7 +242,10 @@ const MessageMeta = ({
           )}
           {/* PXG: «изменено» открывает историю правок */}
           {message.isEdited && !shouldShowPrimaryEditedDate && (
-            <span className={editHistoryStyles.editedLink} onClick={handleEditedClick}>
+            <span
+              className={canSeeEditHistory ? editHistoryStyles.editedLink : undefined}
+              onClick={canSeeEditHistory ? handleEditedClick : undefined}
+            >
               {`${lang('MessageMetaEdited')} `}
             </span>
           )}
@@ -246,7 +257,7 @@ const MessageMeta = ({
         )}
         {renderQuickReactionButton && renderQuickReactionButton()}
       </span>
-      {isEditHistoryOpen && (
+      {isEditHistoryOpen && canSeeEditHistory && (
         <EditHistoryModal isOpen message={message} onClose={closeEditHistory} />
       )}
     </>

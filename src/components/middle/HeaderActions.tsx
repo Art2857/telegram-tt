@@ -35,6 +35,7 @@ import {
 import { ARE_CALLS_SUPPORTED, IS_APP } from '../../util/browser/windowEnvironment';
 import { isUserId } from '../../util/entities/ids';
 import focusNoScroll from '../../util/focusNoScroll';
+import { isProxyPeerId } from '../../api/proxy/ids';
 
 import { useHotkeys } from '../../hooks/useHotkeys';
 import useLang from '../../hooks/useLang';
@@ -344,7 +345,7 @@ const HeaderActions = ({
           </MenuItem>
         </DropdownMenu>
       )}
-      {!isMobile && (
+      {(!isMobile || isProxyPeerId(chatId)) && (
         <>
           {canSearch && (
             <Button
@@ -383,18 +384,20 @@ const HeaderActions = ({
           <div className="badge">{pendingJoinRequests}</div>
         </Button>
       )}
-      <Button
-        ref={menuButtonRef}
-        className={isMenuOpen ? 'active' : ''}
-        round
-        ripple={!isMobile}
-        size="smaller"
-        color="translucent"
-        disabled={noMenu}
-        ariaLabel={lang('AccDescrMoreOptions')}
-        onClick={handleHeaderMenuOpen}
-        iconName="more"
-      />
+      {!isProxyPeerId(chatId) && (
+        <Button
+          ref={menuButtonRef}
+          className={isMenuOpen ? 'active' : ''}
+          round
+          ripple={!isMobile}
+          size="smaller"
+          color="translucent"
+          disabled={noMenu}
+          ariaLabel={lang('AccDescrMoreOptions')}
+          onClick={handleHeaderMenuOpen}
+          iconName="more"
+        />
+      )}
       {menuAnchor && (
         <HeaderMenuContainer
           chatId={chatId}
@@ -440,9 +443,10 @@ export default memo(withGlobal<OwnProps>(
     const { doNotTranslate, translationTone } = global.settings.byKey;
 
     const isRestricted = selectIsChatRestricted(global, chatId);
-    if (!chat || isRestricted || selectIsInSelectMode(global)) {
+    if (!chat || chat.pxgProxy || isRestricted || selectIsInSelectMode(global)) {
       return {
         noMenu: true,
+        canSearch: Boolean(chat?.pxgProxy && !isRestricted && !selectIsInSelectMode(global)),
         language,
         translationLanguage,
         doNotTranslate,

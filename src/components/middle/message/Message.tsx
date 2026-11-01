@@ -812,7 +812,7 @@ const Message = ({
   }, [message.isDeleting]);
 
   const textMessage = album?.hasMultipleCaptions ? undefined : (album?.captionMessage || message);
-  const hasTextContent = textMessage && hasMessageText(textMessage);
+  const hasTextContent = Boolean((textMessage && hasMessageText(textMessage)) || message.pxgMediaFallback);
   const hasText = hasTextContent || hasFactCheck;
 
   const containerClassName = buildClassName(
@@ -1131,27 +1131,43 @@ const Message = ({
     const forcedText = (isShowingSummary && summary?.text)
       || (requestedTranslationLanguage ? currentTranslatedText : undefined);
     return (
-      <MessageText
-        messageOrStory={textMessage}
-        forcedText={forcedText}
-        isForAnimation={isForAnimation}
-        focusedQuote={focusedQuote}
-        focusedQuoteOffset={focusedQuoteOffset}
-        emojiSize={emojiSize}
-        highlight={highlight}
-        isProtected={isProtected}
-        observeIntersectionForLoading={observeIntersectionForLoading}
-        observeIntersectionForPlaying={observeIntersectionForPlaying}
-        withTranslucentThumbs={isCustomShape}
-        isInSelectMode={isInSelectMode}
-        canBeEmpty={hasFactCheck || isTypingDraft}
-        maxTimestamp={maxTimestamp}
-        threadId={threadId}
-        shouldAnimateTyping={isTypingDraft}
-        noInitialTypingAnimation={message.shouldSkipTypingAnimation}
-        canAnimateTextStreaming={canAnimateTextStreaming}
-        onTypingAnimationEnd={handleTypingAnimationEnd}
-      />
+      <>
+        {message.pxgMediaFallback && (
+          <span className="pxg-media-fallback">
+            📎
+            {' '}
+            {message.pxgMediaFallback.fileName}
+            {message.pxgMediaFallback.isUnavailable && (
+              <>
+                <br />
+                {lang('PxgGuestMediaNotArchived')}
+              </>
+            )}
+            {textMessage.content.text && <br />}
+          </span>
+        )}
+        <MessageText
+          messageOrStory={textMessage}
+          forcedText={forcedText}
+          isForAnimation={isForAnimation}
+          focusedQuote={focusedQuote}
+          focusedQuoteOffset={focusedQuoteOffset}
+          emojiSize={emojiSize}
+          highlight={highlight}
+          isProtected={isProtected}
+          observeIntersectionForLoading={observeIntersectionForLoading}
+          observeIntersectionForPlaying={observeIntersectionForPlaying}
+          withTranslucentThumbs={isCustomShape}
+          isInSelectMode={isInSelectMode}
+          canBeEmpty={hasFactCheck || isTypingDraft}
+          maxTimestamp={maxTimestamp}
+          threadId={threadId}
+          shouldAnimateTyping={isTypingDraft}
+          noInitialTypingAnimation={message.shouldSkipTypingAnimation}
+          canAnimateTextStreaming={canAnimateTextStreaming}
+          onTypingAnimationEnd={handleTypingAnimationEnd}
+        />
+      </>
     );
   }
 

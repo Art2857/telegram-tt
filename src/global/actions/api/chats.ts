@@ -101,6 +101,7 @@ import {
   updateUsers,
 } from '../../reducers';
 import { updateGroupCall } from '../../reducers/calls';
+import { updateProxyFolder } from '../../reducers/proxy';
 import { updateTabState } from '../../reducers/tabs';
 import {
   replaceThreadLocalStateParam,
@@ -1318,6 +1319,8 @@ addActionHandler('loadChatFolders', async (global): Promise<void> => {
         ...chatFolders,
       },
     };
+    // PXG: Server folder refreshes preserve the local accesses folder
+    global = updateProxyFolder(global);
     setGlobal(global);
   }
 });

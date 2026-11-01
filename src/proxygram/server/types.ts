@@ -54,6 +54,7 @@ export interface AccessChat {
 }
 
 export interface MessageDto {
+  isMediaUnavailable?: boolean;
   accountId: string;
   peerId: number;
   msgId: number;
@@ -90,6 +91,9 @@ export interface MediaSummaryDto {
   size?: number;
   fileName?: string;
   flags?: string[];
+  width?: number;
+  height?: number;
+  duration?: number;
 }
 
 export interface ReactionCountDto {
@@ -149,6 +153,7 @@ export type ServerEvent =
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {
   id: string;
+  accountId: string;
   kind: 'send' | 'edit' | 'delete' | 'react' | 'read' | 'typing' | 'history';
   status: 'done' | 'failed';
   /** history: { imported, complete } */

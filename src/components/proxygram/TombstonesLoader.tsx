@@ -6,6 +6,7 @@ import { MAIN_THREAD_ID } from '../../api/types';
 
 import { selectChatLastMessageId, selectCurrentMessageList, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { insertTombstones } from '../../proxygram/archive/serverTombstones';
 import { pxgRpc } from '../../proxygram/server/rpc';
 
@@ -37,7 +38,7 @@ const TombstonesLoader = ({
   const fetchedRef = useRef(new Map<string, [number, number][]>());
 
   useEffect(() => {
-    if (!chatId || minId === undefined || maxId === undefined) return undefined;
+    if (!chatId || isProxyPeerId(chatId) || minId === undefined || maxId === undefined) return undefined;
     const to = isAtEnd ? maxId + TAIL_RANGE : maxId;
     const ranges = fetchedRef.current.get(chatId) ?? [];
     if (ranges.some(([from, until]) => from <= minId && until >= to)) return undefined;

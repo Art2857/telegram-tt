@@ -3,13 +3,16 @@ import { memo, useEffect, useMemo, useState } from '../../lib/teact/teact';
 import type { ApiMessage, PxgEditVersion } from '../../api/types';
 import type { MessageVersionDto } from '../../proxygram/server/types';
 
+import { selectChat } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
 import { formatDateTime, secondsToDate } from '../../util/localization/dateFormat';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { diffWords } from '../../proxygram/archive/editHistory';
 import { getOwnAccountId } from '../../proxygram/server/ownAccount';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import renderText from '../common/helpers/renderText';
 
+import useSelector from '../../hooks/data/useSelector';
 import useLang from '../../hooks/useLang';
 
 import Checkbox from '../ui/Checkbox';
@@ -36,22 +39,29 @@ const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
   const [shouldShowDiff, setShouldShowDiff] = useState(true);
   // Устройство правку не застало (было закрыто) — берём версии из серверного архива своего аккаунта
   const [serverHistory, setServerHistory] = useState<PxgEditVersion[]>();
-  const localHistory = message.pxgEditHistory;
+  const proxy = useSelector((global) => selectChat(global, message.chatId)?.pxgProxy);
+  const localHistory = proxy ? undefined : message.pxgEditHistory;
 
   useEffect(() => {
     if (!isOpen || localHistory?.length || !message.isEdited) return;
-    const accountId = getOwnAccountId();
+    setServerHistory(undefined);
+    if (isProxyPeerId(message.chatId) && !proxy?.permissions.seeArchive) return;
+    const accountId = proxy?.accountId || getOwnAccountId();
     if (!accountId) return;
-    pxgRpc.call<MessageVersionDto[]>('archive.versions', {
-      accountId, peerId: Number(message.chatId), msgId: message.id,
+    let isActive = true;
+    pxgRpc.call<MessageVersionDto[]>(proxy ? 'messages.versions' : 'archive.versions', {
+      accountId, peerId: proxy?.peerId ?? Number(message.chatId), msgId: message.id,
     })
-      .then((rows) => setServerHistory(rows.map((row) => ({
+      .then((rows) => isActive && setServerHistory(rows.map((row) => ({
         text: { text: row.text },
         date: row.editDate ? Math.floor(Date.parse(row.editDate) / 1000) : message.date,
         capturedAt: Math.floor(Date.parse(row.capturedAt) / 1000),
       }))))
       .catch(() => undefined);
-  }, [isOpen, localHistory, message.chatId, message.date, message.id, message.isEdited]);
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, localHistory, message.chatId, message.date, message.id, message.isEdited, proxy]);
 
   const versions = useMemo(() => {
     const history = localHistory?.length ? localHistory : serverHistory ?? [];

@@ -1,3 +1,4 @@
+import type { ProxyChatInfo } from '../proxy/types';
 import type { ApiBotCommand } from './bots';
 import type {
   ApiChatReactions, ApiFormattedText, ApiInputDraftReplyInfo, ApiInputSuggestedPostInfo, ApiPhoto, ApiStickerSet,
@@ -35,6 +36,8 @@ export type ApiChatInviteJoinWebView = {
 
 export interface ApiChat {
   id: string;
+  // PXG: Server access and identity are separate from the Telegram peer
+  pxgProxy?: ProxyChatInfo;
   folderId?: number;
   type: ApiChatType;
   title: string;
@@ -261,6 +264,7 @@ export interface ApiChatBannedRights {
 
 export interface ApiChatFolder {
   id: number;
+  pxgLocal?: true;
   title: ApiFormattedText;
   noTitleAnimations?: true;
   description?: string;

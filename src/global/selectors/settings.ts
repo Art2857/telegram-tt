@@ -4,6 +4,7 @@ import { SettingsScreens } from '../../types';
 import {
   IS_SNAP_EFFECT_SUPPORTED, IS_TRANSLATION_SUPPORTED, IS_WEBAUTHN_SUPPORTED,
 } from '../../util/browser/windowEnvironment';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { selectCurrentLimit } from './limits';
 import { selectSharedSettings } from './sharedState';
 import {
@@ -33,7 +34,7 @@ export function selectLanguageCode<T extends GlobalState>(global: T) {
 }
 
 export function selectCanSetPasscode<T extends GlobalState>(global: T) {
-  return Boolean(global.auth.rememberMe);
+  return Boolean(global.auth.rememberMe && global.currentUserId && !isProxyPeerId(global.currentUserId));
 }
 
 export function selectAvailableSettingsScreen<T extends GlobalState>(global: T, screen: SettingsScreens) {
@@ -72,10 +73,12 @@ export function selectSettingsSearchFlags<T extends GlobalState>(global: T) {
   const lastSeenVisibility = privacy.lastSeen?.visibility;
   const isPremium = selectIsCurrentUserPremium(global);
 
+  const hasTelegramSession = Boolean(global.currentUserId && !isProxyPeerId(global.currentUserId));
   return {
+    hasTelegramSession,
     isSnapEffectSupported: IS_SNAP_EFFECT_SUPPORTED,
-    canBuyPremium: !selectIsPremiumPurchaseBlocked(global),
-    isGiveawayAvailable: selectIsGiveawayGiftsPurchaseAvailable(global),
+    canBuyPremium: hasTelegramSession && !selectIsPremiumPurchaseBlocked(global),
+    isGiveawayAvailable: hasTelegramSession && selectIsGiveawayGiftsPurchaseAvailable(global),
     isPasswordStateKnown: hasPassword !== undefined,
     hasPassword,
     hasPasscode,

@@ -802,6 +802,9 @@ export interface ApiMessage {
   isDeleting?: boolean;
   // PXG: время удаления (сек, время сервера) — сообщение сохранено антиудалением
   pxgDeletedAt?: number;
+  pxgSentByUserId?: string;
+  pxgIsOwn?: boolean;
+  pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)
   pxgEditHistory?: PxgEditVersion[];
   previousLocalId?: number;

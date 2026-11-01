@@ -8,6 +8,7 @@ import { getAccountSlot } from '../util/accountSlot';
 import generateUniqueId from '../util/generateUniqueId';
 import { loadPasscodeMeta, requestPasscodeStateLock } from '../util/passcode/meta';
 import { pause } from '../util/schedulers';
+import { parseProxyMediaHash } from '../api/proxy/mediaIds';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -44,6 +45,8 @@ export async function respondForProgressive(e: FetchEvent) {
   }
 
   const parsedUrl = new URL(url);
+  // PXG: Archive media always revalidates access through the page's server adapter
+  const isProxyMedia = Boolean(parseProxyMediaHash(parsedUrl.pathname.slice(parsedUrl.pathname.lastIndexOf('/') + 1)));
 
   // Optimization for Safari
   if (start === 0 && end === 1) {
@@ -69,7 +72,7 @@ export async function respondForProgressive(e: FetchEvent) {
   parsedUrl.searchParams.set('start', String(start));
   parsedUrl.searchParams.set('end', String(end));
   const cacheKey = parsedUrl.href;
-  const [cachedArrayBuffer, cachedHeaders] = !MEDIA_PROGRESSIVE_CACHE_DISABLED && !hasPasscode
+  const [cachedArrayBuffer, cachedHeaders] = !MEDIA_PROGRESSIVE_CACHE_DISABLED && !hasPasscode && !isProxyMedia
     ? await fetchFromCache(accountSlot, cacheKey) : [];
 
   if (DEBUG) {
@@ -118,6 +121,7 @@ export async function respondForProgressive(e: FetchEvent) {
 
   if (
     !MEDIA_PROGRESSIVE_CACHE_DISABLED
+    && !isProxyMedia
     && !hasPasscode
     && partSize <= MEDIA_CACHE_MAX_BYTES
     && end < MAX_END_TO_CACHE

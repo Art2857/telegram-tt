@@ -12,6 +12,7 @@ import {
 } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import { formatStarsAsIcon, formatTonAsIcon } from '../../../util/localization/format';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useFlag from '../../../hooks/useFlag';
 import useHistoryBack from '../../../hooks/useHistoryBack';
@@ -63,9 +64,10 @@ const SettingsMain = ({
   const [isSupportDialogOpen, openSupportDialog, closeSupportDialog] = useFlag(false);
 
   const lang = useLang();
+  const isGuest = Boolean(currentUserId && isProxyPeerId(currentUserId));
 
   useEffect(() => {
-    if (currentUserId) {
+    if (currentUserId && !isProxyPeerId(currentUserId)) {
       loadMoreProfilePhotos({ peerId: currentUserId, isPreload: true });
     }
   }, [currentUserId]);
@@ -100,16 +102,18 @@ const SettingsMain = ({
       </div>
       <div className={styles.menuSection}>
         <Island>
-          <ListItem
-            icon="account-filled"
-            iconBg="blue"
-            multiline
-            narrow
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.EditProfile })}
-          >
-            <span className="title">{lang('SettingsAccount')}</span>
-            <span className="subtitle">{lang('SettingsAccountDesc')}</span>
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="account-filled"
+              iconBg="blue"
+              multiline
+              narrow
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.EditProfile })}
+            >
+              <span className="title">{lang('SettingsAccount')}</span>
+              <span className="subtitle">{lang('SettingsAccountDesc')}</span>
+            </ListItem>
+          )}
 
           <ListItem
             icon="settings-filled"
@@ -122,27 +126,31 @@ const SettingsMain = ({
             <span className="subtitle">{lang('SettingsGeneralDesc')}</span>
           </ListItem>
 
-          <ListItem
-            icon="notifications-filled"
-            iconBg="red"
-            multiline
-            narrow
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.Notifications })}
-          >
-            <span className="title">{lang('Notifications')}</span>
-            <span className="subtitle">{lang('SettingsNotificationsDesc')}</span>
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="notifications-filled"
+              iconBg="red"
+              multiline
+              narrow
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.Notifications })}
+            >
+              <span className="title">{lang('Notifications')}</span>
+              <span className="subtitle">{lang('SettingsNotificationsDesc')}</span>
+            </ListItem>
+          )}
 
-          <ListItem
-            icon="lock-filled"
-            iconBg="gray"
-            multiline
-            narrow
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.Privacy })}
-          >
-            <span className="title">{lang('PrivacySettings')}</span>
-            <span className="subtitle">{lang('SettingsPrivacyDesc')}</span>
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="lock-filled"
+              iconBg="gray"
+              multiline
+              narrow
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.Privacy })}
+            >
+              <span className="title">{lang('PrivacySettings')}</span>
+              <span className="subtitle">{lang('SettingsPrivacyDesc')}</span>
+            </ListItem>
+          )}
 
           <ListItem
             icon="piechart-filled"
@@ -155,16 +163,18 @@ const SettingsMain = ({
             <span className="subtitle">{lang('SettingsDataDesc')}</span>
           </ListItem>
 
-          <ListItem
-            icon="folder-filled"
-            iconBg="blue"
-            multiline
-            narrow
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.Folders })}
-          >
-            <span className="title">{lang('Filters')}</span>
-            <span className="subtitle">{lang('SettingsFoldersDesc')}</span>
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="folder-filled"
+              iconBg="blue"
+              multiline
+              narrow
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.Folders })}
+            >
+              <span className="title">{lang('Filters')}</span>
+              <span className="subtitle">{lang('SettingsFoldersDesc')}</span>
+            </ListItem>
+          )}
 
           <ListItem
             icon="animations-filled"
@@ -177,16 +187,18 @@ const SettingsMain = ({
             <span className="subtitle">{lang('SettingsPerformanceDesc')}</span>
           </ListItem>
 
-          <ListItem
-            icon="smile-filled"
-            iconBg="pink"
-            multiline
-            narrow
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.Stickers })}
-          >
-            <span className="title">{lang('MenuStickers')}</span>
-            <span className="subtitle">{lang('SettingsStickersDesc')}</span>
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="smile-filled"
+              iconBg="pink"
+              multiline
+              narrow
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.Stickers })}
+            >
+              <span className="title">{lang('MenuStickers')}</span>
+              <span className="subtitle">{lang('SettingsStickersDesc')}</span>
+            </ListItem>
+          )}
 
           <ListItem
             icon="web-filled"
@@ -201,89 +213,95 @@ const SettingsMain = ({
             </span>
           </ListItem>
 
-          <ListItem
-            icon="devices-filled"
-            iconBg="blue"
-            multiline
-            narrow
-            rightElement={sessionCount > 0
-              ? <span className="settings-item__current-value">{sessionCount}</span>
-              : undefined}
-            onClick={() => openSettingsScreen({ screen: SettingsScreens.ActiveSessions })}
-          >
-            <span className="title">{lang('SessionsTitle')}</span>
-            <span className="subtitle">{lang('SettingsSessionsDesc')}</span>
-          </ListItem>
-        </Island>
-
-        <Island>
-          {canBuyPremium && (
+          {!isGuest && (
             <ListItem
-              icon="star"
-              iconBg="premium"
+              icon="devices-filled"
+              iconBg="blue"
+              multiline
               narrow
-              onClick={() => openPremiumModal()}
+              rightElement={sessionCount > 0
+                ? <span className="settings-item__current-value">{sessionCount}</span>
+                : undefined}
+              onClick={() => openSettingsScreen({ screen: SettingsScreens.ActiveSessions })}
             >
-              {lang('TelegramPremium')}
+              <span className="title">{lang('SessionsTitle')}</span>
+              <span className="subtitle">{lang('SettingsSessionsDesc')}</span>
             </ListItem>
           )}
+        </Island>
 
-          <ListItem
-            icon="stars-filled"
-            iconBg="orange"
-            narrow
-            onClick={() => openStarsBalanceModal({})}
-          >
-            {lang('MenuStars')}
-            {Boolean(starsBalance) && (
-              <span className="settings-item__current-value">
-                {formatStarsAsIcon(lang, formatStarsAmount(lang, starsBalance), {
-                  asFont: true,
-                  withIconLast: true,
-                  className: styles.balanceStar,
-                })}
-              </span>
+        {!isGuest && (
+          <Island>
+            {canBuyPremium && (
+              <ListItem
+                icon="star"
+                iconBg="premium"
+                narrow
+                onClick={() => openPremiumModal()}
+              >
+                {lang('TelegramPremium')}
+              </ListItem>
             )}
-          </ListItem>
 
-          <ListItem
-            icon="gram-filled"
-            iconBg="blue"
-            narrow
-            onClick={() => openStarsBalanceModal({ currency: TON_CURRENCY_CODE })}
-          >
-            {lang('GramEarnings')}
-            {Boolean(tonBalance) && (
-              <span className="settings-item__current-value">
-                {formatTonAsIcon(lang, tonBalance.amount, {
-                  withIconLast: true,
-                  className: styles.balanceGem,
-                })}
-              </span>
-            )}
-          </ListItem>
-
-          {isGiveawayAvailable && (
             <ListItem
-              icon="gift-filled"
+              icon="stars-filled"
               iconBg="orange"
               narrow
-              onClick={() => openGiftRecipientPicker()}
+              onClick={() => openStarsBalanceModal({})}
             >
-              {lang('MenuSendGift')}
+              {lang('MenuStars')}
+              {Boolean(starsBalance) && (
+                <span className="settings-item__current-value">
+                  {formatStarsAsIcon(lang, formatStarsAmount(lang, starsBalance), {
+                    asFont: true,
+                    withIconLast: true,
+                    className: styles.balanceStar,
+                  })}
+                </span>
+              )}
             </ListItem>
-          )}
-        </Island>
+
+            <ListItem
+              icon="gram-filled"
+              iconBg="blue"
+              narrow
+              onClick={() => openStarsBalanceModal({ currency: TON_CURRENCY_CODE })}
+            >
+              {lang('GramEarnings')}
+              {Boolean(tonBalance) && (
+                <span className="settings-item__current-value">
+                  {formatTonAsIcon(lang, tonBalance.amount, {
+                    withIconLast: true,
+                    className: styles.balanceGem,
+                  })}
+                </span>
+              )}
+            </ListItem>
+
+            {isGiveawayAvailable && (
+              <ListItem
+                icon="gift-filled"
+                iconBg="orange"
+                narrow
+                onClick={() => openGiftRecipientPicker()}
+              >
+                {lang('MenuSendGift')}
+              </ListItem>
+            )}
+          </Island>
+        )}
 
         <Island>
-          <ListItem
-            icon="support-filled"
-            iconBg="red"
-            narrow
-            onClick={openSupportDialog}
-          >
-            {lang('AskAQuestion')}
-          </ListItem>
+          {!isGuest && (
+            <ListItem
+              icon="support-filled"
+              iconBg="red"
+              narrow
+              onClick={openSupportDialog}
+            >
+              {lang('AskAQuestion')}
+            </ListItem>
+          )}
           <ListItem
             icon="help-filled"
             iconBg="blue"

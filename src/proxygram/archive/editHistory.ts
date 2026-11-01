@@ -3,6 +3,7 @@ import type { GlobalState } from '../../global/types';
 
 import { updateChatMessage } from '../../global/reducers';
 import { getServerTime } from '../../util/serverTime';
+import { isProxyPeerId } from '../../api/proxy/ids';
 
 /**
  * История правок на устройстве (L1, PLAN.md 9). Перед применением правки прежний текст
@@ -12,6 +13,8 @@ import { getServerTime } from '../../util/serverTime';
 export function recordEditVersion<T extends GlobalState>(
   global: T, chatId: string, id: number, current: ApiMessage, incoming: Partial<ApiMessage>,
 ): T {
+  // Proxy history is authorized by the server, including access to previous versions
+  if (isProxyPeerId(chatId)) return global;
   const previousText = current.content.text;
   const nextText = incoming.content?.text;
   if (!incoming.content || previousText?.text === nextText?.text) return global;

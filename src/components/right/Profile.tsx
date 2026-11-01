@@ -181,6 +181,7 @@ type StateProps = {
   isRestricted?: boolean;
   activeDownloads: TabState['activeDownloads'];
   isChatProtected?: boolean;
+  canDownloadProxyMedia?: boolean;
   chatInfo: TabState['chatInfo'];
   animationLevel: AnimationLevel;
   shouldWarnAboutFiles?: boolean;
@@ -306,6 +307,7 @@ const Profile = ({
   isRestricted,
   activeDownloads,
   isChatProtected,
+  canDownloadProxyMedia,
   animationLevel,
   shouldWarnAboutFiles,
   similarChannels,
@@ -1136,7 +1138,7 @@ const Profile = ({
               onPlay={handlePlayAudio}
               onDateClick={handleMessageFocus}
               contextActions={getMessageContextActions(messagesById[id])}
-              canDownload={!isChatProtected && !messagesById[id].isProtected}
+              canDownload={canDownloadProxyMedia || (!isChatProtected && !messagesById[id].isProtected)}
               isDownloading={getIsDownloading(activeDownloads, messagesById[id].content.audio!)}
             />
           ))
@@ -1159,7 +1161,7 @@ const Profile = ({
                 onPlay={handlePlayAudio}
                 onDateClick={handleMessageFocus}
                 contextActions={getMessageContextActions(message)}
-                canDownload={!isChatProtected && !message.isProtected}
+                canDownload={canDownloadProxyMedia || (!isChatProtected && !message.isProtected)}
                 isDownloading={getIsDownloading(activeDownloads, media)}
               />
             );
@@ -1584,6 +1586,7 @@ export default memo(withGlobal<OwnProps>(
       activeCollectionId,
       giftsFilter: savedGifts.filter,
       isChatProtected: chat?.isProtected,
+      canDownloadProxyMedia: chat?.pxgProxy?.permissions.download,
       chatInfo,
       animationLevel,
       shouldWarnAboutFiles,

@@ -26,6 +26,9 @@ export function getMessageSummaryText(
 ) {
   const emoji = !noEmoji && getMessageSummaryEmoji(message);
   const emojiWithSpace = emoji ? `${emoji} ` : '';
+  if (message.pxgMediaFallback && !message.content.text?.text) {
+    return `${emojiWithSpace}${trimText(message.pxgMediaFallback.fileName || lang('AttachDocument'), truncateLength)}`;
+  }
   const text = trimText(getMessageTextWithSpoilers(lang, message, statefulContent, truncateLength), truncateLength);
   const description = getMessageSummaryDescription(lang, message, statefulContent, text, isExtended);
   const descriptionText = getSummaryDescriptionText(message, statefulContent, description, truncateLength);
@@ -73,6 +76,7 @@ export function getMessageTextWithSpoilers(
 }
 
 export function getMessageSummaryEmoji(message: ApiMessage) {
+  if (message.pxgMediaFallback) return '📎';
   const {
     photo,
     video,

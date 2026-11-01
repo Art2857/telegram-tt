@@ -13,6 +13,7 @@ import {
 import { formatTonShortFromNanos } from '../../../util/formatCurrency';
 import { formatTonAsIcon } from '../../../util/localization/format';
 import { pause } from '../../../util/schedulers';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useSelector from '../../../hooks/data/useSelector';
 import useAppLayout from '../../../hooks/useAppLayout';
@@ -61,6 +62,8 @@ const SettingsHeader = ({
   } = getActions();
 
   const lang = useLang();
+  const hasTelegramSession = useSelector((global) => Boolean(global.currentUserId
+    && !isProxyPeerId(global.currentUserId)));
   const { isMobile } = useAppLayout();
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isCheckingWallets, markCheckingWallets, unmarkCheckingWallets] = useFlag();
@@ -350,15 +353,17 @@ const SettingsHeader = ({
               ariaLabel={lang('Search')}
               iconName="search"
             />
-            <Button
-              round
-              ripple={!isMobile}
-              size="smaller"
-              color="translucent"
-              onClick={() => openSettingsScreen({ screen: SettingsScreens.EditProfile })}
-              ariaLabel={lang('SettingsInformation')}
-              iconName="edit"
-            />
+            {hasTelegramSession && (
+              <Button
+                round
+                ripple={!isMobile}
+                size="smaller"
+                color="translucent"
+                onClick={() => openSettingsScreen({ screen: SettingsScreens.EditProfile })}
+                ariaLabel={lang('SettingsInformation')}
+                iconName="edit"
+              />
+            )}
             <DropdownMenu
               className="settings-more-menu"
               trigger={SettingsMenuButton}

@@ -21,6 +21,7 @@ export function setPxgSession(tokens: SessionTokensResponse) {
 }
 
 let refreshing: Promise<string | undefined> | undefined;
+let refreshingToken: string | undefined;
 
 /** Действующий токен доступа; при необходимости продлевает сессию одноразовым refresh-токеном */
 export function getAccessToken(force = false): Promise<string | undefined> {
@@ -28,8 +29,13 @@ export function getAccessToken(force = false): Promise<string | undefined> {
   if (!session) return Promise.resolve(undefined);
   if (!force && session.accessExpiresAt - REFRESH_MARGIN_MS > Date.now()) return Promise.resolve(session.accessToken);
 
-  refreshing ??= refreshSession(session.refreshToken)
+  if (refreshing && refreshingToken === session.refreshToken) return refreshing;
+  refreshingToken = session.refreshToken;
+  const request = refreshSession(session.refreshToken)
     .then((tokens) => {
+      // A response from a previous identity must never restore a signed-out session
+      const current = getPxgState().session;
+      if (current?.refreshToken !== session.refreshToken) return current?.accessToken;
       setPxgState({
         session: {
           ...session,
@@ -41,10 +47,12 @@ export function getAccessToken(force = false): Promise<string | undefined> {
       return tokens.accessToken;
     })
     .catch((error: { code?: string }) => {
+      const current = getPxgState().session;
+      if (current?.refreshToken !== session.refreshToken) return current?.accessToken;
       if (error.code !== 'invalid_session') return undefined;
       // другая вкладка могла уже продлить сессию и сменить refresh-токен
       const stored = readStoredSession();
-      if (stored && stored.refreshToken !== session.refreshToken) {
+      if (stored?.user.id === session.user.id && stored.refreshToken !== session.refreshToken) {
         setPxgState({ session: stored });
         return stored.accessToken;
       }
@@ -52,9 +60,13 @@ export function getAccessToken(force = false): Promise<string | undefined> {
       return undefined;
     })
     .finally(() => {
-      refreshing = undefined;
+      if (refreshing === request) {
+        refreshing = undefined;
+        refreshingToken = undefined;
+      }
     });
-  return refreshing;
+  refreshing = request;
+  return request;
 }
 
 /** Выход из системы Proxygram на этом устройстве (сессия Telegram не затрагивается) */

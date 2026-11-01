@@ -31,6 +31,7 @@ import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globa
 import { getPromptInstall } from '../../../util/installPrompt';
 import { switchPermanentWebVersion } from '../../../util/permanentWebVersion';
 import { getSystemTheme } from '../../../util/systemTheme';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useFlag from '../../../hooks/useFlag';
 import { useFolderManagerForUnreadCounters } from '../../../hooks/useFolderManager';
@@ -100,6 +101,7 @@ const LeftSideMenuItems = ({
     openWalletModal,
   } = getActions();
   const lang = useLang();
+  const isGuest = Boolean(currentUserId && isProxyPeerId(currentUserId));
   const [isSwitchToWebKDialogOpen, openSwitchToWebKDialog, closeSwitchToWebKDialog] = useFlag();
 
   const animationLevelValue = animationLevel !== ANIMATION_LEVEL_MIN
@@ -189,38 +191,42 @@ const LeftSideMenuItems = ({
           <MenuSeparator />
         </>
       )}
-      <MenuItem
-        icon="user"
-        onClick={handleSelectMyProfile}
-      >
-        {lang('MenuMyProfile')}
-      </MenuItem>
-      <MenuItem
-        icon="saved-messages"
-        onClick={handleSelectSaved}
-      >
-        {lang('MenuSavedMessages')}
-      </MenuItem>
-      {archiveSettings.isHidden && (
-        <MenuItem
-          icon="archive"
-          onClick={onSelectArchived}
-        >
-          <span className="menu-item-name">{lang('MenuArchivedChats')}</span>
-          {archivedUnreadChatsCount > 0 && (
-            <div className="right-badge">{archivedUnreadChatsCount}</div>
+      {!isGuest && (
+        <>
+          <MenuItem
+            icon="user"
+            onClick={handleSelectMyProfile}
+          >
+            {lang('MenuMyProfile')}
+          </MenuItem>
+          <MenuItem
+            icon="saved-messages"
+            onClick={handleSelectSaved}
+          >
+            {lang('MenuSavedMessages')}
+          </MenuItem>
+          {archiveSettings.isHidden && (
+            <MenuItem
+              icon="archive"
+              onClick={onSelectArchived}
+            >
+              <span className="menu-item-name">{lang('MenuArchivedChats')}</span>
+              {archivedUnreadChatsCount > 0 && (
+                <div className="right-badge">{archivedUnreadChatsCount}</div>
+              )}
+            </MenuItem>
           )}
-        </MenuItem>
+          <MenuItem
+            icon="group"
+            onClick={onSelectContacts}
+          >
+            {lang('MenuContacts')}
+          </MenuItem>
+        </>
       )}
-      <MenuItem
-        icon="group"
-        onClick={onSelectContacts}
-      >
-        {lang('MenuContacts')}
-      </MenuItem>
       {/* PXG: раздача чатов и админка */}
       <PxgMenuItems />
-      {isWalletAvailable && (
+      {!isGuest && isWalletAvailable && (
         <MenuItem
           icon="gram-outline"
           onClick={handleOpenWallet}
@@ -229,7 +235,7 @@ const LeftSideMenuItems = ({
           <span className="menu-item-badge">{lang('New')}</span>
         </MenuItem>
       )}
-      {bots.map((bot) => (
+      {!isGuest && bots.map((bot) => (
         <AttachBotItem
           bot={bot}
           theme={theme}
@@ -270,12 +276,14 @@ const LeftSideMenuItems = ({
               <Toggle value={animationLevelValue} />
             </MenuItem>
             <MenuSeparator />
-            <MenuItem
-              icon="help"
-              onClick={handleOpenTipsChat}
-            >
-              {lang('MenuTelegramFeatures')}
-            </MenuItem>
+            {!isGuest && (
+              <MenuItem
+                icon="help"
+                onClick={handleOpenTipsChat}
+              >
+                {lang('MenuTelegramFeatures')}
+              </MenuItem>
+            )}
             <MenuItem
               icon="bug"
               onClick={handleBugReportClick}

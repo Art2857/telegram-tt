@@ -54,6 +54,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.EditProfile,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'SettingsInformation',
     aliasKey: 'SettingsAccount',
     icon: 'account-filled',
@@ -70,6 +71,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.Notifications,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'Notifications',
     keywordsKey: 'SettingsKeywordsNotifications',
     icon: 'notifications-filled',
@@ -78,6 +80,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.Privacy,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'PrivacySettings',
     icon: 'lock-filled',
     iconBg: 'gray',
@@ -93,6 +96,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.Folders,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'Filters',
     keywordsKey: 'SettingsKeywordsFolders',
     icon: 'folder-filled',
@@ -109,6 +113,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.Stickers,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'MenuStickers',
     keywordsKey: 'SettingsKeywordsStickers',
     icon: 'smile-filled',
@@ -125,6 +130,7 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.ActiveSessions,
     parent: SettingsScreens.Main,
+    requires: 'hasTelegramSession',
     titleKey: 'SessionsTitle',
     keywordsKey: 'SettingsKeywordsSessions',
     icon: 'devices-filled',
@@ -284,12 +290,18 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   ...buildEntries(SettingsScreens.Main, ['TelegramPremium'], {
     requires: 'canBuyPremium', icon: 'star', iconBg: 'premium',
   }),
-  ...buildEntries(SettingsScreens.Main, ['MenuStars'], { icon: 'stars-filled', iconBg: 'orange' }),
-  ...buildEntries(SettingsScreens.Main, ['GramEarnings'], { icon: 'gram-filled', iconBg: 'blue' }),
+  ...buildEntries(SettingsScreens.Main, ['MenuStars'], {
+    requires: 'hasTelegramSession', icon: 'stars-filled', iconBg: 'orange',
+  }),
+  ...buildEntries(SettingsScreens.Main, ['GramEarnings'], {
+    requires: 'hasTelegramSession', icon: 'gram-filled', iconBg: 'blue',
+  }),
   ...buildEntries(SettingsScreens.Main, ['MenuSendGift'], {
     requires: 'isGiveawayAvailable', icon: 'gift-filled', iconBg: 'orange',
   }),
-  ...buildEntries(SettingsScreens.Main, ['AskAQuestion'], { icon: 'support-filled', iconBg: 'red' }),
+  ...buildEntries(SettingsScreens.Main, ['AskAQuestion'], {
+    requires: 'hasTelegramSession', icon: 'support-filled', iconBg: 'red',
+  }),
   ...buildEntries(SettingsScreens.Main, ['MenuTelegramFaq'], { icon: 'help-filled', iconBg: 'blue' }),
   ...buildEntries(SettingsScreens.Main, ['MenuPrivacyPolicy'], { icon: 'privacy-policy-filled', iconBg: 'green' }),
   ...buildEntries(SettingsScreens.Main, ['LogOutTitle'], {

@@ -43,6 +43,8 @@ import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, closeApi, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
+import { isProxyGuest } from '../../../api/proxy';
+import { signOutPxg } from '../../../proxygram/server/session';
 import { removeGlobalFromCache, removeSharedStateFromCache } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -233,6 +235,11 @@ addActionHandler('saveSession', async (global, actions, payload): Promise<void> 
 });
 
 addActionHandler('signOut', async (global, actions, payload): Promise<void> => {
+  // PXG: Signing out a guest does not mutate any Telegram session
+  if (isProxyGuest()) {
+    signOutPxg();
+    return;
+  }
   if ('hangUp' in actions) actions.hangUp({ tabId: getCurrentTabId() });
   if ('leaveGroupCall' in actions) actions.leaveGroupCall({ tabId: getCurrentTabId() });
 

@@ -1,9 +1,13 @@
 import { memo, useEffect } from '../../lib/teact/teact';
-import { withGlobal } from '../../global';
+import { getActions, withGlobal } from '../../global';
 
+import type { ApiChat } from '../../api/types';
 import type { AccountDto } from '../../proxygram/server/types';
 
+import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
+import { setProxyUpdateHandler } from '../../api/proxy';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
@@ -11,12 +15,12 @@ import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/st
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
-import GuestApp from './guest/GuestApp';
 import ShareChatModal from './ShareChatModal';
 import TombstonesLoader from './TombstonesLoader';
 
 type StateProps = {
   currentUserId?: string;
+  proxyPeer?: ApiChat['pxgProxy'];
 };
 
 const POLL_INTERVAL_MS = 1500;
@@ -32,13 +36,13 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  * 2) один раз предлагает разрешить раздачу чатов (подключить сервер);
  * 3) держит окна «Поделиться чатом», подключения и админку.
  */
-const ProxygramBridge = ({ currentUserId }: StateProps) => {
+const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
+  const { loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, apiUpdate } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const shareChatId = usePxgState((state) => state.shareChatId);
-  const isSharedOpen = usePxgState((state) => state.isSharedOpen);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
   const ownAccountId = usePxgState((state) => state.accounts?.find(
     (account) => String(account.tgUserId) === currentUserId,
@@ -47,9 +51,18 @@ const ProxygramBridge = ({ currentUserId }: StateProps) => {
   const hasOwnSession = Boolean(
     session && session.level === 'client' && currentUserId && String(session.user.tgUserId) === currentUserId,
   );
+  const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
 
   useEffect(() => {
-    if (!currentUserId || hasOwnSession) return undefined;
+    if (!isGuest) return;
+    apiUpdate({
+      '@type': 'updateConnectionState',
+      connectionState: connection === 'online' ? 'connectionStateReady' : 'connectionStateConnecting',
+    });
+  }, [isGuest, connection, apiUpdate]);
+
+  useEffect(() => {
+    if (!currentUserId || hasOwnSession || isGuest) return undefined;
     // сессия гостя или чужого аккаунта (сменили аккаунт Telegram) здесь не подходит
     if (getPxgState().session) signOutPxg();
 
@@ -67,7 +80,7 @@ const ProxygramBridge = ({ currentUserId }: StateProps) => {
       isActive = false;
       window.clearTimeout(retryTimer);
     };
-  }, [currentUserId, hasOwnSession]);
+  }, [currentUserId, hasOwnSession, isGuest]);
 
   // Свои аккаунты на сервере; если раздача не включена — один раз предлагаем
   useEffect(() => {
@@ -83,19 +96,34 @@ const ProxygramBridge = ({ currentUserId }: StateProps) => {
 
   // Сколько чатов открыли этому человеку — для пункта меню «Открыто мне»; доступ выдали или отозвали — пересчёт
   useEffect(() => {
-    if (!hasOwnSession || connection !== 'online') return undefined;
-    const count = () => pxgRpc.call<unknown[]>('access.chats')
-      .then((chats) => setPxgState({ sharedCount: chats.length }))
-      .catch(() => undefined);
-    void count();
+    if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
+    setProxyUpdateHandler(apiUpdate);
+    loadProxyChats();
     return pxgRpc.on((event) => {
-      if (event.e === 'access.changed') void count();
+      if (event.e === 'access.changed') {
+        clearProxyChats();
+        loadProxyChats();
+      }
+      if (event.e === 'archive.change') refreshProxyMessage(event.d);
+      if (event.e === 'outbox.done' && event.d.kind === 'history') refreshProxyHistory(event.d);
     });
-  }, [connection, hasOwnSession]);
+  }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats,
+    refreshProxyMessage, refreshProxyHistory, apiUpdate]);
+
+  useEffect(() => {
+    if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
+    const report = () => {
+      const params = document.visibilityState === 'visible' && proxyPeer
+        ? { accountId: proxyPeer.accountId, peerId: proxyPeer.peerId } : {};
+      void pxgRpc.call('presence.set', params).catch(() => undefined);
+    };
+    report();
+    document.addEventListener('visibilitychange', report);
+    return () => document.removeEventListener('visibilitychange', report);
+  }, [connection, hasOwnSession, isGuest, proxyPeer]);
 
   return (
     <>
-      {isSharedOpen && hasOwnSession && <GuestApp onClose={() => setPxgState({ isSharedOpen: false })} />}
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
       {isConnectOpen && <ConnectServerModal />}
       {shareChatId && <ShareChatModal chatId={shareChatId} />}
@@ -129,5 +157,8 @@ async function obtainSession(isActive: () => boolean) {
 }
 
 export default memo(withGlobal(
-  (global): Complete<StateProps> => ({ currentUserId: global.currentUserId }),
+  (global): Complete<StateProps> => {
+    const chatId = selectCurrentMessageList(global)?.chatId;
+    return { currentUserId: global.currentUserId, proxyPeer: chatId ? global.chats.byId[chatId]?.pxgProxy : undefined };
+  },
 )(ProxygramBridge));

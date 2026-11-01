@@ -111,12 +111,13 @@ const useFolderTabs = (params: Params) => {
     }
 
     return displayedFolders.map((folder, i) => {
-      const { id, title } = folder;
-      const isBlocked = id !== ALL_FOLDER_ID && i > maxFolders - 1;
+      const { id } = folder;
+      const title = folder.pxgLocal ? { text: lang('PxgSharedWithMe') } : folder.title;
+      const isBlocked = !folder.pxgLocal && id !== ALL_FOLDER_ID && i > maxFolders - 1;
       const canShareFolder = selectCanShareFolder(getGlobal(), id);
       const contextActions: MenuItemContextAction[] = [];
 
-      if (!isReadOnly) {
+      if (!isReadOnly && !folder.pxgLocal) {
         if (canShareFolder) {
           contextActions.push({
             title: lang('FilterShare'),

@@ -1,12 +1,15 @@
 import type { ServerEvent, SessionUser } from './types';
 import { PxgError } from './types';
 
+import { registerProxyResult } from '../../api/proxy';
 import { getWebSocketUrl } from './http';
 import { getAccessToken } from './session';
 import { getPxgState, setPxgState, subscribePxg } from './store';
 
 const CALL_TIMEOUT_MS = 45_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+const ACCESS_READ_METHODS = new Set(['access.chats', 'messages.history', 'messages.window',
+  'messages.versions', 'messages.search', 'sync.changes', 'media.url']);
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number };
 
@@ -25,6 +28,8 @@ class PxgRpc {
   #attempt = 0;
   #reconnectTimer: number | undefined;
   #refreshTimer: number | undefined;
+  #connectionGeneration = 0;
+  #accessGeneration = 0;
 
   start() {
     if (!this.#isStopped) return;
@@ -34,6 +39,8 @@ class PxgRpc {
 
   stop() {
     this.#isStopped = true;
+    this.#isReady = false;
+    this.#connectionGeneration++;
     window.clearTimeout(this.#reconnectTimer);
     window.clearTimeout(this.#refreshTimer);
     this.#ws?.close(1000);
@@ -50,7 +57,13 @@ class PxgRpc {
   }
 
   async call<T>(method: string, params: unknown = {}): Promise<T> {
+    const userId = getPxgState().session?.user.id;
+    const connectionGeneration = this.#connectionGeneration;
+    const accessGeneration = this.#accessGeneration;
     await this.#whenReady();
+    if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
+      throw new PxgError('unauthorized');
+    }
     const id = ++this.#seq;
     return new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
@@ -59,6 +72,17 @@ class PxgRpc {
       }, CALL_TIMEOUT_MS);
       this.#pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
       this.#ws!.send(JSON.stringify({ t: 'req', id, m: method, p: params }));
+    }).then(async (result) => {
+      if (getPxgState().session?.user.id !== userId) throw new PxgError('unauthorized');
+      if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
+        throw new PxgError('access_changed');
+      }
+      await registerProxyResult(method, result);
+      if (getPxgState().session?.user.id !== userId) throw new PxgError('unauthorized');
+      if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
+        throw new PxgError('access_changed');
+      }
+      return result;
     });
   }
 
@@ -69,8 +93,9 @@ class PxgRpc {
   }
 
   async #open() {
+    const generation = this.#connectionGeneration;
     const token = await getAccessToken();
-    if (this.#isStopped) return;
+    if (this.#isStopped || generation !== this.#connectionGeneration) return;
     if (!token) {
       this.#scheduleReconnect();
       return;
@@ -80,7 +105,9 @@ class PxgRpc {
     const ws = new WebSocket(getWebSocketUrl());
     this.#ws = ws;
     ws.onopen = () => ws.send(JSON.stringify({ t: 'auth', token }));
-    ws.onmessage = (event) => this.#onMessage(String(event.data));
+    ws.onmessage = (event) => {
+      if (this.#ws === ws) this.#onMessage(String(event.data));
+    };
     ws.onclose = (event) => {
       if (this.#ws !== ws) return;
       this.#ws = undefined;
@@ -139,6 +166,8 @@ class PxgRpc {
   }
 
   #emit(event: ServerEvent) {
+    // A late history response cannot restore data cleared by an access change
+    if (event.e === 'access.changed') this.#accessGeneration++;
     this.#listeners.forEach((listener) => listener(event));
   }
 
@@ -177,13 +206,14 @@ class PxgRpc {
 export const pxgRpc = new PxgRpc();
 
 // Соединение живёт, пока есть системная сессия
-let hadSession = false;
+let sessionIdentity: string | undefined;
 function syncConnection() {
-  const hasSession = Boolean(getPxgState().session);
-  if (hasSession === hadSession) return;
-  hadSession = hasSession;
-  if (hasSession) pxgRpc.start();
-  else pxgRpc.stop();
+  const { session } = getPxgState();
+  const identity = session ? `${session.level}:${session.user.id}` : undefined;
+  if (identity === sessionIdentity) return;
+  sessionIdentity = identity;
+  pxgRpc.stop();
+  if (identity) pxgRpc.start();
 }
 subscribePxg(syncConnection);
 syncConnection();

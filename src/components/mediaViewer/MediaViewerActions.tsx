@@ -119,10 +119,11 @@ const MediaViewerActions = ({
 
   const isMessage = item?.type === 'message';
   const message = item?.type === 'message' ? item.message : undefined;
+  const canDownload = chat?.pxgProxy?.permissions.download || !isProtected;
 
   const { canSendPhotos } = getAllowedAttachmentOptions(chat, chatFullInfo);
   const canEditViewedMedia = Boolean(
-    message && !message.isEphemeral && !isMobile && !isProtected && !isChatProtected
+    message && !chat?.pxgProxy && !message.isEphemeral && !isMobile && !isProtected && !isChatProtected
     && message.chatId === chat?.id
     && canSendPhotos
     && canEditMediaInEditor(message),
@@ -225,7 +226,7 @@ const MediaViewerActions = ({
   }
 
   function renderDownloadButton() {
-    if (isProtected || item?.type === 'standalone') {
+    if (!canDownload || item?.type === 'standalone') {
       return undefined;
     }
 
@@ -267,6 +268,9 @@ const MediaViewerActions = ({
         return;
       }
 
+      // PXG: The global confirmation belongs to Main, outside the viewer's dialog stack
+      if (chat.pxgProxy) onCloseMediaViewer();
+
       openDeleteMessageModal({
         chatId: chat?.id,
         messageIds: [item.message.id],
@@ -295,7 +299,7 @@ const MediaViewerActions = ({
         children: lang('Forward'),
       });
     }
-    if (!isProtected) {
+    if (canDownload) {
       if (isVideo) {
         menuItems.push({
           icon: isDownloading ? 'close' : 'download',

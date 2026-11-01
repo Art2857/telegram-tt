@@ -145,7 +145,7 @@ const SettingsFoldersMain = ({
       return MEMO_EMPTY_ARRAY;
     }
 
-    return folderIds.map((id) => {
+    return folderIds.filter((id) => !foldersById[id]?.pxgLocal).map((id) => {
       const folder = foldersById[id];
 
       if (id === ALL_FOLDER_ID) {

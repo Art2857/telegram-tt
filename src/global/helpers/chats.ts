@@ -64,7 +64,7 @@ export function isChatMonoforum(chat: ApiChat) {
 }
 
 export function isCommonBoxChat(chat: ApiChat) {
-  return chat.type === 'chatTypePrivate' || chat.type === 'chatTypeBasicGroup';
+  return !chat.pxgProxy && (chat.type === 'chatTypePrivate' || chat.type === 'chatTypeBasicGroup');
 }
 
 export function isChatWithRepliesBot(chatId: string) {
@@ -154,6 +154,8 @@ export function isUserRightBanned(chat: ApiChat, key: keyof ApiChatBannedRights,
 export function getCanPostInChat(
   chat: ApiChat, topic?: ApiTopic, isMessageThread?: boolean, chatFullInfo?: ApiChatFullInfo,
 ) {
+  // PXG: Proxy write rights come from the server access
+  if (chat.pxgProxy) return chat.pxgProxy.permissions.write;
   if (topic) {
     if (chat.isForum) {
       if (chat.isNotJoined) {
@@ -232,11 +234,12 @@ export function getAllowedAttachmentOptions(
   const isAdmin = isChatAdmin(chat);
 
   return {
-    canAttachMedia: isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendMedia', chatFullInfo),
+    canAttachMedia: chat.pxgProxy ? chat.pxgProxy.permissions.sendMedia
+      : isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendMedia', chatFullInfo),
     canAttachPolls: !isEphemeral && !isStoryReply && !chat.isMonoforum
       && (isAdmin || !isUserRightBanned(chat, 'sendPolls', chatFullInfo))
       && (!isUserId(chat.id) || isChatWithBot || isSavedMessages),
-    canAttachToDoLists: !isEphemeral && !isStoryReply && !chat.isMonoforum && !isChatChannel(chat),
+    canAttachToDoLists: !chat.pxgProxy && !isEphemeral && !isStoryReply && !chat.isMonoforum && !isChatChannel(chat),
     canSendStickers: isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendStickers', chatFullInfo),
     canSendGifs: isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendGifs', chatFullInfo),
     canAttachEmbedLinks: !isStoryReply && (isAdmin || !isUserRightBanned(chat, 'embedLinks', chatFullInfo)),

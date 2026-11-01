@@ -768,7 +768,10 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         chatId, localId, message, poll, webPages,
       } = update;
 
-      global = updateListedAndViewportIds(global, message);
+      // PXG: The server archive event can arrive before the outbox acknowledgement
+      if (!selectChat(global, chatId)?.pxgProxy || !selectChatMessage(global, chatId, message.id)) {
+        global = updateListedAndViewportIds(global, message);
+      }
 
       const currentMessage = selectChatMessage(global, chatId, localId);
 

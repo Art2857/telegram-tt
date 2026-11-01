@@ -21,6 +21,7 @@ import { IS_APP, IS_MAC_OS } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import captureEscKeyListener from '../../../util/captureEscKeyListener';
 import { formatDateTime, secondsToDate } from '../../../util/localization/dateFormat';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useConnectionStatus from '../../../hooks/useConnectionStatus';
@@ -54,6 +55,7 @@ type OwnProps = {
 type StateProps = {
   searchQuery?: string;
   isLoading: boolean;
+  isGuest: boolean;
   globalSearchChatId?: string;
   searchDate?: number;
   theme: ThemeKey;
@@ -78,6 +80,7 @@ const LeftMainHeader = ({
   isClosingSearch,
   searchQuery,
   isLoading,
+  isGuest,
   isCurrentUserPremium,
   shouldSkipTransition,
   globalSearchChatId,
@@ -211,7 +214,8 @@ const LeftMainHeader = ({
     ? lang('SearchFriends')
     : lang('Search');
 
-  const withStoryToggler = !isSearchFocused && !selectedSearchDate && !globalSearchChatId && !areContactsVisible;
+  const withStoryToggler = !isGuest && !isSearchFocused && !selectedSearchDate
+    && !globalSearchChatId && !areContactsVisible;
 
   const searchContent = useMemo(() => {
     return (
@@ -327,6 +331,7 @@ export default memo(withGlobal<OwnProps>(
 
     return {
       searchQuery,
+      isGuest: Boolean(global.currentUserId && isProxyPeerId(global.currentUserId)),
       isLoading: fetchingStatus ? Boolean(fetchingStatus.chats
         || fetchingStatus.messages || fetchingStatus.publicPosts) : false,
       globalSearchChatId: chatId,

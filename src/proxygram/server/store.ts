@@ -16,8 +16,6 @@ export interface PxgState {
   accounts?: AccountDto[];
   isAdminOpen: boolean;
   isConnectOpen: boolean;
-  /** «Открыто мне» поверх полного клиента */
-  isSharedOpen: boolean;
   /** Сколько чатов открыли этому человеку другие */
   sharedCount?: number;
   /** Чат Web A, которым делятся сейчас (окно «Поделиться чатом») */
@@ -41,7 +39,6 @@ let state: PxgState = {
   connection: 'offline',
   isAdminOpen: false,
   isConnectOpen: false,
-  isSharedOpen: false,
 };
 const listeners = new Set<NoneToVoidFunction>();
 

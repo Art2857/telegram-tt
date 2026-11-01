@@ -580,7 +580,7 @@ const Composer = ({
   const chatEmojiSetId = emojiSet?.id;
 
   const isEphemeralReply = draft?.replyInfo?.type === 'ephemeral';
-  const canSchedule = !paidMessagesStars && !isMonoforum && !isEphemeralReply;
+  const canSchedule = !chat?.pxgProxy && !paidMessagesStars && !isMonoforum && !isEphemeralReply;
 
   const {
     canSendStickers, canSendGifs, canAttachMedia, canAttachPolls, canAttachEmbedLinks, canAttachToDoLists,
@@ -2712,12 +2712,14 @@ const Composer = ({
 
   const effectEmoji = areEffectsSupported && effect?.emoticon;
 
-  const canExpandRichInput = isInMessageList && !isRichInputExpansionActive && !isEditingMedia;
-  const canOpenRichInput = shouldShowRichInputButton && isInMessageList && !hasAttachments && !isRichInputExpanded
+  const canExpandRichInput = !chat?.pxgProxy && isInMessageList && !isRichInputExpansionActive && !isEditingMedia;
+  const canOpenRichInput = !chat?.pxgProxy && shouldShowRichInputButton && isInMessageList
+    && !hasAttachments && !isRichInputExpanded
     && !isComposerBlocked && !isEditingMedia;
   const canCloseRichInput = Boolean(isRichInputExpansionActive && !isComposerBlocked);
   const canToggleRichInput = canOpenRichInput || canCloseRichInput;
-  const shouldShowAiButton = (isRichInputExpansionActive || (shouldShowRichInputButton && hasInputContent))
+  const shouldShowAiButton = !chat?.pxgProxy
+    && (isRichInputExpansionActive || (shouldShowRichInputButton && hasInputContent))
     && !isInStoryViewer && !hasAttachments && !isComposerBlocked && !activeRecording && !hasRichMediaBlocking;
   const {
     ref: voiceRecordBarRef, shouldRender: shouldRenderVoiceRecordBar,
@@ -2917,10 +2919,10 @@ const Composer = ({
               chatId={chatId}
               threadId={threadId}
               editingMessage={editingMessage}
-              canEditMedia={canMediaBeReplaced}
+              canEditMedia={!chat?.pxgProxy && canMediaBeReplaced}
               isRichInputExpanded={isRichInputExpansionActive}
               isButtonVisible={!activeRecording}
-              canAttachMedia={canAttachMedia}
+              canAttachMedia={canAttachMedia && !(chat?.pxgProxy && editingMessage)}
               canAttachFiles={isRichInputExpansionActive || !hasRichOnlyContent}
               canAttachPolls={canAttachPolls}
               canAttachToDoLists={canAttachToDoLists}
@@ -3236,46 +3238,48 @@ const Composer = ({
           )}
         </div>
       </div>
-      <Button
-        ref={mainButtonRef}
-        round
-        color={isInStoryViewer ? 'translucent' : 'secondary'}
-        className={buildClassName(
-          mainButtonState,
-          'main-button',
-          !isReady && 'not-ready',
-          activeRecording && 'recording',
-          isRecordingVideoMode && 'record-video',
-          Boolean(paidMessagesStars) && 'has-paid-stars',
-          isPaidSend && 'paid',
-        )}
-        disabled={areRecordingsNotAllowed || hasRichMediaBlocking}
-        allowDisabledClick
-        noFastClick
-        ariaLabel={mainButtonState === MainButtonState.Stop ? lang('BotDraftStop') : lang(sendButtonAriaLabel)}
-        onClick={mainButtonHandler}
-        onContextMenu={mainButtonContextMenuHandler}
-      >
-        <Icon name="new-send" className="main-button-state-icon" />
-        {isInMessageList && <Icon name="stop-square" className="main-button-state-icon" />}
-        <Icon
-          name={isInStoryViewer ? 'microphone-outline' : 'microphone'}
-          className="main-button-state-icon main-button-microphone"
-        />
-        <Icon name="round-video" className="main-button-state-icon" />
-        {onForward && <Icon name="forward" className="main-button-state-icon" />}
-        {isInMessageList && <Icon name="schedule" className="main-button-state-icon" />}
-        {isInMessageList && <Icon name="check" className="main-button-state-icon" />}
-        {shouldRenderPaidStars && (
-          <div ref={paidStarsRef} className="paidStars">
-            <Icon name="star" />
-            <AnimatedCounter
-              ref={counterRef}
-              text={lang.number(starsForAllMessages)}
-            />
-          </div>
-        )}
-      </Button>
+      {!(chat?.pxgProxy && areRecordingsNotAllowed) && (
+        <Button
+          ref={mainButtonRef}
+          round
+          color={isInStoryViewer ? 'translucent' : 'secondary'}
+          className={buildClassName(
+            mainButtonState,
+            'main-button',
+            !isReady && 'not-ready',
+            activeRecording && 'recording',
+            isRecordingVideoMode && 'record-video',
+            Boolean(paidMessagesStars) && 'has-paid-stars',
+            isPaidSend && 'paid',
+          )}
+          disabled={areRecordingsNotAllowed || hasRichMediaBlocking}
+          allowDisabledClick
+          noFastClick
+          ariaLabel={mainButtonState === MainButtonState.Stop ? lang('BotDraftStop') : lang(sendButtonAriaLabel)}
+          onClick={mainButtonHandler}
+          onContextMenu={mainButtonContextMenuHandler}
+        >
+          <Icon name="new-send" className="main-button-state-icon" />
+          {isInMessageList && <Icon name="stop-square" className="main-button-state-icon" />}
+          <Icon
+            name={isInStoryViewer ? 'microphone-outline' : 'microphone'}
+            className="main-button-state-icon main-button-microphone"
+          />
+          <Icon name="round-video" className="main-button-state-icon" />
+          {onForward && <Icon name="forward" className="main-button-state-icon" />}
+          {isInMessageList && <Icon name="schedule" className="main-button-state-icon" />}
+          {isInMessageList && <Icon name="check" className="main-button-state-icon" />}
+          {shouldRenderPaidStars && (
+            <div ref={paidStarsRef} className="paidStars">
+              <Icon name="star" />
+              <AnimatedCounter
+                ref={counterRef}
+                text={lang.number(starsForAllMessages)}
+              />
+            </div>
+          )}
+        </Button>
+      )}
       {effectEmoji && (
         <span className="effect-icon" onClick={handleRemoveEffect}>
           {renderText(effectEmoji)}

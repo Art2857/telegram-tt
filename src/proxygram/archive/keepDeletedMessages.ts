@@ -20,8 +20,10 @@ export function keepDeletedMessages<T extends GlobalState>(
   ids.forEach((id) => {
     const messageChatId = chatId ?? selectCommonBoxChatId(global, id);
     const message = messageChatId ? selectChatMessage(global, messageChatId, id) : undefined;
+    // PXG: Proxy archives decide visibility on the server; a missing row must disappear
+    const isProxy = messageChatId && global.chats.byId[messageChatId]?.pxgProxy;
 
-    if (!messageChatId || !message || !canKeepDeleted(message)) {
+    if (isProxy || !messageChatId || !message || !canKeepDeleted(message)) {
       remainingIds.push(id);
       return;
     }
