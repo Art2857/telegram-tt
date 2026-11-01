@@ -181,6 +181,8 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       fromId: chatId,
       notifySettings: {},
     },
+    // The guest's own read state: reading a shared topic does not mark it read for the owner
+    readState: { unreadCount: dto.unreadCount, lastReadInboxMessageId: dto.readMaxId },
     lastMessageId: dto.lastMsgId ?? undefined,
   };
 }

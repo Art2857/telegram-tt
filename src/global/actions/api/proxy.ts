@@ -1,3 +1,4 @@
+import type { ChatUnreadDto } from '../../../proxygram/server/types';
 import type { ActionReturnType } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { LoadMoreDirection } from '../../../types';
@@ -7,7 +8,8 @@ import { callApi, closeApi } from '../../../api/gramjs';
 import { emitProxyUpdate, getProxyPeerId, setProxyUpdateHandler } from '../../../api/proxy';
 import { buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
-import { fetchProxyChats } from '../../../api/proxy/methods';
+import { buildProxyReadStates, fetchProxyChats } from '../../../api/proxy/methods';
+import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE } from '../../initialState';
@@ -16,7 +18,7 @@ import {
 } from '../../reducers';
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
-import { updateThreadInfo } from '../../reducers/threads';
+import { updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
 import { selectChatMessage, selectCurrentMessageList } from '../../selectors';
 
@@ -106,6 +108,7 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
     result.threadInfos.forEach((info) => {
       global = updateThreadInfo(global, info);
     });
+    global = updateMainThreadReadStates(global, result.threadReadStatesById);
     global = updateProxyFolder(global);
     setGlobal(global);
     setPxgState({ sharedCount: result.chats.length });
@@ -152,6 +155,24 @@ addActionHandler('refreshProxyMessage', async (global, actions, { accountId, pee
     } : { '@type': 'newMessage', id: msgId, chatId: id, message: result.message });
   } catch {
     // Reconnect reloads proxy history with a fresh access check
+  }
+});
+
+/** Another device of the guest read a chat or a topic: the counters come from the server again */
+addActionHandler('refreshProxyUnread', async (global, actions, { accountId, peerId, topicId }): Promise<void> => {
+  const generation = loadGeneration;
+  try {
+    const unread = await pxgRpc.call<ChatUnreadDto[]>('chats.unread');
+    if (generation !== loadGeneration) return;
+    global = getGlobal();
+    const readStates = buildProxyReadStates(unread.filter((item) => global.chats.byId[
+      getProxyPeerId(item.accountId, item.peerId)
+    ]?.pxgProxy));
+    global = updateMainThreadReadStates(global, readStates);
+    setGlobal(global);
+    if (topicId) actions.refreshProxyTopics({ accountId, peerId });
+  } catch {
+    // The next chat reload brings the counters
   }
 });
 

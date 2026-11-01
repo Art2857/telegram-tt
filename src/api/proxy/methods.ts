@@ -1,5 +1,5 @@
-import type { AccessChat, MessageDto, TopicsListResult } from '../../proxygram/server/types';
-import type { ThreadId } from '../../types';
+import type { AccessChat, ChatUnreadDto, MessageDto, TopicsListResult } from '../../proxygram/server/types';
+import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
 import type { ApiChat, ApiMessage, ApiPeer, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
@@ -85,7 +85,10 @@ export async function callProxyApi<T extends keyof Methods>(
 
 export async function fetchProxyChats() {
   const sessionId = getPxgState().session?.user.id;
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const [access, unread] = await Promise.all([
+    pxgRpc.call<AccessChat[]>('access.chats'),
+    pxgRpc.call<ChatUnreadDto[]>('chats.unread').catch(() => []),
+  ]);
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
@@ -118,10 +121,18 @@ export async function fetchProxyChats() {
       chatId: chat.id, threadId: MAIN_THREAD_ID, isCommentsInfo: false as const,
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
     })),
+    threadReadStatesById: buildProxyReadStates(unread),
     orderedPinnedIds: undefined,
     totalChatCount: chats.length,
     isFullyLoaded: true as const,
   };
+}
+
+/** The guest's own counters, kept by the server for every device and independent of the owner's read state */
+export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, ThreadReadState> {
+  return Object.fromEntries(unread.map((item) => [getProxyPeerId(item.accountId, item.peerId), {
+    unreadCount: item.unreadCount, lastReadInboxMessageId: item.readMaxId,
+  }]));
 }
 
 async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {

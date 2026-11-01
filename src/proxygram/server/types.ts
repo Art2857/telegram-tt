@@ -162,6 +162,17 @@ export interface TopicDto {
   date: string;
   lastMsgId: number | null;
   isDeleted: boolean;
+  /** Свои счётчики гостя */
+  unreadCount: number;
+  readMaxId: number;
+}
+
+/** Свои счётчики непрочитанного гостя по открытому ему чату */
+export interface ChatUnreadDto {
+  accountId: string;
+  peerId: number;
+  unreadCount: number;
+  readMaxId: number;
 }
 
 export interface TopicsListResult {
@@ -283,7 +294,8 @@ export type ServerEvent =
   | { e: 'admin.changed'; d: { topics: AdminTopic[] } }
   | { e: 'session.revoked'; d: Record<string, never> }
   | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } }
-  | { e: 'topics.changed'; d: { accountId: string; peerId: number } };
+  | { e: 'topics.changed'; d: { accountId: string; peerId: number } }
+  | { e: 'read.changed'; d: { accountId: string; peerId: number; topicId: number | null } };
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

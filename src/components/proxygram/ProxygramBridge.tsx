@@ -39,8 +39,8 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  */
 const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
-    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, apiUpdate,
-    showNotification,
+    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
+    apiUpdate, showNotification,
   } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -126,9 +126,10 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.e === 'archive.change') refreshProxyMessage(event.d);
       if (event.e === 'outbox.done' && event.d.kind === 'history') refreshProxyHistory(event.d);
       if (event.e === 'topics.changed') refreshProxyTopics(event.d);
+      if (event.e === 'read.changed') refreshProxyUnread(event.d);
     });
   }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats,
-    refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, apiUpdate]);
+    refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread, apiUpdate]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;

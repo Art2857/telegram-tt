@@ -136,7 +136,8 @@ export async function markMessageListRead({
   chat, threadId, maxId,
 }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
-  if (!peer || !maxId || !chat.pxgProxy?.permissions.markRead) return;
+  // The server always keeps the guest's own counters and marks the chat read for the owner only with `markRead`
+  if (!peer || !maxId) return;
   // A forum topic is read on its own, like `messages.readDiscussion` in Telegram
   const topicId = chat.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
   await pxgRpc.call('messages.read', { ...peer, maxId, topicId }).catch(() => undefined);
