@@ -9,11 +9,13 @@ import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { resolveProxyPeer } from './index';
-import { buildProxyMediaId, parseProxyMediaHash } from './mediaIds';
+import { buildProxyMediaId, parseProxyCatalogHash, parseProxyMediaHash } from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
 const MEDIA_WAIT_ATTEMPTS = 15;
 const MEDIA_WAIT_INTERVAL_MS = 2000;
+/** 1×1 transparent PNG: an animated sticker has no static thumbnail, its animation replaces the placeholder */
+const EMPTY_THUMBNAIL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 export function buildProxyMedia(dto: MessageDto, chatId: string): Partial<MediaContent> | undefined {
   const media = dto.media;
@@ -65,15 +67,23 @@ export async function downloadMedia(
   { url, mediaFormat, start, end }: MethodArgs<'downloadMedia'>[0],
   onProgress?: MethodArgs<'downloadMedia'>[1],
 ) {
-  const target = parseProxyMediaHash(url);
+  const catalog = parseProxyCatalogHash(url);
+  const target = catalog || parseProxyMediaHash(url);
   if (!target || target.userId !== getPxgState().session?.user.id) return undefined;
-  const peer = resolveProxyPeer(target.chatId);
-  if (!peer || onProgress?.isCanceled) return undefined;
+  let request: [string, Record<string, unknown>];
+  if (catalog) {
+    request = ['stickers.url', { accountId: catalog.accountId, documentId: catalog.documentId }];
+  } else {
+    const message = target as NonNullable<ReturnType<typeof parseProxyMediaHash>>;
+    const peer = resolveProxyPeer(message.chatId);
+    if (!peer) return undefined;
+    request = ['media.url', { ...peer, msgId: message.msgId }];
+  }
   let signed: { url: string; mimeType: string; size: number } | undefined;
   for (let attempt = 0; attempt < MEDIA_WAIT_ATTEMPTS; attempt++) {
     if (onProgress?.isCanceled || target.userId !== getPxgState().session?.user.id) return undefined;
     try {
-      signed = await pxgRpc.call('media.url', { ...peer, msgId: target.msgId });
+      signed = await pxgRpc.call(...request);
       break;
     } catch (err) {
       if (!(err instanceof PxgError) || err.code !== 'media_pending' || attempt === MEDIA_WAIT_ATTEMPTS - 1) throw err;
@@ -81,6 +91,14 @@ export async function downloadMedia(
     }
   }
   if (!signed) return undefined;
+  // Owner's catalog has no separate thumbnails: a static sticker is its own preview
+  if (catalog?.isThumbnail && !signed.mimeType.startsWith('image/')) {
+    const bytes = Uint8Array.from(atob(EMPTY_THUMBNAIL), (char) => char.charCodeAt(0));
+    return {
+      dataBlob: new Blob([bytes], { type: 'image/png' }), arrayBuffer: undefined, mimeType: 'image/png',
+      fullSize: bytes.length,
+    };
+  }
   const headers: Record<string, string> = {};
   if (start !== undefined || end !== undefined) {
     headers.Range = `bytes=${start || 0}-${end ?? ''}`;

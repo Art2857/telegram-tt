@@ -12,6 +12,10 @@ import { emitProxyUpdate, getProxyPeerId, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
 import {
+  fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers, fetchSavedGifs, fetchStickers,
+  fetchStickerSets, fetchStickersForEmoji,
+} from './stickers';
+import {
   deleteMessages, editMessage, markMessageListRead, sendMessage, sendMessageAction,
   sendReaction } from './writes';
 
@@ -38,6 +42,13 @@ const methods = {
   markMessageListRead,
   sendMessageAction,
   downloadMedia,
+  fetchStickerSets,
+  fetchCustomEmojiSets,
+  fetchRecentStickers,
+  fetchFavoriteStickers,
+  fetchSavedGifs,
+  fetchStickers,
+  fetchStickersForEmoji,
   fetchAvailableReactions: () => Promise.resolve(PROXY_REACTION_EMOJIS.map((emoticon) => ({
     reaction: { type: 'emoji' as const, emoticon }, title: emoticon,
   }))),

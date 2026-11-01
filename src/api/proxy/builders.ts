@@ -21,7 +21,9 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendVideos: chat.permissions.sendMedia ? undefined : true,
       sendAudios: chat.permissions.sendMedia ? undefined : true,
       sendDocs: chat.permissions.sendMedia ? undefined : true,
-      sendPolls: true, sendStickers: true, sendGifs: true, sendVoices: true, sendRoundvideos: true,
+      sendStickers: chat.permissions.useOwnerStickers ? undefined : true,
+      sendGifs: chat.permissions.useOwnerStickers ? undefined : true,
+      sendPolls: true, sendVoices: true, sendRoundvideos: true,
     },
     pxgProxy: { accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions },
   };

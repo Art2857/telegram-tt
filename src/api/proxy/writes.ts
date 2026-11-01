@@ -11,13 +11,14 @@ import { uploadFile } from '../../proxygram/server/upload';
 import { buildProxyMessage } from './builders';
 import { buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
+import { parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 
 const DELETE_BATCH_SIZE = 20;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
-  const { chat, attachment, text, entities, replyInfo } = params;
+  const { chat, attachment, text, entities, replyInfo, sticker, gif } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   const localMessage: ApiMessage = params.localMessage || {
@@ -25,7 +26,9 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     chatId: chat.id, date: getServerTime(), isOutgoing: true,
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
-    content: { text: { text: text || attachment?.filename || '', entities } },
+    content: sticker ? { sticker } : gif ? { video: gif } : {
+      text: { text: text || attachment?.filename || '', entities },
+    },
     sendingState: 'messageSendingStatePending',
     replyInfo: replyInfo?.type === 'message' ? replyInfo : undefined,
   };
@@ -33,9 +36,12 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     emitProxyUpdate({ '@type': 'newMessage', id: localMessage.id, chatId: chat.id, message: localMessage });
   }
   try {
-    if (params.scheduledAt || params.sticker || params.gif || params.poll || params.todo || params.richMessage) {
+    if (params.scheduledAt || params.poll || params.todo || params.richMessage) {
       throw new PxgError('unsupported');
     }
+    // The owner's sticker or GIF must come from the catalog of the chat's provider account
+    const catalogItem = sticker || gif ? parseProxyCatalogId((sticker || gif)!.id) : undefined;
+    if ((sticker || gif) && catalogItem?.accountId !== peer.accountId) throw new PxgError('unsupported');
     let file: { uploadId: string } | undefined;
     if (attachment) {
       const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
@@ -46,6 +52,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     if (onProgress?.isCanceled) throw new PxgError('canceled');
     const result = await runProxyJob('messages.send', {
       ...peer, text: text || '', entities: buildProxyInputEntities(entities, peer.accountId), file,
+      document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
       replyToMsgId: replyInfo?.type === 'message' ? replyInfo.replyToMsgId : undefined,
       silent: params.isSilent,
     }) as { msgId: number };

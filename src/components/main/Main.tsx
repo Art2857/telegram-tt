@@ -40,6 +40,7 @@ import { processDeepLink } from '../../util/deeplink';
 import { Bundles, loadBundle } from '../../util/moduleLoader';
 import { parseInitialLocationHash, parseLocationHash } from '../../util/routing';
 import updateIcon from '../../util/updateIcon';
+import { isProxyGuest } from '../../api/proxy'; // PXG
 import { REM } from '../common/helpers/mediaDimensions';
 import { updateTopReserveWithScrollCompensation } from '../middle/helpers/messageListReserves';
 
@@ -296,6 +297,8 @@ const Main = ({
 
   const containerRef = useRef<HTMLDivElement>();
   const leftColumnRef = useRef<HTMLDivElement>();
+  // PXG: The owner's sticker catalog can change between guest sessions
+  const shouldReloadGuestStickersRef = useRef(isProxyGuest());
 
   const { isDesktop } = useAppLayout();
   useEffect(() => {
@@ -415,8 +418,11 @@ const Main = ({
 
   // Sticker sets
   useEffect(() => {
-    if (isMasterTab && isSynced && isAppConfigLoaded && !isAccountFrozen) {
-      if (!addedSetIds || !addedCustomEmojiIds) {
+    // PXG: A guest has no Telegram app config, and the owner's catalog is reloaded once per start
+    const isGuest = isProxyGuest();
+    if (isMasterTab && isSynced && (isAppConfigLoaded || isGuest) && !isAccountFrozen) {
+      if (!addedSetIds || !addedCustomEmojiIds || shouldReloadGuestStickersRef.current) {
+        shouldReloadGuestStickersRef.current = false;
         loadStickerSets();
         loadFavoriteStickers();
       }

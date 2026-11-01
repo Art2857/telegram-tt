@@ -103,6 +103,35 @@ export interface ReactionCountDto {
   chosenOrder?: number;
 }
 
+export interface CatalogDocumentDto {
+  id: string;
+  kind: 'sticker' | 'gif';
+  setId: string | null;
+  emoji: string | null;
+  mimeType: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+}
+
+export interface CatalogSetDto {
+  id: string;
+  title: string;
+  shortName: string;
+  count: number;
+  thumbDocumentId: string | null;
+}
+
+/** Стикеры и GIF владельца аккаунта, которые гость может отправлять (право useOwnerStickers) */
+export interface StickerCatalogDto {
+  accountId: string;
+  sets: CatalogSetDto[];
+  recent: CatalogDocumentDto[];
+  faved: CatalogDocumentDto[];
+  gifs: CatalogDocumentDto[];
+}
+
 export interface MessageVersionDto {
   version: number;
   text: string;
