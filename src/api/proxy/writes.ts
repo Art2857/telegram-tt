@@ -313,3 +313,52 @@ async function editProxyChat(chatId: string, changes: Record<string, unknown>) {
   if (!peer) return;
   await runProxyJob('chats.edit', { ...peer, ...changes });
 }
+
+/** Topics of the owner's forum: the guest manages them with the owner's rights there */
+export async function createTopic({
+  chat, title, iconColor, iconEmojiId,
+}: MethodArgs<'createTopic'>[0]): Promise<number | undefined> {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await runProxyJob('topics.create', {
+    ...peer, title, iconColor, iconEmojiId: parseOwnerEmojiId(iconEmojiId, peer.accountId),
+  }) as { topicId?: number } | undefined;
+  return result?.topicId;
+}
+
+export async function editTopic({
+  chat, topicId, title, iconEmojiId, isClosed, isHidden,
+}: MethodArgs<'editTopic'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  await runProxyJob('topics.edit', {
+    ...peer,
+    topicId,
+    title,
+    // Web A passes '0' to remove the icon, as Telegram does
+    iconEmojiId: iconEmojiId === '0' ? iconEmojiId : parseOwnerEmojiId(iconEmojiId, peer.accountId),
+    closed: isClosed,
+    hidden: isHidden,
+  });
+  return true as const;
+}
+
+export async function togglePinnedTopic({ chat, topicId, isPinned }: MethodArgs<'togglePinnedTopic'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  await runProxyJob('topics.pin', { ...peer, topicId, pinned: isPinned });
+  return true as const;
+}
+
+export async function deleteTopic({ chat, topicId }: MethodArgs<'deleteTopic'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  await runProxyJob('topics.delete', { ...peer, topicId });
+}
+
+/** A topic icon from the owner's emoji is sent as its Telegram document ID */
+function parseOwnerEmojiId(id: string | undefined, accountId: string) {
+  if (!id) return undefined;
+  const catalog = parseProxyCatalogId(id);
+  return catalog?.accountId === accountId ? catalog.documentId : undefined;
+}

@@ -21,9 +21,10 @@ import {
   fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
-  answerCallbackButton, deleteMessages, editChatPhoto, editMessage, forwardMessages, markMessageListRead, pinMessage,
-  sendMessage, sendMessageAction, sendPollVote, sendReaction, toggleChatArchived, toggleChatPinned, updateChatAbout,
-  updateChatNotifySettings, updateChatTitle,
+  answerCallbackButton, createTopic, deleteMessages, deleteTopic, editChatPhoto, editMessage, editTopic,
+  forwardMessages, markMessageListRead, pinMessage, sendMessage, sendMessageAction, sendPollVote, sendReaction,
+  toggleChatArchived, toggleChatPinned, togglePinnedTopic, updateChatAbout, updateChatNotifySettings,
+  updateChatTitle,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -37,7 +38,8 @@ const PROFILE_PHOTO_SIZE = 640;
 const MAX_PINNED = 100;
 /** Admin actions of a guest: Telegram may refuse them, and Web A waits for their result */
 const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
-  'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto',
+  'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto', 'createTopic', 'editTopic',
+  'togglePinnedTopic', 'deleteTopic',
 ]);
 
 const methods = {
@@ -70,6 +72,10 @@ const methods = {
   updateChatTitle,
   updateChatAbout,
   editChatPhoto,
+  createTopic,
+  editTopic,
+  togglePinnedTopic,
+  deleteTopic,
   markMessageListRead,
   sendMessageAction,
   downloadMedia,

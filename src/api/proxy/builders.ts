@@ -49,6 +49,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendVoices: chat.permissions.sendMedia ? undefined : true,
       sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
       sendPolls: true,
+      // Topics are created as the owner: only with the admin permission
+      manageTopics: chat.permissions.admin ? undefined : true,
     },
     pxgProxy: {
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
@@ -60,13 +62,16 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
 }
 
 /** Admin actions the guest makes as the owner: rights the guest supports, only with the `admin` permission */
-const PROXY_ADMIN_RIGHTS = ['changeInfo', 'pinMessages', 'editMessages'] as const;
+const PROXY_ADMIN_RIGHTS = ['changeInfo', 'pinMessages', 'editMessages', 'manageTopics', 'deleteMessages'] as const;
 
 function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 'isOwner' | 'defaultBannedRights'> {
   const { info } = chat;
-  // Members' default rights decide whether anyone may pin in a group
-  const defaultBannedRights = info?.defaultBannedRights?.includes('pinMessages') ? { pinMessages: true as const }
-    : undefined;
+  // Members' default rights decide whether anyone may pin or create topics in a group
+  const banned = new Set(info?.defaultBannedRights);
+  const defaultBannedRights = banned.has('pinMessages') || banned.has('manageTopics') ? {
+    pinMessages: banned.has('pinMessages') ? true as const : undefined,
+    manageTopics: banned.has('manageTopics') ? true as const : undefined,
+  } : undefined;
   if (!chat.permissions.admin || !info || (!info.isCreator && !info.adminRights)) return { defaultBannedRights };
   const rights = PROXY_ADMIN_RIGHTS.filter((right) => info.isCreator || info.adminRights?.includes(right));
   return {
