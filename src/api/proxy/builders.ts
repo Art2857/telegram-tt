@@ -59,7 +59,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
   });
   const media = chat.pxgProxy?.permissions.download && !dto.isMediaUnavailable
     ? buildProxyMedia(dto, chat.id) : undefined;
-  const mediaFallback = !media && dto.media && dto.media.kind !== 'webpage' ? {
+  const mediaFallback = !media && dto.media?.id ? {
     fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable,
   } : undefined;
   return {

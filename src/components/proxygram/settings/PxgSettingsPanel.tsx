@@ -68,17 +68,19 @@ type Confirm = { text: string; label: string; action: () => Promise<unknown> };
 type TabProps = {
   lang: Lang;
   t: Translate;
+  accounts?: AccountRow[];
+  reloadAccounts: NoneToVoidFunction;
   ask: (text: string, label: string, action: () => Promise<unknown>) => void;
   run: (action: () => Promise<unknown>) => Promise<void>;
 };
 
 const TABS = [
-  { key: 'server', title: 'PxgSettingsServer', isClientOnly: true },
-  { key: 'outgoing', title: 'PxgSettingsOutgoing', isClientOnly: true },
-  { key: 'incoming', title: 'PxgSettingsIncoming', isClientOnly: false },
-  { key: 'archive', title: 'PxgSettingsArchive', isClientOnly: true },
-  { key: 'audit', title: 'PxgSettingsAudit', isClientOnly: true },
-  { key: 'devices', title: 'PxgSettingsDevices', isClientOnly: false },
+  { key: 'server', title: 'PxgSettingsServer', isOwnerOnly: true },
+  { key: 'outgoing', title: 'PxgSettingsOutgoing', isOwnerOnly: true },
+  { key: 'incoming', title: 'PxgSettingsIncoming', isOwnerOnly: false },
+  { key: 'archive', title: 'PxgSettingsArchive', isOwnerOnly: true },
+  { key: 'audit', title: 'PxgSettingsAudit', isOwnerOnly: true },
+  { key: 'devices', title: 'PxgSettingsDevices', isOwnerOnly: false },
 ] as const;
 
 const MB = 1024 * 1024;
@@ -151,8 +153,13 @@ function usePxgData<T>(method: string, params: unknown, reloadOn: ServerEvent['e
 const PxgSettingsPanel = () => {
   const lang = useLang();
   const session = usePxgState((state) => state.session);
-  const isClient = session?.level === 'client';
-  const tabs = TABS.filter((item) => isClient || !item.isClientOnly);
+  // Managing shares needs only the server session: an owner signed in as a guest keeps these tabs
+  const { data: accounts, reload: reloadAccounts } = usePxgData<AccountRow[]>(
+    'accounts.mine', {}, ['accounts.changed'],
+  );
+  const ownAccounts = accounts?.filter((account) => account.status !== 'revoked');
+  const isOwner = session?.level === 'client' || Boolean(ownAccounts?.length);
+  const tabs = TABS.filter((item) => isOwner || !item.isOwnerOnly);
   const [tab, setTab] = useState(0);
   const [confirm, setConfirm] = useState<Confirm>();
   const [actionError, setActionError] = useState<string>();
@@ -169,7 +176,9 @@ const PxgSettingsPanel = () => {
       setActionError(describePxgError(lang, err));
     }
   };
-  const props = { lang, t, ask, run };
+  const props = {
+    lang, t, ask, run, accounts: ownAccounts, reloadAccounts,
+  };
 
   return (
     <div className={styles.root}>
@@ -224,10 +233,11 @@ function Badge({ tone, text }: { tone: 'green' | 'red' | 'gray' | 'blue'; text: 
   return <span className={buildClassName(styles.badge, styles[tone])}>{text}</span>;
 }
 
-const ServerTab = memo(({ lang, t, ask }: TabProps) => {
-  const { data, error, reload } = usePxgData<AccountRow[]>('accounts.mine', {}, ['accounts.changed']);
-  if (!data) return <Loading error={error} lang={lang} />;
-  const accounts = data.filter((account) => account.status !== 'revoked');
+const ServerTab = memo(({
+  lang, t, ask, accounts, reloadAccounts,
+}: TabProps) => {
+  const isClient = usePxgState((state) => state.session?.level === 'client');
+  if (!accounts) return <Loading error={undefined} lang={lang} />;
 
   return (
     <>
@@ -264,7 +274,7 @@ const ServerTab = memo(({ lang, t, ask }: TabProps) => {
                         lang('PxgAdminDisconnect'),
                         async () => {
                           await pxgRpc.call('accounts.disconnect', { accountId: account.id });
-                          reload();
+                          reloadAccounts();
                         },
                       )}
                     >
@@ -277,13 +287,16 @@ const ServerTab = memo(({ lang, t, ask }: TabProps) => {
           </tbody>
         </table>
       )}
-      <Button
-        size="smaller"
-        fluid={false}
-        onClick={() => setPxgState({ isSettingsOpen: false, isConnectOpen: true })}
-      >
-        {lang('PxgConnectTitle')}
-      </Button>
+      {/* Connecting the server signs it in with this device's Telegram session */}
+      {isClient && (
+        <Button
+          size="smaller"
+          fluid={false}
+          onClick={() => setPxgState({ isSettingsOpen: false, isConnectOpen: true })}
+        >
+          {lang('PxgConnectTitle')}
+        </Button>
+      )}
     </>
   );
 });
@@ -386,8 +399,10 @@ const IncomingTab = memo(({ lang, t, ask }: TabProps) => {
   );
 });
 
-const ArchiveTab = memo(({ lang, t, run }: TabProps) => {
-  const account = usePxgState((state) => state.accounts?.find((item) => item.status !== 'revoked'));
+const ArchiveTab = memo(({
+  lang, t, run, accounts,
+}: TabProps) => {
+  const account = accounts?.[0];
   const [policy, setPolicy] = useState<Policy>();
   const [error, setError] = useState<unknown>();
   const [maxMegabytes, setMaxMegabytes] = useState('');

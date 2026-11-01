@@ -117,6 +117,8 @@ export interface MessageDto {
 export interface MediaSummaryDto {
   kind: string;
   key: string;
+  /** Telegram ID of the file; media without a file (polls, previews, locations) has none */
+  id?: string;
   mimeType?: string;
   size?: number;
   fileName?: string;
