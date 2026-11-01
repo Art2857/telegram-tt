@@ -51,6 +51,7 @@ import { formatCountdown } from '../../../util/dates/duration';
 import { isUserId } from '../../../util/entities/ids';
 import { getChatFolderIds } from '../../../util/folderManager';
 import { createLocationHash } from '../../../util/routing';
+import { isProxyGuest } from '../../../api/proxy';
 
 import { useSelectorSignal, useShallowSelector } from '../../../hooks/data/useSelector';
 import useAppLayout from '../../../hooks/useAppLayout';
@@ -543,6 +544,10 @@ const Chat = ({
             observeIntersection={observeIntersection}
             withStatusTextColor={isSelected}
           />
+          {/* PXG: a chat someone shared with this account stands next to its own chats, so it says whose it is */}
+          {chat?.pxgProxy?.providerName && !isProxyGuest() && (
+            <span className="pxg-via">{lang('PxgViaOwner', { name: chat.pxgProxy.providerName })}</span>
+          )}
           {isMuted && !isSavedDialog && <Icon name="muted" />}
           <div className="separator" />
           {lastMessage && (

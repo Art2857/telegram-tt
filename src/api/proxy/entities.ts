@@ -46,7 +46,10 @@ export function buildProxyEntities(entities: unknown[], accountId: string): ApiM
   });
 }
 
-export function buildProxyInputEntities(entities: ApiMessageEntity[] | undefined, accountId: string) {
+/** `canUseOwnerEmoji`: custom emoji come from the owner's stock like stickers; without the right they stay plain */
+export function buildProxyInputEntities(
+  entities: ApiMessageEntity[] | undefined, accountId: string, canUseOwnerEmoji?: boolean,
+) {
   return entities?.flatMap((entity) => {
     if ('userId' in entity) {
       const peer = resolveProxyPeer(entity.userId);
@@ -56,6 +59,7 @@ export function buildProxyInputEntities(entities: ApiMessageEntity[] | undefined
       }];
     }
     if (entity.type === ApiMessageEntityTypes.CustomEmoji) {
+      if (!canUseOwnerEmoji) return [];
       // An emoji of this provider goes back as its Telegram document; another account's one cannot be sent
       const catalog = parseProxyCatalogId(entity.documentId);
       const documentId = catalog ? catalog.accountId === accountId && catalog.documentId : entity.documentId;

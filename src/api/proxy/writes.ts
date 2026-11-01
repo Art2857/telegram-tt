@@ -67,7 +67,10 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     }
     if (onProgress?.isCanceled) throw new PxgError('canceled');
     const result = await runProxyJob('messages.send', {
-      ...peer, text: text || '', entities: buildProxyInputEntities(entities, peer.accountId), file,
+      ...peer,
+      text: text || '',
+      entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+      file,
       document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
       replyToMsgId,
       topicId,
@@ -91,7 +94,10 @@ export async function editMessage({ chat, message, text, entities }: MethodArgs<
   if (!peer) return;
   try {
     await runProxyJob('messages.edit', {
-      ...peer, msgId: message.id, text, entities: buildProxyInputEntities(entities, peer.accountId),
+      ...peer,
+      msgId: message.id,
+      text,
+      entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
     });
     const saved = await readSentMessage(chat, message.id);
     if (saved) {

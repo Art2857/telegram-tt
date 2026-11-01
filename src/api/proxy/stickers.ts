@@ -42,8 +42,13 @@ export async function fetchStickerSets() {
   return { hash: EMPTY_HASH, sets };
 }
 
-export function fetchCustomEmojiSets() {
-  return Promise.resolve({ hash: EMPTY_HASH, sets: [] });
+/** The owner's emoji packs, only for a Premium owner: otherwise Telegram turns custom emoji into plain ones */
+export async function fetchCustomEmojiSets() {
+  const catalogs = await getCatalog();
+  const sets = catalogs.flatMap(({ accountId, emojiSets }) => (
+    emojiSets.map((set) => buildStickerSet(accountId, set, undefined, true))
+  ));
+  return { hash: EMPTY_HASH, sets };
 }
 
 /** Custom emoji of shared messages: the provider's account reads the documents, grouped by account */
@@ -96,15 +101,16 @@ export async function fetchStickers({ stickerSetInfo }: MethodArgs<'fetchSticker
     getCatalog(),
     pxgRpc.call<CatalogDocumentDto[]>('stickers.set', parsed),
   ]);
-  const set = catalogs.find((item) => item.accountId === parsed.accountId)?.sets
-    .find((item) => item.id === parsed.setId);
+  const catalog = catalogs.find((item) => item.accountId === parsed.accountId);
+  const emojiSet = catalog?.emojiSets.find((item) => item.id === parsed.setId);
+  const set = emojiSet || catalog?.sets.find((item) => item.id === parsed.setId);
   if (!set) return undefined;
   const stickers = buildStickers(parsed.accountId, documents);
   const packs: Record<string, ApiSticker[]> = {};
   stickers.forEach((sticker) => {
     if (sticker.emoji) (packs[sticker.emoji] ||= []).push(sticker);
   });
-  return { set: buildStickerSet(parsed.accountId, set, stickers), stickers, packs };
+  return { set: buildStickerSet(parsed.accountId, set, stickers, Boolean(emojiSet)), stickers, packs };
 }
 
 /** Emoji suggestions come from the owner's catalog: Telegram's global search needs the owner's session */
@@ -116,8 +122,11 @@ export async function fetchStickersForEmoji({ emoji }: MethodArgs<'fetchStickers
   return { stickers, hash: EMPTY_HASH };
 }
 
-function buildStickerSet(accountId: string, set: CatalogSetDto, stickers?: ApiSticker[]): ApiStickerSet {
+function buildStickerSet(
+  accountId: string, set: CatalogSetDto, stickers?: ApiSticker[], isEmoji?: boolean,
+): ApiStickerSet {
   return {
+    isEmoji: isEmoji || undefined,
     id: buildProxyStickerSetId(accountId, set.id),
     // The owner's access hash stays on the server
     accessHash: accountId,
@@ -133,7 +142,10 @@ function buildStickerSet(accountId: string, set: CatalogSetDto, stickers?: ApiSt
 function buildStickers(accountId: string, documents: CatalogDocumentDto[]): ApiSticker[] {
   const userId = getPxgState().session?.user.id;
   if (!userId) return [];
-  return documents.filter((doc) => doc.kind === 'sticker').map((doc) => ({
+  const emoji = documents.filter((doc) => doc.kind === 'emoji').map((doc) => (
+    buildCustomEmoji(accountId, doc, buildProxyCatalogMediaId(userId, accountId, doc.id), true)
+  ));
+  return [...emoji, ...documents.filter((doc) => doc.kind === 'sticker').map((doc): ApiSticker => ({
     mediaType: 'sticker',
     id: buildProxyCatalogMediaId(userId, accountId, doc.id),
     stickerSetInfo: doc.setId
@@ -146,15 +158,17 @@ function buildStickers(accountId: string, documents: CatalogDocumentDto[]): ApiS
     isVideo: doc.mimeType === 'video/webm',
     width: doc.width || undefined,
     height: doc.height || undefined,
-  }));
+  }))];
 }
 
-function buildCustomEmoji(accountId: string, doc: CatalogDocumentDto, id: string): ApiSticker {
+/** `isFromPack`: an emoji of the owner's installed pack; packs of other emoji are not browsable through the provider */
+function buildCustomEmoji(accountId: string, doc: CatalogDocumentDto, id: string, isFromPack?: boolean): ApiSticker {
   return {
     mediaType: 'sticker',
     id,
-    // Emoji packs are not browsable through the provider
-    stickerSetInfo: { isMissing: true },
+    stickerSetInfo: isFromPack && doc.setId
+      ? { id: buildProxyStickerSetId(accountId, doc.setId), accessHash: accountId }
+      : { isMissing: true },
     emoji: doc.emoji || undefined,
     isCustomEmoji: true,
     isFree: true,

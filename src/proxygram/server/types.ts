@@ -247,7 +247,11 @@ export interface CatalogSetDto {
 /** Стикеры и GIF владельца аккаунта, которые гость может отправлять (право useOwnerStickers) */
 export interface StickerCatalogDto {
   accountId: string;
+  /** Premium of the owner's account: only then a guest sends custom emoji */
+  isPremium: boolean;
   sets: CatalogSetDto[];
+  /** The owner's custom emoji packs; empty without Premium */
+  emojiSets: CatalogSetDto[];
   recent: CatalogDocumentDto[];
   faved: CatalogDocumentDto[];
   gifs: CatalogDocumentDto[];
