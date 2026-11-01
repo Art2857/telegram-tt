@@ -4,7 +4,7 @@ import type { ApiSticker, ApiStickerSet, ApiVideo } from '../types';
 
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
-import { buildProxyCatalogMediaId } from './mediaIds';
+import { buildProxyCatalogMediaId, parseProxyCatalogId } from './mediaIds';
 
 const CATALOG_TTL_MS = 60_000;
 const SET_ID_PREFIX = 'pxgset_';
@@ -44,6 +44,31 @@ export async function fetchStickerSets() {
 
 export function fetchCustomEmojiSets() {
   return Promise.resolve({ hash: EMPTY_HASH, sets: [] });
+}
+
+/** Custom emoji of shared messages: the provider's account reads the documents, grouped by account */
+export async function fetchCustomEmoji({ documentId: ids }: MethodArgs<'fetchCustomEmoji'>[0]) {
+  const userId = getPxgState().session?.user.id;
+  if (!userId) return undefined;
+  const idsByAccount = new Map<string, Map<string, string>>();
+  ids.forEach((id) => {
+    const parsed = parseProxyCatalogId(id);
+    if (parsed?.userId !== userId) return;
+    if (!idsByAccount.has(parsed.accountId)) idsByAccount.set(parsed.accountId, new Map());
+    idsByAccount.get(parsed.accountId)!.set(parsed.documentId, id);
+  });
+  const results = await Promise.all([...idsByAccount].map(async ([accountId, byDocumentId]) => {
+    try {
+      const documents = await pxgRpc.call<CatalogDocumentDto[]>('stickers.customEmoji', {
+        accountId, documentIds: [...byDocumentId.keys()],
+      });
+      return documents.map((doc) => buildCustomEmoji(accountId, doc, byDocumentId.get(doc.id)!));
+    } catch {
+      // Emoji of a revoked or unavailable account stay as their fallback characters
+      return [];
+    }
+  }));
+  return results.flat();
 }
 
 export async function fetchRecentStickers() {
@@ -122,6 +147,23 @@ function buildStickers(accountId: string, documents: CatalogDocumentDto[]): ApiS
     width: doc.width || undefined,
     height: doc.height || undefined,
   }));
+}
+
+function buildCustomEmoji(accountId: string, doc: CatalogDocumentDto, id: string): ApiSticker {
+  return {
+    mediaType: 'sticker',
+    id,
+    // Emoji packs are not browsable through the provider
+    stickerSetInfo: { isMissing: true },
+    emoji: doc.emoji || undefined,
+    isCustomEmoji: true,
+    isFree: true,
+    isLottie: doc.mimeType === 'application/x-tgsticker',
+    isVideo: doc.mimeType === 'video/webm',
+    width: doc.width || undefined,
+    height: doc.height || undefined,
+    shouldUseTextColor: doc.textColor || undefined,
+  };
 }
 
 function buildProxyGif(accountId: string, doc: CatalogDocumentDto): ApiVideo {

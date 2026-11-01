@@ -1,10 +1,13 @@
 import { memo, useEffect, useState } from '../../lib/teact/teact';
 import { getActions, getGlobal } from '../../global';
 
-import type { PermissionKey, Permissions, PresetKey, UserLookup } from '../../proxygram/server/types';
+import type {
+  GuestCandidate, PermissionKey, Permissions, PresetKey, UserLookup,
+} from '../../proxygram/server/types';
 
 import { selectChat } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
+import { callApi } from '../../api/gramjs';
 import { diffPermissions, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
@@ -73,6 +76,8 @@ const MAX_HISTORY_LIMIT = 100_000;
 const LABEL_MAX_LENGTH = 64;
 const MAX_RATE_LIMIT = 60;
 const USERNAME = /^@?\w{5,32}$/;
+// A guest without a username is found by the phone number they shared with the bot
+const PHONE = /^\+?[\d\s().-]{7,24}$/;
 const HISTORY_KEYS: Record<HistoryMode, string> = {
   all: 'PxgHistoryAll', new_only: 'PxgHistoryNew', last_n: 'PxgHistoryLastN', since_date: 'PxgHistorySince',
 };
@@ -158,11 +163,30 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const find = async () => {
     setError(undefined);
     try {
-      setGuest(await pxgRpc.call<UserLookup>('users.lookup', { username: username.trim() }));
+      const value = username.trim();
+      const isPhone = PHONE.test(value);
+      const found = await pxgRpc.call<UserLookup>('users.lookup', isPhone ? { phone: value } : { username: value });
+      // Someone who has never signed in is still found through the owner's own Telegram (PLAN.md 7.5)
+      const candidate = found.registered || found.candidate ? found.candidate : await resolveCandidate(value, isPhone);
+      setGuest({ ...found, candidate });
     } catch (err) {
       setError(describePxgError(lang, err));
     }
   };
+
+  async function resolveCandidate(value: string, isPhone: boolean): Promise<GuestCandidate | undefined> {
+    const result = isPhone
+      ? await callApi('getChatByPhoneNumber', value.replace(/[^\d+]/g, ''))
+      : await callApi('getChatByUsername', value.replace(/^@/, ''));
+    const user = result?.user;
+    if (!user || user.type !== 'userTypeRegular') return undefined;
+    return {
+      tgUserId: Number(user.id),
+      username: user.usernames?.find((item) => item.isActive)?.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+  }
 
   const selectPreset = (key: PresetKey) => {
     setPreset(key);
@@ -197,7 +221,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const save = async () => {
-    if (!account || (!editing && !guest?.user && !isInviting)) return;
+    if (!account || (!editing && !guest?.user && !guest?.candidate && !isInviting)) return;
     setIsSaving(true);
     setError(undefined);
     const common = {
@@ -234,7 +258,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         });
       } else {
         await pxgRpc.call('shares.create', {
-          ...common, ...target, accountId: account.id, granteeUserId: guest!.user!.id,
+          ...common,
+          ...target,
+          accountId: account.id,
+          // Someone who has never signed in gets the account in advance and finds the chat at the first sign-in
+          ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
         });
       }
       resetForm();
@@ -288,7 +316,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const presetLabel = (key: PresetKey) => t(`PxgPreset${key[0].toUpperCase()}${key.slice(1)}`);
-  const isFormVisible = Boolean(editing || guest?.user || isInviting);
+  const isFormVisible = Boolean(editing || guest?.user || guest?.candidate || isInviting);
+  const guestTgUserId = guest?.user?.tgUserId ?? guest?.candidate?.tgUserId;
   const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
 
   function renderOptions<T extends string>(
@@ -448,7 +477,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               <Button
                 fluid={false}
                 size="smaller"
-                disabled={!USERNAME.test(username.trim())}
+                disabled={!USERNAME.test(username.trim()) && !PHONE.test(username.trim())}
                 onClick={() => void find()}
               >
                 {lang('PxgShareFind')}
@@ -456,16 +485,23 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
             </div>
           )}
 
-          {!editing && guest && !guest.user && (
+          {!editing && guest && !guest.user && !guest.candidate && (
             <p className={styles.secondary}>
-              {lang('PxgShareNotRegistered', { username: username.trim().replace(/^@/, '') })}
+              {PHONE.test(username.trim())
+                ? lang('PxgShareNotRegisteredPhone')
+                : lang('PxgShareNotRegistered', { username: username.trim().replace(/^@/, '') })}
             </p>
           )}
           {!editing && guest?.user && (
             <p className={styles.ok}>{lang('PxgShareFound', { name: displayName(guest.user) })}</p>
           )}
+          {!editing && (guest?.candidate || guest?.user?.isPending) && (
+            <p className={styles.secondary}>
+              {lang('PxgSharePending', { name: displayName(guest.user ?? guest.candidate) })}
+            </p>
+          )}
           {/* PLAN.md 13: sharing a private chat with its own counterpart */}
-          {!editing && guest?.user && !topic && peerId === guest.user.tgUserId && (
+          {!editing && guestTgUserId !== undefined && !topic && peerId === guestTgUserId && (
             <p className={styles.secondary}>{lang('PxgShareSelfChat')}</p>
           )}
           {!editing && !isInviting && (

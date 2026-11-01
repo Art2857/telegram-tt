@@ -1,4 +1,4 @@
-import type { Methods } from '../gramjs/methods/types';
+import type { MethodArgs, Methods } from '../gramjs/methods/types';
 
 import { isProxyPeerId } from './ids';
 import { parseProxyCatalogHash, parseProxyMediaHash } from './mediaIds';
@@ -11,12 +11,18 @@ const PEER_ARGUMENT_METHODS = new Set<keyof Methods>([
   'requestChannelDifference', 'setOpenedChannelIds', 'saveCloseFriends',
 ]);
 const MEDIA_METHODS = new Set<keyof Methods>(['downloadMedia']);
+const CATALOG_ID_PREFIX = 'pxgs_';
 const PROXY_MEDIA_PREFIX = 'pxg:';
 const PEER_MEDIA_HASH = /^(?:avatar|profile)(-?\d+)(?:[?:]|$)/;
 
 /** Routes only peer references, leaving numeric message text and document IDs alone */
 export function shouldRouteToProxy(fnName: keyof Methods, args: readonly unknown[], isGuest?: boolean): boolean {
   if (isGuest) return true;
+  // Custom emoji of shared messages carry catalog IDs; `loadCustomEmojis` keeps them apart from Telegram ones
+  if (fnName === 'fetchCustomEmoji') {
+    const ids = (args[0] as MethodArgs<'fetchCustomEmoji'>[0]).documentId;
+    return ids.length > 0 && ids.every((id) => id.startsWith(CATALOG_ID_PREFIX));
+  }
 
   const visited = new WeakMap<object, boolean>();
   return args.some((arg) => hasProxyPeer(arg, PEER_ARGUMENT_METHODS.has(fnName), MEDIA_METHODS.has(fnName), visited));

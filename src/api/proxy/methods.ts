@@ -16,7 +16,7 @@ import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from 
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
 import {
-  fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers, fetchSavedGifs, fetchStickers,
+  fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers, fetchSavedGifs, fetchStickers,
   fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
@@ -59,6 +59,7 @@ const methods = {
   downloadMedia,
   fetchStickerSets,
   fetchCustomEmojiSets,
+  fetchCustomEmoji,
   fetchRecentStickers,
   fetchFavoriteStickers,
   fetchSavedGifs,

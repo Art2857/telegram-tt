@@ -1,7 +1,11 @@
 import type { ApiMessageEntity } from '../types';
 import { ApiMessageEntityTypes } from '../types';
 
+import { getPxgState } from '../../proxygram/server/store';
 import { getProxyPeerId, resolveProxyPeer } from './index';
+import { buildProxyCatalogMediaId, parseProxyCatalogId } from './mediaIds';
+
+const DOCUMENT_ID = /^\d{1,20}$/;
 
 const SIMPLE_ENTITIES = new Set([
   'MessageEntityBold', 'MessageEntityItalic', 'MessageEntityUnderline', 'MessageEntityStrike',
@@ -32,6 +36,12 @@ export function buildProxyEntities(entities: unknown[], accountId: string): ApiM
     if (type === ApiMessageEntityTypes.MentionName && Number.isSafeInteger(Number(entity.userId))) {
       return [{ type, offset, length, userId: getProxyPeerId(accountId, Number(entity.userId)) }];
     }
+    if (type === ApiMessageEntityTypes.CustomEmoji && typeof entity.documentId === 'string') {
+      // The document is read through the provider's account, so its ID names that account
+      const userId = getPxgState().session?.user.id;
+      if (!userId || !DOCUMENT_ID.test(entity.documentId)) return [];
+      return [{ type, offset, length, documentId: buildProxyCatalogMediaId(userId, accountId, entity.documentId) }];
+    }
     return [];
   });
 }
@@ -44,6 +54,13 @@ export function buildProxyInputEntities(entities: ApiMessageEntity[] | undefined
       return [{
         _: 'inputMessageEntityMentionName', offset: entity.offset, length: entity.length, userId: peer.peerId,
       }];
+    }
+    if (entity.type === ApiMessageEntityTypes.CustomEmoji) {
+      // An emoji of this provider goes back as its Telegram document; another account's one cannot be sent
+      const catalog = parseProxyCatalogId(entity.documentId);
+      const documentId = catalog ? catalog.accountId === accountId && catalog.documentId : entity.documentId;
+      if (!documentId || !DOCUMENT_ID.test(documentId)) return [];
+      return [{ _: 'messageEntityCustomEmoji', offset: entity.offset, length: entity.length, documentId }];
     }
     const { type, ...fields } = entity;
     return [{ _: type[0].toLowerCase() + type.slice(1), ...fields }];

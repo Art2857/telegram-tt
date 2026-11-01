@@ -224,7 +224,7 @@ export interface AttributionDto {
 
 export interface CatalogDocumentDto {
   id: string;
-  kind: 'sticker' | 'gif';
+  kind: 'sticker' | 'gif' | 'emoji';
   setId: string | null;
   emoji: string | null;
   mimeType: string;
@@ -232,6 +232,8 @@ export interface CatalogDocumentDto {
   width: number | null;
   height: number | null;
   duration: number | null;
+  /** A custom emoji recolored to the text color */
+  textColor: boolean;
 }
 
 export interface CatalogSetDto {
@@ -295,7 +297,17 @@ export type ConnectStepDto =
 export interface UserLookup {
   registered: boolean;
   knownToBot: boolean;
-  user: { id: string; tgUserId: number; username: string | null; firstName: string | null } | null;
+  /** `isPending`: the account was created in advance and the person has not signed in yet */
+  user: { id: string; tgUserId: number; username: string | null; firstName: string | null; isPending: boolean } | null;
+  /** Not signed in yet, but their Telegram ID is known, so access can be opened in advance */
+  candidate?: GuestCandidate | null;
+}
+
+export interface GuestCandidate {
+  tgUserId: number;
+  username?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox';

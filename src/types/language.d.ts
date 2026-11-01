@@ -3681,6 +3681,7 @@ export interface LangPair {
   'PxgAdminStatMedia': undefined;
   'PxgAdminStatDisk': undefined;
   'PxgGuestDeeplinkScan': undefined;
+  'PxgShareNotRegisteredPhone': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -6062,6 +6063,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestDeeplinkPhone': {
     'phone': V;
   };
+  'PxgSharePending': {
+    'name': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -7070,7 +7074,8 @@ export interface LangKeyGroups {
       | 'PxgAdminDisconnectConfirm'
       | 'PxgAdminRevokeConfirm'
       | 'PxgWriteAsOwner'
-      | 'PxgViaOwner';
+      | 'PxgViaOwner'
+      | 'PxgSharePending';
     variables: 'name';
   };
   'limit,premiumLimit': {

@@ -156,7 +156,7 @@
 "PxgConnectDisconnect" = "Отключить от сервера";
 "PxgConnectDisconnectNote" = "Отключение завершит серверную сессию в Telegram. Архив останется, гости потеряют живой доступ.";
 "PxgShareTitle" = "Поделиться чатом";
-"PxgShareUsername" = "Кому открыть (ник в Telegram)";
+"PxgShareUsername" = "Кому открыть (ник или номер телефона)";
 "PxgShareFind" = "Найти";
 "PxgShareFound" = "{name} — есть в Proxygram";
 "PxgShareNotRegistered" = "@{username} ещё не входил в Proxygram. Попросите войти гостем и попробуйте снова.";
@@ -344,3 +344,5 @@
 "PxgGuestDeeplinkFirst" = "Бот не может написать {username} первым: этот аккаунт ещё не запускал бота. Откройте бота в Telegram этого аккаунта и нажмите Start — это устройство войдёт само.";
 "PxgGuestDeeplinkScan" = "Telegram на телефоне? Наведите на код камеру.";
 "PxgGuestDeeplinkPhone" = "Бот пока не знает номер {phone}. Откройте бота в Telegram этого аккаунта и нажмите Start — это устройство войдёт само. Там же можно поделиться номером, тогда в следующий раз код придёт сразу.";
+"PxgShareNotRegisteredPhone" = "По этому номеру в Proxygram никого нет. Попросите человека войти гостем (или поделиться номером в боте) и попробуйте снова.";
+"PxgSharePending" = "{name} ещё не входил в Proxygram. Доступ откроется сразу: чат появится у него при первом входе гостем.";

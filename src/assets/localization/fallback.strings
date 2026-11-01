@@ -4669,7 +4669,7 @@
 "PxgConnectDisconnect" = "Disconnect from server";
 "PxgConnectDisconnectNote" = "Disconnecting ends the server session in Telegram. The archive stays, guests lose live access.";
 "PxgShareTitle" = "Share chat";
-"PxgShareUsername" = "Who gets access (username)";
+"PxgShareUsername" = "Who gets access (username or phone)";
 "PxgShareFind" = "Find";
 "PxgShareFound" = "{name} — in Proxygram";
 "PxgShareNotRegistered" = "@{username} has not signed in to Proxygram yet. Ask them to sign in as a guest and try again.";
@@ -4857,3 +4857,5 @@
 "PxgGuestDeeplinkFirst" = "The bot can't message {username} first: this account hasn't started the bot yet. Open the bot in that account's Telegram and tap Start — this device will sign in by itself.";
 "PxgGuestDeeplinkScan" = "Telegram on your phone? Point the camera at the code.";
 "PxgGuestDeeplinkPhone" = "The bot doesn't know {phone} yet. Open the bot in that account's Telegram and tap Start — this device will sign in by itself. You can share your number there, so next time the code arrives right away.";
+"PxgShareNotRegisteredPhone" = "Nobody in Proxygram has this number. Ask the person to sign in as a guest (or share their number with the bot) and try again.";
+"PxgSharePending" = "{name} has not signed in to Proxygram yet. Access opens right away: the chat appears at their first guest sign-in.";

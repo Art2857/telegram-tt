@@ -2033,10 +2033,13 @@ addActionHandler('loadCustomEmojis', async (global, actions, payload): Promise<v
   const { ids, ignoreCache } = payload;
   const newCustomEmojiIds = ignoreCache ? ids
     : unique(ids.filter((documentId) => !selectCustomEmoji(global, documentId)));
-  const customEmoji = await callApi('fetchCustomEmoji', {
-    documentId: newCustomEmojiIds,
-  });
-  if (!customEmoji) return;
+  // PXG: emoji of shared chats are read by the provider's server, the rest by Telegram
+  const [proxyIds, telegramIds] = partition(newCustomEmojiIds, (id) => id.startsWith('pxgs_'));
+  const proxyEmoji = proxyIds.length ? await callApi('fetchCustomEmoji', { documentId: proxyIds }) : undefined;
+  const telegramEmoji = telegramIds.length
+    ? await callApi('fetchCustomEmoji', { documentId: telegramIds }) : undefined;
+  const customEmoji = [...proxyEmoji || [], ...telegramEmoji || []];
+  if (!customEmoji.length) return;
 
   global = getGlobal();
   global = {
