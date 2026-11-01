@@ -17,7 +17,8 @@ export async function runProxyJob(method: string, params: unknown): Promise<unkn
     resolveEvent = resolve;
   });
   const unsubscribe = pxgRpc.on((event) => {
-    if (event.e === 'outbox.done' && event.d.id === jobId) resolveEvent(event.d);
+    // A delayed job is retried by the server; only its final result settles the call
+    if (event.e === 'outbox.done' && event.d.id === jobId && event.d.status !== 'delayed') resolveEvent(event.d);
   });
   try {
     const queued = await pxgRpc.call<{ id?: string; status?: string }>(method, params);

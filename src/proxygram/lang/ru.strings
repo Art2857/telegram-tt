@@ -336,3 +336,4 @@
 "PxgViaOwner" = "через {name}";
 "PxgAutostart" = "Запускать при входе в систему";
 "PxgAutostartHint" = "Приложение откроется в трее и будет получать сообщения";
+"PxgFloodDelay" = "Telegram задержал отправку на {seconds} с — сообщение уйдёт само";

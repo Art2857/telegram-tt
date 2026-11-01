@@ -6046,6 +6046,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgViaOwner': {
     'name': V;
   };
+  'PxgFloodDelay': {
+    'seconds': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -8183,7 +8186,8 @@ export interface LangKeyGroups {
   };
   'seconds': {
     keys:
-      | 'WalletConnectRemaining';
+      | 'WalletConnectRemaining'
+      | 'PxgFloodDelay';
     variables: 'seconds';
   };
   'chat,moreBoosts': {

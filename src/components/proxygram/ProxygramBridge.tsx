@@ -2,7 +2,7 @@ import { memo, useEffect } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
-import type { AccountDto } from '../../proxygram/server/types';
+import type { AccountDto, OutboxDoneDto } from '../../proxygram/server/types';
 
 import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
@@ -29,6 +29,8 @@ const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 60_000;
 /** Сервер недоступен — пробуем снова, не мешая пользоваться Telegram */
 const RETRY_DELAY_MS = 60_000;
+/** Фоновые действия: о задержке Telegram гостю не сообщаем */
+const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>(['read', 'typing', 'history']);
 
 export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dismissed-${tgUserId}`;
 
@@ -125,13 +127,18 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
         loadProxyChats();
       }
       if (event.e === 'archive.change') refreshProxyMessage(event.d);
-      if (event.e === 'outbox.done' && event.d.kind === 'history') refreshProxyHistory(event.d);
+      if (event.e === 'outbox.done' && event.d.status === 'delayed' && !SILENT_JOB_KINDS.has(event.d.kind)) {
+        showNotification({ message: { key: 'PxgFloodDelay', variables: { seconds: event.d.retryInSeconds } } });
+      }
+      if (event.e === 'outbox.done' && event.d.status !== 'delayed' && event.d.kind === 'history') {
+        refreshProxyHistory(event.d);
+      }
       if (event.e === 'topics.changed') refreshProxyTopics(event.d);
       if (event.e === 'read.changed') refreshProxyUnread(event.d);
       if (event.e === 'chats.state') applyProxyChatState(event.d);
     });
-  }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats,
-    refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread, applyProxyChatState, apiUpdate]);
+  }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory,
+    refreshProxyTopics, refreshProxyUnread, applyProxyChatState, apiUpdate, showNotification]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;

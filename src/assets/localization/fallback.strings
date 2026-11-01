@@ -4849,3 +4849,4 @@
 "PxgViaOwner" = "via {name}";
 "PxgAutostart" = "Start with the system";
 "PxgAutostartHint" = "The app opens in the tray and keeps receiving messages";
+"PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";
