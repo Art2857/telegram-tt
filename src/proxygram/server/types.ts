@@ -57,6 +57,8 @@ export interface AccessChat {
   restricted: AccessRestriction | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
+  /** Premium у аккаунта владельца: несколько реакций и кастомные эмодзи */
+  providerPremium?: boolean;
   /** Гость заглушил чат у себя, unix-секунды */
   mutedUntil: number | null;
   /** Закреплён в списке гостя (позже закреплённый — выше), unix-секунды */

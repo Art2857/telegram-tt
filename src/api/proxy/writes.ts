@@ -130,11 +130,15 @@ export async function deleteMessages({ chat, messageIds }: MethodArgs<'deleteMes
 export async function sendReaction({ chat, messageId, reactions }: MethodArgs<'sendReaction'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
-  const reaction = reactions?.at(-1);
-  if (reaction && reaction.type !== 'emoji') throw new PxgError('unsupported');
-  await runProxyJob('messages.react', {
-    ...peer, msgId: messageId, emoji: reaction?.type === 'emoji' ? reaction.emoticon : undefined,
+  // The whole set of the owner's reactions: several and custom ones are allowed by the owner's Premium
+  const items = (reactions || []).flatMap((reaction): ({ emoji: string } | { documentId: string })[] => {
+    if (reaction.type === 'emoji') return [{ emoji: reaction.emoticon }];
+    if (reaction.type !== 'custom') return [];
+    const catalog = parseProxyCatalogId(reaction.documentId);
+    return catalog?.accountId === peer.accountId ? [{ documentId: catalog.documentId }] : [];
   });
+  if (items.length !== (reactions?.length ?? 0)) throw new PxgError('unsupported');
+  await runProxyJob('messages.react', { ...peer, msgId: messageId, reactions: items });
   return true as const;
 }
 

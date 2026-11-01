@@ -1,4 +1,5 @@
 import type { ActionReturnType } from '../../types';
+import { PROXY_MAX_REACTIONS, PROXY_MAX_REACTIONS_PREMIUM } from '../../../api/proxy/types';
 import {
   type ApiError,
   ApiMediaFormat,
@@ -237,7 +238,10 @@ addActionHandler('toggleReaction', async (global, actions, payload): Promise<voi
   const newUserReactions = hasReaction
     ? userReactions.filter((userReaction) => !isSameReaction(userReaction, reaction)) : [...userReactions, reaction];
 
-  const limit = chat.pxgProxy ? 1 : selectMaxUserReactions(global);
+  // PXG: a guest reacts as the owner, so the owner's Premium sets the limit
+  const limit = chat.pxgProxy
+    ? (chat.pxgProxy.isProviderPremium ? PROXY_MAX_REACTIONS_PREMIUM : PROXY_MAX_REACTIONS)
+    : selectMaxUserReactions(global);
   const [paidReactions, regularReactions] = partition(newUserReactions, (r) => r.type === 'paid');
   const trimmedRegularReactions = regularReactions.slice(-limit) as ApiReaction[];
   const localReactions = [...paidReactions, ...trimmedRegularReactions];

@@ -7,7 +7,13 @@ export type ProxyChatInfo = {
   restricted?: AccessRestriction;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;
+  /** Premium of the owner's account: several reactions and custom emoji */
+  isProviderPremium?: boolean;
 };
+
+/** Reactions per message: one, or as many as Telegram gives a Premium owner */
+export const PROXY_MAX_REACTIONS = 1;
+export const PROXY_MAX_REACTIONS_PREMIUM = 3;
 
 export const PROXY_FOLDER_ID = -2;
 export const PROXY_REACTION_EMOJIS = ['👍', '❤', '🔥', '👏', '😁', '🤔', '👎'];

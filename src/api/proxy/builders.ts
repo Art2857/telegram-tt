@@ -10,6 +10,7 @@ import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
 import { getProxyPeerId, isProxyGuest } from './index';
 import { buildProxyMedia } from './media';
+import { buildProxyCatalogMediaId } from './mediaIds';
 
 /** Telegram's blue topic icon, used when the topic has no color */
 const DEFAULT_TOPIC_COLOR = 0x6FB9F0;
@@ -49,6 +50,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
       restricted: chat.restricted || undefined,
       providerName: chat.providerName || undefined,
+      isProviderPremium: chat.providerPremium || undefined,
     },
   };
 }
@@ -71,10 +73,15 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
   const reactions = dto.reactions?.results?.flatMap((reaction): ApiReactionCount[] => {
     const { emoticon, documentId } = reaction.reaction;
     if (!emoticon && !documentId) return [];
+    const userId = getPxgState().session?.user.id;
+    if (!emoticon && !userId) return [];
     return [{
       count: reaction.count,
       chosenOrder: reaction.chosenOrder,
-      reaction: emoticon ? { type: 'emoji', emoticon } : { type: 'custom', documentId: documentId! },
+      // A custom emoji reaction is read through the provider's account, like custom emoji in text
+      reaction: emoticon
+        ? { type: 'emoji', emoticon }
+        : { type: 'custom', documentId: buildProxyCatalogMediaId(userId!, dto.accountId, documentId!) },
     }];
   });
   const media = chat.pxgProxy?.permissions.download && !dto.isMediaUnavailable
