@@ -103,6 +103,12 @@ export interface ReactionCountDto {
   chosenOrder?: number;
 }
 
+export interface AttributionDto {
+  msgId: number;
+  userId: string;
+  name: string;
+}
+
 export interface CatalogDocumentDto {
   id: string;
   kind: 'sticker' | 'gif';

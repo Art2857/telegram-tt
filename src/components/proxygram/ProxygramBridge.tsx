@@ -43,6 +43,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const shareChatId = usePxgState((state) => state.shareChatId);
+  const shareFolder = usePxgState((state) => state.shareFolder);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
   const ownAccountId = usePxgState((state) => state.accounts?.find(
     (account) => String(account.tgUserId) === currentUserId,
@@ -126,7 +127,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     <>
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
       {isConnectOpen && <ConnectServerModal />}
-      {shareChatId && <ShareChatModal chatId={shareChatId} />}
+      {(shareChatId || shareFolder) && <ShareChatModal chatId={shareChatId} folder={shareFolder} />}
       {isAdminOpen && <AdminPanel />}
     </>
   );

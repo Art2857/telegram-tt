@@ -1,13 +1,13 @@
 import { memo, useEffect, useRef } from '../../lib/teact/teact';
 import { getGlobal, setGlobal, withGlobal } from '../../global';
 
-import type { MessageDto } from '../../proxygram/server/types';
+import type { AttributionDto, MessageDto } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import { selectChatLastMessageId, selectCurrentMessageList, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import { isProxyPeerId } from '../../api/proxy/ids';
-import { insertTombstones } from '../../proxygram/archive/serverTombstones';
+import { applyAttribution, insertTombstones } from '../../proxygram/archive/serverTombstones';
 import { pxgRpc } from '../../proxygram/server/rpc';
 
 type OwnProps = {
@@ -36,22 +36,34 @@ const TombstonesLoader = ({
 }: OwnProps & StateProps) => {
   // уже запрошенные диапазоны по чатам — при прокрутке туда-обратно сервер не дёргаем
   const fetchedRef = useRef(new Map<string, [number, number][]>());
+  // авторы-гости по чатам: перезагруженная из Telegram лента получает отметки снова
+  const attributionRef = useRef(new Map<string, AttributionDto[]>());
 
   useEffect(() => {
     if (!chatId || isProxyPeerId(chatId) || minId === undefined || maxId === undefined) return undefined;
+    const known = attributionRef.current.get(chatId);
+    if (known?.length) {
+      const global = applyAttribution(getGlobal(), chatId, known);
+      setGlobal(global);
+    }
+
     const to = isAtEnd ? maxId + TAIL_RANGE : maxId;
     const ranges = fetchedRef.current.get(chatId) ?? [];
     if (ranges.some(([from, until]) => from <= minId && until >= to)) return undefined;
 
     const timer = window.setTimeout(() => {
-      pxgRpc.call<MessageDto[]>('archive.tombstones', {
-        accountId, peerId: Number(chatId), minMsgId: minId, maxMsgId: to,
-      })
-        .then((tombstones) => {
+      const range = { accountId, peerId: Number(chatId), minMsgId: minId, maxMsgId: to };
+      Promise.all([
+        pxgRpc.call<MessageDto[]>('archive.tombstones', range),
+        pxgRpc.call<AttributionDto[]>('archive.attribution', range),
+      ])
+        .then(([tombstones, attribution]) => {
           fetchedRef.current.set(chatId, [...ranges, [minId, to]]);
-          if (!tombstones.length) return;
+          const entries = [...(attributionRef.current.get(chatId) ?? []), ...attribution];
+          attributionRef.current.set(chatId, entries);
           let global = getGlobal();
-          global = insertTombstones(global, chatId, tombstones, { isAtEnd }, getCurrentTabId());
+          if (tombstones.length) global = insertTombstones(global, chatId, tombstones, { isAtEnd }, getCurrentTabId());
+          global = applyAttribution(global, chatId, entries);
           setGlobal(global);
         })
         .catch(() => undefined);

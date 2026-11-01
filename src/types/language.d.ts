@@ -3464,6 +3464,43 @@ export interface LangPair {
   'PxgShareList': undefined;
   'PxgShareRevoke': undefined;
   'PxgShareNeedServer': undefined;
+  'PxgShareFolderTitle': undefined;
+  'PxgShareFolderMenu': undefined;
+  'PxgShareFolderHint': undefined;
+  'PxgShareCustomize': undefined;
+  'PxgPermWrite': undefined;
+  'PxgPermSendMedia': undefined;
+  'PxgPermUseOwnerStickers': undefined;
+  'PxgPermReact': undefined;
+  'PxgPermEditOwn': undefined;
+  'PxgPermDeleteOwn': undefined;
+  'PxgPermManageOwnerOutgoing': undefined;
+  'PxgPermInteract': undefined;
+  'PxgPermDownload': undefined;
+  'PxgPermForwardOut': undefined;
+  'PxgPermSeeArchive': undefined;
+  'PxgPermSeeAttribution': undefined;
+  'PxgPermMarkRead': undefined;
+  'PxgPermTyping': undefined;
+  'PxgPermSeePhones': undefined;
+  'PxgPermAdmin': undefined;
+  'PxgHistoryLastN': undefined;
+  'PxgHistorySince': undefined;
+  'PxgHistoryCount': undefined;
+  'PxgHistoryDate': undefined;
+  'PxgShareHistoryFixed': undefined;
+  'PxgShareExpiry': undefined;
+  'PxgExpiryNever': undefined;
+  'PxgExpiryDay': undefined;
+  'PxgExpiryWeek': undefined;
+  'PxgExpiryMonth': undefined;
+  'PxgShareLabel': undefined;
+  'PxgShareSave': undefined;
+  'PxgShareCancelEdit': undefined;
+  'PxgShareEdit': undefined;
+  'PxgSharePause': undefined;
+  'PxgShareResume': undefined;
+  'PxgShareReadWarning': undefined;
   'PxgAdminTitle': undefined;
   'PxgAdminOverview': undefined;
   'PxgAdminUsers': undefined;
@@ -5848,6 +5885,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareNotRegistered': {
     'username': V;
   };
+  'PxgShareEditing': {
+    'name': V;
+  };
+  'PxgShareExpires': {
+    'date': V;
+  };
   'PxgAdminWarnAccounts': {
     'count': V;
   };
@@ -6892,6 +6935,7 @@ export interface LangKeyGroups {
       | 'PxgGuestSignedInAs'
       | 'PxgConnectActive'
       | 'PxgShareFound'
+      | 'PxgShareEditing'
       | 'PxgAdminOwner'
       | 'PxgAdminFromAccount'
       | 'PxgAdminKickConfirm'
@@ -7142,7 +7186,8 @@ export interface LangKeyGroups {
       | 'StarsSubscriptionExpiredInfo'
       | 'StarsSubscriptionExpires'
       | 'StarsSubscriptionRefulfillInfo'
-      | 'StarsSubscriptionRenews';
+      | 'StarsSubscriptionRenews'
+      | 'PxgShareExpires';
     variables: 'date';
   };
   'amount': {

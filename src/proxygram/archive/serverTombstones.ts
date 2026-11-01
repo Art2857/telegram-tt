@@ -1,10 +1,10 @@
 import type { ApiMessage } from '../../api/types';
 import type { GlobalState, TabArgs } from '../../global/types';
-import type { MessageDto } from '../server/types';
+import type { AttributionDto, MessageDto } from '../server/types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import {
-  addChatMessagesById, safeReplaceViewportIds, updateListedIds,
+  addChatMessagesById, safeReplaceViewportIds, updateChatMessage, updateListedIds,
 } from '../../global/reducers';
 import { selectChatMessage, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
@@ -78,6 +78,16 @@ export function insertTombstones<T extends GlobalState>(
       global = safeReplaceViewportIds(global, chatId, MAIN_THREAD_ID, [...viewportIds, ...inside], tabId);
     }
   }
+  return global;
+}
+
+/** «✍ Имя» у исходящих владельца, которые отправил гость; сообщения, которых нет в ленте, пропускаются */
+export function applyAttribution<T extends GlobalState>(global: T, chatId: string, entries: AttributionDto[]): T {
+  entries.forEach(({ msgId, userId, name }) => {
+    const message = selectChatMessage(global, chatId, msgId);
+    if (!message || message.pxgSentByName === name) return;
+    global = updateChatMessage(global, chatId, msgId, { pxgSentByUserId: userId, pxgSentByName: name });
+  });
   return global;
 }
 

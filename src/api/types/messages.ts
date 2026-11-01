@@ -803,6 +803,8 @@ export interface ApiMessage {
   // PXG: время удаления (сек, время сервера) — сообщение сохранено антиудалением
   pxgDeletedAt?: number;
   pxgSentByUserId?: string;
+  // PXG: имя гостя, отправившего исходящее владельца через прокси (оверлей полного клиента)
+  pxgSentByName?: string;
   pxgIsOwn?: boolean;
   pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)

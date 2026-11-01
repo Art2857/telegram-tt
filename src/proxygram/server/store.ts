@@ -20,6 +20,8 @@ export interface PxgState {
   sharedCount?: number;
   /** Чат Web A, которым делятся сейчас (окно «Поделиться чатом») */
   shareChatId?: string;
+  /** Папка Telegram, которой делятся сейчас (окно «Поделиться папкой») */
+  shareFolder?: { id: number; title: string };
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';

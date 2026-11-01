@@ -188,7 +188,9 @@ const MessageMeta = ({
         data-ignore-on-paste
       >
         {message.pxgSentByUserId && (
-          <span className="message-delegated" title={lang('PxgGuestSentByGuest')}>✍ </span>
+          <span className="message-delegated" title={lang('PxgGuestSentByGuest')}>
+            {message.pxgSentByName ? `✍ ${message.pxgSentByName} ` : '✍ '}
+          </span>
         )}
         {effectEmoji && (
           <span className="message-effect-icon" onClick={onEffectClick}>

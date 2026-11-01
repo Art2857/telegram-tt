@@ -16,6 +16,7 @@ import { ALL_FOLDER_ID } from '../config';
 import { selectCanShareFolder } from '../global/selectors';
 import { MEMO_EMPTY_ARRAY } from '../util/memo';
 import { renderTextWithEntities } from '../components/common/helpers/renderTextWithEntities';
+import { getPxgState, setPxgState } from '../proxygram/server/store';
 import useAppLayout from './useAppLayout';
 import { useFolderManagerForUnreadChatsByFolder, useFolderManagerForUnreadCounters } from './useFolderManager';
 import useLang from './useLang';
@@ -144,6 +145,15 @@ const useFolderTabs = (params: Params) => {
                 folderId: id,
               });
             },
+          });
+        }
+
+        // PXG: A folder share follows the folder: chats added to it later appear for the guest too
+        if (id !== ALL_FOLDER_ID && getPxgState().session?.level === 'client') {
+          contextActions.push({
+            title: lang('PxgShareFolderMenu'),
+            icon: 'user',
+            handler: () => setPxgState({ shareFolder: { id, title: folder.title.text } }),
           });
         }
 
