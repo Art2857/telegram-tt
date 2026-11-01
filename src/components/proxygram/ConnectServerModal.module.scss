@@ -54,6 +54,11 @@
   }
 }
 
+.link {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
 .ok {
   font-size: 0.875rem;
   color: var(--color-green, #4fae4e);

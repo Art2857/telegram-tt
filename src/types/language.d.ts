@@ -3439,6 +3439,17 @@ export interface LangPair {
   'PxgErrorUsername': undefined;
   'PxgMenuSharing': undefined;
   'PxgMenuSharingOn': undefined;
+  'PxgShareLimits': undefined;
+  'PxgShareLimitsHint': undefined;
+  'PxgShareLimitSend': undefined;
+  'PxgShareLimitDelete': undefined;
+  'PxgInviteCreate': undefined;
+  'PxgInviteHint': undefined;
+  'PxgInviteMake': undefined;
+  'PxgInviteReady': undefined;
+  'PxgInviteList': undefined;
+  'PxgInviteApprove': undefined;
+  'PxgInviteDecline': undefined;
   'PxgMenuSharingLost': undefined;
   'PxgMenuSharingFlood': undefined;
   'PxgAccountAuthLost': undefined;
@@ -5880,6 +5891,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestMedia': {
     'type': V;
   };
+  'PxgInvitePending': {
+    'date': V;
+  };
+  'PxgInviteAwaiting': {
+    'name': V;
+  };
   'PxgImportProgress': {
     'done': V;
     'total': V;
@@ -6944,6 +6961,7 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppExpired'
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
+      | 'PxgInviteAwaiting'
       | 'PxgConnectActive'
       | 'PxgShareFound'
       | 'PxgShareEditing'
@@ -7198,6 +7216,7 @@ export interface LangKeyGroups {
       | 'StarsSubscriptionExpires'
       | 'StarsSubscriptionRefulfillInfo'
       | 'StarsSubscriptionRenews'
+      | 'PxgInvitePending'
       | 'PxgShareExpires';
     variables: 'date';
   };

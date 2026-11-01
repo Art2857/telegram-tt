@@ -1,9 +1,10 @@
 import { memo, useEffect, useState } from '../../lib/teact/teact';
-import { getGlobal } from '../../global';
+import { getActions, getGlobal } from '../../global';
 
 import type { PermissionKey, Permissions, PresetKey, UserLookup } from '../../proxygram/server/types';
 
 import { selectChat } from '../../global/selectors';
+import { copyTextToClipboard } from '../../util/clipboard';
 import { diffPermissions, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
@@ -31,9 +32,24 @@ type OutgoingShare = {
   permissions: Partial<Permissions>;
   historyMode: HistoryMode;
   label: string | null;
+  limits: ShareLimits;
   expiresAt: string | null;
   status: 'active' | 'paused';
   grantee: { id: string; username: string | null; firstName: string | null };
+};
+
+type ShareLimits = { sendPerMinute?: number; deletePerMinute?: number };
+
+type Invite = {
+  id: string;
+  status: 'pending' | 'awaiting';
+  scope: 'chat' | 'topic' | 'folder';
+  peerId: number | null;
+  folderId: number | null;
+  preset: PresetKey;
+  label: string | null;
+  candidate: { id: string; username: string | null; firstName: string | null } | null;
+  expiresAt: string;
 };
 
 type OwnProps = {
@@ -49,6 +65,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_HISTORY_LIMIT = 100_000;
 const LABEL_MAX_LENGTH = 64;
+const MAX_RATE_LIMIT = 60;
 const USERNAME = /^@?\w{5,32}$/;
 const HISTORY_KEYS: Record<HistoryMode, string> = {
   all: 'PxgHistoryAll', new_only: 'PxgHistoryNew', last_n: 'PxgHistoryLastN', since_date: 'PxgHistorySince',
@@ -59,6 +76,7 @@ const EXPIRY_KEYS: Record<Expiry, string> = {
 
 /** «Поделиться чатом» и «Поделиться папкой» (PLAN.md, 7.5–7.6): кому, какие права, какая история, на какой срок */
 const ShareChatModal = ({ chatId, folder }: OwnProps) => {
+  const { showNotification } = getActions();
   const lang = useLang();
   const accounts = usePxgState((state) => state.accounts);
   const connection = usePxgState((state) => state.connection);
@@ -74,6 +92,11 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   const [historySince, setHistorySince] = useState('');
   const [expiry, setExpiry] = useState<Expiry>('never');
   const [label, setLabel] = useState('');
+  const [sendLimit, setSendLimit] = useState('');
+  const [deleteLimit, setDeleteLimit] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string>();
+  const [invites, setInvites] = useState<Invite[]>();
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -83,13 +106,18 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   const peerId = chatId ? Number(chatId) : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
 
+  const isSameTarget = (item: { scope: string; peerId: number | null; folderId: number | null }) => (folder
+    ? item.scope === 'folder' && item.folderId === folder.id
+    : item.scope === 'chat' && item.peerId === peerId);
+
   const loadShares = () => {
     if (!account) return;
     void pxgRpc.call<OutgoingShare[]>('shares.outgoing')
-      .then((list) => setShares(list.filter((share) => share.accountId === account.id && (folder
-        ? share.scope === 'folder' && share.folderId === folder.id
-        : share.scope === 'chat' && share.peerId === peerId))))
+      .then((list) => setShares(list.filter((share) => share.accountId === account.id && isSameTarget(share))))
       .catch((err) => setError(describePxgError(lang, err)));
+    void pxgRpc.call<Invite[]>('invites.list', { accountId: account.id })
+      .then((list) => setInvites(list.filter(isSameTarget)))
+      .catch(() => setInvites(undefined));
   };
 
   // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
@@ -107,6 +135,15 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
     setHistoryMode('all');
     setExpiry('never');
     setLabel('');
+    setSendLimit('');
+    setDeleteLimit('');
+    setIsInviting(false);
+  };
+
+  const startInvite = () => {
+    resetForm();
+    setInviteLink(undefined);
+    setIsInviting(true);
   };
 
   const find = async () => {
@@ -135,7 +172,15 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
     setIsCustomizing(Object.keys(share.permissions).length > 0);
     setExpiry('never');
     setLabel(share.label || '');
+    setSendLimit(share.limits.sendPerMinute ? String(share.limits.sendPerMinute) : '');
+    setDeleteLimit(share.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '');
+    setIsInviting(false);
   };
+
+  const buildLimits = (): ShareLimits => ({
+    sendPerMinute: parseLimit(sendLimit),
+    deletePerMinute: parseLimit(deleteLimit),
+  });
 
   const expiresAt = () => {
     const days = EXPIRY_DAYS[expiry];
@@ -143,15 +188,34 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   };
 
   const save = async () => {
-    if (!account || (!editing && !guest?.user)) return;
+    if (!account || (!editing && !guest?.user && !isInviting)) return;
     setIsSaving(true);
     setError(undefined);
     const common = {
       preset,
       permissions: diffPermissions(preset, permissions),
       label: label.trim() || undefined,
+      limits: buildLimits(),
+    };
+    const target = {
+      scope: folder ? 'folder' : 'chat',
+      peerId,
+      folderId: folder?.id,
+      historyMode,
+      historyLimit: historyMode === 'last_n' ? Math.min(Number(historyLimit) || 1, MAX_HISTORY_LIMIT) : undefined,
+      historySince: historyMode === 'since_date' && historySince ? new Date(historySince).toISOString() : undefined,
+      expiresAt: expiresAt(),
     };
     try {
+      if (isInviting) {
+        const result = await pxgRpc.call<{ link: string }>('invites.create', {
+          ...common, ...target, accountId: account.id,
+        });
+        resetForm();
+        setInviteLink(result.link);
+        loadShares();
+        return;
+      }
       if (editing) {
         await pxgRpc.call('shares.update', {
           // The server clears the expiry only on an explicit JSON `null`
@@ -160,16 +224,7 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
         });
       } else {
         await pxgRpc.call('shares.create', {
-          ...common,
-          accountId: account.id,
-          granteeUserId: guest!.user!.id,
-          scope: folder ? 'folder' : 'chat',
-          peerId,
-          folderId: folder?.id,
-          historyMode,
-          historyLimit: historyMode === 'last_n' ? Math.min(Number(historyLimit) || 1, MAX_HISTORY_LIMIT) : undefined,
-          historySince: historyMode === 'since_date' && historySince ? new Date(historySince).toISOString() : undefined,
-          expiresAt: expiresAt(),
+          ...common, ...target, accountId: account.id, granteeUserId: guest!.user!.id,
         });
       }
       resetForm();
@@ -200,8 +255,30 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
     }
   };
 
+  const decideInvite = async (inviteId: string, isApproved: boolean) => {
+    try {
+      await pxgRpc.call('invites.decide', { inviteId, approve: isApproved });
+      loadShares();
+    } catch (err) {
+      setError(describePxgError(lang, err));
+    }
+  };
+
+  const revokeInvite = async (inviteId: string) => {
+    try {
+      await pxgRpc.call('invites.revoke', { inviteId });
+      loadShares();
+    } catch (err) {
+      setError(describePxgError(lang, err));
+    }
+  };
+
+  const copyInviteLink = () => {
+    if (inviteLink && copyTextToClipboard(inviteLink)) showNotification({ message: { key: 'LinkCopied' } });
+  };
+
   const presetLabel = (key: PresetKey) => t(`PxgPreset${key[0].toUpperCase()}${key.slice(1)}`);
-  const isFormVisible = Boolean(editing || guest?.user);
+  const isFormVisible = Boolean(editing || guest?.user || isInviting);
   const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
 
   function renderOptions<T extends string>(
@@ -290,11 +367,28 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
           onChange={(e) => setLabel(e.target.value)}
         />
 
+        <div className={styles.sectionTitle}>{lang('PxgShareLimits')}</div>
+        <p className={styles.secondary}>{lang('PxgShareLimitsHint')}</p>
+        <div className={styles.find}>
+          <InputText
+            label={lang('PxgShareLimitSend')}
+            inputMode="numeric"
+            value={sendLimit}
+            onChange={(e) => setSendLimit(e.target.value.replace(/\D/g, ''))}
+          />
+          <InputText
+            label={lang('PxgShareLimitDelete')}
+            inputMode="numeric"
+            value={deleteLimit}
+            onChange={(e) => setDeleteLimit(e.target.value.replace(/\D/g, ''))}
+          />
+        </div>
+
         <div className={styles.buttons}>
           <Button isLoading={isSaving} disabled={!isHistoryValid} onClick={() => void save()}>
-            {lang(editing ? 'PxgShareSave' : 'PxgShareGrant')}
+            {lang(editing ? 'PxgShareSave' : isInviting ? 'PxgInviteMake' : 'PxgShareGrant')}
           </Button>
-          {editing && (
+          {(editing || isInviting) && (
             <Button color="translucent" onClick={resetForm}>{lang('PxgShareCancelEdit')}</Button>
           )}
         </div>
@@ -357,10 +451,71 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
           {!editing && guest?.user && (
             <p className={styles.ok}>{lang('PxgShareFound', { name: displayName(guest.user) })}</p>
           )}
+          {!editing && !isInviting && (
+            <Button size="smaller" isText fluid={false} onClick={startInvite}>{lang('PxgInviteCreate')}</Button>
+          )}
+          {isInviting && <p className={styles.secondary}>{lang('PxgInviteHint')}</p>}
+          {inviteLink && (
+            <div className={styles.section}>
+              <p className={styles.ok}>{lang('PxgInviteReady')}</p>
+              <div className={styles.row}>
+                <span className={styles.link}>{inviteLink}</span>
+                <Button size="tiny" isText fluid={false} onClick={copyInviteLink}>{lang('Copy')}</Button>
+              </div>
+            </div>
+          )}
 
           {isFormVisible && renderForm()}
 
           {error && <p className={styles.error}>{error}</p>}
+
+          {Boolean(invites?.length) && (
+            <div className={styles.section}>
+              <div className={styles.sectionTitle}>{lang('PxgInviteList')}</div>
+              {invites.map((invite) => (
+                <div key={invite.id} className={styles.row}>
+                  <span>
+                    {invite.candidate
+                      ? lang('PxgInviteAwaiting', { name: displayName(invite.candidate) })
+                      : lang('PxgInvitePending', { date: formatDateTime(invite.expiresAt) })}
+                    <span className={styles.secondary}>
+                      {` · ${presetLabel(invite.preset)}`}
+                      {invite.label ? ` · ${invite.label}` : ''}
+                    </span>
+                  </span>
+                  <span className={styles.rowActions}>
+                    {invite.status === 'awaiting' && (
+                      <>
+                        <Button size="tiny" isText fluid={false} onClick={() => void decideInvite(invite.id, true)}>
+                          {lang('PxgInviteApprove')}
+                        </Button>
+                        <Button
+                          size="tiny"
+                          color="danger"
+                          isText
+                          fluid={false}
+                          onClick={() => void decideInvite(invite.id, false)}
+                        >
+                          {lang('PxgInviteDecline')}
+                        </Button>
+                      </>
+                    )}
+                    {invite.status === 'pending' && (
+                      <Button
+                        size="tiny"
+                        color="danger"
+                        isText
+                        fluid={false}
+                        onClick={() => void revokeInvite(invite.id)}
+                      >
+                        {lang('PxgShareRevoke')}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {Boolean(shares?.length) && (
             <div className={styles.section}>
@@ -403,5 +558,10 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
     </Modal>
   );
 };
+
+function parseLimit(value: string) {
+  const limit = Number(value);
+  return limit > 0 ? Math.min(limit, MAX_RATE_LIMIT) : undefined;
+}
 
 export default memo(ShareChatModal);
