@@ -46,8 +46,10 @@ export function resolveProxyPeer(id: string): ProxyPeer | undefined {
 
 /** Seeds peer identities before the native builders consume authorized RPC results */
 export async function registerProxyResult(method: string, result: unknown): Promise<void> {
-  if (!['access.chats', 'messages.history', 'messages.window', 'messages.search'].includes(method)) return;
-  const entries = method === 'messages.window' || method === 'messages.search'
+  if (!['access.chats', 'messages.history', 'messages.window', 'messages.search', 'topics.list'].includes(method)) {
+    return;
+  }
+  const entries = method === 'messages.window' || method === 'messages.search' || method === 'topics.list'
     ? (result as { messages: unknown[] }).messages : result;
   if (!registryUserId || !Array.isArray(entries)) return;
 

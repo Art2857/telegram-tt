@@ -39,7 +39,8 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  */
 const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
-    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, apiUpdate, showNotification,
+    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, apiUpdate,
+    showNotification,
   } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -48,6 +49,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
   const shareChatId = usePxgState((state) => state.shareChatId);
   const shareFolder = usePxgState((state) => state.shareFolder);
+  const shareTopic = usePxgState((state) => state.shareTopic);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
   const ownAccountId = usePxgState((state) => state.accounts?.find(
     (account) => String(account.tgUserId) === currentUserId,
@@ -123,9 +125,10 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       }
       if (event.e === 'archive.change') refreshProxyMessage(event.d);
       if (event.e === 'outbox.done' && event.d.kind === 'history') refreshProxyHistory(event.d);
+      if (event.e === 'topics.changed') refreshProxyTopics(event.d);
     });
   }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats,
-    refreshProxyMessage, refreshProxyHistory, apiUpdate]);
+    refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, apiUpdate]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
@@ -143,7 +146,9 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     <>
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
       {isConnectOpen && <ConnectServerModal />}
-      {(shareChatId || shareFolder) && <ShareChatModal chatId={shareChatId} folder={shareFolder} />}
+      {(shareChatId || shareFolder) && (
+        <ShareChatModal chatId={shareChatId} folder={shareFolder} topic={shareTopic} />
+      )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
     </>

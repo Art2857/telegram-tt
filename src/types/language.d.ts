@@ -3534,6 +3534,8 @@ export interface LangPair {
   'PxgShareFolderTitle': undefined;
   'PxgShareFolderMenu': undefined;
   'PxgShareFolderHint': undefined;
+  'PxgShareTopic': undefined;
+  'PxgShareTopicHint': undefined;
   'PxgShareCustomize': undefined;
   'PxgPermWrite': undefined;
   'PxgPermSendMedia': undefined;

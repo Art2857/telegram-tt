@@ -27,6 +27,7 @@ type OutgoingShare = {
   accountId: string;
   scope: 'chat' | 'topic' | 'folder';
   peerId: number | null;
+  topicId: number | null;
   folderId: number | null;
   preset: PresetKey;
   permissions: Partial<Permissions>;
@@ -40,11 +41,14 @@ type OutgoingShare = {
 
 type ShareLimits = { sendPerMinute?: number; deletePerMinute?: number };
 
+type ShareTargetFields = { scope: string; peerId: number | null; topicId: number | null; folderId: number | null };
+
 type Invite = {
   id: string;
   status: 'pending' | 'awaiting';
   scope: 'chat' | 'topic' | 'folder';
   peerId: number | null;
+  topicId: number | null;
   folderId: number | null;
   preset: PresetKey;
   label: string | null;
@@ -55,6 +59,8 @@ type Invite = {
 type OwnProps = {
   chatId?: string;
   folder?: { id: number; title: string };
+  /** A forum topic of `chatId`: the guest gets only this topic */
+  topic?: { id: number; title: string };
 };
 
 const PRESETS: PresetKey[] = ['readOnly', 'assistant', 'full'];
@@ -75,7 +81,7 @@ const EXPIRY_KEYS: Record<Expiry, string> = {
 };
 
 /** «Поделиться чатом» и «Поделиться папкой» (PLAN.md, 7.5–7.6): кому, какие права, какая история, на какой срок */
-const ShareChatModal = ({ chatId, folder }: OwnProps) => {
+const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const { showNotification } = getActions();
   const lang = useLang();
   const accounts = usePxgState((state) => state.accounts);
@@ -101,14 +107,17 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const currentUserId = getGlobal().currentUserId;
-  const chatTitle = chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
+  const peerTitle = chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
+  const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const account = accounts?.find((item) => String(item.tgUserId) === currentUserId && item.status !== 'revoked');
   const peerId = chatId ? Number(chatId) : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
 
-  const isSameTarget = (item: { scope: string; peerId: number | null; folderId: number | null }) => (folder
-    ? item.scope === 'folder' && item.folderId === folder.id
-    : item.scope === 'chat' && item.peerId === peerId);
+  const isSameTarget = (item: ShareTargetFields) => {
+    if (folder) return item.scope === 'folder' && item.folderId === folder.id;
+    if (topic) return item.scope === 'topic' && item.peerId === peerId && item.topicId === topic.id;
+    return item.scope === 'chat' && item.peerId === peerId;
+  };
 
   const loadShares = () => {
     if (!account) return;
@@ -121,9 +130,9 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   };
 
   // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
-  useEffect(loadShares, [account?.id, peerId, folder?.id, connection]);
+  useEffect(loadShares, [account?.id, peerId, folder?.id, topic?.id, connection]);
 
-  const close = () => setPxgState({ shareChatId: undefined, shareFolder: undefined });
+  const close = () => setPxgState({ shareChatId: undefined, shareFolder: undefined, shareTopic: undefined });
 
   const resetForm = () => {
     setEditing(undefined);
@@ -198,8 +207,9 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
       limits: buildLimits(),
     };
     const target = {
-      scope: folder ? 'folder' : 'chat',
+      scope: folder ? 'folder' : topic ? 'topic' : 'chat',
       peerId,
+      topicId: topic?.id,
       folderId: folder?.id,
       historyMode,
       historyLimit: historyMode === 'last_n' ? Math.min(Number(historyLimit) || 1, MAX_HISTORY_LIMIT) : undefined,
@@ -399,20 +409,23 @@ const ShareChatModal = ({ chatId, folder }: OwnProps) => {
   return (
     <Modal
       isOpen
-      title={lang(folder ? 'PxgShareFolderTitle' : 'PxgShareTitle')}
+      title={lang(folder ? 'PxgShareFolderTitle' : topic ? 'PxgShareTopic' : 'PxgShareTitle')}
       hasCloseButton
       onClose={close}
       className={styles.root}
     >
       {chatTitle && <p className={styles.secondary}>{chatTitle}</p>}
       {folder && <p className={styles.secondary}>{lang('PxgShareFolderHint')}</p>}
+      {topic && <p className={styles.secondary}>{lang('PxgShareTopicHint')}</p>}
 
       {!account ? (
         <>
           <p>{lang('PxgShareNeedServer')}</p>
           <div className={styles.buttons}>
             <Button
-              onClick={() => setPxgState({ shareChatId: undefined, shareFolder: undefined, isConnectOpen: true })}
+              onClick={() => setPxgState({
+                shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, isConnectOpen: true,
+              })}
             >
               {lang('PxgConnectTitle')}
             </Button>

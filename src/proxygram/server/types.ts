@@ -92,8 +92,8 @@ export interface MessageDto {
   text: string;
   entities: unknown[];
   media: MediaSummaryDto | null;
-  /** Заголовок ответа в виде TL (messageReplyHeader) */
-  replyTo: { replyToMsgId?: number; quoteText?: string } | null;
+  /** Заголовок ответа в виде TL (messageReplyHeader); сообщение темы форума отвечает на её первое сообщение */
+  replyTo: { replyToMsgId?: number; replyToTopId?: number; forumTopic?: boolean; quoteText?: string } | null;
   fwdFrom: unknown;
   /** Реакции в виде TL (messageReactions) */
   reactions: { results?: ReactionCountDto[] } | null;
@@ -113,6 +113,61 @@ export interface MessageDto {
   sentByUserId: string | null;
   /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
   senderName?: string | null;
+  /** Служебное сообщение: что произошло */
+  action?: ServiceActionDto;
+}
+
+export interface ActionUserDto {
+  id: number;
+  name: string | null;
+}
+
+export type ServiceActionDto =
+  | { type: 'chatCreate'; title: string; users: ActionUserDto[] }
+  | { type: 'channelCreate'; title: string }
+  | { type: 'chatEditTitle'; title: string }
+  | { type: 'chatEditPhoto' }
+  | { type: 'chatDeletePhoto' }
+  | { type: 'chatAddUser'; users: ActionUserDto[] }
+  | { type: 'chatDeleteUser'; users: ActionUserDto[] }
+  | { type: 'chatJoinedByLink'; users: ActionUserDto[] }
+  | { type: 'chatJoinedByRequest' }
+  | { type: 'channelMigrateFrom'; title: string }
+  | { type: 'pinMessage' }
+  | { type: 'historyClear' }
+  | { type: 'setMessagesTtl'; period: number }
+  | { type: 'contactSignUp' }
+  | { type: 'screenshotTaken' }
+  | { type: 'customAction'; message: string }
+  | { type: 'phoneCall'; isVideo: boolean; duration: number | null; reason: string | null }
+  | { type: 'topicCreate'; title: string; iconColor: number; iconEmojiId: string | null }
+  | {
+    type: 'topicEdit';
+    title: string | null;
+    iconEmojiId: string | null;
+    isClosed: boolean | null;
+    isHidden: boolean | null;
+  }
+  | { type: 'unsupported' };
+
+/** Тема форума; lastMsgId — последнее видимое гостю сообщение темы */
+export interface TopicDto {
+  id: number;
+  title: string;
+  iconColor: number | null;
+  iconEmojiId: string | null;
+  isClosed: boolean;
+  isPinned: boolean;
+  isHidden: boolean;
+  date: string;
+  lastMsgId: number | null;
+  isDeleted: boolean;
+}
+
+export interface TopicsListResult {
+  topics: TopicDto[];
+  messages: MessageDto[];
+  count: number;
 }
 
 /** Краткое описание вложения из архива (packages/tg, summarizeMedia) */
@@ -227,7 +282,8 @@ export type ServerEvent =
   | { e: 'outbox.done'; d: OutboxDoneDto }
   | { e: 'admin.changed'; d: { topics: AdminTopic[] } }
   | { e: 'session.revoked'; d: Record<string, never> }
-  | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } };
+  | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } }
+  | { e: 'topics.changed'; d: { accountId: string; peerId: number } };
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

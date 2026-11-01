@@ -2,6 +2,7 @@ import type { MessageDto } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
 import type { ApiMessage, ApiOnProgress } from '../types';
 import { PxgError } from '../../proxygram/server/types';
+import { MAIN_THREAD_ID } from '../types';
 
 import { LOCAL_MESSAGES_LIMIT } from '../../config';
 import { getServerTime } from '../../util/serverTime';
@@ -22,6 +23,10 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
   const { chat, attachment, text, entities, replyInfo, sticker, gif } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
+  // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
+  const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
+  const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
+  const replyToMsgId = messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
   const localMessage: ApiMessage = params.localMessage || {
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
     chatId: chat.id, date: getServerTime(), isOutgoing: true,
@@ -31,7 +36,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       text: { text: text || attachment?.filename || '', entities },
     },
     sendingState: 'messageSendingStatePending',
-    replyInfo: replyInfo?.type === 'message' ? replyInfo : undefined,
+    replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
   };
   if (!params.localMessage) {
     emitProxyUpdate({ '@type': 'newMessage', id: localMessage.id, chatId: chat.id, message: localMessage });
@@ -64,7 +69,8 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     const result = await runProxyJob('messages.send', {
       ...peer, text: text || '', entities: buildProxyInputEntities(entities, peer.accountId), file,
       document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
-      replyToMsgId: replyInfo?.type === 'message' ? replyInfo.replyToMsgId : undefined,
+      replyToMsgId,
+      topicId,
       silent: params.isSilent,
     }) as { msgId: number };
     const saved = await readSentMessage(chat, result.msgId);
@@ -126,10 +132,14 @@ export async function sendReaction({ chat, messageId, reactions }: MethodArgs<'s
   return true as const;
 }
 
-export async function markMessageListRead({ chat, maxId }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
+export async function markMessageListRead({
+  chat, threadId, maxId,
+}: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer || !maxId || !chat.pxgProxy?.permissions.markRead) return;
-  await pxgRpc.call('messages.read', { ...peer, maxId }).catch(() => undefined);
+  // A forum topic is read on its own, like `messages.readDiscussion` in Telegram
+  const topicId = chat.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
+  await pxgRpc.call('messages.read', { ...peer, maxId, topicId }).catch(() => undefined);
 }
 
 export async function sendMessageAction({ peer: target, action }: MethodArgs<'sendMessageAction'>[0]) {
@@ -142,7 +152,7 @@ export async function sendMessageAction({ peer: target, action }: MethodArgs<'se
 
 /** Between chats of one provider account Telegram forwards natively; other targets are not supported */
 export async function forwardMessages({
-  fromChat, toChat, messages, isSilent, noAuthors, noCaptions,
+  fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions,
 }: MethodArgs<'forwardMessages'>[0]): Promise<void> {
   const source = resolveProxyPeer(fromChat.id);
   const target = resolveProxyPeer(toChat.id);
@@ -151,6 +161,7 @@ export async function forwardMessages({
     const result = await runProxyJob('messages.forward', {
       accountId: target.accountId, fromPeerId: source.peerId, peerId: target.peerId,
       msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions,
+      topicId: toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined,
     }) as { msgIds: number[] };
     const forwarded = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
       ...target, msgIds: result.msgIds,

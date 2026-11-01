@@ -1,13 +1,17 @@
-import type { AccessChat, MessageDto } from '../../proxygram/server/types';
+import type { AccessChat, MessageDto, TopicsListResult } from '../../proxygram/server/types';
+import type { ThreadId } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
-import type { ApiChat, ApiMessage, ApiUser } from '../types';
+import type { ApiChat, ApiMessage, ApiPeer, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
 
+import { TOPICS_SLICE } from '../../config';
 import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
-import { buildProxyChat, buildProxyMessage, buildProxyPoll, buildProxyUser } from './builders';
+import {
+  buildProxyChat, buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser,
+} from './builders';
 import { emitProxyUpdate, getProxyPeerId, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
@@ -23,6 +27,8 @@ import {
 type WindowResult = { messages: MessageDto[]; count: number };
 const HISTORY_WAIT_MS = 10_000;
 const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls']);
+/** The server returns at most this many topics per page */
+const MAX_TOPICS = 100;
 
 const methods = {
   fetchChats,
@@ -33,6 +39,8 @@ const methods = {
   fetchSavedChats: fetchEmptyChats,
   fetchMessages,
   fetchMessage,
+  fetchTopics,
+  fetchTopicById,
   fetchFullChat,
   fetchFullUser,
   fetchMessagesById,
@@ -120,21 +128,25 @@ async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {
   return archived ? fetchEmptyChats() : fetchProxyChats();
 }
 
-async function fetchMessages({ chat, offsetId, addOffset = 0, limit }: MethodArgs<'fetchMessages'>[0]) {
+async function fetchMessages({
+  chat, threadId, offsetId, addOffset = 0, limit,
+}: MethodArgs<'fetchMessages'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  const topicId = getTopicId(chat, threadId);
   let result = await pxgRpc.call<WindowResult>('messages.window', {
-    ...peer, offsetId, addOffset, limit: Math.min(limit, 200),
+    ...peer, topicId, offsetId, addOffset, limit: Math.min(limit, 200),
   });
   const oldestId = result.messages.at(-1)?.msgId;
   if (result.messages.length < limit && (!offsetId || !oldestId || oldestId <= offsetId)) {
     // A paused account must still display its existing archive. Completion events refresh late imports
     await Promise.race([
-      runProxyJob('messages.loadOlder', { ...peer, beforeMsgId: oldestId || offsetId }).catch(() => undefined),
+      runProxyJob('messages.loadOlder', { ...peer, topicId, beforeMsgId: oldestId || offsetId })
+        .catch(() => undefined),
       pause(HISTORY_WAIT_MS),
     ]);
     result = await pxgRpc.call<WindowResult>('messages.window', {
-      ...peer, offsetId, addOffset, limit: Math.min(limit, 200),
+      ...peer, topicId, offsetId, addOffset, limit: Math.min(limit, 200),
     });
   }
   const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
@@ -163,10 +175,53 @@ async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessages
   return result.messages.map((dto) => buildProxyMessage(dto, chat));
 }
 
-/** The sender profile and the poll live in their own parts of the global state */
+/** A forum topic thread reads only that topic; any other thread of a forum is the whole chat */
+function getTopicId(peer: ApiPeer, threadId?: ThreadId) {
+  const isForum = 'isForum' in peer && peer.isForum;
+  return isForum && threadId !== undefined && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
+}
+
+async function fetchTopics({ chat, query, offsetTopicId, limit = TOPICS_SLICE }: MethodArgs<'fetchTopics'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  // Search matches titles locally: a forum shared with a guest has few visible topics
+  const result = await pxgRpc.call<TopicsListResult>('topics.list', {
+    ...peer, offsetTopicId: query ? undefined : offsetTopicId, limit: query ? MAX_TOPICS : Math.min(limit, MAX_TOPICS),
+  });
+  const search = query?.trim().toLocaleLowerCase();
+  const topics = search
+    ? result.topics.filter((topic) => topic.title.toLocaleLowerCase().includes(search)) : result.topics;
+  result.messages.forEach((dto) => emitRelated(dto));
+  return {
+    topics: topics.map((topic) => buildProxyTopic(topic, chat.id)),
+    messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
+    count: search ? topics.length : result.count,
+    draftsById: {},
+  };
+}
+
+async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await pxgRpc.call<TopicsListResult>('topics.list', { ...peer, topicIds: [topicId] });
+  const topic = result.topics[0];
+  if (!topic) return undefined;
+  result.messages.forEach((dto) => emitRelated(dto));
+  return {
+    topic: buildProxyTopic(topic, chat.id),
+    messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
+  };
+}
+
+/** The sender profile, action participants and the poll live in their own parts of the global state */
 function emitRelated(dto: MessageDto) {
   const poll = buildProxyPoll(dto);
   if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
+  const actionUsers = dto.action && 'users' in dto.action ? dto.action.users : [];
+  actionUsers.forEach(({ id, name }) => {
+    const user = buildProxyUser(dto.accountId, id, name || undefined);
+    emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+  });
   if (!dto.senderId || dto.senderId < 0) return;
   const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined);
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
@@ -218,7 +273,8 @@ async function searchChats({ query }: MethodArgs<'searchChats'>[0]) {
 }
 
 async function searchMessagesInChat({
-  peer: target, fromPeer, type = 'text', query = '', limit, offsetId, addOffset, minDate, maxDate, savedTag,
+  peer: target, fromPeer, type = 'text', query = '', threadId, limit, offsetId, addOffset, minDate, maxDate,
+  savedTag,
 }: MethodArgs<'searchMessagesInChat'>[0]) {
   const peer = resolveProxyPeer(target.id);
   if (!peer || savedTag || !SEARCH_FILTERS.has(type)) return undefined;
@@ -226,7 +282,7 @@ async function searchMessagesInChat({
   if (fromPeer && (!sender || sender.accountId !== peer.accountId)) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.search', {
     ...peer, query, filter: type, limit: Math.min(limit, 200), offsetId, addOffset, minDate, maxDate,
-    senderId: sender?.peerId,
+    senderId: sender?.peerId, topicId: getTopicId(target, threadId),
   });
   return buildSearchResult(result);
 }

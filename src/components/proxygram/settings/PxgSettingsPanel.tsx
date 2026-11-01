@@ -32,6 +32,7 @@ type ShareRow = {
   expiresAt: string | null;
   label: string | null;
   peerTitle: string | null;
+  topicTitle: string | null;
   grantee?: Person;
   grantor?: Person;
 };
@@ -599,6 +600,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
 function describeTarget(t: Translate, share: ShareRow) {
   if (share.label) return share.label;
   if (share.scope === 'folder') return t('PxgSettingsFolder', { id: share.folderId ?? 0 });
+  if (share.scope === 'topic' && share.topicTitle) return `${share.peerTitle ?? '—'} › ${share.topicTitle}`;
   return share.peerTitle ?? '—';
 }
 

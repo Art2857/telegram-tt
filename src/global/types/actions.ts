@@ -144,6 +144,7 @@ export interface ActionPayloads {
   resetProxyGuest: undefined;
   refreshProxyMessage: { accountId: string; peerId: number; msgId: number };
   refreshProxyHistory: { accountId: string; peerId: number };
+  refreshProxyTopics: { accountId: string; peerId: number };
   // system
   init: ({
     isMasterTab?: boolean;

@@ -24,6 +24,8 @@ export interface PxgState {
   shareChatId?: string;
   /** Папка Telegram, которой делятся сейчас (окно «Поделиться папкой») */
   shareFolder?: { id: number; title: string };
+  /** Тема форума shareChatId, которой делятся отдельно от остального форума */
+  shareTopic?: { id: number; title: string };
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';

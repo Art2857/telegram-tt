@@ -17,6 +17,7 @@ import {
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import { updateThreadInfo } from '../../reducers/threads';
+import { updateTopicsInfo } from '../../reducers/topics';
 import { selectChatMessage, selectCurrentMessageList } from '../../selectors';
 
 let loadGeneration = 0;
@@ -152,6 +153,13 @@ addActionHandler('refreshProxyMessage', async (global, actions, { accountId, pee
   } catch {
     // Reconnect reloads proxy history with a fresh access check
   }
+});
+
+/** The forum panel and the chat list reload cached topics: closed, renamed and removed topics update in place */
+addActionHandler('refreshProxyTopics', (global, actions, { accountId, peerId }): ActionReturnType => {
+  const chatId = getProxyPeerId(accountId, peerId);
+  if (!global.chats.byId[chatId]?.isForum || !global.chats.topicsInfoById[chatId]) return undefined;
+  return updateTopicsInfo(global, chatId, { isCache: true });
 });
 
 addActionHandler('refreshProxyHistory', (global, actions, { accountId, peerId }): ActionReturnType => {

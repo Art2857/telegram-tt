@@ -4687,6 +4687,8 @@
 "PxgShareFolderTitle" = "Share folder";
 "PxgShareFolderMenu" = "Share via Proxygram";
 "PxgShareFolderHint" = "The guest sees every chat of the folder, including chats added later.";
+"PxgShareTopic" = "Share topic";
+"PxgShareTopicHint" = "The guest sees only this topic of the forum and can write only to it.";
 "PxgShareCustomize" = "Fine-tune permissions";
 "PxgShareEditing" = "Access for {name}";
 "PxgPermWrite" = "Write messages";

@@ -1,7 +1,7 @@
 import {
   memo, useEffect, useMemo, useState,
 } from '../../lib/teact/teact';
-import { getActions, withGlobal } from '../../global';
+import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type {
   ApiBotCommand, ApiChat, ApiDisallowedGifts,
@@ -699,6 +699,20 @@ const HeaderMenuContainer = ({
               }}
             >
               {lang('PxgShareTitle')}
+            </MenuItem>
+          )}
+          {/* PXG: открыть гостю только эту тему форума */}
+          {hasPxgSession && isTopic && (
+            <MenuItem
+              icon="share-filled"
+              onClick={() => {
+                const topicId = Number(threadId);
+                const title = selectTopic(getGlobal(), chatId, topicId)?.title || String(topicId);
+                setPxgState({ shareChatId: chatId, shareTopic: { id: topicId, title } });
+                closeMenu();
+              }}
+            >
+              {lang('PxgShareTopic')}
             </MenuItem>
           )}
           {canManage && !canEditTopic && (
