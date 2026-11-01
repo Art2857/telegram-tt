@@ -1,7 +1,7 @@
 import type { AccessChat, MessageDto, TopicDto } from '../../proxygram/server/types';
 import type {
-  ApiChat, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiMessageReplyInfo,
-  ApiPhoneCallDiscardReason, ApiReactionCount, ApiTopicWithState, ApiUser,
+  ApiChat, ApiChatFullInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiMessageReplyInfo,
+  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -53,6 +53,31 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       isProviderPremium: chat.providerPremium || undefined,
     },
   };
+}
+
+/**
+ * The reactions a guest may put in a shared chat: the chat's own Telegram settings, read by the provider's worker.
+ * Custom ones need the owner's Premium and the owner's emoji; until the settings are known, any plain reaction goes
+ */
+export function buildProxyChatReactions(
+  chat: AccessChat,
+): Pick<ApiChatFullInfo, 'enabledReactions' | 'reactionsLimit'> {
+  const { reactions, permissions } = chat;
+  if (!permissions.react || reactions?.type === 'none') return { enabledReactions: undefined };
+  const userId = getPxgState().session?.user.id;
+  const canUseCustom = Boolean(chat.providerPremium && permissions.useOwnerStickers && userId);
+  if (reactions?.type !== 'some') {
+    return {
+      enabledReactions: { type: 'all', areCustomAllowed: reactions?.allowCustom && canUseCustom ? true : undefined },
+      reactionsLimit: reactions?.limit,
+    };
+  }
+  const allowed = (reactions.allowed || []).flatMap((reaction): ApiReaction[] => {
+    if ('emoji' in reaction) return [{ type: 'emoji', emoticon: reaction.emoji }];
+    return canUseCustom
+      ? [{ type: 'custom', documentId: buildProxyCatalogMediaId(userId!, chat.accountId, reaction.documentId) }] : [];
+  });
+  return { enabledReactions: { type: 'some', allowed }, reactionsLimit: reactions.limit };
 }
 
 /** `null` means the user has no photo; an omitted `photoId` keeps the avatar already known from other messages */

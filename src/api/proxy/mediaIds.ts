@@ -1,7 +1,8 @@
 import { isProxyPeerId } from './ids';
 
 const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|$)/;
-const CATALOG_HASH = /^documentpxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
+// Reaction animations are requested as `sticker<id>` too
+const CATALOG_HASH = /^(?:document|sticker)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
 const AVATAR_HASH = /^(?:avatar|profile)(-?\d+)\?\d+$/;
 
 export function buildProxyMediaId(userId: string, chatId: string, msgId: number): string {

@@ -1,10 +1,18 @@
-import type { CatalogDocumentDto, CatalogSetDto, StickerCatalogDto } from '../../proxygram/server/types';
+import type {
+  AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, ReactionAnimation, StickerCatalogDto,
+} from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
-import type { ApiSticker, ApiStickerSet, ApiVideo } from '../types';
+import type { ApiAvailableReaction, ApiDocument, ApiSticker, ApiStickerSet, ApiVideo } from '../types';
+import { PROXY_REACTION_EMOJIS } from './types';
 
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyCatalogMediaId, parseProxyCatalogId } from './mediaIds';
+
+const REACTION_ANIMATIONS: ReactionAnimation[] = [
+  'staticIcon', 'appearAnimation', 'selectAnimation', 'activateAnimation', 'effectAnimation', 'aroundAnimation',
+  'centerIcon',
+];
 
 const CATALOG_TTL_MS = 60_000;
 const SET_ID_PREFIX = 'pxgset_';
@@ -120,6 +128,43 @@ export async function fetchStickersForEmoji({ emoji }: MethodArgs<'fetchStickers
     buildStickers(accountId, [...faved, ...recent].filter((doc) => doc.emoji === emoji))
   ));
   return { stickers, hash: EMPTY_HASH };
+}
+
+/**
+ * Telegram's reactions with their animations, read by a provider's account. Until one has read them,
+ * a short list of plain emoji keeps reactions usable
+ */
+export async function fetchAvailableReactions(): Promise<ApiAvailableReaction[]> {
+  const userId = getPxgState().session?.user.id;
+  const result = userId
+    ? await pxgRpc.call<AvailableReactionsDto | null>('reactions.available').catch(() => undefined)
+    : undefined;
+  if (!userId || !result?.reactions.length) return buildFallbackReactions();
+  return result.reactions.map((reaction): ApiAvailableReaction => ({
+    reaction: { type: 'emoji', emoticon: reaction.emoticon },
+    title: reaction.title,
+    isInactive: reaction.isInactive || undefined,
+    isPremium: reaction.isPremium || undefined,
+    ...Object.fromEntries(REACTION_ANIMATIONS.flatMap((animation) => {
+      const doc = reaction[animation];
+      return doc ? [[animation, buildCatalogDocument(userId, result.accountId, doc)]] : [];
+    })),
+  }));
+}
+
+export function buildFallbackReactions(): ApiAvailableReaction[] {
+  return PROXY_REACTION_EMOJIS.map((emoticon) => ({ reaction: { type: 'emoji', emoticon }, title: emoticon }));
+}
+
+function buildCatalogDocument(userId: string, accountId: string, doc: CatalogDocumentDto): ApiDocument {
+  return {
+    mediaType: 'document',
+    id: buildProxyCatalogMediaId(userId, accountId, doc.id),
+    fileName: doc.id,
+    size: doc.size,
+    mimeType: doc.mimeType,
+    mediaSize: doc.width && doc.height ? { width: doc.width, height: doc.height } : undefined,
+  };
 }
 
 function buildStickerSet(

@@ -3,21 +3,20 @@ import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
 import type { ApiChat, ApiMessage, ApiPeer, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
-import { PROXY_REACTION_EMOJIS } from './types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
 import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
-  buildProxyChat, buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser,
+  buildProxyChat, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser,
 } from './builders';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { runProxyJob } from './outbox';
 import {
-  fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers, fetchSavedGifs, fetchStickers,
-  fetchStickerSets, fetchStickersForEmoji,
+  fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers,
+  fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
   answerCallbackButton, deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage,
@@ -65,9 +64,7 @@ const methods = {
   fetchSavedGifs,
   fetchStickers,
   fetchStickersForEmoji,
-  fetchAvailableReactions: () => Promise.resolve(PROXY_REACTION_EMOJIS.map((emoticon) => ({
-    reaction: { type: 'emoji' as const, emoticon }, title: emoticon,
-  }))),
+  fetchAvailableReactions,
 } satisfies Partial<Methods>;
 
 function fetchEmptyChats() {
@@ -125,6 +122,7 @@ export async function fetchProxyChats() {
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
     })),
     threadReadStatesById: buildProxyReadStates(unread),
+    reactionsById: Object.fromEntries(access.map((item, index) => [chats[index].id, buildProxyChatReactions(item)])),
     archivedChatIds: chats.filter((chat) => chat.folderId === ARCHIVED_FOLDER_ID).map((chat) => chat.id),
     // Pins belong to the guest's own list; the latest pinned chat goes first, as in Telegram
     pinnedChatIds: isProxyGuest() ? access.map((item, index) => ({ id: chats[index].id, pinnedAt: item.pinnedAt }))
@@ -262,7 +260,7 @@ async function fetchFullChat(chat: ApiChat) {
   const current = chats.find((item) => item.accountId === peer.accountId && item.peerId === peer.peerId);
   if (!current) return undefined;
   return {
-    fullInfo: { enabledReactions: current.permissions.react ? { type: 'all' as const } : undefined },
+    fullInfo: buildProxyChatReactions(current),
     chats: [buildProxyChat(current)], userStatusesById: {},
   };
 }

@@ -12,13 +12,14 @@ import { emitProxyUpdate, getProxyPeerId, isProxyGuest, setProxyUpdateHandler } 
 import { buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
 import { buildProxyReadStates, fetchProxyChats } from '../../../api/proxy/methods';
+import { buildFallbackReactions } from '../../../api/proxy/stickers';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE } from '../../initialState';
 import {
-  addChatListIds, addNotifyExceptions, updateChats, updateChatsLastMessageId, updateUsers,
+  addChatListIds, addNotifyExceptions, updateChatFullInfo, updateChats, updateChatsLastMessageId, updateUsers,
 } from '../../reducers';
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
@@ -62,9 +63,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     config: { ...PROXY_CONFIG },
     reactions: {
       ...global.reactions,
-      availableReactions: PROXY_REACTION_EMOJIS.map((emoticon) => ({
-        reaction: { type: 'emoji' as const, emoticon }, title: emoticon,
-      })),
+      availableReactions: buildFallbackReactions(),
+      // Telegram's reactions come in their own order; these go first, as the usual top reactions of an account
       topReactions: PROXY_REACTION_EMOJIS.map((emoticon) => ({ type: 'emoji' as const, emoticon })),
     },
   };
@@ -143,9 +143,18 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
       global = updateThreadInfo(global, { chatId: chat.id, threadId: list!.threadId, isCommentsInfo: false });
     });
     global = updateMainThreadReadStates(global, result.threadReadStatesById);
+    // The chat's reaction settings arrive with the accesses and change with them
+    Object.entries(result.reactionsById).forEach(([id, reactions]) => {
+      global = updateChatFullInfo(global, id, reactions);
+    });
     global = updateProxyFolder(global);
     setGlobal(global);
     setPxgState({ sharedCount: result.chats.length });
+    // Telegram's reactions are read through a provider: the first shared chat brings them
+    if (isProxyGuest() && result.chats.length
+      && !global.reactions.availableReactions?.some((reaction) => reaction.staticIcon)) {
+      actions.loadAvailableReactions();
+    }
     Object.values(global.byTabId).forEach(({ id: tabId }) => {
       const list = selectCurrentMessageList(global, tabId);
       if (list && isProxyPeerId(list.chatId)) {

@@ -59,12 +59,22 @@ export interface AccessChat {
   providerName: string | null;
   /** Premium у аккаунта владельца: несколько реакций и кастомные эмодзи */
   providerPremium?: boolean;
+  /** Reactions allowed in a group or channel; `null` until the provider's worker reads them, and in private chats */
+  reactions?: ChatReactionsDto | null;
   /** Гость заглушил чат у себя, unix-секунды */
   mutedUntil: number | null;
   /** Закреплён в списке гостя (позже закреплённый — выше), unix-секунды */
   pinnedAt: number | null;
   /** В архиве списка гостя, unix-секунды */
   archivedAt: number | null;
+}
+
+/** As Telegram's ChatReactions: `limit` is how many different reactions a message may have */
+export interface ChatReactionsDto {
+  type: 'all' | 'some' | 'none';
+  allowCustom?: boolean;
+  allowed?: ({ emoji: string } | { documentId: string })[];
+  limit?: number;
 }
 
 /** Своё место чата в списке гостя; приходит в ответ на chats.mute/pin/archive и событием chats.state */
@@ -226,7 +236,7 @@ export interface AttributionDto {
 
 export interface CatalogDocumentDto {
   id: string;
-  kind: 'sticker' | 'gif' | 'emoji';
+  kind: 'sticker' | 'gif' | 'emoji' | 'reaction';
   setId: string | null;
   emoji: string | null;
   mimeType: string;
@@ -236,6 +246,22 @@ export interface CatalogDocumentDto {
   duration: number | null;
   /** A custom emoji recolored to the text color */
   textColor: boolean;
+}
+
+export type ReactionAnimation = 'staticIcon' | 'appearAnimation' | 'selectAnimation' | 'activateAnimation'
+  | 'effectAnimation' | 'aroundAnimation' | 'centerIcon';
+
+/** Telegram's reaction with its animations, read by the provider's account */
+export type AvailableReactionDto = {
+  emoticon: string;
+  title: string;
+  isInactive: boolean;
+  isPremium: boolean;
+} & Partial<Record<ReactionAnimation, CatalogDocumentDto>>;
+
+export interface AvailableReactionsDto {
+  accountId: string;
+  reactions: AvailableReactionDto[];
 }
 
 export interface CatalogSetDto {

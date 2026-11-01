@@ -24,6 +24,7 @@ import {
 import { getReactionKey } from '../../global/helpers';
 import { selectIsAlwaysHighPriorityEmoji, selectIsSetPremium } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
+import { parseProxyStickerSetId } from '../../api/proxy/stickers'; // PXG
 
 import useAppLayout from '../../hooks/useAppLayout';
 import useFlag from '../../hooks/useFlag';
@@ -262,8 +263,10 @@ const StickerSet = ({
   const collectibleEmojiIdsSet = useMemo(() => (
     collectibleStatuses ? new Set(collectibleStatuses.map(({ documentId }) => documentId)) : undefined
   ), [collectibleStatuses]);
+  // PXG: The owner's packs come installed and usable with the owner's Premium, the guest cannot add them
+  const isProxySet = Boolean(parseProxyStickerSetId(stickerSet.id));
   const withAddSetButton = !noAddButton && !shouldHideHeader && !isRecent && !isStatusCollectible
-    && isEmoji && !isPopular && !isChatEmojiSet
+    && isEmoji && !isPopular && !isChatEmojiSet && !isProxySet
     && (!isInstalled || (!isCurrentUserPremium && !isSavedMessages));
   const addSetButtonText = useMemo(() => {
     if (isLocked) {
