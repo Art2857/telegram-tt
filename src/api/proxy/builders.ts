@@ -51,6 +51,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendPolls: true,
       // Topics are created as the owner: only with the admin permission
       manageTopics: chat.permissions.admin ? undefined : true,
+      // Inviting people into the owner's chat is not a guest action
+      inviteUsers: true,
     },
     pxgProxy: {
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
@@ -81,9 +83,13 @@ function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 
 }
 
 /** Profile of a group or channel: its description and slow mode, as members see them */
-export function buildProxyChatInfo(chat: AccessChat): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink'> {
+export function buildProxyChatInfo(
+  chat: AccessChat,
+): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers'> {
   const { info } = chat;
   return {
+    // Members of a group are visible as to the owner; subscribers of a channel — to its admins only
+    canViewMembers: (chat.peerId < 0 && (chat.type !== 'channel' || chat.permissions.admin)) || undefined,
     about: info?.about,
     slowMode: info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
     // The server sends the owner's invite link only to a guest with the admin permission

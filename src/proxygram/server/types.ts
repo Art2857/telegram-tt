@@ -71,6 +71,18 @@ export interface AccessChat {
   archivedAt: number | null;
 }
 
+/** A member of a shared group or channel, as the owner sees them */
+export interface MemberDto {
+  userId: number;
+  name: string | null;
+  username: string | null;
+  photoId: string | null;
+  isBot: boolean;
+  role: 'creator' | 'admin' | 'member';
+  rank: string | null;
+  joinedAt: string | null;
+}
+
 export interface ChatInfoDto {
   about?: string;
   /** Members of a group or subscribers of a channel */

@@ -1,7 +1,9 @@
-import type { AccessChat, ChatUnreadDto, MessageDto, TopicsListResult } from '../../proxygram/server/types';
+import type {
+  AccessChat, ChatUnreadDto, MemberDto, MessageDto, TopicsListResult,
+} from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
-import type { ApiChat, ApiMessage, ApiPeer, ApiPhoto, ApiUser } from '../types';
+import type { ApiChat, ApiChatMember, ApiMessage, ApiPeer, ApiPhoto, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
@@ -32,6 +34,8 @@ const HISTORY_WAIT_MS = 10_000;
 const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls']);
 /** The server returns at most this many topics per page */
 const MAX_TOPICS = 100;
+/** As many members as Web A loads at once */
+const MEMBERS_SLICE = 50;
 /** Telegram's big profile photo is 640 px */
 const PROFILE_PHOTO_SIZE = 640;
 /** As many pinned messages as Telegram lists */
@@ -69,6 +73,7 @@ const methods = {
   pinMessage,
   fetchPinnedMessages,
   fetchProfilePhotos,
+  fetchMembers,
   updateChatTitle,
   updateChatAbout,
   editChatPhoto,
@@ -236,6 +241,35 @@ async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessages
 function getTopicId(peer: ApiPeer, threadId?: ThreadId) {
   const isForum = 'isForum' in peer && peer.isForum;
   return isForum && threadId !== undefined && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
+}
+
+/**
+ * Members of a shared group, as the owner sees them: the guest sees who is there, but opens a member's chat
+ * only if someone shared it
+ */
+async function fetchMembers({ chat, memberFilter = 'recent', offset, query }: MethodArgs<'fetchMembers'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer || memberFilter === 'kicked') return undefined;
+  const result = await pxgRpc.call<{ count: number; members: MemberDto[] }>('chats.members', {
+    ...peer, offset: offset || 0, limit: MEMBERS_SLICE, query: memberFilter === 'search' ? query : undefined,
+  });
+  const members = result.members.filter((member) => memberFilter !== 'admin' || member.role !== 'member');
+  members.forEach((member) => {
+    const user = buildProxyUser(peer.accountId, member.userId, member.name || member.username || undefined,
+      member.photoId);
+    if (member.isBot) user.type = 'userTypeBot';
+    emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+  });
+  return {
+    members: members.map((member): ApiChatMember => ({
+      userId: getProxyPeerId(peer.accountId, member.userId),
+      rank: member.rank || undefined,
+      joinedDate: member.joinedAt ? Math.floor(Date.parse(member.joinedAt) / 1000) : undefined,
+      isAdmin: member.role === 'admin' || undefined,
+      isOwner: member.role === 'creator' || undefined,
+    })),
+    userStatusesById: {},
+  };
 }
 
 /** The current photo of a shared chat or user; the viewer opens it at full size */
