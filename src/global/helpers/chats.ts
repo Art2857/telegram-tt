@@ -253,6 +253,16 @@ export function getAllowedAttachmentOptions(
   };
 }
 
+// PXG: Why a guest cannot write to a proxy chat; read-only access needs no explanation beyond the bar
+export function getProxySendingRestrictionReason(lang: LangFn, chat?: ApiChat) {
+  const proxy = chat?.pxgProxy;
+  if (!proxy || proxy.permissions.write) return undefined;
+  if (proxy.restricted === 'source_lost') return lang('PxgRestrictedSourceLost');
+  if (proxy.restricted === 'account_unavailable') return lang('PxgRestrictedAccount');
+  if (proxy.restricted === 'flood') return lang('PxgRestrictedFlood');
+  return lang('PxgGuestReadOnly');
+}
+
 export function getMessageSendingRestrictionReason(
   lang: LangFn,
   currentUserBannedRights?: ApiChatBannedRights,

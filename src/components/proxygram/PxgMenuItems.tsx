@@ -16,6 +16,8 @@ const PxgMenuItems = () => {
   const lang = useLang();
   const session = usePxgState((state) => state.session);
   const isSharing = usePxgState((state) => state.accounts?.some((account) => account.status === 'active'));
+  const isLost = usePxgState((state) => state.accounts?.some((account) => account.status === 'auth_lost'));
+  const isFlood = usePxgState((state) => state.accounts?.some((account) => account.status === 'flood'));
   const sharedCount = usePxgState((state) => state.sharedCount);
 
   if (!session) return undefined;
@@ -38,7 +40,9 @@ const PxgMenuItems = () => {
       {session.level === 'client' && (
         <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
           <span className="menu-item-name">{lang('PxgMenuSharing')}</span>
-          {isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
+          {isLost ? <span className="menu-item-badge">{lang('PxgMenuSharingLost')}</span>
+            : isFlood ? <span className="menu-item-badge">{lang('PxgMenuSharingFlood')}</span>
+              : isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
         </MenuItem>
       )}
       {session.user.role === 'admin' && (

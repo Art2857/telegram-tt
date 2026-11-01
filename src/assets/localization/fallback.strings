@@ -4548,6 +4548,9 @@
 "PxgGuestUnknownChat" = "Chat";
 "PxgGuestCanWrite" = "You can write";
 "PxgGuestReadOnly" = "Read only";
+"PxgRestrictedSourceLost" = "The owner is no longer in this chat. Only the archive is available";
+"PxgRestrictedAccount" = "The owner's account is temporarily unavailable. Only the archive is available";
+"PxgRestrictedFlood" = "Telegram temporarily limited sending from the owner's account";
 "PxgGuestSelectChat" = "Select a chat";
 "PxgGuestViaProxy" = "via Proxygram";
 "PxgGuestLoadOlder" = "Show earlier";
@@ -4576,6 +4579,10 @@
 "PxgErrorUsername" = "A username is 5–32 letters, digits or underscores";
 "PxgMenuSharing" = "Share chats";
 "PxgMenuSharingOn" = "on";
+"PxgMenuSharingLost" = "session lost";
+"PxgMenuSharingFlood" = "limited";
+"PxgAccountAuthLost" = "The server lost its session. Guests see only the archive: reconnect sharing in the menu";
+"PxgAccountFlood" = "Telegram limited sending from your account. Guests cannot write for now";
 "PxgConnectTitle" = "Share chats from this account";
 "PxgConnectText1" = "To let you share chats, the Proxygram server needs its own session of this account: it works around the clock, even when this device is off.";
 "PxgConnectText2" = "The server reads chats, keeps the archive of deleted and edited messages and sends on your behalf — only through access you grant.";

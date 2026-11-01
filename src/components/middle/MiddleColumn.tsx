@@ -24,6 +24,7 @@ import {
   getHasAdminRight,
   getIsSavedDialog,
   getMessageSendingRestrictionReason,
+  getProxySendingRestrictionReason,
   isChatChannel,
   isChatGroup,
   isChatSuperGroup,
@@ -510,6 +511,7 @@ function MiddleColumn({
   );
 
   const composerRestrictionMessage = messageSendingRestrictionReason
+    || getProxySendingRestrictionReason(lang, chat) // PXG
     || forumComposerPlaceholder
     || (shouldBlockSendInMonoforum ? lang('MonoforumComposerPlaceholder') : undefined)
     || (isContactRequirePremium ? <PremiumRequiredPlaceholder userId={chatId!} /> : undefined)

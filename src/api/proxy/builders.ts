@@ -27,7 +27,10 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
       sendPolls: true,
     },
-    pxgProxy: { accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions },
+    pxgProxy: {
+      accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
+      restricted: chat.restricted || undefined,
+    },
   };
 }
 

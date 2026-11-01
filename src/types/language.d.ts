@@ -3409,6 +3409,9 @@ export interface LangPair {
   'PxgGuestUnknownChat': undefined;
   'PxgGuestCanWrite': undefined;
   'PxgGuestReadOnly': undefined;
+  'PxgRestrictedSourceLost': undefined;
+  'PxgRestrictedAccount': undefined;
+  'PxgRestrictedFlood': undefined;
   'PxgGuestSelectChat': undefined;
   'PxgGuestViaProxy': undefined;
   'PxgGuestLoadOlder': undefined;
@@ -3436,6 +3439,10 @@ export interface LangPair {
   'PxgErrorUsername': undefined;
   'PxgMenuSharing': undefined;
   'PxgMenuSharingOn': undefined;
+  'PxgMenuSharingLost': undefined;
+  'PxgMenuSharingFlood': undefined;
+  'PxgAccountAuthLost': undefined;
+  'PxgAccountFlood': undefined;
   'PxgConnectTitle': undefined;
   'PxgConnectText1': undefined;
   'PxgConnectText2': undefined;

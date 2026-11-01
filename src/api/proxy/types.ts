@@ -1,9 +1,10 @@
-import type { Permissions } from '../../proxygram/server/types';
+import type { AccessRestriction, Permissions } from '../../proxygram/server/types';
 
 export type ProxyChatInfo = {
   accountId: string;
   peerId: number;
   permissions: Permissions;
+  restricted?: AccessRestriction;
 };
 
 export const PROXY_FOLDER_ID = -2;

@@ -37,7 +37,9 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  * 3) держит окна «Поделиться чатом», подключения и админку.
  */
 const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
-  const { loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, apiUpdate } = getActions();
+  const {
+    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, apiUpdate, showNotification,
+  } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
@@ -85,15 +87,27 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
 
   // Свои аккаунты на сервере; если раздача не включена — один раз предлагаем
   useEffect(() => {
-    if (!hasOwnSession || connection !== 'online' || !currentUserId) return;
+    if (!hasOwnSession || connection !== 'online' || !currentUserId) return undefined;
     void pxgRpc.call<AccountDto[]>('accounts.mine').then((accounts) => {
       setPxgState({ accounts });
-      const isSharing = accounts.some((account) => account.status === 'active' || account.status === 'paused');
-      if (!isSharing && !localStorage.getItem(connectDismissKey(currentUserId))) {
+      const isSharing = accounts.some((account) => (
+        account.status === 'active' || account.status === 'paused' || account.status === 'flood'
+      ));
+      const isLost = accounts.some((account) => account.status === 'auth_lost');
+      if (!isSharing && !isLost && !localStorage.getItem(connectDismissKey(currentUserId))) {
         setPxgState({ isConnectOpen: true });
       }
+      if (isLost) showNotification({ message: { key: 'PxgAccountAuthLost' } });
     }).catch(() => undefined);
-  }, [connection, currentUserId, hasOwnSession]);
+    // Статус аккаунта поменялся на сервере (потеря сессии, флуд) — перечитать и сказать владельцу
+    return pxgRpc.on((event) => {
+      if (event.e !== 'accounts.changed') return;
+      void pxgRpc.call<AccountDto[]>('accounts.mine').then((accounts) => setPxgState({ accounts }))
+        .catch(() => undefined);
+      if (event.d.status === 'auth_lost') showNotification({ message: { key: 'PxgAccountAuthLost' } });
+      if (event.d.status === 'flood') showNotification({ message: { key: 'PxgAccountFlood' } });
+    });
+  }, [connection, currentUserId, hasOwnSession, showNotification]);
 
   // Сколько чатов открыли этому человеку — для пункта меню «Открыто мне»; доступ выдали или отозвали — пересчёт
   useEffect(() => {

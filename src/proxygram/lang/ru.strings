@@ -35,6 +35,9 @@
 "PxgGuestUnknownChat" = "Чат";
 "PxgGuestCanWrite" = "Можно писать";
 "PxgGuestReadOnly" = "Только чтение";
+"PxgRestrictedSourceLost" = "Владелец больше не состоит в этом чате. Доступен только архив";
+"PxgRestrictedAccount" = "Аккаунт владельца временно недоступен. Доступен только архив";
+"PxgRestrictedFlood" = "Telegram временно ограничил отправку от имени владельца";
 "PxgGuestSelectChat" = "Выберите чат";
 "PxgGuestViaProxy" = "через Proxygram";
 "PxgGuestLoadOlder" = "Показать раньше";
@@ -63,6 +66,10 @@
 "PxgErrorUsername" = "Ник — 5–32 латинские буквы, цифры или _";
 "PxgMenuSharing" = "Раздача чатов";
 "PxgMenuSharingOn" = "вкл";
+"PxgMenuSharingLost" = "сессия потеряна";
+"PxgMenuSharingFlood" = "ограничено";
+"PxgAccountAuthLost" = "Сервер потерял сессию. Гости видят только архив — подключите раздачу заново в меню";
+"PxgAccountFlood" = "Telegram ограничил отправку с вашего аккаунта. Гости пока не могут писать";
 "PxgConnectTitle" = "Делиться чатами с этого аккаунта";
 "PxgConnectText1" = "Чтобы вы могли делиться чатами, серверу Proxygram нужна своя сессия этого аккаунта: она работает круглосуточно, даже когда это устройство выключено.";
 "PxgConnectText2" = "Сервер читает чаты, хранит архив удалённых и изменённых сообщений и отправляет от вашего имени — только по выданным вами доступам.";

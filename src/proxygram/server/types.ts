@@ -51,7 +51,11 @@ export interface AccessChat {
   type: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
   permissions: Permissions;
   shareIds: string[];
+  /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
+  restricted: AccessRestriction | null;
 }
+
+export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
 
 export interface MessageDto {
   isMediaUnavailable?: boolean;
@@ -185,7 +189,8 @@ export type ServerEvent =
   | { e: 'access.changed'; d: Record<string, never> }
   | { e: 'outbox.done'; d: OutboxDoneDto }
   | { e: 'admin.changed'; d: { topics: AdminTopic[] } }
-  | { e: 'session.revoked'; d: Record<string, never> };
+  | { e: 'session.revoked'; d: Record<string, never> }
+  | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } };
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

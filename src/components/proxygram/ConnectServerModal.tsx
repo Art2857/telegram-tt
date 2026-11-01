@@ -34,8 +34,8 @@ const ConnectServerModal = () => {
   const [phase, setPhase] = useState<Phase>(() => {
     const userId = getGlobal().currentUserId;
     const account = getPxgState().accounts?.find((item) => String(item.tgUserId) === userId);
-    // уже раздаёт — показываем состояние и «Отключить»; иначе экран согласия
-    return account && (account.status === 'active' || account.status === 'paused')
+    // уже раздаёт — показываем состояние и «Отключить»; иначе (в том числе сессия потеряна) — экран согласия
+    return account && (account.status === 'active' || account.status === 'paused' || account.status === 'flood')
       ? { kind: 'info', account }
       : { kind: 'consent' };
   });
@@ -120,6 +120,7 @@ const ConnectServerModal = () => {
       {phase.kind === 'info' && (
         <>
           <p>{lang('PxgConnectActive', { name: phase.account.displayName ?? '' })}</p>
+          {phase.account.status === 'flood' && <p>{lang('PxgAccountFlood')}</p>}
           <p className={styles.secondary}>{lang('PxgConnectDisconnectNote')}</p>
           <div className={styles.buttons}>
             <Button onClick={close}>{lang('PxgConnectOk')}</Button>
