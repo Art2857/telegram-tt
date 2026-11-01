@@ -1,7 +1,7 @@
 import type { AccessChat, MessageDto, TopicDto } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiMessageReplyInfo,
-  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser,
+  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -33,6 +33,10 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
     isProtected: !chat.permissions.forwardOut,
+    membersCount: chat.info?.participantsCount,
+    usernames: chat.info?.usernames?.map((username) => ({ username, isActive: true })),
+    hasUsername: Boolean(chat.info?.usernames?.length) || undefined,
+    ...buildProxyAdminRights(chat),
     currentUserBannedRights: {
       sendReactions: chat.permissions.react ? undefined : true,
       sendMedia: chat.permissions.sendMedia ? undefined : true,
@@ -52,6 +56,31 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       providerName: chat.providerName || undefined,
       isProviderPremium: chat.providerPremium || undefined,
     },
+  };
+}
+
+/** Admin actions the guest makes as the owner: rights the guest supports, only with the `admin` permission */
+const PROXY_ADMIN_RIGHTS = ['changeInfo', 'pinMessages', 'editMessages'] as const;
+
+function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 'isOwner' | 'defaultBannedRights'> {
+  const { info } = chat;
+  // Members' default rights decide whether anyone may pin in a group
+  const defaultBannedRights = info?.defaultBannedRights?.includes('pinMessages') ? { pinMessages: true as const }
+    : undefined;
+  if (!chat.permissions.admin || !info || (!info.isCreator && !info.adminRights)) return { defaultBannedRights };
+  const rights = PROXY_ADMIN_RIGHTS.filter((right) => info.isCreator || info.adminRights?.includes(right));
+  return {
+    adminRights: rights.length ? Object.fromEntries(rights.map((right) => [right, true])) : undefined,
+    defaultBannedRights,
+  };
+}
+
+/** Profile of a group or channel: its description and slow mode, as members see them */
+export function buildProxyChatInfo(chat: AccessChat): Pick<ApiChatFullInfo, 'about' | 'slowMode'> {
+  const { info } = chat;
+  return {
+    about: info?.about,
+    slowMode: info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
   };
 }
 
@@ -121,9 +150,13 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     date: parseDate(dto.date),
     isOutgoing: dto.isOutgoing,
     senderId: dto.senderId ? getProxyPeerId(dto.accountId, dto.senderId) : undefined,
-    content: { ...media, pollId: dto.poll?.id, action: buildProxyAction(dto), text: dto.text ? {
-      text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId),
-    } : undefined },
+    content: {
+      ...media,
+      pollId: dto.poll?.id,
+      action: buildProxyAction(dto),
+      text: dto.text ? { text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId) } : undefined,
+      webPage: dto.webPage ? { id: buildProxyWebPageId(chat.id, dto.msgId) } : undefined,
+    },
     inlineButtons: buildInlineButtons(dto, chat),
     pxgMediaFallback: mediaFallback,
     editDate: dto.editDate ? parseDate(dto.editDate) : undefined,
@@ -136,6 +169,31 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
     reactions: reactions?.length ? { results: reactions } : undefined,
+    isPinned: dto.isPinned || undefined,
+    viewsCount: dto.post?.views,
+    forwardsCount: dto.post?.forwards,
+    postAuthorTitle: dto.post?.author,
+  };
+}
+
+/** A link preview belongs to its message: the guest gets no Telegram web page IDs */
+export function buildProxyWebPageId(chatId: string, msgId: number) {
+  return `pxg_${chatId}_${msgId}`;
+}
+
+export function buildProxyWebPage(dto: MessageDto, chatId: string): ApiWebPageFull | undefined {
+  const { webPage } = dto;
+  if (!webPage) return undefined;
+  return {
+    mediaType: 'webpage',
+    webpageType: 'full',
+    id: buildProxyWebPageId(chatId, dto.msgId),
+    hash: 0,
+    url: webPage.url,
+    displayUrl: webPage.displayUrl,
+    siteName: webPage.siteName,
+    title: webPage.title,
+    description: webPage.description,
   };
 }
 

@@ -3,7 +3,11 @@ import { isProxyPeerId } from './ids';
 const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|$)/;
 // Reaction animations are requested as `sticker<id>` too
 const CATALOG_HASH = /^(?:document|sticker)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
-const AVATAR_HASH = /^(?:avatar|profile)(-?\d+)\?\d+$/;
+const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?\d+$/;
+/** A profile photo opened in the viewer: `photo<id>` with the size the viewer asks for */
+const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+)(?:\?size=(\w))?$/;
+/** Sizes small enough for the avatar's small version */
+const SMALL_PHOTO_SIZES = new Set(['a', 'b', 'm', 's']);
 
 export function buildProxyMediaId(userId: string, chatId: string, msgId: number): string {
   return `pxg_${userId}_${chatId}_${msgId}`;
@@ -32,8 +36,17 @@ export function parseProxyCatalogHash(url: string) {
 
 /** The server serves the current photo of the peer, so the photo ID only keys the client cache */
 export function parseProxyAvatarHash(url: string) {
-  const peerId = getHash(url)?.match(AVATAR_HASH)?.[1];
-  return isProxyPeerId(peerId) ? peerId : undefined;
+  const hash = getHash(url);
+  const avatar = hash?.match(AVATAR_HASH);
+  if (avatar) return isProxyPeerId(avatar[2]) ? { peerId: avatar[2], isBig: avatar[1] === 'profile' } : undefined;
+  const photo = hash?.match(PROFILE_PHOTO_HASH);
+  if (!photo || !isProxyPeerId(photo[1])) return undefined;
+  return { peerId: photo[1], isBig: !SMALL_PHOTO_SIZES.has(photo[3] || '') };
+}
+
+/** The current profile photo of a shared chat or user, as Web A's viewer expects it */
+export function buildProxyProfilePhotoId(peerId: string, photoId: string) {
+  return `pxgavatar_${peerId}_${photoId}`;
 }
 
 export function parseProxyCatalogId(id: string) {

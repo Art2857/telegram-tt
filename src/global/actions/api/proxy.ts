@@ -143,9 +143,9 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
       global = updateThreadInfo(global, { chatId: chat.id, threadId: list!.threadId, isCommentsInfo: false });
     });
     global = updateMainThreadReadStates(global, result.threadReadStatesById);
-    // The chat's reaction settings arrive with the accesses and change with them
-    Object.entries(result.reactionsById).forEach(([id, reactions]) => {
-      global = updateChatFullInfo(global, id, reactions);
+    // The chat's profile and reaction settings arrive with the accesses and change with them
+    Object.entries(result.fullInfoById).forEach(([id, fullInfo]) => {
+      global = updateChatFullInfo(global, id, fullInfo);
     });
     global = updateProxyFolder(global);
     setGlobal(global);
@@ -177,7 +177,9 @@ addActionHandler('clearProxyChats', (global, actions): ActionReturnType => {
   return clearProxyChats(global);
 });
 
-addActionHandler('refreshProxyMessage', async (global, actions, { accountId, peerId, msgId }): Promise<void> => {
+addActionHandler('refreshProxyMessage', async (global, actions, {
+  accountId, peerId, msgId, kind,
+}): Promise<void> => {
   const id = getProxyPeerId(accountId, peerId);
   const chat = global.chats.byId[id];
   if (!chat?.pxgProxy) return;
@@ -191,6 +193,13 @@ addActionHandler('refreshProxyMessage', async (global, actions, { accountId, pee
     if (!result || typeof result === 'string') {
       if (current) emitProxyUpdate({ '@type': 'deleteMessages', chatId: id, ids: [msgId] });
       return;
+    }
+    // Pinning changes the chat's pinned list even when the message itself is not loaded
+    if (kind === 'pin' || (current && Boolean(current.isPinned) !== Boolean(result.message.isPinned))) {
+      emitProxyUpdate({
+        '@type': 'updatePinnedIds', chatId: id, messageIds: [msgId], isPinned: Boolean(result.message.isPinned),
+      });
+      global = getGlobal();
     }
     if (!current && msgId < (global.chats.lastMessageIds.all?.[id] || 0)) return;
     actions.apiUpdate(current ? {

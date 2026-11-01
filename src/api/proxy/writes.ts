@@ -281,3 +281,35 @@ async function readSentMessage(chat: NonNullable<MethodArgs<'sendMessage'>[0]['c
   const result = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', { ...peer, msgIds: [msgId] });
   return result.messages[0] ? buildProxyMessage(result.messages[0], chat) : undefined;
 }
+
+/** In a private chat either side pins; in a group or channel the server checks the owner's admin rights */
+export async function pinMessage({ chat, messageId, isUnpin, isSilent }: MethodArgs<'pinMessage'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  await runProxyJob('messages.pin', { ...peer, msgId: messageId, unpin: isUnpin, silent: isSilent || undefined });
+  emitProxyUpdate({ '@type': 'updatePinnedIds', chatId: chat.id, messageIds: [messageId], isPinned: !isUnpin });
+}
+
+/** Title, description and photo of the owner's group or channel: an admin action of the guest */
+export async function updateChatTitle(chat: MethodArgs<'updateChatTitle'>[0], title: string) {
+  await editProxyChat(chat.id, { title });
+}
+
+export async function updateChatAbout(chat: MethodArgs<'updateChatAbout'>[0], about: string) {
+  await editProxyChat(chat.id, { about });
+}
+
+export async function editChatPhoto({ chatId, photo }: MethodArgs<'editChatPhoto'>[0]) {
+  const peer = resolveProxyPeer(chatId);
+  // Only a new file: restoring an old photo needs its Telegram ID
+  if (!peer || !(photo instanceof File)) return undefined;
+  const { uploadId } = await uploadFile(photo, peer);
+  await editProxyChat(chatId, { photo: { uploadId } });
+  return true;
+}
+
+async function editProxyChat(chatId: string, changes: Record<string, unknown>) {
+  const peer = resolveProxyPeer(chatId);
+  if (!peer) return;
+  await runProxyJob('chats.edit', { ...peer, ...changes });
+}

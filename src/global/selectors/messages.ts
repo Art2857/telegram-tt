@@ -602,8 +602,15 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     const isSaved = !isLocalMessageId(message.id) && !message.pxgDeletedAt;
     const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage);
     const canDelete = isSaved && ((isOwn && permissions.deleteOwn) || canManage);
+    // A guest pins as the owner: either side in a private chat, otherwise the owner's rights given to the guest
+    const canPinProxy = isSaved && !message.content.action && (isUserId(chat.id)
+      ? permissions.write
+      : getHasAdminRight(chat, isChatChannel(chat) ? 'editMessages' : 'pinMessages')
+        || (permissions.admin && !chat.hasUsername && !chat.defaultBannedRights?.pinMessages && !isChatChannel(chat)));
+    const isPinnedProxy = Boolean(selectPinnedIds(global, chat.id, threadId)?.includes(message.id));
     return {
       noOptions: false, canCopy: true, canSelect: true,
+      canPin: canPinProxy && !isPinnedProxy, canUnpin: canPinProxy && isPinnedProxy,
       canReply: permissions.write && isSaved,
       canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete,
       canDownload: permissions.download && Boolean(selectMessageDownloadableMedia(global, message)),

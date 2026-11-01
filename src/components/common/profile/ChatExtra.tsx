@@ -717,7 +717,8 @@ export default memo(withGlobal<OwnProps>(
     const chatInviteLink = chatFullInfo?.inviteLink;
     const description = userFullInfo?.bio || chatFullInfo?.about;
 
-    const canViewSubscribers = chat && isChatChannel(chat) && isChatAdmin(chat);
+    // PXG: The list of subscribers is not served to guests
+    const canViewSubscribers = chat && !chat.pxgProxy && isChatChannel(chat) && isChatAdmin(chat);
     const canInviteUsers = chat && !user && (
       (!isChatChannel(chat) && !isUserRightBanned(chat, 'inviteUsers'))
       || getHasAdminRight(chat, 'inviteUsers')

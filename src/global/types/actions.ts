@@ -143,7 +143,7 @@ export interface ActionPayloads {
   clearProxyChats: undefined;
   initProxyGuest: undefined;
   resetProxyGuest: undefined;
-  refreshProxyMessage: { accountId: string; peerId: number; msgId: number };
+  refreshProxyMessage: { accountId: string; peerId: number; msgId: number; kind?: string };
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   refreshProxyUnread: { accountId: string; peerId: number; topicId: number | null };

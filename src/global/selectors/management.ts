@@ -76,7 +76,9 @@ export function selectCanManage<T extends GlobalState>(
 ) {
   const chat = selectChat(global, chatId);
   const isRestricted = selectIsChatRestricted(global, chatId);
-  if (!chat || chat.pxgProxy || isRestricted || chat.isMonoforum) return false;
+  if (!chat || isRestricted || chat.isMonoforum) return false;
+  // PXG: A guest manages only the owner's group or channel, with the owner's right to change its info
+  if (chat.pxgProxy) return !isUserId(chat.id) && getHasAdminRight(chat, 'changeInfo');
 
   const isPrivate = isUserId(chat.id);
   const user = isPrivate ? selectUser(global, chatId) : undefined;

@@ -214,6 +214,7 @@ const ManageChannel = ({
   }, [availableReactions, chatFullInfo?.enabledReactions, lang]);
   const isChannelPublic = useMemo(() => isChatPublic(chat), [chat]);
 
+  const isProxy = Boolean(chat.pxgProxy); // PXG
   const isRestricted = selectIsChatRestricted(getGlobal(), chatId);
   if (isRestricted || chat.isForbidden) {
     return undefined;
@@ -250,104 +251,113 @@ const ManageChannel = ({
               noReplaceNewlines
             />
           </div>
-          {chat.isOwner && (
-            <ListItem icon="lock" multiline onClick={handleClickEditType}>
-              <span className="title">{lang('ChannelType')}</span>
-              <span className="subtitle">{isChannelPublic ? lang('TypePublic') : lang('TypePrivate')}</span>
-            </ListItem>
-          )}
-          <ListItem
-            icon="message"
-            multiline
-            onClick={handleClickDiscussion}
-            disabled={!canChangeInfo}
-          >
-            <span className="title">{lang('Discussion')}</span>
-            <span className="subtitle">{hasLinkedChat ? lang('DiscussionUnlink') : lang('Add')}</span>
-          </ListItem>
-          {canInvite && (
-            <ListItem
-              icon="link"
-              onClick={handleClickInvites}
-              multiline
-              disabled={!exportedInvites}
-            >
-              <span className="title">{lang('GroupInfoInviteLinks')}</span>
-              <span className="subtitle">
-                {exportedInvites ? formatInteger(exportedInvites.length) : lang('Loading')}
-              </span>
-            </ListItem>
-          )}
-          {Boolean(chat.joinRequests?.length) && (
-            <ListItem
-              icon="add-user-filled"
-              onClick={handleClickRequests}
-              multiline
-            >
-              <span className="title">{lang('SubscribeRequests')}</span>
-              <span className="subtitle">
-                {formatInteger(chat.joinRequests.length)}
-              </span>
-            </ListItem>
-          )}
-          <ListItem
-            icon="heart-outline"
-            multiline
-            onClick={handleClickReactions}
-            disabled={!canChangeInfo}
-          >
-            <span className="title">{lang('Reactions')}</span>
-            <span className="subtitle" dir="auto">
-              {chatReactionsDescription}
-            </span>
-          </ListItem>
-          {hasAutoTranslationAvailable && (
-            <ListItem
-              icon="language"
-              narrow
-              ripple
-              disabled={!canToggleAutoTranslation}
-              onClick={handleAutoTranslationChange}
-            >
-              <span>{lang('AutomaticTranslation')}</span>
-              <Switch
-                id="auto-translation"
-                checked={Boolean(hasAutoTranslation)}
-              />
-            </ListItem>
+          {/* PXG: a guest changes only the title, description and photo of the owner's channel */}
+          {!isProxy && (
+            <>
+              {chat.isOwner && (
+                <ListItem icon="lock" multiline onClick={handleClickEditType}>
+                  <span className="title">{lang('ChannelType')}</span>
+                  <span className="subtitle">{isChannelPublic ? lang('TypePublic') : lang('TypePrivate')}</span>
+                </ListItem>
+              )}
+              <ListItem
+                icon="message"
+                multiline
+                onClick={handleClickDiscussion}
+                disabled={!canChangeInfo}
+              >
+                <span className="title">{lang('Discussion')}</span>
+                <span className="subtitle">{hasLinkedChat ? lang('DiscussionUnlink') : lang('Add')}</span>
+              </ListItem>
+              {canInvite && (
+                <ListItem
+                  icon="link"
+                  onClick={handleClickInvites}
+                  multiline
+                  disabled={!exportedInvites}
+                >
+                  <span className="title">{lang('GroupInfoInviteLinks')}</span>
+                  <span className="subtitle">
+                    {exportedInvites ? formatInteger(exportedInvites.length) : lang('Loading')}
+                  </span>
+                </ListItem>
+              )}
+              {Boolean(chat.joinRequests?.length) && (
+                <ListItem
+                  icon="add-user-filled"
+                  onClick={handleClickRequests}
+                  multiline
+                >
+                  <span className="title">{lang('SubscribeRequests')}</span>
+                  <span className="subtitle">
+                    {formatInteger(chat.joinRequests.length)}
+                  </span>
+                </ListItem>
+              )}
+              <ListItem
+                icon="heart-outline"
+                multiline
+                onClick={handleClickReactions}
+                disabled={!canChangeInfo}
+              >
+                <span className="title">{lang('Reactions')}</span>
+                <span className="subtitle" dir="auto">
+                  {chatReactionsDescription}
+                </span>
+              </ListItem>
+              {hasAutoTranslationAvailable && (
+                <ListItem
+                  icon="language"
+                  narrow
+                  ripple
+                  disabled={!canToggleAutoTranslation}
+                  onClick={handleAutoTranslationChange}
+                >
+                  <span>{lang('AutomaticTranslation')}</span>
+                  <Switch
+                    id="auto-translation"
+                    checked={Boolean(hasAutoTranslation)}
+                  />
+                </ListItem>
+              )}
+            </>
           )}
         </Island>
-        <Island>
-          <ListItem
-            icon="admin"
-            multiline
-            onClick={handleClickAdministrators}
-          >
-            <span className="title">{lang('ChannelAdministrators')}</span>
-            <span className="subtitle">{adminsCount}</span>
-          </ListItem>
-          <ListItem
-            icon="group"
-            multiline
-            onClick={handleClickSubscribers}
-          >
-            <span className="title" dir="auto">{lang('ChannelSubscribers')}</span>
-            <span className="subtitle" dir="auto">{formatInteger(chat.membersCount!)}</span>
-          </ListItem>
-          <ListItem
-            icon="delete-user"
-            multiline
-            onClick={handleRemovedUsersClick}
-          >
-            <span className="title">{lang('ChannelBlockedUsers')}</span>
-            <span className="subtitle">{removedUsersCount}</span>
-          </ListItem>
-        </Island>
-        <Island>
-          <ListItem icon="delete" ripple destructive onClick={openDeleteDialog}>
-            {chat.isOwner ? lang('ChannelDelete') : lang('ChannelLeave')}
-          </ListItem>
-        </Island>
+        {!isProxy && (
+          <>
+            <Island>
+              <ListItem
+                icon="admin"
+                multiline
+                onClick={handleClickAdministrators}
+              >
+                <span className="title">{lang('ChannelAdministrators')}</span>
+                <span className="subtitle">{adminsCount}</span>
+              </ListItem>
+              <ListItem
+                icon="group"
+                multiline
+                onClick={handleClickSubscribers}
+              >
+                <span className="title" dir="auto">{lang('ChannelSubscribers')}</span>
+                <span className="subtitle" dir="auto">{formatInteger(chat.membersCount!)}</span>
+              </ListItem>
+              <ListItem
+                icon="delete-user"
+                multiline
+                onClick={handleRemovedUsersClick}
+              >
+                <span className="title">{lang('ChannelBlockedUsers')}</span>
+                <span className="subtitle">{removedUsersCount}</span>
+              </ListItem>
+            </Island>
+            <Island>
+              <ListItem icon="delete" ripple destructive onClick={openDeleteDialog}>
+                {chat.isOwner ? lang('ChannelDelete') : lang('ChannelLeave')}
+              </ListItem>
+            </Island>
+          </>
+        )}
       </div>
       <FloatingActionButton
         isShown={isProfileFieldsTouched}

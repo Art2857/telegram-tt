@@ -311,6 +311,7 @@ const ManageGroup = ({
     openChat({ id: undefined });
   });
 
+  const isProxy = Boolean(chat.pxgProxy); // PXG
   const isRestricted = selectIsChatRestricted(getGlobal(), chatId);
   if (isRestricted || chat.isForbidden) {
     return undefined;
@@ -348,13 +349,13 @@ const ManageGroup = ({
               noReplaceNewlines
             />
           </div>
-          {chat.isOwner && (
+          {chat.isOwner && !isProxy && (
             <ListItem icon="lock" multiline onClick={handleClickEditType}>
               <span className="title">{lang('GroupType')}</span>
               <span className="subtitle">{isPublicGroup ? lang('TypePublic') : lang('TypePrivate')}</span>
             </ListItem>
           )}
-          {hasLinkedChannel && (
+          {hasLinkedChannel && !isProxy && (
             <ListItem
               icon="message"
               multiline
@@ -364,102 +365,111 @@ const ManageGroup = ({
               <span className="subtitle">{lang('DiscussionUnlink')}</span>
             </ListItem>
           )}
-          <ListItem
-            icon="permissions"
-            multiline
-            onClick={handleClickPermissions}
-            disabled={!canBanUsers}
-          >
-            <span className="title">{lang('ChannelPermissions')}</span>
-            <span className="subtitle" dir="auto">
-              {enabledPermissionsCount}
-              /
-              {TOTAL_PERMISSIONS_COUNT - (isForumEnabled ? 0 : 1)}
-            </span>
-          </ListItem>
-          <ListItem
-            icon="heart-outline"
-            multiline
-            onClick={handleClickReactions}
-            disabled={!canChangeInfo}
-          >
-            <span className="title">{lang('Reactions')}</span>
-            <span className="subtitle" dir="auto">
-              {chatReactionsDescription}
-            </span>
-          </ListItem>
-          <ListItem
-            icon="admin"
-            multiline
-            onClick={handleClickAdministrators}
-          >
-            <span className="title">{lang('ChannelAdministrators')}</span>
-            <span className="subtitle">{formatInteger(adminsCount)}</span>
-          </ListItem>
-          {canInvite && (
-            <ListItem
-              icon="link"
-              onClick={handleClickInvites}
-              multiline
-              disabled={!exportedInvites}
-            >
-              <span className="title">{lang('GroupInfoInviteLinks')}</span>
-              <span className="subtitle">
-                {exportedInvites ? formatInteger(exportedInvites.length) : lang('Loading')}
-              </span>
-            </ListItem>
-          )}
-          {Boolean(chat.joinRequests?.length) && (
-            <ListItem
-              icon="add-user-filled"
-              onClick={handleClickRequests}
-              multiline
-            >
-              <span className="title">{lang('MemberRequests')}</span>
-              <span className="subtitle">
-                {formatInteger(chat.joinRequests.length)}
-              </span>
-            </ListItem>
-          )}
-          {canEditForum && (
+          {/* PXG: a guest changes only the title, description and photo of the owner's group */}
+          {!isProxy && (
             <>
-              <ListItem icon="forums" ripple onClick={handleForumToggle}>
-                <span>{lang('ChannelTopics')}</span>
-                <Switch
-                  id="group-notifications"
-                  checked={Boolean(isForumEnabled)}
-                />
+              <ListItem
+                icon="permissions"
+                multiline
+                onClick={handleClickPermissions}
+                disabled={!canBanUsers}
+              >
+                <span className="title">{lang('ChannelPermissions')}</span>
+                <span className="subtitle" dir="auto">
+                  {enabledPermissionsCount}
+                  /
+                  {TOTAL_PERMISSIONS_COUNT - (isForumEnabled ? 0 : 1)}
+                </span>
               </ListItem>
-              <IslandDescription>{lang('ForumToggleDescription')}</IslandDescription>
+              <ListItem
+                icon="heart-outline"
+                multiline
+                onClick={handleClickReactions}
+                disabled={!canChangeInfo}
+              >
+                <span className="title">{lang('Reactions')}</span>
+                <span className="subtitle" dir="auto">
+                  {chatReactionsDescription}
+                </span>
+              </ListItem>
+              <ListItem
+                icon="admin"
+                multiline
+                onClick={handleClickAdministrators}
+              >
+                <span className="title">{lang('ChannelAdministrators')}</span>
+                <span className="subtitle">{formatInteger(adminsCount)}</span>
+              </ListItem>
+              {canInvite && (
+                <ListItem
+                  icon="link"
+                  onClick={handleClickInvites}
+                  multiline
+                  disabled={!exportedInvites}
+                >
+                  <span className="title">{lang('GroupInfoInviteLinks')}</span>
+                  <span className="subtitle">
+                    {exportedInvites ? formatInteger(exportedInvites.length) : lang('Loading')}
+                  </span>
+                </ListItem>
+              )}
+              {Boolean(chat.joinRequests?.length) && (
+                <ListItem
+                  icon="add-user-filled"
+                  onClick={handleClickRequests}
+                  multiline
+                >
+                  <span className="title">{lang('MemberRequests')}</span>
+                  <span className="subtitle">
+                    {formatInteger(chat.joinRequests.length)}
+                  </span>
+                </ListItem>
+              )}
+              {canEditForum && (
+                <>
+                  <ListItem icon="forums" ripple onClick={handleForumToggle}>
+                    <span>{lang('ChannelTopics')}</span>
+                    <Switch
+                      id="group-notifications"
+                      checked={Boolean(isForumEnabled)}
+                    />
+                  </ListItem>
+                  <IslandDescription>{lang('ForumToggleDescription')}</IslandDescription>
+                </>
+              )}
             </>
           )}
         </Island>
-        <Island>
-          <ListItem icon="group" multiline onClick={handleClickMembers}>
-            <span className="title">{lang('GroupMembers')}</span>
-            <span className="subtitle">{formatInteger(chat.membersCount ?? 0)}</span>
-          </ListItem>
+        {!isProxy && (
+          <>
+            <Island>
+              <ListItem icon="group" multiline onClick={handleClickMembers}>
+                <span className="title">{lang('GroupMembers')}</span>
+                <span className="subtitle">{formatInteger(chat.membersCount ?? 0)}</span>
+              </ListItem>
 
-          {!isPublicGroup && !hasLinkedChannel && Boolean(chatFullInfo) && (
-            <div className="ListItem narrow" ref={isPreHistoryHiddenCheckboxRef}>
-              <Checkbox
-                className="align-checkbox-with-list-buttons"
-                checked={!chatFullInfo.isPreHistoryHidden}
-                label={lang('ChatHistory')}
-                onChange={handleTogglePreHistory}
-                subLabel={
-                  chatFullInfo.isPreHistoryHidden ? lang('ChatHistoryHiddenInfo2') : lang('ChatHistoryVisibleInfo')
-                }
-                disabled={!canBanUsers}
-              />
-            </div>
-          )}
-        </Island>
-        <Island>
-          <ListItem icon="delete" ripple destructive onClick={openDeleteDialog}>
-            {lang('DeleteMega')}
-          </ListItem>
-        </Island>
+              {!isPublicGroup && !hasLinkedChannel && Boolean(chatFullInfo) && (
+                <div className="ListItem narrow" ref={isPreHistoryHiddenCheckboxRef}>
+                  <Checkbox
+                    className="align-checkbox-with-list-buttons"
+                    checked={!chatFullInfo.isPreHistoryHidden}
+                    label={lang('ChatHistory')}
+                    onChange={handleTogglePreHistory}
+                    subLabel={
+                      chatFullInfo.isPreHistoryHidden ? lang('ChatHistoryHiddenInfo2') : lang('ChatHistoryVisibleInfo')
+                    }
+                    disabled={!canBanUsers}
+                  />
+                </div>
+              )}
+            </Island>
+            <Island>
+              <ListItem icon="delete" ripple destructive onClick={openDeleteDialog}>
+                {lang('DeleteMega')}
+              </ListItem>
+            </Island>
+          </>
+        )}
       </div>
       <FloatingActionButton
         isShown={isProfileFieldsTouched}

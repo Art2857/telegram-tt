@@ -1,7 +1,7 @@
 import type { AccessChat, ChatUnreadDto, MessageDto, TopicsListResult } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
-import type { ApiChat, ApiMessage, ApiPeer, ApiUser } from '../types';
+import type { ApiChat, ApiMessage, ApiPeer, ApiPhoto, ApiUser } from '../types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
@@ -9,18 +9,21 @@ import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
-  buildProxyChat, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser,
+  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic,
+  buildProxyUser, buildProxyWebPage,
 } from './builders';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
+import { buildProxyProfilePhotoId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
   fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers,
   fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import {
-  answerCallbackButton, deleteMessages, editMessage, forwardMessages, markMessageListRead, sendMessage,
-  sendMessageAction, sendPollVote, sendReaction, toggleChatArchived, toggleChatPinned, updateChatNotifySettings,
+  answerCallbackButton, deleteMessages, editChatPhoto, editMessage, forwardMessages, markMessageListRead, pinMessage,
+  sendMessage, sendMessageAction, sendPollVote, sendReaction, toggleChatArchived, toggleChatPinned, updateChatAbout,
+  updateChatNotifySettings, updateChatTitle,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -28,6 +31,14 @@ const HISTORY_WAIT_MS = 10_000;
 const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls']);
 /** The server returns at most this many topics per page */
 const MAX_TOPICS = 100;
+/** Telegram's big profile photo is 640 px */
+const PROFILE_PHOTO_SIZE = 640;
+/** As many pinned messages as Telegram lists */
+const MAX_PINNED = 100;
+/** Admin actions of a guest: Telegram may refuse them, and Web A waits for their result */
+const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
+  'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto',
+]);
 
 const methods = {
   fetchChats,
@@ -53,6 +64,12 @@ const methods = {
   toggleChatPinned,
   toggleChatArchived,
   sendReaction,
+  pinMessage,
+  fetchPinnedMessages,
+  fetchProfilePhotos,
+  updateChatTitle,
+  updateChatAbout,
+  editChatPhoto,
   markMessageListRead,
   sendMessageAction,
   downloadMedia,
@@ -80,7 +97,14 @@ export async function callProxyApi<T extends keyof Methods>(
 ): Promise<Awaited<MethodResponse<T>>> {
   const method = methods[name as keyof typeof methods] as ((...params: unknown[]) => unknown) | undefined;
   // Unsupported methods never fall back to Telegram
-  return await method?.(...args) as Awaited<MethodResponse<T>>;
+  if (!ERROR_DIALOG_METHODS.has(name)) return await method?.(...args) as Awaited<MethodResponse<T>>;
+  try {
+    return await method?.(...args) as Awaited<MethodResponse<T>>;
+  } catch (err) {
+    // As with Telegram's own errors: a dialog explains why, and the screen that waits for the result moves on
+    emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : String(err) } });
+    return undefined as Awaited<MethodResponse<T>>;
+  }
 }
 
 export async function fetchProxyChats() {
@@ -122,7 +146,9 @@ export async function fetchProxyChats() {
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
     })),
     threadReadStatesById: buildProxyReadStates(unread),
-    reactionsById: Object.fromEntries(access.map((item, index) => [chats[index].id, buildProxyChatReactions(item)])),
+    fullInfoById: Object.fromEntries(access.map((item, index) => [
+      chats[index].id, { ...buildProxyChatInfo(item), ...buildProxyChatReactions(item) },
+    ])),
     archivedChatIds: chats.filter((chat) => chat.folderId === ARCHIVED_FOLDER_ID).map((chat) => chat.id),
     // Pins belong to the guest's own list; the latest pinned chat goes first, as in Telegram
     pinnedChatIds: isProxyGuest() ? access.map((item, index) => ({ id: chats[index].id, pinnedAt: item.pinnedAt }))
@@ -206,6 +232,30 @@ function getTopicId(peer: ApiPeer, threadId?: ThreadId) {
   return isForum && threadId !== undefined && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
 }
 
+/** The current photo of a shared chat or user; the viewer opens it at full size */
+function fetchProfilePhotos({ peer }: MethodArgs<'fetchProfilePhotos'>[0]) {
+  const photoId = peer.avatarPhotoId;
+  if (!resolveProxyPeer(peer.id) || !photoId) return Promise.resolve(undefined);
+  const photo: ApiPhoto = {
+    mediaType: 'photo',
+    id: buildProxyProfilePhotoId(peer.id, photoId),
+    date: 0,
+    sizes: [{ type: 'x', width: PROFILE_PHOTO_SIZE, height: PROFILE_PHOTO_SIZE }],
+  };
+  return Promise.resolve({ count: 1, photos: [photo], nextOffsetId: undefined });
+}
+
+/** Pinned messages the guest may see; in a forum topic — only that topic's */
+async function fetchPinnedMessages({ chat, threadId }: MethodArgs<'fetchPinnedMessages'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await pxgRpc.call<WindowResult>('messages.search', {
+    ...peer, query: '', filter: 'pinned', limit: MAX_PINNED, topicId: getTopicId(chat, threadId),
+  });
+  result.messages.forEach((dto) => emitRelated(dto));
+  return { messages: result.messages.map((dto) => buildProxyMessage(dto, chat)) };
+}
+
 async function fetchTopics({ chat, query, offsetTopicId, limit = TOPICS_SLICE }: MethodArgs<'fetchTopics'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
@@ -238,10 +288,12 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
   };
 }
 
-/** The sender profile, action participants and the poll live in their own parts of the global state */
+/** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
   const poll = buildProxyPoll(dto);
   if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
+  const webPage = buildProxyWebPage(dto, getProxyPeerId(dto.accountId, dto.peerId));
+  if (webPage) emitProxyUpdate({ '@type': 'updateWebPage', webPage });
   const actionUsers = dto.action && 'users' in dto.action ? dto.action.users : [];
   actionUsers.forEach(({ id, name }) => {
     const user = buildProxyUser(dto.accountId, id, name || undefined);
@@ -260,7 +312,7 @@ async function fetchFullChat(chat: ApiChat) {
   const current = chats.find((item) => item.accountId === peer.accountId && item.peerId === peer.peerId);
   if (!current) return undefined;
   return {
-    fullInfo: buildProxyChatReactions(current),
+    fullInfo: { ...buildProxyChatInfo(current), ...buildProxyChatReactions(current) },
     chats: [buildProxyChat(current)], userStatusesById: {},
   };
 }

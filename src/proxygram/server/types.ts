@@ -61,12 +61,29 @@ export interface AccessChat {
   providerPremium?: boolean;
   /** Reactions allowed in a group or channel; `null` until the provider's worker reads them, and in private chats */
   reactions?: ChatReactionsDto | null;
+  /** Profile of a group or channel from its full info; `null` until read, and in private chats */
+  info?: ChatInfoDto | null;
   /** Гость заглушил чат у себя, unix-секунды */
   mutedUntil: number | null;
   /** Закреплён в списке гостя (позже закреплённый — выше), unix-секунды */
   pinnedAt: number | null;
   /** В архиве списка гостя, unix-секунды */
   archivedAt: number | null;
+}
+
+export interface ChatInfoDto {
+  about?: string;
+  /** Members of a group or subscribers of a channel */
+  participantsCount?: number;
+  usernames?: string[];
+  linkedChatId?: number;
+  slowmodeSeconds?: number;
+  /** The owner created the chat */
+  isCreator?: boolean;
+  /** The owner's admin rights by flag name (changeInfo, pinMessages…) */
+  adminRights?: string[];
+  /** Rights banned for members by default, by flag name */
+  defaultBannedRights?: string[];
 }
 
 /** As Telegram's ChatReactions: `limit` is how many different reactions a message may have */
@@ -140,6 +157,12 @@ export interface MessageDto {
   senderPhotoId?: string | null;
   /** Служебное сообщение: что произошло */
   action?: ServiceActionDto;
+  /** Pinned in the chat */
+  isPinned?: boolean;
+  /** Counters and signature of a channel post, as of the last archive write */
+  post?: { views?: number; forwards?: number; author?: string; replies?: number };
+  /** Link preview; its picture is not served to guests yet */
+  webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
 }
 
 export interface ActionUserDto {

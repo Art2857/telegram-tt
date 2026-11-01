@@ -128,9 +128,9 @@ function buildMediaRequest(
     const peer = message.userId === userId ? resolveProxyPeer(message.chatId) : undefined;
     return peer && ['media.url', { ...peer, msgId: message.msgId }];
   }
-  const avatarPeerId = parseProxyAvatarHash(url);
-  const peer = avatarPeerId && resolveProxyPeer(avatarPeerId);
-  return peer ? ['media.avatar', { ...peer }] : undefined;
+  const avatar = parseProxyAvatarHash(url);
+  const peer = avatar && resolveProxyPeer(avatar.peerId);
+  return peer ? ['media.avatar', { ...peer, big: avatar.isBig || undefined }] : undefined;
 }
 
 async function readResponse(
