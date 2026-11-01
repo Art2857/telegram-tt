@@ -15,6 +15,7 @@ import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/st
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
+import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
 import TombstonesLoader from './TombstonesLoader';
 
@@ -44,6 +45,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const connection = usePxgState((state) => state.connection);
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
+  const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
   const shareChatId = usePxgState((state) => state.shareChatId);
   const shareFolder = usePxgState((state) => state.shareFolder);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
@@ -143,6 +145,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && <ShareChatModal chatId={shareChatId} folder={shareFolder} />}
       {isAdminOpen && <AdminPanel />}
+      {isSettingsOpen && <PxgSettingsPanel />}
     </>
   );
 };

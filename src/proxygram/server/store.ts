@@ -15,6 +15,8 @@ export interface PxgState {
   /** Свои аккаунты, подключённые к серверу (раздача чатов) */
   accounts?: AccountDto[];
   isAdminOpen: boolean;
+  /** «Настройки Proxygram»: сервер, доступы, архив, журнал, устройства */
+  isSettingsOpen: boolean;
   isConnectOpen: boolean;
   /** Сколько чатов открыли этому человеку другие */
   sharedCount?: number;
@@ -40,6 +42,7 @@ let state: PxgState = {
   session: readStoredSession(),
   connection: 'offline',
   isAdminOpen: false,
+  isSettingsOpen: false,
   isConnectOpen: false,
 };
 const listeners = new Set<NoneToVoidFunction>();

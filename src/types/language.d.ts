@@ -3439,6 +3439,55 @@ export interface LangPair {
   'PxgErrorUsername': undefined;
   'PxgMenuSharing': undefined;
   'PxgMenuSharingOn': undefined;
+  'PxgSettingsTitle': undefined;
+  'PxgSettingsServer': undefined;
+  'PxgSettingsOutgoing': undefined;
+  'PxgSettingsIncoming': undefined;
+  'PxgSettingsArchive': undefined;
+  'PxgSettingsAudit': undefined;
+  'PxgSettingsDevices': undefined;
+  'PxgSettingsNoAccounts': undefined;
+  'PxgSettingsLeave': undefined;
+  'PxgSettingsEnd': undefined;
+  'PxgSettingsEndConfirm': undefined;
+  'PxgSettingsThisDevice': undefined;
+  'PxgSettingsMore': undefined;
+  'PxgSettingsSaved': undefined;
+  'PxgPolicyNote': undefined;
+  'PxgPolicyMaxSize': undefined;
+  'PxgPolicyVideo': undefined;
+  'PxgPolicyDocuments': undefined;
+  'PxgPolicyOnDemand': undefined;
+  'PxgPolicyKeepDays': undefined;
+  'PxgPolicyImport': undefined;
+  'PxgPolicyPerChat': undefined;
+  'PxgPolicyChannels': undefined;
+  'PxgAuditShareCreate': undefined;
+  'PxgAuditShareUpdate': undefined;
+  'PxgAuditShareRevoke': undefined;
+  'PxgAuditShareLeave': undefined;
+  'PxgAuditSourceLost': undefined;
+  'PxgAuditSourceRestored': undefined;
+  'PxgAuditSend': undefined;
+  'PxgAuditEdit': undefined;
+  'PxgAuditDelete': undefined;
+  'PxgAuditReact': undefined;
+  'PxgAuditForward': undefined;
+  'PxgAuditCallback': undefined;
+  'PxgAuditVote': undefined;
+  'PxgAuditRead': undefined;
+  'PxgAuditHistory': undefined;
+  'PxgAuditMediaFetch': undefined;
+  'PxgAuditInviteCreate': undefined;
+  'PxgAuditInviteOpen': undefined;
+  'PxgAuditInviteAccept': undefined;
+  'PxgAuditInviteDecline': undefined;
+  'PxgAuditInviteRevoke': undefined;
+  'PxgAuditArchiveGap': undefined;
+  'PxgAuditPolicy': undefined;
+  'PxgAuditDisconnect': undefined;
+  'PxgAuditSessionRevoke': undefined;
+  'PxgAuditFailed': undefined;
   'PxgShareLimits': undefined;
   'PxgShareLimitsHint': undefined;
   'PxgShareLimitSend': undefined;
@@ -5891,6 +5940,25 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestMedia': {
     'type': V;
   };
+  'PxgSettingsMedia': {
+    'size': V;
+  };
+  'PxgSettingsChats': {
+    'count': V;
+  };
+  'PxgSettingsFolder': {
+    'id': V;
+  };
+  'PxgSettingsFrom': {
+    'name': V;
+  };
+  'PxgSettingsLeaveConfirm': {
+    'title': V;
+  };
+  'PxgSettingsRevokeConfirm': {
+    'name': V;
+    'title': V;
+  };
   'PxgInvitePending': {
     'date': V;
   };
@@ -6961,6 +7029,7 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppExpired'
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
+      | 'PxgSettingsFrom'
       | 'PxgInviteAwaiting'
       | 'PxgConnectActive'
       | 'PxgShareFound'
@@ -7175,6 +7244,7 @@ export interface LangKeyGroups {
       | 'ConnectedAccountsLimitSubtitle'
       | 'GiveawayStarsPrepaidTitle'
       | 'SimilarChannelsLimitSubtitle'
+      | 'PxgSettingsChats'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
@@ -7551,7 +7621,8 @@ export interface LangKeyGroups {
       | 'ActionChangedTitleYou'
       | 'ActionChangedTitleChannel'
       | 'ActionCreatedChatYou'
-      | 'AiToneCreated';
+      | 'AiToneCreated'
+      | 'PxgSettingsLeaveConfirm';
     variables: 'title';
   };
   'from,text': {
@@ -8221,8 +8292,19 @@ export interface LangKeyGroups {
   };
   'id': {
     keys:
-      | 'PeerPickerUnknownPeer';
+      | 'PeerPickerUnknownPeer'
+      | 'PxgSettingsFolder';
     variables: 'id';
+  };
+  'size': {
+    keys:
+      | 'PxgSettingsMedia';
+    variables: 'size';
+  };
+  'name,title': {
+    keys:
+      | 'PxgSettingsRevokeConfirm';
+    variables: 'name' | 'title';
   };
   'done,total': {
     keys:

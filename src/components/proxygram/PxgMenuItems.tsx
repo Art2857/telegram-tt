@@ -45,6 +45,9 @@ const PxgMenuItems = () => {
               : isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
         </MenuItem>
       )}
+      <MenuItem icon="settings" onClick={() => setPxgState({ isSettingsOpen: true })}>
+        {lang('PxgSettingsTitle')}
+      </MenuItem>
       {session.user.role === 'admin' && (
         <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
           {lang('PxgAdminTitle')}
