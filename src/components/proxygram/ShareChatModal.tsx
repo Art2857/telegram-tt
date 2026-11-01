@@ -110,6 +110,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [invites, setInvites] = useState<Invite[]>();
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
+  const [isFinding, setIsFinding] = useState(false);
 
   const currentUserId = getGlobal().currentUserId;
   const peerTitle = chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
@@ -162,6 +163,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
   const find = async () => {
     setError(undefined);
+    setIsFinding(true);
     try {
       const value = username.trim();
       const isPhone = PHONE.test(value);
@@ -171,6 +173,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       setGuest({ ...found, candidate });
     } catch (err) {
       setError(describePxgError(lang, err));
+    } finally {
+      setIsFinding(false);
     }
   };
 
@@ -477,6 +481,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               <Button
                 fluid={false}
                 size="smaller"
+                isLoading={isFinding}
                 disabled={!USERNAME.test(username.trim()) && !PHONE.test(username.trim())}
                 onClick={() => void find()}
               >
