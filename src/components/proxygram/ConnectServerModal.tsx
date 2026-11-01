@@ -121,6 +121,13 @@ const ConnectServerModal = () => {
         <>
           <p>{lang('PxgConnectActive', { name: phase.account.displayName ?? '' })}</p>
           {phase.account.status === 'flood' && <p>{lang('PxgAccountFlood')}</p>}
+          {phase.account.importState?.status === 'running' && (
+            <p className={styles.secondary}>
+              {lang('PxgImportProgress', {
+                done: phase.account.importState.doneCount, total: phase.account.importState.total,
+              })}
+            </p>
+          )}
           <p className={styles.secondary}>{lang('PxgConnectDisconnectNote')}</p>
           <div className={styles.buttons}>
             <Button onClick={close}>{lang('PxgConnectOk')}</Button>

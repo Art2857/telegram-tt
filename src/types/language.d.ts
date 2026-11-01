@@ -5880,6 +5880,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestMedia': {
     'type': V;
   };
+  'PxgImportProgress': {
+    'done': V;
+    'total': V;
+  };
   'PxgConnectFailed': {
     'reason': V;
   };
@@ -8200,6 +8204,11 @@ export interface LangKeyGroups {
     keys:
       | 'PeerPickerUnknownPeer';
     variables: 'id';
+  };
+  'done,total': {
+    keys:
+      | 'PxgImportProgress';
+    variables: 'done' | 'total';
   };
   'reason': {
     keys:

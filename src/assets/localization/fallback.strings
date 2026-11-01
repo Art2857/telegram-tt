@@ -4579,6 +4579,7 @@
 "PxgErrorUsername" = "A username is 5–32 letters, digits or underscores";
 "PxgMenuSharing" = "Share chats";
 "PxgMenuSharingOn" = "on";
+"PxgImportProgress" = "Importing recent history: {done} of {total} chats";
 "PxgMenuSharingLost" = "session lost";
 "PxgMenuSharingFlood" = "limited";
 "PxgAccountAuthLost" = "The server lost its session. Guests see only the archive: reconnect sharing in the menu";

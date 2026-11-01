@@ -158,6 +158,15 @@ export interface AccountDto {
   status: 'connecting' | 'active' | 'paused' | 'auth_lost' | 'flood' | 'revoked';
   statusReason: string | null;
   connectedAt: string | null;
+  importState: ImportStateDto | null;
+}
+
+/** Импорт истории после подключения: сколько чатов обработано */
+export interface ImportStateDto {
+  status: 'running' | 'done';
+  doneCount: number;
+  total: number;
+  imported: number;
 }
 
 export interface SrpChallengeDto {

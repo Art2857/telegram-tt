@@ -1,7 +1,7 @@
 import type { TeactNode } from '../../../lib/teact/teact';
 import { memo, useCallback, useEffect, useState } from '../../../lib/teact/teact';
 
-import type { AdminTopic } from '../../../proxygram/server/types';
+import type { AdminTopic, ImportStateDto } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -83,6 +83,7 @@ type AccountRow = {
   lastMessageAt: string | null;
   activeShares: number;
   queue: number;
+  importState: ImportStateDto | null;
 };
 
 type ShareRow = {
@@ -577,6 +578,13 @@ const AccountsTab = memo(({ lang, ask, run, topics }: TabProps) => {
               <td>
                 {t(lang, 'PxgAdminMessages', { count: account.messages })}
                 <div className={styles.secondary}>{formatDateTime(account.lastMessageAt)}</div>
+                {account.importState?.status === 'running' && (
+                  <div className={styles.secondary}>
+                    {t(lang, 'PxgImportProgress', {
+                      done: account.importState.doneCount, total: account.importState.total,
+                    })}
+                  </div>
+                )}
               </td>
               <td className={styles.secondary}>
                 {t(lang, 'PxgAdminAccountCounts', { shares: account.activeShares, queue: account.queue })}
@@ -592,7 +600,7 @@ const AccountsTab = memo(({ lang, ask, run, topics }: TabProps) => {
                     {lang('PxgAdminPause')}
                   </Button>
                 )}
-                {account.status === 'paused' && (
+                {(account.status === 'paused' || account.status === 'flood') && (
                   <Button
                     size="tiny"
                     color="translucent"
