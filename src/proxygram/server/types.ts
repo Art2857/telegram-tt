@@ -78,6 +78,8 @@ export interface ChatInfoDto {
   usernames?: string[];
   linkedChatId?: number;
   slowmodeSeconds?: number;
+  /** The owner's invite link; only with the admin permission */
+  inviteLink?: string;
   /** The owner created the chat */
   isCreator?: boolean;
   /** The owner's admin rights by flag name (changeInfo, pinMessages…) */

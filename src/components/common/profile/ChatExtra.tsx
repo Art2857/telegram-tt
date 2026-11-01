@@ -46,7 +46,6 @@ import { copyTextToClipboard } from '../../../util/clipboard';
 import { formatPhoneNumberWithCode } from '../../../util/phoneNumber';
 import stopEvent from '../../../util/stopEvent';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
-import { isProxyPeerId } from '../../../api/proxy/ids';
 import { ChatAnimationTypes } from '../../left/main/hooks';
 import formatUsername from '../helpers/formatUsername';
 import renderText from '../helpers/renderText';
@@ -517,7 +516,8 @@ const ChatExtra = ({
             </div>
           </ListItem>
         )}
-        {!isProxyPeerId(chatOrUserId) && !isOwnProfile && !isInSettings && (
+        {/* PXG: Notifications of a shared chat are the guest's own and do not touch the owner's */}
+        {!isOwnProfile && !isInSettings && (
           <ListItem
             icon="notifications-filled"
             iconBg="red"
@@ -719,10 +719,11 @@ export default memo(withGlobal<OwnProps>(
 
     // PXG: The list of subscribers is not served to guests
     const canViewSubscribers = chat && !chat.pxgProxy && isChatChannel(chat) && isChatAdmin(chat);
-    const canInviteUsers = chat && !user && (
+    // PXG: The owner's invite link reaches only a guest with the admin permission
+    const canInviteUsers = chat && !user && (chat.pxgProxy ? Boolean(chatInviteLink) : (
       (!isChatChannel(chat) && !isUserRightBanned(chat, 'inviteUsers'))
       || getHasAdminRight(chat, 'inviteUsers')
-    );
+    ));
 
     const topicLink = topicId ? selectTopicLink(global, chatOrUserId, topicId) : undefined;
 

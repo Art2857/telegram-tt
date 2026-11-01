@@ -76,11 +76,13 @@ function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 
 }
 
 /** Profile of a group or channel: its description and slow mode, as members see them */
-export function buildProxyChatInfo(chat: AccessChat): Pick<ApiChatFullInfo, 'about' | 'slowMode'> {
+export function buildProxyChatInfo(chat: AccessChat): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink'> {
   const { info } = chat;
   return {
     about: info?.about,
     slowMode: info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
+    // The server sends the owner's invite link only to a guest with the admin permission
+    inviteLink: info?.inviteLink,
   };
 }
 
