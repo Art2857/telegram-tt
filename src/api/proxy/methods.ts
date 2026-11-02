@@ -27,6 +27,7 @@ import {
   fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers,
   fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
+import { translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteTopic, editChatPhoto, editMessage, editTopic,
   forwardMessages, markMessageListRead, pinMessage, sendMessage, sendMessageAction, sendPollVote, sendReaction,
@@ -63,6 +64,8 @@ const methods = {
   fetchLangPack,
   fetchLangDifference,
   transcribeAudio,
+  translateText,
+  translateRichMessage,
   updateTopicMutedState,
   fetchChats,
   fetchChat,
