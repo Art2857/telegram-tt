@@ -2200,7 +2200,9 @@ export default memo(withGlobal<OwnProps>(
     const isReplyPrivate = !isSystemBotChat && !isAnonymousForwards && replyMessageChat
       && !isChatPublic(replyMessageChat)
       && (replyMessageChat.isNotJoined || selectIsChatRestricted(global, replyMessageChat.id));
-    const isReplyToTopicStart = replyMessage?.content.action?.type === 'topicCreate';
+    // PXG: A topic message without `replyToTopId` only names its topic; the topic's start may be unknown to a guest
+    const isReplyToTopicStart = replyMessage?.content.action?.type === 'topicCreate'
+      || (replyInfo?.type === 'message' && replyInfo.isForumTopic && !replyInfo.replyToTopId);
     const replyStory = storyReplyId && storyReplyPeerId
       ? selectPeerStory(global, storyReplyPeerId, storyReplyId)
       : undefined;
