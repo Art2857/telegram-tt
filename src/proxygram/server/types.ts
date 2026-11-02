@@ -195,6 +195,8 @@ export interface MessageDto {
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
   isProtected?: boolean;
+  /** The owner was mentioned, and the guest has not read it yet */
+  hasUnreadMention?: boolean;
   attachment?: AttachmentDto;
 }
 
@@ -275,6 +277,7 @@ export interface TopicDto {
   isDeleted: boolean;
   /** Свои счётчики гостя */
   unreadCount: number;
+  unreadMentionsCount: number;
   readMaxId: number;
 }
 
@@ -286,6 +289,7 @@ export interface ChatUnreadDto {
   readMaxId: number;
   /** The guest marked the chat unread on their own */
   hasUnreadMark: boolean;
+  unreadMentionsCount: number;
 }
 
 export interface DraftDto {

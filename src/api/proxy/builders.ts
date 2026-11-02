@@ -213,6 +213,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     replyInfo: buildReplyInfo(dto),
     reactions: reactions?.length ? { results: reactions } : undefined,
     isPinned: dto.isPinned || undefined,
+    hasUnreadMention: dto.hasUnreadMention || undefined,
     viewsCount: dto.post?.views,
     forwardsCount: dto.post?.forwards,
     postAuthorTitle: dto.post?.author,
@@ -325,7 +326,11 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       pxgPermissions: dto.permissions,
     },
     // The guest's own read state: reading a shared topic does not mark it read for the owner
-    readState: { unreadCount: dto.unreadCount, lastReadInboxMessageId: dto.readMaxId },
+    readState: {
+      unreadCount: dto.unreadCount,
+      lastReadInboxMessageId: dto.readMaxId,
+      unreadMentionsCount: dto.unreadMentionsCount,
+    },
     lastMessageId: dto.lastMsgId ?? undefined,
   };
 }

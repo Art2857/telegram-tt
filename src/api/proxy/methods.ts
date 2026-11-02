@@ -94,6 +94,7 @@ const methods = {
   toggleChatPinned,
   toggleChatArchived,
   toggleDialogUnread,
+  fetchUnreadMentions,
   updateChatMemberBannedRights,
   fetchScheduledHistory,
   sendScheduledMessages,
@@ -216,6 +217,7 @@ export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, Th
     unreadCount: item.unreadCount,
     lastReadInboxMessageId: item.readMaxId,
     hasUnreadMark: item.hasUnreadMark || undefined,
+    unreadMentionsCount: item.unreadMentionsCount,
   }]));
 }
 
@@ -405,6 +407,21 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** Mentions of the owner that the guest has not read yet, by the guest's own read pointer */
+async function fetchUnreadMentions({ chat, threadId }: MethodArgs<'fetchUnreadMentions'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await pxgRpc.call<WindowResult>('messages.unreadMentions', {
+    ...peer, topicId: getTopicId(chat, threadId),
+  });
+  result.messages.forEach((dto) => emitRelated(dto));
+  return {
+    totalCount: result.count,
+    messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
+    topics: [],
+  };
 }
 
 /** Notifications by chat type are the guest's own: they are saved with the guest's settings */
