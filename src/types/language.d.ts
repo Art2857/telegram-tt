@@ -6050,7 +6050,23 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgWriteAsOwner': {
     'name': V;
   };
-  'PxgViaOwner': {
+  'PxgFromOwner': {
+    'name': V;
+  };
+  'PxgFromOwnerHint': {
+    'name': V;
+  };
+  'PxgSharedFor': {
+    'name': V;
+  };
+  'PxgSharedForMany': {
+    'name': V;
+    'count': V;
+  };
+  'PxgSharedForHint': {
+    'names': V;
+  };
+  'PxgOwnerUnreachable': {
     'name': V;
   };
   'PxgFloodDelay': {
@@ -7076,7 +7092,10 @@ export interface LangKeyGroups {
       | 'PxgAdminDisconnectConfirm'
       | 'PxgAdminRevokeConfirm'
       | 'PxgWriteAsOwner'
-      | 'PxgViaOwner'
+      | 'PxgFromOwner'
+      | 'PxgFromOwnerHint'
+      | 'PxgSharedFor'
+      | 'PxgOwnerUnreachable'
       | 'PxgSharePending';
     variables: 'name';
   };
@@ -8365,6 +8384,16 @@ export interface LangKeyGroups {
     keys:
       | 'PxgAdminAccountCounts';
     variables: 'queue' | 'shares';
+  };
+  'count,name': {
+    keys:
+      | 'PxgSharedForMany';
+    variables: 'count' | 'name';
+  };
+  'names': {
+    keys:
+      | 'PxgSharedForHint';
+    variables: 'names';
   };
 }
 

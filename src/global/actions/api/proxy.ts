@@ -5,6 +5,7 @@ import { MAIN_THREAD_ID } from '../../../api/types';
 import { LoadMoreDirection } from '../../../types';
 
 import { ARCHIVED_FOLDER_ID } from '../../../config';
+import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey } from '../../../util/iteratees';
 import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
@@ -219,6 +220,24 @@ addActionHandler('refreshProxyMessage', async (global, actions, {
   } catch {
     // Reconnect reloads proxy history with a fresh access check
   }
+});
+
+/** The person who shared a chat, in the viewer's own Telegram: by a known dialog, otherwise by username */
+addActionHandler('openProxyChatOwner', (global, actions, payload): ActionReturnType => {
+  const { chatId, tabId = getCurrentTabId() } = payload;
+  const proxy = global.chats.byId[chatId]?.pxgProxy;
+  if (!proxy) return;
+  const { providerUserId, providerUsername, providerName } = proxy;
+  const ownerId = providerUserId ? String(providerUserId) : undefined;
+  if (ownerId && global.users.byId[ownerId]) {
+    actions.openChat({ id: ownerId, tabId });
+    return;
+  }
+  if (providerUsername) {
+    actions.openChatByUsername({ username: providerUsername, tabId });
+    return;
+  }
+  actions.showNotification({ message: { key: 'PxgOwnerUnreachable', variables: { name: providerName } }, tabId });
 });
 
 /** Another device of the guest muted, pinned or archived a shared chat */

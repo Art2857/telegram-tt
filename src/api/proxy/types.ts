@@ -7,6 +7,9 @@ export type ProxyChatInfo = {
   restricted?: AccessRestriction;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;
+  /** Who shared the chat: a full login goes to this person in their own Telegram */
+  providerUserId?: number;
+  providerUsername?: string;
   /** Premium of the owner's account: several reactions and custom emoji */
   isProviderPremium?: boolean;
 };

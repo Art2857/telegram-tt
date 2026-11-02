@@ -4848,7 +4848,12 @@
 "PxgGuestNoChatsNoUsername" = "Nobody has shared a chat with you yet. Ask the owner to share one with you.";
 "PxgChatNotShared" = "This chat is not shared with you";
 "PxgWriteAsOwner" = "You write on behalf of {name}: the other side sees {name}, not you. {name} sees that it was you.";
-"PxgViaOwner" = "via {name}";
+"PxgFromOwner" = "from {name}";
+"PxgFromOwnerHint" = "{name} shared this chat with you. Click to go to this person";
+"PxgSharedFor" = "for {name}";
+"PxgSharedForMany" = "for {name} +{count}";
+"PxgSharedForHint" = "You shared this chat with: {names}. Click to manage access";
+"PxgOwnerUnreachable" = "{name} has no username, and your Telegram has no chat with this person yet";
 "PxgAutostart" = "Start with the system";
 "PxgAutostartHint" = "The app opens in the tray and keeps receiving messages";
 "PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";

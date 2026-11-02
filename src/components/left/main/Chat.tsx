@@ -51,7 +51,6 @@ import { formatCountdown } from '../../../util/dates/duration';
 import { isUserId } from '../../../util/entities/ids';
 import { getChatFolderIds } from '../../../util/folderManager';
 import { createLocationHash } from '../../../util/routing';
-import { isProxyGuest } from '../../../api/proxy';
 
 import { useSelectorSignal, useShallowSelector } from '../../../hooks/data/useSelector';
 import useAppLayout from '../../../hooks/useAppLayout';
@@ -74,6 +73,7 @@ import AutoDeleteIcon from '../../common/icons/AutoDeleteIcon';
 import Icon from '../../common/icons/Icon';
 import StarIcon from '../../common/icons/StarIcon';
 import LastMessageMeta from '../../common/LastMessageMeta';
+import PxgChatLabel from '../../proxygram/PxgChatLabel';
 import ListItem from '../../ui/ListItem';
 import ChatFolderModal from '../ChatFolderModal.async';
 import MuteChatModal from '../MuteChatModal.async';
@@ -544,10 +544,7 @@ const Chat = ({
             observeIntersection={observeIntersection}
             withStatusTextColor={isSelected}
           />
-          {/* PXG: a chat someone shared with this account stands next to its own chats, so it says whose it is */}
-          {chat?.pxgProxy?.providerName && !isProxyGuest() && (
-            <span className="pxg-via">{lang('PxgViaOwner', { name: chat.pxgProxy.providerName })}</span>
-          )}
+          {!isPreview && <PxgChatLabel chatId={chatId} proxy={chat?.pxgProxy} />}
           {isMuted && !isSavedDialog && <Icon name="muted" />}
           <div className="separator" />
           {lastMessage && (

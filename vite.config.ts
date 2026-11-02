@@ -8,6 +8,7 @@ import { defineConfig, loadEnv, normalizePath, type Plugin, type PluginOption, t
 import { type Target, viteStaticCopy } from 'vite-plugin-static-copy';
 import { watchAndRun } from 'vite-plugin-watch-and-run';
 
+import buildDevSessionsPlugin from './plugins/devSessions.ts';
 import buildGitInfoPlugin from './plugins/gitInfo.ts';
 import packageJson from './package.json' with { type: 'json' };
 
@@ -96,6 +97,8 @@ export default defineConfig(({ mode }): UserConfig => {
       isDevelopmentMode,
       rootDir: DIR_NAME,
     }),
+    // PXG: входы для разработки — в папке вне git (docs/TESTING.md)
+    isDevelopmentMode && buildDevSessionsPlugin({ filePath: resolve(DIR_NAME, '../../.dev-sessions/browser.json') }),
     viteStaticCopy({ targets: WATCHED_STATIC_COPY_TARGETS }),
     viteStaticCopy({
       targets: UNWATCHED_STATIC_COPY_TARGETS,

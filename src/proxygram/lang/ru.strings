@@ -335,7 +335,12 @@
 "PxgGuestNoChatsNoUsername" = "Вам пока ничего не открыли. Попросите владельца поделиться чатом с вами.";
 "PxgChatNotShared" = "Этот чат вам не открыт";
 "PxgWriteAsOwner" = "Вы пишете от имени {name}: собеседник видит {name}, а не вас. {name} видит, что это написали вы.";
-"PxgViaOwner" = "через {name}";
+"PxgFromOwner" = "от {name}";
+"PxgFromOwnerHint" = "Этим чатом с вами поделился {name}. Нажмите, чтобы перейти к этому человеку";
+"PxgSharedFor" = "для {name}";
+"PxgSharedForMany" = "для {name} +{count}";
+"PxgSharedForHint" = "Вы открыли этот чат: {names}. Нажмите, чтобы управлять доступом";
+"PxgOwnerUnreachable" = "У {name} нет ника, и в вашем Telegram пока нет чата с этим человеком";
 "PxgAutostart" = "Запускать при входе в систему";
 "PxgAutostartHint" = "Приложение откроется в трее и будет получать сообщения";
 "PxgFloodDelay" = "Telegram задержал отправку на {seconds} с — сообщение уйдёт само";

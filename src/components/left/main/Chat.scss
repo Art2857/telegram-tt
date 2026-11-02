@@ -385,8 +385,10 @@
     }
   }
 
-  // PXG: whose account a shared chat comes from
+  // PXG: who shared the chat with the viewer
   .pxg-via {
+    cursor: var(--custom-cursor, pointer);
+
     overflow: hidden;
     flex-shrink: 1;
 
@@ -401,6 +403,20 @@
     white-space: nowrap;
 
     background-color: rgba(var(--color-primary-shade-rgb), 0.12);
+
+    &:hover {
+      background-color: rgba(var(--color-primary-shade-rgb), 0.24);
+    }
+  }
+
+  // PXG: who the viewer shared their own chat with
+  .pxg-shared {
+    color: var(--color-error);
+    background-color: rgba(var(--color-error-rgb), 0.12);
+
+    &:hover {
+      background-color: rgba(var(--color-error-rgb), 0.24);
+    }
   }
 
   // Super specific selector to override the same in `ListItem`
@@ -432,7 +448,7 @@
     &.selected:not(.forum):hover {
       --background-color: var(--color-chat-active) !important;
 
-      .pxg-via {
+      .pxg-via, .pxg-shared {
         color: var(--color-white);
         background-color: rgba(255, 255, 255, 0.2);
       }

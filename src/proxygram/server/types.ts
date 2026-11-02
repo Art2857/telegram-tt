@@ -57,6 +57,9 @@ export interface AccessChat {
   restricted: AccessRestriction | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
+  /** Кто поделился: по ним полный вход переходит к этому человеку в своём Telegram */
+  providerUserId: number | null;
+  providerUsername: string | null;
   /** Premium у аккаунта владельца: несколько реакций и кастомные эмодзи */
   providerPremium?: boolean;
   /** Reactions allowed in a group or channel; `null` until the provider's worker reads them, and in private chats */
@@ -69,6 +72,13 @@ export interface AccessChat {
   pinnedAt: number | null;
   /** В архиве списка гостя, unix-секунды */
   archivedAt: number | null;
+}
+
+/** A chat of the owner and the people it is open to right now */
+export interface OutgoingChatDto {
+  accountId: string;
+  peerId: number;
+  grantees: string[];
 }
 
 /** A member of a shared group or channel, as the owner sees them */

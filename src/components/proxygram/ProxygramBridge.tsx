@@ -2,7 +2,7 @@ import { memo, useEffect } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
-import type { AccountDto, OutboxDoneDto } from '../../proxygram/server/types';
+import type { AccountDto, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
 
 import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
@@ -122,6 +122,24 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.d.status === 'flood') showNotification({ message: { key: 'PxgAccountFlood' } });
     });
   }, [connection, currentUserId, hasOwnSession, showNotification]);
+
+  // Кому открыты свои чаты — для подписи в списке чатов
+  useEffect(() => {
+    if (!hasOwnSession || !ownAccountId || connection !== 'online') return undefined;
+    const load = () => {
+      void pxgRpc.call<OutgoingChatDto[]>('shares.outgoingChats').then((chats) => {
+        setPxgState({
+          sharedChats: Object.fromEntries(chats
+            .filter((chat) => chat.accountId === ownAccountId)
+            .map((chat) => [String(chat.peerId), chat.grantees])),
+        });
+      }).catch(() => undefined);
+    };
+    load();
+    return pxgRpc.on((event) => {
+      if (event.e === 'shares.changed') load();
+    });
+  }, [connection, hasOwnSession, ownAccountId]);
 
   // Сколько чатов открыли этому человеку — для пункта меню «Открыто мне»; доступ выдали или отозвали — пересчёт
   useEffect(() => {

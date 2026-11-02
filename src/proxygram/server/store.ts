@@ -22,6 +22,8 @@ export interface PxgState {
   isConnectOpen: boolean;
   /** Сколько чатов открыли этому человеку другие */
   sharedCount?: number;
+  /** Свои чаты, открытые другим: ID чата Web A → имена тех, кому открыт */
+  sharedChats?: Record<string, string[]>;
   /** Чат Web A, которым делятся сейчас (окно «Поделиться чатом») */
   shareChatId?: string;
   /** Папка Telegram, которой делятся сейчас (окно «Поделиться папкой») */
@@ -61,7 +63,7 @@ export function setPxgState(patch: Partial<PxgState>) {
   );
   if (isNewIdentity) {
     state = { ...state,
-      accounts: undefined, sharedCount: undefined,
+      accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };

@@ -58,6 +58,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
       restricted: chat.restricted || undefined,
       providerName: chat.providerName || undefined,
+      providerUserId: chat.providerUserId || undefined,
+      providerUsername: chat.providerUsername || undefined,
       isProviderPremium: chat.providerPremium || undefined,
     },
   };
