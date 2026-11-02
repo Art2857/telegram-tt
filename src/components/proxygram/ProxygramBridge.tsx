@@ -138,7 +138,8 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     };
     load();
     return pxgRpc.on((event) => {
-      if (event.e === 'shares.changed') load();
+      // A chat that entered or left a shared folder arrives as a change of accesses
+      if (event.e === 'shares.changed' || event.e === 'access.changed') load();
     });
   }, [connection, hasOwnSession, ownAccountId]);
 
