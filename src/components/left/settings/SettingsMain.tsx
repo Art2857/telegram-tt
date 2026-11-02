@@ -93,7 +93,8 @@ const SettingsMain = ({
             isForSettings
           />
         )}
-        {currentUserId && (
+        {/* PXG: A guest has no Telegram phone, username or bio here — the block stays empty */}
+        {currentUserId && !isGuest && (
           <ChatExtra
             chatOrUserId={currentUserId}
             isInSettings

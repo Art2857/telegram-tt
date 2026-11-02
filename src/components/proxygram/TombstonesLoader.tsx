@@ -1,10 +1,13 @@
 import { memo, useEffect, useRef } from '../../lib/teact/teact';
 import { getGlobal, setGlobal, withGlobal } from '../../global';
 
+import type { ApiMessage } from '../../api/types';
 import type { AttributionDto, MessageDto } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
-import { selectChatLastMessageId, selectCurrentMessageList, selectViewportIds } from '../../global/selectors';
+import {
+  selectChatLastMessageId, selectChatMessages, selectCurrentMessageList, selectViewportIds,
+} from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { applyAttribution, insertTombstones, tombstoneToApiMessage } from '../../proxygram/archive/serverTombstones';
@@ -16,6 +19,8 @@ type OwnProps = {
 
 type StateProps = {
   chatId?: string;
+  /** Changes whenever Web A replaces the chat's messages, which drops the attribution overlay */
+  messagesById?: Record<number, ApiMessage>;
   minId?: number;
   maxId?: number;
   /** Окно ленты дошло до последнего сообщения чата */
@@ -32,7 +37,7 @@ const TAIL_RANGE = 10_000;
  * даже когда приложение было закрыто, — при открытии чата его надгробия встают на свои места в ленте.
  */
 const TombstonesLoader = ({
-  accountId, chatId, minId, maxId, isAtEnd,
+  accountId, chatId, messagesById, minId, maxId, isAtEnd,
 }: OwnProps & StateProps) => {
   // уже запрошенные диапазоны по чатам — при прокрутке туда-обратно сервер не дёргаем
   const fetchedRef = useRef(new Map<string, [number, number][]>());
@@ -74,6 +79,15 @@ const TombstonesLoader = ({
     return () => window.clearTimeout(timer);
   }, [accountId, chatId, minId, maxId, isAtEnd]);
 
+  // A history reload from Telegram replaces messages with fresh copies: the known marks go back without a request
+  useEffect(() => {
+    const known = chatId && messagesById ? attributionRef.current.get(chatId) : undefined;
+    if (!known?.length) return;
+    const current = getGlobal();
+    const global = applyAttribution(current, chatId!, known);
+    if (global !== current) setGlobal(global);
+  }, [chatId, messagesById]);
+
   return undefined;
 };
 
@@ -82,7 +96,7 @@ export default memo(withGlobal<OwnProps>(
     const list = selectCurrentMessageList(global);
     if (!list || list.type !== 'thread' || list.threadId !== MAIN_THREAD_ID) {
       return {
-        chatId: undefined, minId: undefined, maxId: undefined, isAtEnd: undefined,
+        chatId: undefined, messagesById: undefined, minId: undefined, maxId: undefined, isAtEnd: undefined,
       };
     }
     const viewportIds = selectViewportIds(global, list.chatId, MAIN_THREAD_ID);
@@ -90,6 +104,7 @@ export default memo(withGlobal<OwnProps>(
     const lastId = selectChatLastMessageId(global, list.chatId);
     return {
       chatId: list.chatId,
+      messagesById: selectChatMessages(global, list.chatId),
       minId: viewportIds?.[0],
       maxId,
       isAtEnd: maxId !== undefined && lastId !== undefined && maxId >= lastId,
