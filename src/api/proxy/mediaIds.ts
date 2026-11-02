@@ -4,7 +4,7 @@ import { isProxyPeerId } from './ids';
 const EFFECT_SIZE = '?size=f';
 const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|$)/;
 // Reaction animations are requested as `sticker<id>` too
-const CATALOG_HASH = /^(?:document|sticker)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
+const CATALOG_HASH = /^(?:document|sticker|photo)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
 const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?\d+$/;
 /** A profile photo opened in the viewer: `photo<id>` with the size the viewer asks for */
 const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+)(?:\?size=(\w))?$/;

@@ -1,6 +1,6 @@
 import type {
-  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, SeenByDto, SendAsPeerDto,
-  TopicsListResult,
+  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto, MemberDto, MessageDto,
+  PeerBriefDto, SeenByDto, SendAsPeerDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -17,7 +17,8 @@ import { getPxgState } from '../../proxygram/server/store';
 import {
   buildProxyAuthorChat, buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo,
   buildProxyDraft,
-  buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
+  buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyViaBot,
+  buildProxyWebPage,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -29,13 +30,15 @@ import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
-  fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers,
+  buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
+  fetchFavoriteStickers,
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import { translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
-  editTopic, fetchScheduledHistory, forwardMessages, markMessageListRead, markMessagesRead, pinMessage,
+  editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, getSendAsPeerId,
+  markMessageListRead, markMessagesRead, pinMessage,
   readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote, sendReaction,
   sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
@@ -102,6 +105,8 @@ const methods = {
   toggleChatPinned,
   toggleChatArchived,
   toggleDialogUnread,
+  fetchInlineBotResults,
+  sendInlineBotResult,
   fetchSeenBy,
   fetchSendAs,
   saveDefaultSendAs,
@@ -508,6 +513,7 @@ function buildMessageUsers(dto: MessageDto): ApiUser[] {
   const actionUsers = dto.action && 'users' in dto.action ? dto.action.users : [];
   return [
     ...actionUsers.map(({ id, name }) => buildProxyUser(dto.accountId, id, name || undefined)),
+    ...(dto.viaBot ? [buildProxyViaBot(dto.accountId, dto.viaBot)] : []),
     ...[...(dto.post?.recentRepliers || []), ...(dto.reactors || [])].filter(({ peerId }) => peerId > 0)
       .map(({ peerId, name, photoId }) => buildProxyUser(dto.accountId, peerId, name || undefined, photoId)),
     ...(dto.senderId && dto.senderId > 0 ? [buildProxyUser(
@@ -534,6 +540,10 @@ function emitRelated(dto: MessageDto) {
   emitPeerBriefs(dto.accountId, dto.post?.recentRepliers);
   emitPeerBriefs(dto.accountId, dto.reactors);
   buildAuthorChats(dto).forEach((chat) => emitProxyUpdate({ '@type': 'updateChat', id: chat.id, chat }));
+  if (dto.viaBot) {
+    const bot = buildProxyViaBot(dto.accountId, dto.viaBot);
+    emitProxyUpdate({ '@type': 'updateUser', id: bot.id, user: bot });
+  }
   const commentsInfo = buildProxyCommentsInfo(dto);
   if (commentsInfo) emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo: commentsInfo });
   const poll = buildProxyPoll(dto);
@@ -574,6 +584,77 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/**
+ * An inline bot is resolved through the account of the chat it is used in. `getChatByUsername` knows no chat and
+ * would ask Telegram for someone a guest has no session to reach
+ */
+export async function fetchProxyInlineBot(chat: ApiChat, username: string) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer || !chat.pxgProxy?.permissions.write) return undefined;
+  const bot = await pxgRpc.call<InlineBotDto | null>('bots.inlineInfo', { ...peer, username }).catch(() => undefined);
+  if (!bot) return undefined;
+  const user: ApiUser = {
+    ...buildProxyUser(peer.accountId, bot.peerId, bot.name || bot.username, bot.photoId),
+    type: 'userTypeBot',
+    usernames: [{ username: bot.username, isActive: true }],
+    botPlaceholder: bot.placeholder,
+  };
+  emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+  return { user };
+}
+
+async function fetchInlineBotResults({ bot, chat, query, offset }: MethodArgs<'fetchInlineBotResults'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  const username = bot.usernames?.[0]?.username;
+  if (!peer || !username) return undefined;
+  const result = await pxgRpc.call<InlineResultsDto>('bots.inlineQuery', {
+    ...peer, username, query, offset: offset || undefined,
+  }).catch(() => undefined);
+  if (!result) return undefined;
+  return {
+    isGallery: result.isGallery,
+    help: bot.botPlaceholder,
+    nextOffset: result.nextOffset,
+    // Both lead to the bot's own chat with the owner, which a guest does not have
+    switchPm: undefined,
+    switchWebview: undefined,
+    results: result.results.map((item) => buildInlineResult(peer.accountId, item)),
+    cacheTime: result.cacheTime,
+  };
+}
+
+/** The bot's message is written by Telegram, so unlike `sendMessage` it appears when the job is done */
+async function sendInlineBotResult({
+  chat, replyInfo, resultId, queryId, sendAs, isSilent, scheduleDate,
+}: MethodArgs<'sendInlineBotResult'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
+  const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
+  const replyToMsgId = messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
+  try {
+    const { msgId } = await runProxyJob('messages.send', {
+      ...peer,
+      text: '',
+      inline: { queryId, resultId },
+      replyToMsgId,
+      topicId,
+      threadId: !chat.isForum ? messageReply?.replyToTopId : undefined,
+      silent: isSilent,
+      scheduleDate,
+      sendAsPeerId: getSendAsPeerId(sendAs),
+    }) as { msgId: number };
+    if (scheduleDate) return;
+    const sent = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: [msgId] });
+    sent.messages.forEach((dto) => {
+      emitRelated(dto);
+      emitProxyUpdate({ '@type': 'newMessage', id: dto.msgId, chatId: chat.id, message: buildProxyMessage(dto, chat) });
+    });
+  } catch (err) {
+    emitProxyError(err);
+  }
 }
 
 /** Who the owner may write as, as Telegram lists it; the guest's choice stays on the server and the owner's setting stays */

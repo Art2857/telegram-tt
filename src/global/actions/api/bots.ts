@@ -23,6 +23,7 @@ import requestActionTimeout from '../../../util/requestActionTimeout';
 import { debounce } from '../../../util/schedulers';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
 import { callApi } from '../../../api/gramjs';
+import { fetchProxyInlineBot } from '../../../api/proxy/methods';
 import {
   getMainUsername,
   getUserFullName,
@@ -393,7 +394,9 @@ addActionHandler('queryInlineBot', async (global, actions, payload): Promise<voi
   }
 
   if (inlineBotData === undefined) {
-    const { user: inlineBot } = await callApi('getChatByUsername', username) || {};
+    const { user: inlineBot } = await (
+      chat.pxgProxy ? fetchProxyInlineBot(chat, username) : callApi('getChatByUsername', username)
+    ) || {};
     global = getGlobal();
     if (!inlineBot || !isUserBot(inlineBot) || !inlineBot.botPlaceholder) {
       global = replaceInlineBotSettings(global, username, false, tabId);

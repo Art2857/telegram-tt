@@ -66,6 +66,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendVoices: chat.permissions.sendMedia ? undefined : true,
       sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
       sendPolls: chat.permissions.write ? undefined : true,
+      // A bot's result is often a file, and the bot decides which
+      sendInline: chat.permissions.sendMedia ? undefined : true,
       // Topics are created as the owner: only with the admin permission
       manageTopics: chat.permissions.admin ? undefined : true,
       // Inviting people into the owner's chat is not a guest action
@@ -277,6 +279,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     // Without `forwardOut` a guest still copies and saves what they read; only Telegram's own protection forbids it
     isProtected: dto.isProtected || undefined,
     effectId: dto.effectId,
+    viaBotId: dto.viaBot ? getProxyPeerId(dto.accountId, dto.viaBot.peerId) : undefined,
     isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
@@ -421,6 +424,18 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       unreadReactionsCount: dto.unreadReactionsCount,
     },
     lastMessageId: dto.lastMsgId ?? undefined,
+  };
+}
+
+/** "via @bot" under a message needs the bot's username; opening the bot's chat stays with the owner */
+export function buildProxyViaBot(
+  accountId: string, { peerId, username }: { peerId: number; username: string },
+): ApiUser {
+  return {
+    ...buildProxyUser(accountId, peerId, username),
+    type: 'userTypeBot',
+    hasUsername: true,
+    usernames: [{ username, isActive: true }],
   };
 }
 

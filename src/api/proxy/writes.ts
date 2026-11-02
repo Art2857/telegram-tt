@@ -323,7 +323,7 @@ export async function sendMessageAction({ peer: target, action }: MethodArgs<'se
 
 /** Between chats of one provider account Telegram forwards natively; other targets are not supported */
 /** Only a channel is named: the owner's own account is what Telegram uses anyway */
-function getSendAsPeerId(sendAs?: ApiPeer) {
+export function getSendAsPeerId(sendAs?: ApiPeer) {
   const peer = sendAs && resolveProxyPeer(sendAs.id);
   return peer && peer.peerId < 0 ? peer.peerId : undefined;
 }
@@ -454,7 +454,7 @@ export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
   return true;
 }
 
-function emitProxyError(err: unknown) {
+export function emitProxyError(err: unknown) {
   emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : 'Unknown error' } });
 }
 

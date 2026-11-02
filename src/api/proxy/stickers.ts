@@ -1,9 +1,11 @@
 import type {
-  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, ReactionAnimation, StickerCatalogDto,
+  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, InlineResultDto, ReactionAnimation,
+  StickerCatalogDto,
 } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
 import type {
-  ApiAvailableEffect, ApiAvailableReaction, ApiDocument, ApiSticker, ApiStickerSet, ApiVideo,
+  ApiAvailableEffect, ApiAvailableReaction, ApiBotInlineMediaResult, ApiBotInlineResult, ApiDocument,
+  ApiInlineResultType, ApiSticker, ApiStickerSet, ApiVideo,
 } from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
 
@@ -20,6 +22,7 @@ const CATALOG_TTL_MS = 60_000;
 const SET_ID_PREFIX = 'pxgset_';
 const PROXY_SET_ID = /^pxgset_([0-9a-f-]{36})_(\d+)$/;
 const EMPTY_HASH = '0';
+const DEFAULT_RESULT_SIZE = 512;
 
 let cached: { userId: string; at: number; catalog: Promise<StickerCatalogDto[]> } | undefined;
 
@@ -192,6 +195,39 @@ export async function fetchAvailableEffects() {
       effectAnimation ? [] : [buildEffectSticker(effectSticker, isPremium)]
     )),
   };
+}
+
+/** A result of an inline bot: its file comes through the owner's account, like a sticker of the owner's panel */
+export function buildInlineResult(
+  accountId: string, { id, queryId, type, title, description, url, document }: InlineResultDto,
+): ApiBotInlineResult | ApiBotInlineMediaResult {
+  const base = { id, queryId, type: type as ApiInlineResultType, title, description, sendMessage: { content: {} } };
+  const userId = getPxgState().session?.user.id;
+  if (!document || !userId) return { ...base, url };
+  const mediaId = buildProxyCatalogMediaId(userId, accountId, document.id);
+  const size = { width: document.width || DEFAULT_RESULT_SIZE, height: document.height || DEFAULT_RESULT_SIZE };
+  if (type === 'photo') {
+    return { ...base, photo: { mediaType: 'photo', id: mediaId, date: 0, sizes: [{ type: 'x', ...size }] } };
+  }
+  if (type === 'sticker') {
+    return {
+      ...base,
+      sticker: {
+        mediaType: 'sticker',
+        id: mediaId,
+        stickerSetInfo: { isMissing: true },
+        emoji: document.emoji || undefined,
+        isFree: true,
+        isLottie: document.mimeType === 'application/x-tgsticker',
+        isVideo: document.mimeType === 'video/webm',
+        ...size,
+      },
+    };
+  }
+  if (type === 'gif' || type === 'mpeg4_gif' || type === 'video') {
+    return { ...base, gif: { ...buildProxyGif(accountId, document), ...size } };
+  }
+  return { ...base, document: buildCatalogDocument(userId, accountId, document) };
 }
 
 export function buildFallbackReactions(): ApiAvailableReaction[] {

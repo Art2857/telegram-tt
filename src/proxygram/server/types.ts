@@ -98,6 +98,29 @@ export interface PeerBriefDto {
   photoId: string | null;
 }
 
+/** An inline bot as the owner's account sees it */
+export interface InlineBotDto extends PeerBriefDto {
+  username: string;
+  placeholder: string;
+}
+
+export interface InlineResultDto {
+  id: string;
+  queryId: string;
+  type: string;
+  title?: string;
+  description?: string;
+  url?: string;
+  document?: CatalogDocumentDto;
+}
+
+export interface InlineResultsDto {
+  isGallery: boolean;
+  nextOffset?: string;
+  cacheTime: number;
+  results: InlineResultDto[];
+}
+
 /** Who the owner may write as in a chat */
 export interface SendAsPeerDto extends PeerBriefDto {
   isPremium: boolean;
@@ -247,6 +270,8 @@ export interface MessageDto {
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
   isProtected?: boolean;
   effectId?: string;
+  /** Sent through an inline bot */
+  viaBot?: { peerId: number; username: string };
   /** The owner was mentioned, and the guest has not read it yet */
   hasUnreadMention?: boolean;
   attachment?: AttachmentDto;
@@ -414,7 +439,7 @@ export interface AttributionDto {
 
 export interface CatalogDocumentDto {
   id: string;
-  kind: 'sticker' | 'gif' | 'emoji' | 'reaction';
+  kind: 'sticker' | 'gif' | 'emoji' | 'reaction' | 'inline';
   setId: string | null;
   emoji: string | null;
   mimeType: string;
