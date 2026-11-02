@@ -66,7 +66,9 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
 }
 
 /** Admin actions the guest makes as the owner: rights the guest supports, only with the `admin` permission */
-const PROXY_ADMIN_RIGHTS = ['changeInfo', 'pinMessages', 'editMessages', 'manageTopics', 'deleteMessages'] as const;
+const PROXY_ADMIN_RIGHTS = [
+  'changeInfo', 'pinMessages', 'editMessages', 'manageTopics', 'deleteMessages', 'banUsers',
+] as const;
 
 function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 'isOwner' | 'defaultBannedRights'> {
   const { info } = chat;

@@ -360,6 +360,17 @@ async function editProxyChat(chatId: string, changes: Record<string, unknown>) {
   await runProxyJob('chats.edit', { ...peer, ...changes });
 }
 
+/** Removing a member is banning them from viewing the chat; partial restrictions are not exposed to a guest */
+export async function updateChatMemberBannedRights({
+  chat, peer, bannedRights,
+}: MethodArgs<'updateChatMemberBannedRights'>[0]) {
+  const proxy = resolveProxyPeer(chat.id);
+  const target = resolveProxyPeer(peer.id);
+  if (!proxy || !target) return undefined;
+  await runProxyJob('chats.ban', { ...proxy, userId: target.peerId, banned: Boolean(bannedRights.viewMessages) });
+  return true as const;
+}
+
 /** Topics of the owner's forum: the guest manages them with the owner's rights there */
 export async function createTopic({
   chat, title, iconColor, iconEmojiId,

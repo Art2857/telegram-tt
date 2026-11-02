@@ -35,7 +35,7 @@ import {
   answerCallbackButton, createTopic, deleteMessages, deleteTopic, editChatPhoto, editMessage, editTopic,
   forwardMessages, markMessageListRead, pinMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote,
   sendReaction, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
-  updateChatNotifySettings, updateChatTitle,
+  updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -52,7 +52,7 @@ const MAX_PINNED = 100;
 /** Admin actions of a guest and speech-to-text: Telegram may refuse them, and Web A waits for their result */
 const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
   'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto', 'createTopic', 'editTopic',
-  'togglePinnedTopic', 'deleteTopic', 'transcribeAudio',
+  'togglePinnedTopic', 'deleteTopic', 'transcribeAudio', 'updateChatMemberBannedRights',
 ]);
 
 const methods = {
@@ -93,6 +93,7 @@ const methods = {
   toggleChatPinned,
   toggleChatArchived,
   toggleDialogUnread,
+  updateChatMemberBannedRights,
   saveDraft,
   fetchNotifyDefaultSettings,
   updateNotificationSettings,
