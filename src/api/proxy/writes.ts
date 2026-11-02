@@ -272,6 +272,33 @@ export async function toggleChatArchived({ chat, folderId }: MethodArgs<'toggleC
   return true as const;
 }
 
+/** «Unread» is the guest's own mark: the owner's Telegram stays as it is */
+export async function toggleDialogUnread({ chat, hasUnreadMark }: MethodArgs<'toggleDialogUnread'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await pxgRpc.call('chats.markUnread', { ...peer, unread: Boolean(hasUnreadMark) });
+    emitProxyUpdate({
+      '@type': 'updateThreadReadState', chatId: chat.id, threadId: MAIN_THREAD_ID, readState: { hasUnreadMark },
+    });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** A draft stays with the guest on all of their devices and never reaches the owner's Telegram */
+export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const replyInfo = draft?.replyInfo?.type === 'message' ? draft.replyInfo : undefined;
+  const topicId = chat.isForum ? replyInfo?.replyToTopId : undefined;
+  const replyToMsgId = replyInfo?.replyToMsgId !== topicId ? replyInfo?.replyToMsgId : undefined;
+  await pxgRpc.call('drafts.save', {
+    ...peer, topicId, text: draft?.text?.text || '', entities: draft?.text?.entities, replyToMsgId,
+  });
+  return true;
+}
+
 function emitProxyError(err: unknown) {
   emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : 'Unknown error' } });
 }

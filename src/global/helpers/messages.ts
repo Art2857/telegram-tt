@@ -488,7 +488,9 @@ export function isUploadingFileSticker(attachment: ApiAttachment) {
 export function getMessageLink(peer: ApiPeer, topicId?: ThreadId, messageId?: number) {
   const chatUsername = getMainUsername(peer);
 
-  const normalizedId = getRawPeerId(peer.id).toString();
+  // PXG: A shared chat has a local ID here, while the link leads to the real chat in Telegram
+  const proxyPeerId = 'pxgProxy' in peer ? peer.pxgProxy?.peerId : undefined;
+  const normalizedId = getRawPeerId(proxyPeerId !== undefined ? String(proxyPeerId) : peer.id).toString();
 
   const chatPart = chatUsername || `c/${normalizedId}`;
   const topicPart = topicId && topicId !== MAIN_THREAD_ID ? `/${topicId}` : '';

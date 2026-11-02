@@ -1,6 +1,6 @@
 // Зеркало типов из packages/protocol: клиент живёт вне pnpm workspace и не тянет zod.
 // Меняя протокол на сервере — поменяйте и здесь.
-import type { ApiTypingStatus } from '../../api/types';
+import type { ApiMessageEntity, ApiTypingStatus } from '../../api/types';
 
 export type SessionLevel = 'guest' | 'client';
 
@@ -272,6 +272,18 @@ export interface ChatUnreadDto {
   peerId: number;
   unreadCount: number;
   readMaxId: number;
+  /** The guest marked the chat unread on their own */
+  hasUnreadMark: boolean;
+}
+
+export interface DraftDto {
+  accountId: string;
+  peerId: number;
+  topicId: number | null;
+  text: string;
+  entities: ApiMessageEntity[];
+  replyToMsgId: number | null;
+  date: number;
 }
 
 export interface TopicsListResult {
@@ -437,6 +449,7 @@ export interface UserStatusDto {
 }
 
 export type ServerEvent =
+  | { e: 'draft.changed'; d: { accountId: string; peerId: number; topicId: number | null; draft: DraftDto | null } }
   | { e: 'chat.typing'; d: ChatTypingDto }
   | { e: 'user.status'; d: { accountId: string; userId: number; status: UserStatusDto } }
   | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }

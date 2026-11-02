@@ -28,7 +28,7 @@ import {
   SERVICE_NOTIFICATIONS_USER_ID,
 } from '../../config';
 import { IS_TRANSLATION_SUPPORTED } from '../../util/browser/windowEnvironment';
-import { isUserId } from '../../util/entities/ids';
+import { isChannelId, isUserId } from '../../util/entities/ids';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import { getMessageKey, isLocalMessageId } from '../../util/keys/messageKey';
 import { getTranslationCacheKey, parseTranslationCacheKey } from '../../util/keys/translationKey';
@@ -614,6 +614,8 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     const isPinnedProxy = Boolean(selectPinnedIds(global, chat.id, threadId)?.includes(message.id));
     return {
       noOptions: false, canCopy: true, canSelect: true,
+      // Telegram has message links in channels and supergroups, not in basic groups and private chats
+      canCopyLink: isSaved && !message.content.action && isChannelId(String(chat.pxgProxy.peerId)),
       canPin: canPinProxy && !isPinnedProxy, canUnpin: canPinProxy && isPinnedProxy,
       canReply: permissions.write && isSaved,
       canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete,

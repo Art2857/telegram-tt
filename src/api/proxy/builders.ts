@@ -1,7 +1,8 @@
-import type { AccessChat, MessageDto, TopicDto, UserStatusDto } from '../../proxygram/server/types';
+import type { AccessChat, DraftDto, MessageDto, TopicDto, UserStatusDto } from '../../proxygram/server/types';
 import type {
-  ApiChat, ApiChatFullInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiMessageReplyInfo,
-  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
+  ApiChat, ApiChatFullInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll,
+  ApiMessageReplyInfo, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser,
+  ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -134,6 +135,14 @@ const USER_STATUS_TYPES: Record<UserStatusDto['type'], ApiUserStatus['type']> = 
 
 export function buildProxyUserStatus({ type, expires, wasOnline }: UserStatusDto): ApiUserStatus {
   return { type: USER_STATUS_TYPES[type], expires, wasOnline };
+}
+
+export function buildProxyDraft({ text, entities, replyToMsgId, topicId, date }: DraftDto): ApiDraft {
+  return {
+    text: text ? { text, entities } : undefined,
+    replyInfo: replyToMsgId ? { type: 'message', replyToMsgId, replyToTopId: topicId || undefined } : undefined,
+    date,
+  };
 }
 
 /** `null` means the user has no photo; an omitted `photoId` keeps the avatar already known from other messages */

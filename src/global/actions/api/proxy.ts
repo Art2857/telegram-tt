@@ -27,11 +27,12 @@ import {
 } from '../../reducers';
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
-import { updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
+import { replaceThreadLocalStateParam, updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
 import {
   selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException,
 } from '../../selectors';
+import { selectDraft } from '../../selectors/threads';
 import { initSharedState } from '../../shared/sharedStateConnector';
 
 let loadGeneration = 0;
@@ -156,6 +157,11 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       global = updateThreadInfo(global, { chatId: chat.id, threadId: list!.threadId, isCommentsInfo: false });
     });
     global = updateMainThreadReadStates(global, result.threadReadStatesById);
+    // A draft being written here stays until it is saved; otherwise the server's one is the guest's latest
+    result.chatIds.forEach((id) => {
+      if (selectDraft(global, id, MAIN_THREAD_ID)?.isLocal) return;
+      global = replaceThreadLocalStateParam(global, id, MAIN_THREAD_ID, 'draft', result.draftsById[id]);
+    });
     // The chat's profile and reaction settings arrive with the accesses and change with them
     Object.entries(result.fullInfoById).forEach(([id, fullInfo]) => {
       global = updateChatFullInfo(global, id, fullInfo);

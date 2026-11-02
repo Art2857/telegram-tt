@@ -7,7 +7,7 @@ import type { AccountDto, OutboxDoneDto, OutgoingChatDto } from '../../proxygram
 import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
-import { buildProxyUserStatus } from '../../api/proxy/builders';
+import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
@@ -163,6 +163,14 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.e === 'chats.state') applyProxyChatState(event.d);
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();
       if (event.e === 'chat.typing') applyProxyTyping(event.d);
+      if (event.e === 'draft.changed') {
+        apiUpdate({
+          '@type': 'draftMessage',
+          chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
+          threadId: event.d.topicId || undefined,
+          draft: event.d.draft ? buildProxyDraft(event.d.draft) : undefined,
+        });
+      }
       if (event.e === 'user.status') {
         apiUpdate({
           '@type': 'updateUserStatus',

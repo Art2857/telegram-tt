@@ -1,5 +1,5 @@
 import type {
-  AccessChat, ChatUnreadDto, MemberDto, MessageDto, TopicsListResult,
+  AccessChat, ChatUnreadDto, DraftDto, MemberDto, MessageDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -7,12 +7,13 @@ import type { ApiChat, ApiChatMember, ApiMessage, ApiPeer, ApiPhoto, ApiUser } f
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
+import { getMessageLink } from '../../global/helpers/messages';
 import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
-  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic,
-  buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
+  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyDraft, buildProxyMessage, buildProxyPoll,
+  buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -30,9 +31,9 @@ import {
 import { translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteTopic, editChatPhoto, editMessage, editTopic,
-  forwardMessages, markMessageListRead, pinMessage, sendMessage, sendMessageAction, sendPollVote, sendReaction,
-  toggleChatArchived, toggleChatPinned, togglePinnedTopic, updateChatAbout, updateChatNotifySettings,
-  updateChatTitle,
+  forwardMessages, markMessageListRead, pinMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote,
+  sendReaction, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
+  updateChatNotifySettings, updateChatTitle,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -89,6 +90,9 @@ const methods = {
   updateChatNotifySettings,
   toggleChatPinned,
   toggleChatArchived,
+  toggleDialogUnread,
+  saveDraft,
+  exportMessageLink,
   sendReaction,
   pinMessage,
   fetchPinnedMessages,
@@ -140,9 +144,10 @@ export async function callProxyApi<T extends keyof Methods>(
 
 export async function fetchProxyChats() {
   const sessionId = getPxgState().session?.user.id;
-  const [access, unread] = await Promise.all([
+  const [access, unread, drafts] = await Promise.all([
     pxgRpc.call<AccessChat[]>('access.chats'),
     pxgRpc.call<ChatUnreadDto[]>('chats.unread').catch(() => []),
+    pxgRpc.call<DraftDto[]>('drafts.list').catch(() => []),
   ]);
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
@@ -169,7 +174,9 @@ export async function fetchProxyChats() {
     userStatusesById: Object.fromEntries(access.flatMap((item, index) => (
       item.userStatus ? [[chats[index].id, buildProxyUserStatus(item.userStatus)]] : []
     ))),
-    draftsById: {},
+    draftsById: Object.fromEntries(drafts.filter((draft) => !draft.topicId).map((draft) => [
+      getProxyPeerId(draft.accountId, draft.peerId), buildProxyDraft(draft),
+    ])),
     // A guest mutes a shared chat only for themselves; the server keeps it for every device and for pushes
     notifyExceptionById: Object.fromEntries(access.flatMap((item, index) => (
       item.mutedUntil ? [[chats[index].id, { mutedUntil: item.mutedUntil }]] : []
@@ -196,7 +203,9 @@ export async function fetchProxyChats() {
 /** The guest's own counters, kept by the server for every device and independent of the owner's read state */
 export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, ThreadReadState> {
   return Object.fromEntries(unread.map((item) => [getProxyPeerId(item.accountId, item.peerId), {
-    unreadCount: item.unreadCount, lastReadInboxMessageId: item.readMaxId,
+    unreadCount: item.unreadCount,
+    lastReadInboxMessageId: item.readMaxId,
+    hasUnreadMark: item.hasUnreadMark || undefined,
   }]));
 }
 
@@ -332,11 +341,14 @@ async function fetchTopics({ chat, query, offsetTopicId, limit = TOPICS_SLICE }:
   const topics = search
     ? result.topics.filter((topic) => topic.title.toLocaleLowerCase().includes(search)) : result.topics;
   result.messages.forEach((dto) => emitRelated(dto));
+  const drafts = await pxgRpc.call<DraftDto[]>('drafts.list').catch(() => []);
   return {
     topics: topics.map((topic) => buildProxyTopic(topic, chat.id)),
     messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
     count: search ? topics.length : result.count,
-    draftsById: {},
+    draftsById: Object.fromEntries(drafts
+      .filter((draft) => draft.topicId && draft.accountId === peer.accountId && draft.peerId === peer.peerId)
+      .map((draft) => [draft.topicId!, buildProxyDraft(draft)])),
   };
 }
 
@@ -383,6 +395,11 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** A link to the real message in Telegram: it opens for those who have that chat in their own Telegram */
+function exportMessageLink({ chat, id }: MethodArgs<'exportMessageLink'>[0]) {
+  return Promise.resolve(getMessageLink(chat, undefined, id));
 }
 
 /** A guest mutes a topic only for themselves, as with whole chats */

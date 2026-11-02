@@ -237,7 +237,7 @@ const useChatContextActions = ({
 
     if (isGuestChat) {
       return compact([
-        actionMarkAsRead, !isInSearch && actionAddToFolder, !isInSearch && actionPin,
+        actionMarkAsRead, actionMarkAsUnread, !isInSearch && actionAddToFolder, !isInSearch && actionPin,
         actionMute, !isInSearch && folderId === undefined && actionArchive,
       ]);
     }
