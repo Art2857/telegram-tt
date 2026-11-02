@@ -28,12 +28,12 @@ import {
 import { getIsChatMuted } from '../../../global/helpers/notifications';
 import {
   selectCanAnimateInterface,
+  selectCanUseFolderTags,
   selectChat,
   selectChatFullInfo,
   selectChatLastMessageInfo,
   selectCurrentMessageList,
   selectIsCurrentUserFrozen,
-  selectIsCurrentUserPremium,
   selectIsForumPanelClosed,
   selectIsForumPanelOpen,
   selectMonoforumChannel,
@@ -625,7 +625,6 @@ export default memo(withGlobal<OwnProps>(
 
     const chatFolderIds = getChatFolderIds(chatId);
     const { areTagsEnabled } = global.chatFolders;
-    const isPremium = selectIsCurrentUserPremium(global);
 
     const isCommunity = isChatCommunity(chat);
 
@@ -671,7 +670,7 @@ export default memo(withGlobal<OwnProps>(
       chatFolderIds,
       orderedFolderIds: global.chatFolders.orderedIds,
       chatFoldersById: global.chatFolders.byId,
-      areTagsEnabled: areTagsEnabled && isPremium,
+      areTagsEnabled: areTagsEnabled && selectCanUseFolderTags(global),
     };
   },
 )(Chat));

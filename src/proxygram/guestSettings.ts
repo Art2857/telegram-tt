@@ -1,5 +1,5 @@
 import { addCallback, removeCallback } from '../lib/teact/teactn';
-import { getGlobal } from '../global';
+import { getGlobal, setGlobal } from '../global';
 
 import type { SharedSettings } from '../global/types/sharedState';
 
@@ -15,8 +15,13 @@ const SETTINGS_KEYS = [
   'canDisplayChatInTitle', 'performance', 'wasAnimationLevelSetManually',
 ] as const;
 
+type GuestSettings = Partial<SharedSettings> & {
+  /** Folder tags in the chat list: a Telegram account setting, which a guest keeps here */
+  folderTags?: boolean;
+};
+
 /** Sync only portable interface preferences; browser geometry, debug flags and credentials stay on the device */
-export function startGuestSettingsSync(apply: (settings: Partial<SharedSettings>) => void) {
+export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSettings>) => void) {
   const userId = getPxgState().session!.user.id;
   let isActive = true;
   let isLoaded = false;
@@ -25,6 +30,14 @@ export function startGuestSettingsSync(apply: (settings: Partial<SharedSettings>
   let lastJson = JSON.stringify(readSettings());
   let pending: ReturnType<typeof readSettings> | undefined;
   let timer: number | undefined;
+
+  function apply({ folderTags, ...shared }: GuestSettings) {
+    applyShared(shared);
+    if (folderTags === undefined) return;
+    let global = getGlobal();
+    global = { ...global, chatFolders: { ...global.chatFolders, areTagsEnabled: folderTags } };
+    setGlobal(global);
+  }
 
   function isCurrent() {
     return isActive && getPxgState().session?.user.id === userId;
@@ -101,11 +114,16 @@ export function startGuestSettingsSync(apply: (settings: Partial<SharedSettings>
 }
 
 function readSettings() {
-  return pick(getGlobal().sharedState.settings, [...SETTINGS_KEYS]);
+  const global = getGlobal();
+  return {
+    ...pick(global.sharedState.settings, [...SETTINGS_KEYS]),
+    folderTags: Boolean(global.chatFolders.areTagsEnabled),
+  };
 }
 
-function sanitizeSettings(data: Record<string, unknown>): Partial<SharedSettings> {
+function sanitizeSettings(data: Record<string, unknown>): GuestSettings {
   const result: Record<string, unknown> = {};
+  if (typeof data.folderTags === 'boolean') result.folderTags = data.folderTags;
   const defaults = INITIAL_SHARED_STATE.settings;
   SETTINGS_KEYS.forEach((key) => {
     const value = data[key];

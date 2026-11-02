@@ -16,13 +16,14 @@ import {
 } from '../../../../api/types';
 
 import { FOLDER_TITLE_MAX_LENGTH, STICKER_SIZE_FOLDER_SETTINGS } from '../../../../config';
-import { selectCanShareFolder, selectCustomEmoji, selectIsCurrentUserPremium } from '../../../../global/selectors';
+import { selectCanShareFolder, selectCanUseFolderTags, selectCustomEmoji } from '../../../../global/selectors';
 import { selectCurrentLimit } from '../../../../global/selectors/limits';
 import buildClassName from '../../../../util/buildClassName';
 import { isUserId } from '../../../../util/entities/ids';
 import { findIntersectionWithSet } from '../../../../util/iteratees';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import { CUSTOM_PEER_EXCLUDED_CHAT_TYPES, CUSTOM_PEER_INCLUDED_CHAT_TYPES } from '../../../../util/objects/customPeer';
+import { isProxyPeerId } from '../../../../api/proxy/ids';
 import { LOCAL_TGS_URLS } from '../../../common/helpers/animatedAssets';
 import { renderTextWithEntities } from '../../../common/helpers/renderTextWithEntities';
 
@@ -68,6 +69,7 @@ type StateProps = {
   maxChatLists: number;
   chatListCount: number;
   isCurrentUserPremium: boolean;
+  isGuest: boolean;
 };
 
 const SUBMIT_TIMEOUT = 500;
@@ -101,6 +103,7 @@ const SettingsFoldersEdit = ({
   chatListCount,
   onSaveFolder,
   isCurrentUserPremium,
+  isGuest,
   isMobile,
 }: OwnProps & StateProps) => {
   const {
@@ -535,37 +538,42 @@ const SettingsFoldersEdit = ({
           {lang('FilterColorHint')}
         </IslandDescription>
 
-        <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>
-          {lang('FolderLinkScreenTitle')}
-        </IslandTitle>
-        <Island>
-          <ListItem
-            className="settings-folders-list-item color-primary"
-            icon="add"
-            narrow
-            onClick={handleCreateInviteClick}
-          >
-            {lang('ChatListFilterCreateLinkNew')}
-          </ListItem>
+        {/* PXG: A guest's folders cannot be shared as Telegram chat lists */}
+        {!isGuest && (
+          <>
+            <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>
+              {lang('FolderLinkScreenTitle')}
+            </IslandTitle>
+            <Island>
+              <ListItem
+                className="settings-folders-list-item color-primary"
+                icon="add"
+                narrow
+                onClick={handleCreateInviteClick}
+              >
+                {lang('ChatListFilterCreateLinkNew')}
+              </ListItem>
 
-          {invites?.map((invite) => (
-            <ListItem
-              className="settings-folders-list-item"
-              icon="link"
-              narrow
-              multiline
-              onClick={handleEditInviteClick}
-              clickArg={invite.url}
-            >
-              <span className="title" dir="auto">{invite.title || invite.url}</span>
-              <span className="subtitle">
-                {lang('ChatListFilterLinkLabelChatCount', {
-                  count: lang.number(invite.peerIds.length),
-                }, { pluralValue: invite.peerIds.length })}
-              </span>
-            </ListItem>
-          ))}
-        </Island>
+              {invites?.map((invite) => (
+                <ListItem
+                  className="settings-folders-list-item"
+                  icon="link"
+                  narrow
+                  multiline
+                  onClick={handleEditInviteClick}
+                  clickArg={invite.url}
+                >
+                  <span className="title" dir="auto">{invite.title || invite.url}</span>
+                  <span className="subtitle">
+                    {lang('ChatListFilterLinkLabelChatCount', {
+                      count: lang.number(invite.peerIds.length),
+                    }, { pluralValue: invite.peerIds.length })}
+                  </span>
+                </ListItem>
+              ))}
+            </Island>
+          </>
+        )}
       </Surface>
 
       <FloatingActionButton
@@ -586,7 +594,8 @@ export default memo(withGlobal<OwnProps>(
     const { byId, invites } = global.chatFolders;
     const chatListCount = Object.values(byId).reduce((acc, el) => acc + (el.isChatList ? 1 : 0), 0);
 
-    const isCurrentUserPremium = selectIsCurrentUserPremium(global);
+    // PXG: Folder colors are tags, which a guest has without Telegram Premium
+    const isCurrentUserPremium = selectCanUseFolderTags(global);
 
     return {
       loadedActiveChatIds: listIds.active,
@@ -597,6 +606,7 @@ export default memo(withGlobal<OwnProps>(
       maxChatLists: selectCurrentLimit(global, 'chatlistJoined'),
       chatListCount,
       isCurrentUserPremium,
+      isGuest: Boolean(global.currentUserId && isProxyPeerId(global.currentUserId)),
     };
   },
 )(SettingsFoldersEdit));

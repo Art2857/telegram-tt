@@ -10,7 +10,7 @@ import {
   ALL_FOLDER_ID, FOLDERS_POSITION_LEFT, FOLDERS_POSITION_TOP, STICKER_SIZE_FOLDER_SETTINGS,
 } from '../../../../config';
 import { getFolderDescriptionText } from '../../../../global/helpers';
-import { selectIsCurrentUserPremium } from '../../../../global/selectors';
+import { selectCanUseFolderTags, selectIsCurrentUserPremium } from '../../../../global/selectors';
 import { selectCurrentLimit } from '../../../../global/selectors/limits';
 import buildClassName from '../../../../util/buildClassName';
 import { isBetween } from '../../../../util/math';
@@ -51,6 +51,7 @@ type StateProps = {
   recommendedChatFolders?: ApiChatFolder[];
   maxFolders: number;
   isPremium?: boolean;
+  canUseTags?: boolean;
   areTagsEnabled?: boolean;
   foldersPosition: FoldersPosition;
 };
@@ -68,6 +69,7 @@ const SettingsFoldersMain = ({
   isActive,
   foldersById,
   isPremium,
+  canUseTags,
   recommendedChatFolders,
   maxFolders,
   areTagsEnabled,
@@ -182,12 +184,12 @@ const SettingsFoldersMain = ({
   }, [foldersById, maxFolders, addChatFolder, openLimitReachedModal]);
 
   const handleToggleTags = useCallback(() => {
-    if (!isPremium) {
+    if (!canUseTags) {
       return;
     }
 
     toggleDialogFilterTags({ isEnabled: !areTagsEnabled });
-  }, [areTagsEnabled, isPremium, toggleDialogFilterTags]);
+  }, [areTagsEnabled, canUseTags, toggleDialogFilterTags]);
 
   const handleDrag = useCallback((translation: { x: number; y: number }, id: string | number) => {
     const delta = Math.round(translation.y / FOLDER_HEIGHT_PX);
@@ -413,16 +415,16 @@ const SettingsFoldersMain = ({
           <Checkbox
             label={lang('ShowFolderTags')}
             subLabel={lang('ShowFolderTagsHint')}
-            checked={isPremium && areTagsEnabled}
+            checked={canUseTags && areTagsEnabled}
             onChange={handleToggleTags}
             onClickLabel={(event) => {
-              if (!isPremium) {
+              if (!canUseTags) {
                 event.preventDefault();
                 openPremiumModal();
               }
             }}
           />
-          {!isPremium && <Icon name="lock-filled" className="settings-folders-lock-icon" />}
+          {!canUseTags && <Icon name="lock-filled" className="settings-folders-lock-icon" />}
         </div>
       </Island>
       {!isMobile && (
@@ -461,6 +463,7 @@ export default memo(withGlobal<OwnProps>(
       folderIds,
       foldersById,
       isPremium: selectIsCurrentUserPremium(global),
+      canUseTags: selectCanUseFolderTags(global),
       recommendedChatFolders,
       maxFolders: selectCurrentLimit(global, 'dialogFilters'),
       areTagsEnabled,

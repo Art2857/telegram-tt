@@ -16,11 +16,16 @@ type FolderDto = Omit<ApiChatFolder, 'title' | 'includedChatIds' | 'excludedChat
 
 export async function fetchChatFolders() {
   const folders = await pxgRpc.call<FolderDto[]>('folders.list');
+  // Folder tags are a guest setting (guestSettings), so a folder reload leaves the current value in place
   return {
     byId: Object.fromEntries(folders.map((folder) => [folder.id, buildFolder(folder)])),
     orderedIds: [ALL_FOLDER_ID, ...folders.map((folder) => folder.id)],
-    areTagsEnabled: undefined,
-  };
+  } as { byId: Record<number, ApiChatFolder>; orderedIds: number[]; areTagsEnabled: true | undefined };
+}
+
+/** Saved on the server with the guest's other interface settings */
+export function toggleDialogFilterTags() {
+  return Promise.resolve(true as const);
 }
 
 export async function editChatFolder({ id, folderUpdate }: MethodArgs<'editChatFolder'>[0]) {

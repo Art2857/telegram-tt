@@ -16,6 +16,7 @@ import {
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
+  toggleDialogFilterTags,
 } from './folders';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
@@ -55,6 +56,7 @@ const methods = {
   deleteChatFolder,
   sortChatFolders,
   fetchRecommendedChatFolders,
+  toggleDialogFilterTags,
   fetchChats,
   fetchChat,
   searchChats,

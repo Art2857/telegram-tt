@@ -11,6 +11,7 @@ import {
 import { IS_TRANSLATION_SUPPORTED } from '../../util/browser/windowEnvironment';
 import { isUserId } from '../../util/entities/ids';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import {
   getApplicableRestrictionReasons,
   getHasAdminRight,
@@ -260,9 +261,15 @@ export function selectCanBanUsers<T extends GlobalState>(global: T, chatId: stri
   return getHasAdminRight(chat, 'banUsers');
 }
 
+/** PXG: A guest's folders are stored by Proxygram, so their colors and tags cost no Telegram Premium */
+export function selectCanUseFolderTags<T extends GlobalState>(global: T) {
+  return selectIsCurrentUserPremium(global) || Boolean(global.currentUserId && isProxyPeerId(global.currentUserId));
+}
+
 export function selectCanShareFolder<T extends GlobalState>(global: T, folderId: number) {
   const folder = selectChatFolder(global, folderId);
-  if (!folder || folder.pxgLocal) return false;
+  // PXG: A chat list invite is a Telegram account feature; a guest's folders live on the Proxygram server
+  if (!folder || folder.pxgLocal || (global.currentUserId && isProxyPeerId(global.currentUserId))) return false;
 
   const {
     bots, groups, channels, contacts, nonContacts, includedChatIds, pinnedChatIds,
