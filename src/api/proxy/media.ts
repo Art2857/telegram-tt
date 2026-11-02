@@ -17,6 +17,7 @@ import {
 } from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
+const ANIMATED_STICKER_MIME = 'application/x-tgsticker';
 const UNREGISTERED_CONTACT_ID = '0';
 // After a server restart the worker takes the account in ~40 s: waiting less leaves media empty until a reload
 const MEDIA_WAIT_MS = 120_000;
@@ -44,6 +45,7 @@ export function buildProxyMedia(dto: MessageDto, chatId: string): Partial<MediaC
       return { sticker: {
         mediaType: 'sticker', id, width, height, stickerSetInfo: { isMissing: true },
         isLottie: media.mimeType === 'application/x-tgsticker', isVideo: media.mimeType === 'video/webm',
+        hasEffect: media.flags?.includes('premium') || undefined,
       } };
     case 'video':
     case 'round':
@@ -134,6 +136,8 @@ export async function downloadMedia(
     }
   }
   if (!signed) return undefined;
+  // The server has only the sticker's animation for a message: it is no picture, and it plays over the placeholder
+  if (signed.mimeType === ANIMATED_STICKER_MIME && parseProxyMediaHash(url)?.isPreview) return buildEmptyPreview();
   const headers: Record<string, string> = {};
   if (start !== undefined || end !== undefined) {
     headers.Range = `bytes=${start || 0}-${end ?? ''}`;
@@ -173,13 +177,16 @@ function buildMediaRequest(
     if (catalog.userId !== userId) return undefined;
     // The preview is the document's own Telegram thumbnail, as in the official client
     return ['stickers.url', {
-      accountId: catalog.accountId, documentId: catalog.documentId, thumb: catalog.isThumbnail || undefined,
+      accountId: catalog.accountId,
+      documentId: catalog.documentId,
+      thumb: catalog.isThumbnail || undefined,
+      effect: catalog.isEffect || undefined,
     }];
   }
   const message = parseProxyMediaHash(url);
   if (message) {
     const peer = message.userId === userId ? resolveProxyPeer(message.chatId) : undefined;
-    return peer && ['media.url', { ...peer, msgId: message.msgId }];
+    return peer && ['media.url', { ...peer, msgId: message.msgId, effect: message.isEffect || undefined }];
   }
   const map = parseProxyMapHash(url);
   if (map) {

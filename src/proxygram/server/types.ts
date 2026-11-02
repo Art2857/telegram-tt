@@ -424,6 +424,8 @@ export interface CatalogDocumentDto {
   duration: number | null;
   /** A custom emoji recolored to the text color */
   textColor: boolean;
+  /** A Premium sticker with a full-screen animation */
+  hasEffect?: boolean;
 }
 
 export type ReactionAnimation = 'staticIcon' | 'appearAnimation' | 'selectAnimation' | 'activateAnimation'

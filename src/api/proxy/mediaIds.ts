@@ -1,5 +1,7 @@
 import { isProxyPeerId } from './ids';
 
+/** How Web A asks for the full-screen animation of a Premium sticker */
+const EFFECT_SIZE = '?size=f';
 const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|$)/;
 // Reaction animations are requested as `sticker<id>` too
 const CATALOG_HASH = /^(?:document|sticker)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
@@ -25,14 +27,20 @@ export function parseProxyMediaHash(url: string) {
   if (!match || !isProxyPeerId(match[2])) return undefined;
   const msgId = Number(match[3]);
   if (!Number.isSafeInteger(msgId) || msgId <= 0) return undefined;
-  return { userId: match[1], chatId: match[2], msgId };
+  const isEffect = getHash(url)?.endsWith(EFFECT_SIZE);
+  return { userId: match[1], chatId: match[2], msgId, isEffect, isPreview: !isEffect && url.includes('?size=') };
 }
 
 export function parseProxyCatalogHash(url: string) {
   const match = getHash(url)?.match(CATALOG_HASH);
   if (!match) return undefined;
+  const isEffect = match[4] === EFFECT_SIZE;
   return {
-    userId: match[1], accountId: match[2], documentId: match[3], isThumbnail: match[4]?.startsWith('?size='),
+    userId: match[1],
+    accountId: match[2],
+    documentId: match[3],
+    isEffect,
+    isThumbnail: !isEffect && match[4]?.startsWith('?size='),
   };
 }
 

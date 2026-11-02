@@ -885,7 +885,8 @@ export default memo(withGlobal<OwnProps>(
       hiddenTrendingSetId: featured.hiddenSetId,
       canAnimate: selectShouldLoopStickers(global),
       isSavedMessages,
-      isCurrentUserPremium: selectIsCurrentUserPremium(global),
+      // A shared chat sends through the owner's account, so the owner's Premium counts
+      isCurrentUserPremium: selectIsCurrentUserPremium(global) || Boolean(chat?.pxgProxy?.isProviderPremium),
       chatStickerSetId,
       baseEmojiKeywords: baseEmojiKeywords?.keywords,
       emojiKeywords: emojiKeywords?.keywords,

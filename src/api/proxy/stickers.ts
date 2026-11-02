@@ -170,6 +170,7 @@ export async function fetchAvailableEffects() {
     stickerSetInfo: { isMissing: true },
     emoji: doc.emoji || undefined,
     isFree: !isPremium,
+    hasEffect: doc.hasEffect || undefined,
     isLottie: doc.mimeType === 'application/x-tgsticker',
     isVideo: doc.mimeType === 'video/webm',
     width: doc.width || undefined,
@@ -238,8 +239,9 @@ function buildStickers(accountId: string, documents: CatalogDocumentDto[]): ApiS
       ? { id: buildProxyStickerSetId(accountId, doc.setId), accessHash: accountId }
       : { isMissing: true },
     emoji: doc.emoji || undefined,
-    // The owner's installed sets are available without the viewer's own Premium
+    // The owner's installed sets are available without the viewer's own Premium, except the Premium stickers themselves
     isFree: true,
+    hasEffect: doc.hasEffect || undefined,
     isLottie: doc.mimeType === 'application/x-tgsticker',
     isVideo: doc.mimeType === 'video/webm',
     width: doc.width || undefined,
