@@ -190,7 +190,16 @@ export interface MessageDto {
   /** Pinned in the chat */
   isPinned?: boolean;
   /** Counters and signature of a channel post, as of the last archive write */
-  post?: { views?: number; forwards?: number; author?: string; replies?: number };
+  post?: {
+    views?: number;
+    forwards?: number;
+    author?: string;
+    /** Comments the guest can see */
+    replies?: number;
+    /** The discussion group, only when it is shared with the guest too */
+    commentsPeerId?: number;
+    lastReplyId?: number;
+  };
   /** Link preview; its picture is not served to guests yet */
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
@@ -300,6 +309,16 @@ export interface DraftDto {
   entities: ApiMessageEntity[];
   replyToMsgId: number | null;
   date: number;
+}
+
+/** Comments of a channel post: a thread of replies to the post's copy in the discussion group */
+export interface DiscussionDto {
+  peerId: number;
+  threadId: number;
+  /** The copy of the post the thread starts with; an album brings all its parts */
+  messages: MessageDto[];
+  count: number;
+  lastMsgId: number | null;
 }
 
 export interface TopicsListResult {

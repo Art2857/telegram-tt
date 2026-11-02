@@ -1,5 +1,5 @@
 import type {
-  AccessChat, ChatUnreadDto, DraftDto, MemberDto, MessageDto, TopicsListResult,
+  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -14,8 +14,8 @@ import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
-  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyDraft, buildProxyMessage, buildProxyPoll,
-  buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
+  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo, buildProxyDraft,
+  buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -48,6 +48,8 @@ const MAX_TOPICS = 100;
 const MEMBERS_SLICE = 50;
 /** Telegram's big profile photo is 640 px */
 const PROFILE_PHOTO_SIZE = 640;
+/** Telegram's marked channel IDs: -(10^12 + channel ID) */
+const CHANNEL_ID_BASE = 1_000_000_000_000;
 /** As many pinned messages as Telegram lists */
 const MAX_PINNED = 100;
 /** Admin actions of a guest and speech-to-text: Telegram may refuse them, and Web A waits for their result */
@@ -79,6 +81,8 @@ const methods = {
   fetchSavedChats: fetchEmptyChats,
   fetchMessages,
   fetchMessage,
+  fetchDiscussionMessage,
+  fetchMessageViews,
   fetchTopics,
   fetchTopicById,
   fetchFullChat,
@@ -238,20 +242,20 @@ async function fetchMessages({
 }: MethodArgs<'fetchMessages'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
-  const topicId = getTopicId(chat, threadId);
+  const thread = { topicId: getTopicId(chat, threadId), threadId: getReplyThreadId(chat, threadId) };
   let result = await pxgRpc.call<WindowResult>('messages.window', {
-    ...peer, topicId, offsetId, addOffset, limit: Math.min(limit, 200),
+    ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
   });
   const oldestId = result.messages.at(-1)?.msgId;
   if (result.messages.length < limit && (!offsetId || !oldestId || oldestId <= offsetId)) {
     // A paused account must still display its existing archive. Completion events refresh late imports
     await Promise.race([
-      runProxyJob('messages.loadOlder', { ...peer, topicId, beforeMsgId: oldestId || offsetId })
+      runProxyJob('messages.loadOlder', { ...peer, ...thread, beforeMsgId: oldestId || offsetId })
         .catch(() => undefined),
       pause(HISTORY_WAIT_MS),
     ]);
     result = await pxgRpc.call<WindowResult>('messages.window', {
-      ...peer, topicId, offsetId, addOffset, limit: Math.min(limit, 200),
+      ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
     });
   }
   const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
@@ -284,6 +288,92 @@ async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessages
 function getTopicId(peer: ApiPeer, threadId?: ThreadId) {
   const isForum = 'isForum' in peer && peer.isForum;
   return isForum && threadId !== undefined && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
+}
+
+/** Outside a forum a thread is the replies to one message, such as the comments of a channel post */
+function getReplyThreadId(peer: ApiPeer, threadId?: ThreadId) {
+  const isForum = 'isForum' in peer && peer.isForum;
+  return !isForum && threadId !== undefined && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
+}
+
+/**
+ * Comments of a channel post: a thread of replies to the post's copy in the discussion group, which must be shared
+ * with the guest too. The server finds the copy in the archive; only a copy it has never seen costs a Telegram request
+ */
+async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDiscussionMessage'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const params = { ...peer, msgId: messageId };
+  let discussion = await pxgRpc.call<DiscussionDto | null>('messages.discussion', params);
+  if (!discussion) {
+    await Promise.race([
+      runProxyJob('messages.loadDiscussion', params).catch(() => undefined),
+      pause(HISTORY_WAIT_MS),
+    ]);
+    discussion = await pxgRpc.call<DiscussionDto | null>('messages.discussion', params);
+  }
+  if (!discussion) return undefined;
+  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const groupAccess = access.find((item) => item.accountId === peer.accountId && item.peerId === discussion.peerId);
+  if (!groupAccess) return undefined;
+  const group = buildProxyChat(groupAccess);
+  emitProxyUpdate({ '@type': 'updateChat', id: group.id, chat: group });
+  const { threadId } = discussion;
+  // The first comment marks the thread's beginning, as `firstMessageId` does in Web A
+  const first = await pxgRpc.call<WindowResult>('messages.window', {
+    accountId: groupAccess.accountId, peerId: groupAccess.peerId, threadId, offsetId: 1, addOffset: -1, limit: 1,
+  });
+  const dtos = [...discussion.messages, ...first.messages];
+  dtos.forEach((dto) => emitRelated(dto));
+  const topMessages = discussion.messages.map((dto) => buildProxyMessage(dto, group));
+  const lastMessageId = discussion.lastMsgId ?? undefined;
+  // The post itself is never unread; an empty thread is read up to it
+  const readMaxId = Math.max(threadId, lastMessageId || 0, ...topMessages.map(({ id }) => id));
+  // A thread opened by its own link starts with the post's copy, which tells whose comments these are
+  const origin = discussion.peerId === peer.peerId
+    ? getSavedFromPost(discussion.messages[0]) : { chatId: chat.id, msgId: messageId };
+  return {
+    messages: dtos.map((dto) => buildProxyMessage(dto, group)),
+    topMessages,
+    threadId,
+    chatId: group.id,
+    threadInfo: {
+      isCommentsInfo: false as const,
+      chatId: group.id,
+      threadId,
+      messagesCount: discussion.count,
+      lastMessageId,
+      fromChannelId: origin?.chatId,
+      fromMessageId: origin?.msgId,
+    },
+    // The guest's reading of a comment thread is not tracked: it is read as soon as it is open
+    threadReadState: { unreadCount: 0, lastReadInboxMessageId: readMaxId },
+    lastMessageId,
+    firstMessageId: first.messages[0]?.msgId,
+  };
+}
+
+/** The channel post a copy in its discussion group was made from */
+function getSavedFromPost(dto?: MessageDto) {
+  const header = dto?.fwdFrom as { savedFromPeer?: { channelId?: number }; savedFromMsgId?: number } | null;
+  const channelId = header?.savedFromPeer?.channelId;
+  if (!dto || !channelId || !header.savedFromMsgId) return undefined;
+  return { chatId: getProxyPeerId(dto.accountId, -CHANNEL_ID_BASE - channelId), msgId: header.savedFromMsgId };
+}
+
+/** Counters of channel posts as the archive has them; the comment count follows the shared discussion group */
+async function fetchMessageViews({ chat, ids }: MethodArgs<'fetchMessageViews'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: ids.slice(0, 200) });
+  return {
+    viewsInfo: result.messages.map((dto) => ({
+      id: dto.msgId,
+      views: dto.post?.views,
+      forwards: dto.post?.forwards,
+      threadInfo: buildProxyCommentsInfo(dto),
+    })),
+  };
 }
 
 /**
@@ -331,10 +421,11 @@ async function fetchProfilePhotos({ peer }: MethodArgs<'fetchProfilePhotos'>[0])
   return { count: result.length, photos: result, nextOffsetId: undefined };
 }
 
-/** Pinned messages the guest may see; in a forum topic — only that topic's */
+/** Pinned messages the guest may see; in a forum topic — only that topic's, a comment thread has none */
 async function fetchPinnedMessages({ chat, threadId }: MethodArgs<'fetchPinnedMessages'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (getReplyThreadId(chat, threadId)) return { messages: [] };
   const result = await pxgRpc.call<WindowResult>('messages.search', {
     ...peer, query: '', filter: 'pinned', limit: MAX_PINNED, topicId: getTopicId(chat, threadId),
   });
@@ -380,6 +471,8 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
   if (dto.transcription) emitTranscription(dto.transcription);
+  const commentsInfo = buildProxyCommentsInfo(dto);
+  if (commentsInfo) emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo: commentsInfo });
   const poll = buildProxyPoll(dto);
   if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
   const webPage = buildProxyWebPage(dto, getProxyPeerId(dto.accountId, dto.peerId));

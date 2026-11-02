@@ -3,6 +3,7 @@ import { getGlobal, setGlobal, withGlobal } from '../../global';
 
 import type { ApiMessage } from '../../api/types';
 import type { AttributionDto, MessageDto } from '../../proxygram/server/types';
+import type { ThreadId } from '../../types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import {
@@ -19,6 +20,8 @@ type OwnProps = {
 
 type StateProps = {
   chatId?: string;
+  /** Comments and forum topics get the guests' marks too; tombstones belong to the whole chat's feed */
+  threadId?: ThreadId;
   /** Changes whenever Web A replaces the chat's messages, which drops the attribution overlay */
   messagesById?: Record<number, ApiMessage>;
   minId?: number;
@@ -37,7 +40,7 @@ const TAIL_RANGE = 10_000;
  * даже когда приложение было закрыто, — при открытии чата его надгробия встают на свои места в ленте.
  */
 const TombstonesLoader = ({
-  accountId, chatId, messagesById, minId, maxId, isAtEnd,
+  accountId, chatId, threadId, messagesById, minId, maxId, isAtEnd,
 }: OwnProps & StateProps) => {
   // уже запрошенные диапазоны по чатам — при прокрутке туда-обратно сервер не дёргаем
   const fetchedRef = useRef(new Map<string, [number, number][]>());
@@ -45,25 +48,29 @@ const TombstonesLoader = ({
   const attributionRef = useRef(new Map<string, AttributionDto[]>());
 
   useEffect(() => {
-    if (!chatId || isProxyPeerId(chatId) || minId === undefined || maxId === undefined) return undefined;
+    if (!chatId || threadId === undefined || isProxyPeerId(chatId) || minId === undefined || maxId === undefined) {
+      return undefined;
+    }
     const known = attributionRef.current.get(chatId);
     if (known?.length) {
       const global = applyAttribution(getGlobal(), chatId, known);
       setGlobal(global);
     }
 
+    const isMainThread = threadId === MAIN_THREAD_ID;
     const to = isAtEnd ? maxId + TAIL_RANGE : maxId;
-    const ranges = fetchedRef.current.get(chatId) ?? [];
+    const fetchedKey = [chatId, threadId].join('_');
+    const ranges = fetchedRef.current.get(fetchedKey) ?? [];
     if (ranges.some(([from, until]) => from <= minId && until >= to)) return undefined;
 
     const timer = window.setTimeout(() => {
       const range = { accountId, peerId: Number(chatId), minMsgId: minId, maxMsgId: to };
       Promise.all([
-        pxgRpc.call<MessageDto[]>('archive.tombstones', range),
+        isMainThread ? pxgRpc.call<MessageDto[]>('archive.tombstones', range) : [],
         pxgRpc.call<AttributionDto[]>('archive.attribution', range),
       ])
         .then(([tombstones, attribution]) => {
-          fetchedRef.current.set(chatId, [...ranges, [minId, to]]);
+          fetchedRef.current.set(fetchedKey, [...ranges, [minId, to]]);
           const entries = [...(attributionRef.current.get(chatId) ?? []), ...attribution];
           attributionRef.current.set(chatId, entries);
           let global = getGlobal();
@@ -77,7 +84,7 @@ const TombstonesLoader = ({
         .catch(() => undefined);
     }, FETCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [accountId, chatId, minId, maxId, isAtEnd]);
+  }, [accountId, chatId, threadId, minId, maxId, isAtEnd]);
 
   // A history reload from Telegram replaces messages with fresh copies: the known marks go back without a request
   useEffect(() => {
@@ -94,16 +101,22 @@ const TombstonesLoader = ({
 export default memo(withGlobal<OwnProps>(
   (global): Complete<StateProps> => {
     const list = selectCurrentMessageList(global);
-    if (!list || list.type !== 'thread' || list.threadId !== MAIN_THREAD_ID) {
+    if (!list || list.type !== 'thread') {
       return {
-        chatId: undefined, messagesById: undefined, minId: undefined, maxId: undefined, isAtEnd: undefined,
+        chatId: undefined,
+        threadId: undefined,
+        messagesById: undefined,
+        minId: undefined,
+        maxId: undefined,
+        isAtEnd: undefined,
       };
     }
-    const viewportIds = selectViewportIds(global, list.chatId, MAIN_THREAD_ID);
+    const viewportIds = selectViewportIds(global, list.chatId, list.threadId);
     const maxId = viewportIds?.[viewportIds.length - 1];
     const lastId = selectChatLastMessageId(global, list.chatId);
     return {
       chatId: list.chatId,
+      threadId: list.threadId,
       messagesById: selectChatMessages(global, list.chatId),
       minId: viewportIds?.[0],
       maxId,

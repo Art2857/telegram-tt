@@ -27,6 +27,8 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
   const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
+  // Outside a forum it is a comment thread: the reply itself places the message, and the chat's draft stays
+  const threadId = !chat.isForum ? messageReply?.replyToTopId : undefined;
   const replyToMsgId = messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
   const localMessage: ApiMessage = params.localMessage || {
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
@@ -95,6 +97,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       dice,
       replyToMsgId,
       topicId,
+      threadId,
       silent: params.isSilent,
       scheduleDate: scheduledAt,
     }) as { msgId: number };
@@ -264,6 +267,8 @@ export async function markMessageListRead({
 }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
+  // A comment thread has no reading pointer of its own: reading it must not read the whole group
+  if (!chat.isForum && threadId !== MAIN_THREAD_ID) return;
   // A forum topic is read on its own, like `messages.readDiscussion` in Telegram
   const topicId = chat.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
   // Without `maxId` the whole chat is read from the chat list, up to the latest message the guest can see

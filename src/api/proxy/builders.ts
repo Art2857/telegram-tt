@@ -1,8 +1,8 @@
 import type { AccessChat, DraftDto, MessageDto, TopicDto, UserStatusDto } from '../../proxygram/server/types';
 import type {
-  ApiChat, ApiChatFullInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll,
-  ApiMessageReplyInfo, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser,
-  ApiUserStatus, ApiWebPageFull,
+  ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
+  ApiMessagePoll, ApiMessageReplyInfo, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState,
+  ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -89,7 +89,7 @@ function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 
 /** Profile of a group or channel: its description and slow mode, as members see them */
 export function buildProxyChatInfo(
   chat: AccessChat,
-): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers'> {
+): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers' | 'linkedChatId'> {
   const { info } = chat;
   return {
     // Members of a group are visible as to the owner; subscribers of a channel — to its admins only
@@ -98,6 +98,8 @@ export function buildProxyChatInfo(
     slowMode: info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
     // The server sends the owner's invite link only to a guest with the admin permission
     inviteLink: info?.inviteLink,
+    // The server names the discussion group only when it is shared too: then posts show their comments
+    linkedChatId: info?.linkedChatId ? getProxyPeerId(chat.accountId, info.linkedChatId) : undefined,
   };
 }
 
@@ -217,6 +219,20 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     viewsCount: dto.post?.views,
     forwardsCount: dto.post?.forwards,
     postAuthorTitle: dto.post?.author,
+  };
+}
+
+/** The comments button of a channel post: the count comes from the archive of the shared discussion group */
+export function buildProxyCommentsInfo(dto: MessageDto): ApiCommentsInfo | undefined {
+  const { commentsPeerId, replies, lastReplyId } = dto.post || {};
+  if (!commentsPeerId) return undefined;
+  return {
+    isCommentsInfo: true,
+    chatId: getProxyPeerId(dto.accountId, commentsPeerId),
+    originChannelId: getProxyPeerId(dto.accountId, dto.peerId),
+    originMessageId: dto.msgId,
+    messagesCount: replies || 0,
+    lastMessageId: lastReplyId,
   };
 }
 
