@@ -19,6 +19,7 @@ import {
   toggleDialogFilterTags,
 } from './folders';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
+import { fetchLangDifference, fetchLangPack, fetchLanguage, fetchLanguages } from './langpacks';
 import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId } from './mediaIds';
 import { runProxyJob } from './outbox';
@@ -57,6 +58,10 @@ const methods = {
   sortChatFolders,
   fetchRecommendedChatFolders,
   toggleDialogFilterTags,
+  fetchLanguages,
+  fetchLanguage,
+  fetchLangPack,
+  fetchLangDifference,
   fetchChats,
   fetchChat,
   searchChats,
