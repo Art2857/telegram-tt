@@ -1,5 +1,5 @@
 import type {
-  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, TopicsListResult,
+  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -33,9 +33,9 @@ import {
 import { translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
-  editTopic, fetchScheduledHistory, forwardMessages, markMessageListRead, pinMessage, rescheduleMessage, saveDraft,
-  sendMessage, sendMessageAction, sendPollVote, sendReaction, sendScheduledMessages, toggleChatArchived,
-  toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
+  editTopic, fetchScheduledHistory, forwardMessages, markMessageListRead, markMessagesRead, pinMessage,
+  readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote, sendReaction,
+  sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
 } from './writes';
 
@@ -99,6 +99,9 @@ const methods = {
   toggleChatArchived,
   toggleDialogUnread,
   fetchUnreadMentions,
+  fetchUnreadReactions,
+  readAllReactions,
+  markMessagesRead,
   updateChatMemberBannedRights,
   fetchScheduledHistory,
   sendScheduledMessages,
@@ -222,6 +225,7 @@ export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, Th
     lastReadInboxMessageId: item.readMaxId,
     hasUnreadMark: item.hasUnreadMark || undefined,
     unreadMentionsCount: item.unreadMentionsCount,
+    unreadReactionsCount: item.unreadReactionsCount,
   }]));
 }
 
@@ -366,7 +370,7 @@ async function fetchMessageViews({ chat, ids }: MethodArgs<'fetchMessageViews'>[
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: ids.slice(0, 200) });
-  result.messages.forEach(emitRecentRepliers);
+  result.messages.forEach((dto) => emitPeerBriefs(dto.accountId, dto.post?.recentRepliers));
   return {
     viewsInfo: result.messages.map((dto) => ({
       id: dto.msgId,
@@ -472,7 +476,8 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
   if (dto.transcription) emitTranscription(dto.transcription);
-  emitRecentRepliers(dto);
+  emitPeerBriefs(dto.accountId, dto.post?.recentRepliers);
+  emitPeerBriefs(dto.accountId, dto.reactors);
   const commentsInfo = buildProxyCommentsInfo(dto);
   if (commentsInfo) emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo: commentsInfo });
   const poll = buildProxyPoll(dto);
@@ -491,11 +496,11 @@ function emitRelated(dto: MessageDto) {
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
 }
 
-/** Goes before the thread info: the comments button reads the profiles once, when the list of repliers changes */
-function emitRecentRepliers(dto: MessageDto) {
-  dto.post?.recentRepliers?.forEach(({ peerId, name, photoId }) => {
+/** Goes before the message and the thread info: reactions and the comments button read the profiles only once */
+function emitPeerBriefs(accountId: string, peers?: PeerBriefDto[]) {
+  peers?.forEach(({ peerId, name, photoId }) => {
     if (peerId < 0) return;
-    const user = buildProxyUser(dto.accountId, peerId, name || undefined, photoId);
+    const user = buildProxyUser(accountId, peerId, name || undefined, photoId);
     emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
   });
 }
@@ -516,12 +521,21 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
 }
 
 /** Mentions of the owner that the guest has not read yet, by the guest's own read pointer */
-async function fetchUnreadMentions({ chat, threadId }: MethodArgs<'fetchUnreadMentions'>[0]) {
+function fetchUnreadMentions({ chat, threadId }: MethodArgs<'fetchUnreadMentions'>[0]) {
+  return fetchUnreadList('messages.unreadMentions', chat, threadId);
+}
+
+/** Reactions to the guest's own messages that the guest has not seen yet; the owner reads them separately */
+function fetchUnreadReactions({ chat, threadId }: MethodArgs<'fetchUnreadReactions'>[0]) {
+  return fetchUnreadList('messages.unreadReactions', chat, threadId);
+}
+
+async function fetchUnreadList(
+  method: 'messages.unreadMentions' | 'messages.unreadReactions', chat: ApiChat, threadId?: ThreadId,
+) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
-  const result = await pxgRpc.call<WindowResult>('messages.unreadMentions', {
-    ...peer, topicId: getTopicId(chat, threadId),
-  });
+  const result = await pxgRpc.call<WindowResult>(method, { ...peer, topicId: getTopicId(chat, threadId) });
   result.messages.forEach((dto) => emitRelated(dto));
   return {
     totalCount: result.count,

@@ -217,6 +217,11 @@ addActionHandler('refreshProxyMessage', async (global, actions, {
       });
       global = getGlobal();
     }
+    // Unread reactions are the guest's own, so the server decides what is unread, even if the message is not loaded
+    if (kind === 'reactions' && result.message.pxgIsOwn) {
+      actions.loadUnreadReactions({ chatId: id });
+      actions.refreshProxyTopics({ accountId, peerId });
+    }
     if (!current && msgId < (global.chats.lastMessageIds.all?.[id] || 0)) return;
     actions.apiUpdate(current ? {
       '@type': 'updateMessage', id: msgId, chatId: id, message: { ...result.message, isDeleting: false }, isFull: true,

@@ -1,10 +1,10 @@
 import type {
-  AccessChat, DraftDto, MessageDto, PeerBadgesDto, TopicDto, UserStatusDto,
+  AccessChat, DraftDto, MessageDto, PeerBadgesDto, ReactionCountDto, TopicDto, UserStatusDto,
 } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
-  ApiMessagePoll, ApiMessageReplyInfo, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState,
-  ApiUser, ApiUserStatus, ApiWebPageFull,
+  ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount,
+  ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -191,20 +191,42 @@ export function buildProxyUser(
   return user;
 }
 
-export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
-  const reactions = dto.reactions?.results?.flatMap((reaction): ApiReactionCount[] => {
-    const { emoticon, documentId } = reaction.reaction;
-    if (!emoticon && !documentId) return [];
-    const userId = getPxgState().session?.user.id;
-    if (!emoticon && !userId) return [];
+/** A custom emoji reaction is read through the provider's account, like custom emoji in text */
+function buildProxyReaction(
+  accountId: string, { emoticon, documentId }: ReactionCountDto['reaction'],
+): ApiReaction | undefined {
+  if (emoticon) return { type: 'emoji', emoticon };
+  const userId = getPxgState().session?.user.id;
+  if (!documentId || !userId) return undefined;
+  return { type: 'custom', documentId: buildProxyCatalogMediaId(userId, accountId, documentId) };
+}
+
+/**
+ * Who reacted last. Telegram's `unread` is about the owner reading it, so the guest's mark comes from the server;
+ * a reaction of the owner's account looks like the guest's own, since a guest reacts through that account
+ */
+function buildProxyRecentReactions(dto: MessageDto, chat: ApiChat): ApiPeerReaction[] | undefined {
+  const providerUserId = chat.pxgProxy?.providerUserId;
+  const recent = dto.reactions?.recentReactions?.filter(({ peerId }) => peerId.userId);
+  const unreadIndex = dto.hasUnreadReaction ? recent?.findIndex(({ peerId }) => peerId.userId !== providerUserId) : -1;
+  return recent?.flatMap(({ peerId, reaction: raw, date, big }, index): ApiPeerReaction[] => {
+    const reaction = buildProxyReaction(dto.accountId, raw);
+    if (!reaction) return [];
     return [{
-      count: reaction.count,
-      chosenOrder: reaction.chosenOrder,
-      // A custom emoji reaction is read through the provider's account, like custom emoji in text
-      reaction: emoticon
-        ? { type: 'emoji', emoticon }
-        : { type: 'custom', documentId: buildProxyCatalogMediaId(userId!, dto.accountId, documentId!) },
+      peerId: getProxyPeerId(dto.accountId, peerId.userId!),
+      reaction,
+      addedDate: date,
+      isBig: big || undefined,
+      isOwn: peerId.userId === providerUserId || undefined,
+      isUnread: index === unreadIndex || undefined,
     }];
+  });
+}
+
+export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
+  const reactions = dto.reactions?.results?.flatMap((item): ApiReactionCount[] => {
+    const reaction = buildProxyReaction(dto.accountId, item.reaction);
+    return reaction ? [{ count: item.count, chosenOrder: item.chosenOrder, reaction }] : [];
   });
   const permissions = dto.permissions || chat.pxgProxy!.permissions;
   const media = permissions.download && !dto.isMediaUnavailable
@@ -241,7 +263,8 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
-    reactions: reactions?.length ? { results: reactions } : undefined,
+    reactions: reactions?.length
+      ? { results: reactions, recentReactions: buildProxyRecentReactions(dto, chat) } : undefined,
     isPinned: dto.isPinned || undefined,
     hasUnreadMention: dto.hasUnreadMention || undefined,
     viewsCount: dto.post?.views,
@@ -377,6 +400,7 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       unreadCount: dto.unreadCount,
       lastReadInboxMessageId: dto.readMaxId,
       unreadMentionsCount: dto.unreadMentionsCount,
+      unreadReactionsCount: dto.unreadReactionsCount,
     },
     lastMessageId: dto.lastMsgId ?? undefined,
   };

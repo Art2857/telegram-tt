@@ -85,6 +85,13 @@ export interface OutgoingChatDto {
   grantees: string[];
 }
 
+/** Who wrote a comment or put a reaction: a user or a channel */
+export interface PeerBriefDto {
+  peerId: number;
+  name: string | null;
+  photoId: string | null;
+}
+
 /** Marks next to a name: verified, scam or fake, Premium, emoji status */
 export interface PeerBadgesDto {
   verified?: true;
@@ -176,7 +183,11 @@ export interface MessageDto {
   replyTo: { replyToMsgId?: number; replyToTopId?: number; forumTopic?: boolean; quoteText?: string } | null;
   fwdFrom: unknown;
   /** Реакции в виде TL (messageReactions) */
-  reactions: { results?: ReactionCountDto[] } | null;
+  reactions: { results?: ReactionCountDto[]; recentReactions?: PeerReactionDto[] } | null;
+  /** The guest's own message got a reaction the guest has not seen yet */
+  hasUnreadReaction?: boolean;
+  /** Profiles of those who reacted last */
+  reactors?: PeerBriefDto[];
   groupedId: string | null;
   isOutgoing: boolean;
   isPost: boolean;
@@ -211,7 +222,7 @@ export interface MessageDto {
     commentsPeerId?: number;
     lastReplyId?: number;
     /** The latest distinct commenters, newest first */
-    recentRepliers?: { peerId: number; name: string | null; photoId: string | null }[];
+    recentRepliers?: PeerBriefDto[];
   };
   /** Link preview; its picture is not served to guests yet */
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
@@ -300,6 +311,7 @@ export interface TopicDto {
   /** Свои счётчики гостя */
   unreadCount: number;
   unreadMentionsCount: number;
+  unreadReactionsCount: number;
   readMaxId: number;
 }
 
@@ -312,6 +324,7 @@ export interface ChatUnreadDto {
   /** The guest marked the chat unread on their own */
   hasUnreadMark: boolean;
   unreadMentionsCount: number;
+  unreadReactionsCount: number;
 }
 
 export interface DraftDto {
@@ -360,6 +373,14 @@ export interface ReactionCountDto {
   count: number;
   /** Есть — значит, эту реакцию поставил владелец аккаунта */
   chosenOrder?: number;
+}
+
+/** A reaction as Telegram sends it, newest first; a channel has no `userId` */
+export interface PeerReactionDto {
+  peerId: { userId?: number };
+  reaction: ReactionCountDto['reaction'];
+  date: number;
+  big?: boolean;
 }
 
 export interface AttributionDto {

@@ -17,6 +17,8 @@ import { runProxyJob } from './outbox';
 
 const DELETE_BATCH_SIZE = 20;
 const MAX_WAVEFORM_LENGTH = 100;
+/** The server accepts this many messages per `messages.readReactions` */
+const MAX_READ_REACTIONS = 200;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
@@ -260,6 +262,22 @@ export async function sendReaction({ chat, messageId, reactions }: MethodArgs<'s
   if (items.length !== (reactions?.length ?? 0)) throw new PxgError('unsupported');
   await runProxyJob('messages.react', { ...peer, msgId: messageId, reactions: items });
   return true as const;
+}
+
+/** The guest's own mark: for the owner reactions stay unread until the owner sees them in Telegram */
+export async function readAllReactions({ chat, threadId }: MethodArgs<'readAllReactions'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  const topicId = chat.isForum && threadId ? Number(threadId) : undefined;
+  await pxgRpc.call('messages.readReactions', { ...peer, topicId }).catch(() => undefined);
+}
+
+/** Web A reports messages seen on screen: of those only reactions have a mark, mentions follow the read pointer */
+export async function markMessagesRead({ chat, messageIds }: MethodArgs<'markMessagesRead'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  await pxgRpc.call('messages.readReactions', { ...peer, msgIds: messageIds.slice(0, MAX_READ_REACTIONS) })
+    .catch(() => undefined);
 }
 
 export async function markMessageListRead({
