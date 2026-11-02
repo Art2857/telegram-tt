@@ -1,6 +1,6 @@
 import type { MessageDto, ScheduledMessageDto } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
-import type { ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress } from '../types';
+import type { ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer } from '../types';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
@@ -22,7 +22,9 @@ const MAX_READ_REACTIONS = 200;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
-  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, effectId } = params;
+  const {
+    chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, effectId, sendAs,
+  } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   const isScheduled = Boolean(scheduledAt);
@@ -45,6 +47,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     sendingState: 'messageSendingStatePending',
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
     effectId,
+    senderId: sendAs?.id,
   };
   if (!params.localMessage) {
     emitProxyUpdate({
@@ -104,6 +107,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       silent: params.isSilent,
       scheduleDate: scheduledAt,
       effectId,
+      sendAsPeerId: getSendAsPeerId(sendAs),
     }) as { msgId: number };
     if (isScheduled) {
       // A scheduled message reaches the archive when Telegram sends it
@@ -318,8 +322,14 @@ export async function sendMessageAction({ peer: target, action }: MethodArgs<'se
 }
 
 /** Between chats of one provider account Telegram forwards natively; other targets are not supported */
+/** Only a channel is named: the owner's own account is what Telegram uses anyway */
+function getSendAsPeerId(sendAs?: ApiPeer) {
+  const peer = sendAs && resolveProxyPeer(sendAs.id);
+  return peer && peer.peerId < 0 ? peer.peerId : undefined;
+}
+
 export async function forwardMessages({
-  fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions,
+  fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions, sendAs,
 }: MethodArgs<'forwardMessages'>[0]): Promise<void> {
   const source = resolveProxyPeer(fromChat.id);
   const target = resolveProxyPeer(toChat.id);
@@ -329,6 +339,7 @@ export async function forwardMessages({
       accountId: target.accountId, fromPeerId: source.peerId, peerId: target.peerId,
       msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions,
       topicId: toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined,
+      sendAsPeerId: getSendAsPeerId(sendAs),
     }) as { msgIds: number[] };
     const forwarded = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
       ...target, msgIds: result.msgIds,

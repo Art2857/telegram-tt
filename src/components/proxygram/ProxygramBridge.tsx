@@ -34,7 +34,7 @@ const POLL_TIMEOUT_MS = 60_000;
 const RETRY_DELAY_MS = 60_000;
 /** Фоновые действия: о задержке Telegram гостю не сообщаем */
 const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>([
-  'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy',
+  'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy', 'sendAs',
 ]);
 
 export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dismissed-${tgUserId}`;

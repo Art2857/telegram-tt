@@ -9,7 +9,10 @@ import { isProxyPeerId } from '../../api/proxy/ids';
  * whose access did not change: their messages and topics stay, so the open feed does not start over
  */
 export function clearProxyChats<T extends GlobalState>(global: T, keptChatIds?: ReadonlySet<string>): T {
-  const chats = Object.fromEntries(Object.entries(global.chats.byId).filter(([id]) => !isProxyPeerId(id)));
+  // Channels known only as authors of the kept messages are not accesses: they stay with those messages
+  const chats = Object.fromEntries(Object.entries(global.chats.byId).filter(([id, chat]) => (
+    !isProxyPeerId(id) || (keptChatIds?.size && !chat.pxgProxy)
+  )));
   const keepId = (id: string) => !isProxyPeerId(id);
   const keepContentId = (id: string) => keepId(id) || Boolean(keptChatIds?.has(id));
   return {

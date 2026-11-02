@@ -117,7 +117,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
     )).map((chat) => chat.id)) : undefined;
     global = clearProxyChats(global, keptChatIds);
-    global = updateChats(global, buildCollectionByKey(result.chats, 'id'));
+    global = updateChats(global, buildCollectionByKey([...result.authorChats, ...result.chats], 'id'));
     global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
     global = addUserStatuses(global, result.userStatusesById);
     global = replaceMessages(global, result.messages);
@@ -289,6 +289,11 @@ addActionHandler('applyProxyChatState', (global, actions, state: ChatStateDto): 
     emitProxyUpdate({ '@type': 'updateChatListType', id, folderId });
   }
   emitProxyUpdate({ '@type': 'updateChatPinned', id, isPinned: Boolean(state.pinnedAt) });
+  const sendAsPeerId = state.sendAsPeerId || chat.pxgProxy.providerUserId;
+  global = getGlobal();
+  return updateChatFullInfo(global, id, {
+    sendAsId: sendAsPeerId ? getProxyPeerId(state.accountId, sendAsPeerId) : undefined,
+  });
 });
 
 /** Another device of the guest read a chat or a topic: the counters come from the server again */

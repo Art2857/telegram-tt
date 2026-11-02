@@ -2834,7 +2834,7 @@ const Composer = ({
         chatId={chatId}
         selectedSendAsId={sendAsId}
         sendAsPeerIds={sendAsPeerIds}
-        isCurrentUserPremium={isCurrentUserPremium}
+        isCurrentUserPremium={isCurrentUserPremium || chat?.pxgProxy?.isProviderPremium}
       />
       {isInMessageList && chat?.pxgProxy && (
         <ProxyWriteNotice accountId={chat.pxgProxy.accountId} providerName={chat.pxgProxy.providerName} />

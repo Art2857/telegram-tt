@@ -1,5 +1,5 @@
 import type {
-  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, SeenByDto,
+  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, SeenByDto, SendAsPeerDto,
   TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
@@ -15,7 +15,8 @@ import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
-  buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo, buildProxyDraft,
+  buildProxyAuthorChat, buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo,
+  buildProxyDraft,
   buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
 } from './builders';
 import {
@@ -41,6 +42,8 @@ import {
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
+/** Chats the guest has open: a channel known only as an author must not overwrite one of them */
+let sharedChatIds = new Set<string>();
 const HISTORY_WAIT_MS = 10_000;
 const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls']);
 /** The server returns at most this many topics per page */
@@ -100,6 +103,8 @@ const methods = {
   toggleChatArchived,
   toggleDialogUnread,
   fetchSeenBy,
+  fetchSendAs,
+  saveDefaultSendAs,
   fetchUnreadMentions,
   fetchUnreadReactions,
   readAllReactions,
@@ -172,6 +177,7 @@ export async function fetchProxyChats() {
   ]);
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
+  sharedChatIds = new Set(chats.map((chat) => chat.id));
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
     buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
   ));
@@ -191,8 +197,10 @@ export async function fetchProxyChats() {
   // A full reload clears proxy users after this returns: whoever the last messages show has to come back with them.
   // The chat's own user goes last, it knows more than a message does
   const messageUsers = pages.flatMap((page) => page?.messages.flatMap(buildMessageUsers) || []);
+  const authorChats = pages.flatMap((page) => page?.messages.flatMap(buildAuthorChats) || []);
   return {
     chats,
+    authorChats,
     users: [...messageUsers, ...users],
     messages,
     chatIds: chats.map((chat) => chat.id),
@@ -508,11 +516,24 @@ function buildMessageUsers(dto: MessageDto): ApiUser[] {
   ];
 }
 
+/** Channels a message shows as its sender or among its commenters and reactors, unless they are shared themselves */
+function buildAuthorChats(dto: MessageDto): ApiChat[] {
+  const { senderId, senderName, senderPhotoId } = dto;
+  const authors = [
+    ...(dto.post?.recentRepliers || []),
+    ...(dto.reactors || []),
+    ...(senderId ? [{ peerId: senderId, name: senderName, photoId: senderPhotoId }] : []),
+  ];
+  return authors.filter(({ peerId }) => peerId < 0 && !sharedChatIds.has(getProxyPeerId(dto.accountId, peerId)))
+    .map(({ peerId, name, photoId }) => buildProxyAuthorChat(dto.accountId, peerId, name || undefined, photoId));
+}
+
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
   if (dto.transcription) emitTranscription(dto.transcription);
   emitPeerBriefs(dto.accountId, dto.post?.recentRepliers);
   emitPeerBriefs(dto.accountId, dto.reactors);
+  buildAuthorChats(dto).forEach((chat) => emitProxyUpdate({ '@type': 'updateChat', id: chat.id, chat }));
   const commentsInfo = buildProxyCommentsInfo(dto);
   if (commentsInfo) emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo: commentsInfo });
   const poll = buildProxyPoll(dto);
@@ -553,6 +574,46 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** Who the owner may write as, as Telegram lists it; the guest's choice stays on the server and the owner's setting stays */
+async function fetchSendAs({ chat, isForPaidReactions }: MethodArgs<'fetchSendAs'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer || isForPaidReactions || !chat.pxgProxy?.permissions.write) return undefined;
+  const peers = await pxgRpc.call<SendAsPeerDto[]>('chats.sendAs', peer).catch(() => undefined);
+  if (!peers) return undefined;
+  peers.forEach(({ peerId, name, photoId }) => {
+    const id = getProxyPeerId(peer.accountId, peerId);
+    if (peerId > 0) {
+      const user = buildProxyUser(peer.accountId, peerId, name || undefined, photoId);
+      emitProxyUpdate({ '@type': 'updateUser', id, user });
+    } else if (!sharedChatIds.has(id)) {
+      emitProxyUpdate({
+        '@type': 'updateChat', id, chat: buildProxyAuthorChat(peer.accountId, peerId, name || undefined, photoId),
+      });
+    }
+  });
+  const result = peers.map(({ peerId, isPremium }) => ({
+    id: getProxyPeerId(peer.accountId, peerId), isPremium: isPremium || undefined,
+  }));
+  // Telegram may list only the group itself: the guest needs a way back to writing as the owner
+  const { providerUserId, providerName } = chat.pxgProxy;
+  if (result.length && providerUserId && !peers.some(({ peerId }) => peerId === providerUserId)) {
+    const owner = buildProxyUser(peer.accountId, providerUserId, providerName);
+    emitProxyUpdate({ '@type': 'updateUser', id: owner.id, user: owner });
+    result.unshift({ id: owner.id, isPremium: undefined });
+  }
+  return result;
+}
+
+async function saveDefaultSendAs({ sendAs, chat }: MethodArgs<'saveDefaultSendAs'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  const sendAsPeer = resolveProxyPeer(sendAs.id);
+  if (!peer || !sendAsPeer) return undefined;
+  // eslint-disable-next-line no-null/no-null
+  const sendAsPeerId = sendAsPeer.peerId < 0 ? sendAsPeer.peerId : null;
+  await pxgRpc.call('chats.setSendAs', { ...peer, sendAsPeerId }).catch(() => undefined);
+  return true;
 }
 
 /** Who read a message: Telegram answers for the owner's account, the profiles come with the answer */

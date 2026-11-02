@@ -55,6 +55,10 @@ export interface AccessChat {
   badges?: PeerBadgesDto | null;
   /** Up to where others read the account's outgoing messages */
   readOutboxMaxId?: number | null;
+  /** The group has a channel, or the channel a discussion group, which may stay closed to the guest */
+  hasLinkedChat?: boolean;
+  /** Who the guest writes as in this chat; null — the owner */
+  sendAsPeerId?: number | null;
   /** Online status of the other side of a private chat */
   userStatus?: UserStatusDto | null;
   permissions: Permissions;
@@ -92,6 +96,11 @@ export interface PeerBriefDto {
   peerId: number;
   name: string | null;
   photoId: string | null;
+}
+
+/** Who the owner may write as in a chat */
+export interface SendAsPeerDto extends PeerBriefDto {
+  isPremium: boolean;
 }
 
 /** Who read a message and when, in unix seconds */
@@ -146,7 +155,9 @@ export interface ChatReactionsDto {
 }
 
 /** Своё место чата в списке гостя; приходит в ответ на chats.mute/pin/archive и событием chats.state */
-export type ChatStateDto = Pick<AccessChat, 'accountId' | 'peerId' | 'mutedUntil' | 'pinnedAt' | 'archivedAt'>;
+export type ChatStateDto = Pick<
+  AccessChat, 'accountId' | 'peerId' | 'mutedUntil' | 'pinnedAt' | 'archivedAt' | 'sendAsPeerId'
+>;
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
 
@@ -559,7 +570,7 @@ export interface OutboxDoneDto {
   id: string;
   accountId: string;
   kind: 'send' | 'edit' | 'delete' | 'react' | 'forward' | 'callback' | 'vote' | 'read' | 'typing' | 'history'
-    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate' | 'seenBy';
+    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate' | 'seenBy' | 'sendAs';
   /** delayed — Telegram попросил подождать (FLOOD_WAIT), итог придёт позже */
   status: 'done' | 'failed' | 'delayed';
   /** delayed: через сколько секунд повтор */

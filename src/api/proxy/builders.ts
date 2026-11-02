@@ -25,6 +25,18 @@ const CALL_DISCARD_REASONS: Record<string, ApiPhoneCallDiscardReason> = {
   phoneCallDiscardReasonBusy: 'busy',
 };
 
+/** A channel shown only as an author or a send-as choice: it is neither in the list nor open to the guest */
+export function buildProxyAuthorChat(
+  accountId: string, peerId: number, name?: string, photoId?: string | null,
+): ApiChat {
+  return {
+    id: getProxyPeerId(accountId, peerId),
+    type: 'chatTypeChannel',
+    title: name || String(peerId),
+    avatarPhotoId: photoId || undefined,
+  };
+}
+
 export function buildProxyChat(chat: AccessChat): ApiChat {
   return {
     id: getProxyPeerId(chat.accountId, chat.peerId),
@@ -36,6 +48,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
+    isLinkedInDiscussion: chat.hasLinkedChat || undefined,
     ...buildProxyBadges(chat.accountId, chat.badges),
     membersCount: chat.info?.participantsCount,
     usernames: chat.info?.usernames?.map((username) => ({ username, isActive: true })),
@@ -93,9 +106,12 @@ function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 
 /** Profile of a group or channel: its description and slow mode, as members see them */
 export function buildProxyChatInfo(
   chat: AccessChat,
-): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers' | 'linkedChatId'> {
+): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers' | 'linkedChatId' | 'sendAsId'> {
   const { info } = chat;
+  const sendAsPeerId = chat.sendAsPeerId || chat.providerUserId;
   return {
+    // A guest writes as the owner unless they chose one of the owner's channels
+    sendAsId: sendAsPeerId ? getProxyPeerId(chat.accountId, sendAsPeerId) : undefined,
     // Members of a group are visible as to the owner; subscribers of a channel — to its admins only
     canViewMembers: (chat.peerId < 0 && (chat.type !== 'channel' || chat.permissions.admin)) || undefined,
     about: info?.about,
