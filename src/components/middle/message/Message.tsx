@@ -2283,8 +2283,10 @@ export default memo(withGlobal<OwnProps>(
 
     const chatLevel = chat?.boostLevel || 0;
     const transcribeMinLevel = global.appConfig.groupTranscribeLevelMin;
+    // PXG: A guest transcribes with the Premium of the chat's owner
     const canTranscribeVoice = !message.isEphemeral
-      && (isPremium || Boolean(transcribeMinLevel && chatLevel >= transcribeMinLevel));
+      && (isPremium || Boolean(chat?.pxgProxy?.isProviderPremium)
+        || Boolean(transcribeMinLevel && chatLevel >= transcribeMinLevel));
 
     const viaBusinessBot = viaBusinessBotId ? selectUser(global, viaBusinessBotId) : undefined;
 

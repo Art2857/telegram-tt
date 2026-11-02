@@ -45,10 +45,10 @@ const MEMBERS_SLICE = 50;
 const PROFILE_PHOTO_SIZE = 640;
 /** As many pinned messages as Telegram lists */
 const MAX_PINNED = 100;
-/** Admin actions of a guest: Telegram may refuse them, and Web A waits for their result */
+/** Admin actions of a guest and speech-to-text: Telegram may refuse them, and Web A waits for their result */
 const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
   'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto', 'createTopic', 'editTopic',
-  'togglePinnedTopic', 'deleteTopic',
+  'togglePinnedTopic', 'deleteTopic', 'transcribeAudio',
 ]);
 
 const methods = {
@@ -62,6 +62,7 @@ const methods = {
   fetchLanguage,
   fetchLangPack,
   fetchLangDifference,
+  transcribeAudio,
   fetchChats,
   fetchChat,
   searchChats,
@@ -345,6 +346,7 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
 
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
+  if (dto.transcription) emitTranscription(dto.transcription);
   const poll = buildProxyPoll(dto);
   if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
   const webPage = buildProxyWebPage(dto, getProxyPeerId(dto.accountId, dto.peerId));
@@ -357,6 +359,21 @@ function emitRelated(dto: MessageDto) {
   if (!dto.senderId || dto.senderId < 0) return;
   const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId);
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+}
+
+function emitTranscription({ id, text, pending }: NonNullable<MessageDto['transcription']>) {
+  emitProxyUpdate({ '@type': 'updateTranscribedAudio', transcriptionId: id, text, isPending: pending || undefined });
+}
+
+/** Speech-to-text costs the owner's Premium, as in Telegram; a pending result arrives as a message change */
+async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const transcription = await pxgRpc.call<NonNullable<MessageDto['transcription']>>('messages.transcribe', {
+    ...peer, msgId: messageId,
+  });
+  emitTranscription(transcription);
+  return transcription.id;
 }
 
 async function fetchFullChat(chat: ApiChat) {

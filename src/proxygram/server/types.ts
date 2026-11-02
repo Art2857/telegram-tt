@@ -136,6 +136,8 @@ export interface PollDto {
 
 export interface MessageDto {
   permissions?: Permissions;
+  /** Speech-to-text of a voice or round message; pending — Telegram is still recognizing it */
+  transcription?: { id: string; text: string; pending: boolean } | null;
   isMediaUnavailable?: boolean;
   accountId: string;
   peerId: number;

@@ -179,6 +179,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     pxgSentByUserId: dto.sentByUserId || undefined,
     pxgIsOwn: dto.sentByUserId === getPxgState().session?.user.id,
     pxgPermissions: permissions,
+    transcriptionId: dto.transcription?.id,
     isProtected: !permissions.forwardOut,
     isForwardingAllowed: permissions.forwardOut || undefined,
     forwardInfo: buildForwardInfo(dto),
