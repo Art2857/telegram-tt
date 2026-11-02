@@ -607,7 +607,9 @@ addActionHandler('setReactionEffect', (global, actions, payload): ActionReturnTy
 
   const effectId = effect?.id;
 
-  const isCurrentUserPremium = selectIsCurrentUserPremium(global);
+  // A shared chat sends through the owner's account, so the owner's Premium counts
+  const isCurrentUserPremium = selectIsCurrentUserPremium(global)
+    || selectChat(global, chatId)?.pxgProxy?.isProviderPremium;
   if (effect?.isPremium && !isCurrentUserPremium) {
     actions.openPremiumModal({
       initialSection: 'effects',

@@ -235,6 +235,7 @@ export interface MessageDto {
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
   isProtected?: boolean;
+  effectId?: string;
   /** The owner was mentioned, and the guest has not read it yet */
   hasUnreadMention?: boolean;
   attachment?: AttachmentDto;
@@ -428,6 +429,15 @@ export type AvailableReactionDto = {
 export interface AvailableReactionsDto {
   accountId: string;
   reactions: AvailableReactionDto[];
+}
+
+export interface AvailableEffectDto {
+  id: string;
+  emoticon: string;
+  isPremium: boolean;
+  staticIcon?: CatalogDocumentDto;
+  effectSticker: CatalogDocumentDto;
+  effectAnimation?: CatalogDocumentDto;
 }
 
 export interface CatalogSetDto {

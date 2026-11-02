@@ -170,10 +170,12 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     global = updateProxyFolder(global);
     setGlobal(global);
     setPxgState({ sharedCount: result.chats.length });
-    // Telegram's reactions are read through a provider: the first shared chat brings them
-    if (isProxyGuest() && result.chats.length
-      && !global.reactions.availableReactions?.some((reaction) => reaction.staticIcon)) {
-      actions.loadAvailableReactions();
+    // Telegram's reactions and message effects are read through a provider: the first shared chat brings them
+    if (isProxyGuest() && result.chats.length) {
+      if (!global.reactions.availableReactions?.some((reaction) => reaction.staticIcon)) {
+        actions.loadAvailableReactions();
+      }
+      if (!Object.keys(global.availableEffectById).length) actions.loadAvailableEffects();
     }
     Object.values(global.byTabId).forEach(({ id: tabId }) => {
       const list = selectCurrentMessageList(global, tabId);

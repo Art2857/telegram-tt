@@ -260,6 +260,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     transcriptionId: dto.transcription?.id,
     // Without `forwardOut` a guest still copies and saves what they read; only Telegram's own protection forbids it
     isProtected: dto.isProtected || undefined,
+    effectId: dto.effectId,
     isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),

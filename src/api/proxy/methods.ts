@@ -28,8 +28,8 @@ import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
-  fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers, fetchRecentStickers,
-  fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
+  fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets, fetchFavoriteStickers,
+  fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
 import { translateRichMessage, translateText } from './translations';
 import {
@@ -136,6 +136,7 @@ const methods = {
   fetchSavedGifs,
   fetchStickers,
   fetchStickersForEmoji,
+  fetchAvailableEffects,
   fetchAvailableReactions,
 } satisfies Partial<Methods>;
 
@@ -187,8 +188,13 @@ export async function fetchProxyChats() {
     page?.messages.map((dto) => buildProxyMessage(dto, chats[index])) || []
   ));
   pages.forEach((page) => page?.messages.forEach((dto) => emitRelated(dto)));
+  // A full reload clears proxy users after this returns: whoever the last messages show has to come back with them.
+  // The chat's own user goes last, it knows more than a message does
+  const messageUsers = pages.flatMap((page) => page?.messages.flatMap(buildMessageUsers) || []);
   return {
-    chats, users, messages,
+    chats,
+    users: [...messageUsers, ...users],
+    messages,
     chatIds: chats.map((chat) => chat.id),
     lastMessageByChatId: Object.fromEntries(messages.map((message) => [message.chatId, message.id])),
     userStatusesById: Object.fromEntries(access.flatMap((item, index) => (
@@ -487,6 +493,19 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
     topic: buildProxyTopic(topic, chat.id),
     messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
   };
+}
+
+/** Everyone a message shows besides its text: the sender, participants of an action, commenters and reactors */
+function buildMessageUsers(dto: MessageDto): ApiUser[] {
+  const actionUsers = dto.action && 'users' in dto.action ? dto.action.users : [];
+  return [
+    ...actionUsers.map(({ id, name }) => buildProxyUser(dto.accountId, id, name || undefined)),
+    ...[...(dto.post?.recentRepliers || []), ...(dto.reactors || [])].filter(({ peerId }) => peerId > 0)
+      .map(({ peerId, name, photoId }) => buildProxyUser(dto.accountId, peerId, name || undefined, photoId)),
+    ...(dto.senderId && dto.senderId > 0 ? [buildProxyUser(
+      dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId, dto.senderBadges,
+    )] : []),
+  ];
 }
 
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */

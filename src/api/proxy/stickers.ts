@@ -1,8 +1,10 @@
 import type {
-  AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, ReactionAnimation, StickerCatalogDto,
+  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, ReactionAnimation, StickerCatalogDto,
 } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
-import type { ApiAvailableReaction, ApiDocument, ApiSticker, ApiStickerSet, ApiVideo } from '../types';
+import type {
+  ApiAvailableEffect, ApiAvailableReaction, ApiDocument, ApiSticker, ApiStickerSet, ApiVideo,
+} from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
 
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -150,6 +152,45 @@ export async function fetchAvailableReactions(): Promise<ApiAvailableReaction[]>
       return doc ? [[animation, buildCatalogDocument(userId, result.accountId, doc)]] : [];
     })),
   }));
+}
+
+/** Message effects: the list is the same for every account, the files come through one the guest can reach */
+export async function fetchAvailableEffects() {
+  const userId = getPxgState().session?.user.id;
+  const result = userId
+    ? await pxgRpc.call<{ accountId: string; effects: AvailableEffectDto[] } | null>('reactions.effects')
+      .catch(() => undefined)
+    : undefined;
+  if (!userId || !result) return undefined;
+  const { accountId } = result;
+  const buildId = (doc?: CatalogDocumentDto) => doc && buildProxyCatalogMediaId(userId, accountId, doc.id);
+  const buildEffectSticker = (doc: CatalogDocumentDto, isPremium: boolean): ApiSticker => ({
+    mediaType: 'sticker',
+    id: buildId(doc)!,
+    stickerSetInfo: { isMissing: true },
+    emoji: doc.emoji || undefined,
+    isFree: !isPremium,
+    isLottie: doc.mimeType === 'application/x-tgsticker',
+    isVideo: doc.mimeType === 'video/webm',
+    width: doc.width || undefined,
+    height: doc.height || undefined,
+  });
+  return {
+    effects: result.effects.map((effect): ApiAvailableEffect => ({
+      id: effect.id,
+      emoticon: effect.emoticon,
+      isPremium: effect.isPremium || undefined,
+      staticIconId: buildId(effect.staticIcon),
+      effectAnimationId: buildId(effect.effectAnimation),
+      effectStickerId: buildId(effect.effectSticker)!,
+    })),
+    emojis: result.effects.flatMap(({ effectAnimation, isPremium }) => (
+      effectAnimation ? [buildEffectSticker(effectAnimation, isPremium)] : []
+    )),
+    stickers: result.effects.flatMap(({ effectAnimation, effectSticker, isPremium }) => (
+      effectAnimation ? [] : [buildEffectSticker(effectSticker, isPremium)]
+    )),
+  };
 }
 
 export function buildFallbackReactions(): ApiAvailableReaction[] {

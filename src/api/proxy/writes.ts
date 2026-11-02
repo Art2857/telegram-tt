@@ -22,7 +22,7 @@ const MAX_READ_REACTIONS = 200;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
-  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt } = params;
+  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, effectId } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   const isScheduled = Boolean(scheduledAt);
@@ -44,6 +44,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     },
     sendingState: 'messageSendingStatePending',
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
+    effectId,
   };
   if (!params.localMessage) {
     emitProxyUpdate({
@@ -102,6 +103,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       threadId,
       silent: params.isSilent,
       scheduleDate: scheduledAt,
+      effectId,
     }) as { msgId: number };
     if (isScheduled) {
       // A scheduled message reaches the archive when Telegram sends it
