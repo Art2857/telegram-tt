@@ -399,6 +399,7 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
     readState: {
       unreadCount: dto.unreadCount,
       lastReadInboxMessageId: dto.readMaxId,
+      lastReadOutboxMessageId: dto.readOutboxMaxId ?? undefined,
       unreadMentionsCount: dto.unreadMentionsCount,
       unreadReactionsCount: dto.unreadReactionsCount,
     },

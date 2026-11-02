@@ -320,6 +320,8 @@ export interface TopicDto {
   unreadMentionsCount: number;
   unreadReactionsCount: number;
   readMaxId: number;
+  /** Up to where others read the account's outgoing messages in this topic */
+  readOutboxMaxId?: number | null;
 }
 
 /** Свои счётчики непрочитанного гостя по открытому ему чату */
@@ -352,6 +354,8 @@ export interface DiscussionDto {
   messages: MessageDto[];
   count: number;
   lastMsgId: number | null;
+  /** Up to where others read the account's outgoing comments in this thread */
+  readOutboxMaxId?: number | null;
 }
 
 export interface TopicsListResult {
@@ -527,7 +531,7 @@ export interface UserStatusDto {
 export type ServerEvent =
   | { e: 'draft.changed'; d: { accountId: string; peerId: number; topicId: number | null; draft: DraftDto | null } }
   | { e: 'chat.typing'; d: ChatTypingDto }
-  | { e: 'chat.readOutbox'; d: { accountId: string; peerId: number; maxId: number } }
+  | { e: 'chat.readOutbox'; d: { accountId: string; peerId: number; maxId: number; threadId?: number } }
   | { e: 'user.status'; d: { accountId: string; userId: number; status: UserStatusDto } }
   | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }
   | { e: 'access.changed'; d: Record<string, never> }

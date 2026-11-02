@@ -171,7 +171,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
         apiUpdate({
           '@type': 'updateThreadReadState',
           chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
-          threadId: MAIN_THREAD_ID,
+          threadId: event.d.threadId ?? MAIN_THREAD_ID,
           readState: { lastReadOutboxMessageId: event.d.maxId },
         });
       }

@@ -363,7 +363,11 @@ async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDisc
       fromMessageId: origin?.msgId,
     },
     // The guest's reading of a comment thread is not tracked: it is read as soon as it is open
-    threadReadState: { unreadCount: 0, lastReadInboxMessageId: readMaxId },
+    threadReadState: {
+      unreadCount: 0,
+      lastReadInboxMessageId: readMaxId,
+      lastReadOutboxMessageId: discussion.readOutboxMaxId ?? undefined,
+    },
     lastMessageId,
     firstMessageId: first.messages[0]?.msgId,
   };
