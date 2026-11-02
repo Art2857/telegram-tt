@@ -151,7 +151,8 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
         : { type: 'custom', documentId: buildProxyCatalogMediaId(userId!, dto.accountId, documentId!) },
     }];
   });
-  const media = chat.pxgProxy?.permissions.download && !dto.isMediaUnavailable
+  const permissions = dto.permissions || chat.pxgProxy!.permissions;
+  const media = permissions.download && !dto.isMediaUnavailable
     ? buildProxyMedia(dto, chat.id) : undefined;
   const mediaFallback = !media && dto.media?.id ? {
     fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable,
@@ -177,8 +178,9 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     pxgDeletedAt: dto.deleted ? parseDate(dto.deleted.at) : undefined,
     pxgSentByUserId: dto.sentByUserId || undefined,
     pxgIsOwn: dto.sentByUserId === getPxgState().session?.user.id,
-    isProtected: !chat.pxgProxy?.permissions.forwardOut,
-    isForwardingAllowed: chat.pxgProxy?.permissions.forwardOut || undefined,
+    pxgPermissions: permissions,
+    isProtected: !permissions.forwardOut,
+    isForwardingAllowed: permissions.forwardOut || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
     reactions: reactions?.length ? { results: reactions } : undefined,
@@ -291,6 +293,7 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       date: parseDate(dto.date),
       fromId: chatId,
       notifySettings: {},
+      pxgPermissions: dto.permissions,
     },
     // The guest's own read state: reading a shared topic does not mark it read for the owner
     readState: { unreadCount: dto.unreadCount, lastReadInboxMessageId: dto.readMaxId },
@@ -301,7 +304,7 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
 /** Bot callbacks act on behalf of the owner and need `interact`; links open like any other link */
 function buildInlineButtons(dto: MessageDto, chat: ApiChat): ApiKeyboardButtons | undefined {
   if (!dto.buttons?.length) return undefined;
-  const canInteract = chat.pxgProxy?.permissions.interact;
+  const canInteract = (dto.permissions || chat.pxgProxy?.permissions)?.interact;
   return dto.buttons.map((row) => row.map((button): ApiKeyboardButton => {
     if (button.kind === 'url') return { text: button.text, action: { type: 'url', url: button.url } };
     if (button.kind === 'callback' && canInteract) {

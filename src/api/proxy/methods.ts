@@ -14,6 +14,9 @@ import {
   buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic,
   buildProxyUser, buildProxyWebPage,
 } from './builders';
+import {
+  deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
+} from './folders';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId } from './mediaIds';
@@ -47,6 +50,11 @@ const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
 ]);
 
 const methods = {
+  fetchChatFolders,
+  editChatFolder,
+  deleteChatFolder,
+  sortChatFolders,
+  fetchRecommendedChatFolders,
   fetchChats,
   fetchChat,
   searchChats,

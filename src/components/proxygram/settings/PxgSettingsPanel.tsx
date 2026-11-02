@@ -1,9 +1,10 @@
-import { memo, useCallback, useEffect, useState } from '../../../lib/teact/teact';
+import { memo, useCallback, useEffect, useRef, useState } from '../../../lib/teact/teact';
 
 import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
 
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import buildClassName from '../../../util/buildClassName';
+import { getServerTime } from '../../../util/serverTime';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
@@ -28,6 +29,7 @@ type ShareRow = {
   id: string;
   scope: 'chat' | 'topic' | 'folder';
   folderId: number | null;
+  folderTitle: string | null;
   preset: PresetKey;
   status: 'active' | 'paused' | 'source_lost';
   expiresAt: string | null;
@@ -130,23 +132,36 @@ function usePxgData<T>(method: string, params: unknown, reloadOn: ServerEvent['e
   const [error, setError] = useState<unknown>();
   const paramsKey = JSON.stringify(params);
   const reloadKey = reloadOn.join();
+  const requestRef = useRef(0);
+  const connection = usePxgState((state) => state.connection);
 
   const reload = useCallback(() => {
+    const request = ++requestRef.current;
     pxgRpc.call<T>(method, JSON.parse(paramsKey))
       .then((result) => {
+        if (request !== requestRef.current) return;
         setData(result);
         setError(undefined);
       })
-      .catch(setError);
-  }, [method, paramsKey]);
+      .catch((err) => {
+        if (request === requestRef.current) setError(err);
+      });
+  }, [method, paramsKey, requestRef]);
 
   useEffect(() => {
+    if (connection !== 'online') return undefined;
     reload();
     const events = new Set(reloadKey.split(','));
-    return pxgRpc.on((event) => {
+    const unsubscribe = pxgRpc.on((event) => {
       if (events.has(event.e)) reload();
     });
-  }, [reload, reloadKey]);
+    return () => {
+      // This ref tracks RPC generations; cleanup invalidates responses from the previous subscription
+      // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
+      requestRef.current++;
+      unsubscribe();
+    };
+  }, [reload, reloadKey, connection, requestRef]);
 
   return { data, error, reload };
 }
@@ -162,10 +177,13 @@ const PxgSettingsPanel = () => {
   const ownAccounts = accounts?.filter((account) => account.status !== 'revoked');
   const isOwner = session?.level === 'client' || Boolean(ownAccounts?.length);
   const tabs = TABS.filter((item) => isOwner || !item.isOwnerOnly);
-  const [tab, setTab] = useState(0);
+  const [selectedTabKey, setSelectedTabKey] = useState<typeof TABS[number]['key']>(
+    session?.level === 'client' ? 'server' : 'incoming',
+  );
   const [confirm, setConfirm] = useState<Confirm>();
   const [actionError, setActionError] = useState<string>();
-  const tabKey = (tabs[tab] ?? tabs[0]).key;
+  const tab = Math.max(0, tabs.findIndex((item) => item.key === selectedTabKey));
+  const tabKey = tabs[tab].key;
   const t = lang as unknown as Translate;
 
   const close = () => setPxgState({ isSettingsOpen: false });
@@ -198,7 +216,7 @@ const PxgSettingsPanel = () => {
       <TabList
         tabs={tabs.map((item) => ({ title: t(item.title) }))}
         activeTab={tab}
-        onSwitchTab={setTab}
+        onSwitchTab={(index) => setSelectedTabKey(tabs[index].key)}
         className={styles.tabs}
       />
       {actionError && <div className={styles.actionError}>{actionError}</div>}
@@ -311,7 +329,7 @@ function renderImport(t: Translate, state: ImportStateDto | null) {
 }
 
 const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
-  const { data, error, reload } = usePxgData<ShareRow[]>('shares.outgoing', {}, ['access.changed']);
+  const { data, error, reload } = usePxgData<ShareRow[]>('shares.outgoing', {}, ['shares.changed', 'access.changed']);
   if (!data) return <Loading error={error} lang={lang} />;
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
 
@@ -625,13 +643,16 @@ function AutostartToggle({ lang }: { lang: Lang }) {
 
 function describeTarget(t: Translate, share: ShareRow) {
   if (share.label) return share.label;
-  if (share.scope === 'folder') return t('PxgSettingsFolder', { id: share.folderId ?? 0 });
+  if (share.scope === 'folder') return share.folderTitle || t('PxgSettingsFolder', { id: share.folderId ?? 0 });
   if (share.scope === 'topic' && share.topicTitle) return `${share.peerTitle ?? '—'} › ${share.topicTitle}`;
   return share.peerTitle ?? '—';
 }
 
 function describeShare(t: Translate, share: ShareRow) {
   const parts = [t(`PxgPreset${share.preset[0].toUpperCase()}${share.preset.slice(1)}`)];
+  if (share.expiresAt && Date.parse(share.expiresAt) <= getServerTime() * 1000) {
+    parts.push(t('PxgShareStatusExpired'));
+  }
   if (share.status === 'paused') parts.push(t('PxgShareStatusPaused'));
   if (share.status === 'source_lost') parts.push(t('PxgShareStatusLost'));
   if (share.expiresAt) parts.push(t('PxgShareExpires', { date: formatDateTime(share.expiresAt) }));

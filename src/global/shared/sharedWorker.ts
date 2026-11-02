@@ -69,9 +69,9 @@ export type ClientBoundMessageEvent = StateUpdateEvent | FullStateEvent | Passco
   | { type: 'webLoginRetained'; id: string }
   | { type: 'webLoginClaimed'; id: string; request?: PendingWebLogin };
 
-export function createSharedWorker() {
+export function createSharedWorker(scope?: string) {
   return new SharedWorker(new URL('./sharedState.worker.ts', import.meta.url), {
-    name: APP_NAME,
+    name: scope ? `${APP_NAME}-${scope}` : APP_NAME,
     type: 'module',
     extendedLifetime: true,
   });

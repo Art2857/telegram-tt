@@ -1,10 +1,15 @@
 import type { ApiLimitType } from '../../api/types';
 import type { GlobalState } from '../types';
+import { MAX_PROXY_FOLDERS } from '../../api/proxy/types';
 
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { DEFAULT_LIMITS } from '../../limits';
 import { selectIsCurrentUserPremium } from './users';
 
 export function selectCurrentLimit<T extends GlobalState>(global: T, limit: ApiLimitType) {
+  if (limit === 'dialogFilters' && global.currentUserId && isProxyPeerId(global.currentUserId)) {
+    return MAX_PROXY_FOLDERS + 1;
+  }
   const { appConfig } = global;
   const { limits } = appConfig;
 

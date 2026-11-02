@@ -3560,6 +3560,8 @@ export interface LangPair {
   'PxgShareHistoryFixed': undefined;
   'PxgShareExpiry': undefined;
   'PxgExpiryNever': undefined;
+  'PxgExpiryKeep': undefined;
+  'PxgShareStatusExpired': undefined;
   'PxgExpiryDay': undefined;
   'PxgExpiryWeek': undefined;
   'PxgExpiryMonth': undefined;

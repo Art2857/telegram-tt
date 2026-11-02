@@ -8,6 +8,7 @@ import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
 import { setProxyUpdateHandler } from '../../api/proxy';
 import { isProxyPeerId } from '../../api/proxy/ids';
+import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
@@ -44,6 +45,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
     loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
     applyProxyChatState, apiUpdate, showNotification,
+    loadChatFolders, setSharedSettingOption,
   } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -62,6 +64,11 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     session && session.level === 'client' && currentUserId && String(session.user.tgUserId) === currentUserId,
   );
   const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
+
+  useEffect(() => {
+    if (!isGuest) return undefined;
+    return startGuestSettingsSync(setSharedSettingOption);
+  }, [isGuest, session?.user.id, setSharedSettingOption]);
 
   useEffect(() => {
     if (!isGuest) return;
@@ -121,6 +128,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
     setProxyUpdateHandler(apiUpdate);
     loadProxyChats();
+    if (isGuest) loadChatFolders();
     return pxgRpc.on((event) => {
       if (event.e === 'access.changed') {
         clearProxyChats();
@@ -136,9 +144,10 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.e === 'topics.changed') refreshProxyTopics(event.d);
       if (event.e === 'read.changed') refreshProxyUnread(event.d);
       if (event.e === 'chats.state') applyProxyChatState(event.d);
+      if (event.e === 'folders.changed' && isGuest) loadChatFolders();
     });
   }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory,
-    refreshProxyTopics, refreshProxyUnread, applyProxyChatState, apiUpdate, showNotification]);
+    refreshProxyTopics, refreshProxyUnread, applyProxyChatState, apiUpdate, showNotification, loadChatFolders]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
@@ -158,7 +167,12 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {currentUserId && !isProxyPeerId(currentUserId) && <LocalArchiveLoader ownerId={currentUserId} />}
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && (
-        <ShareChatModal chatId={shareChatId} folder={shareFolder} topic={shareTopic} />
+        <ShareChatModal
+          key={`${shareChatId}:${shareFolder?.id}:${shareTopic?.id}`}
+          chatId={shareChatId}
+          folder={shareFolder}
+          topic={shareTopic}
+        />
       )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}

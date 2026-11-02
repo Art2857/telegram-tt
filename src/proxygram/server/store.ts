@@ -1,8 +1,10 @@
-import { useEffect, useState } from '../../lib/teact/teact';
+import { useEffect, useRef } from '../../lib/teact/teact';
 
 import type { AccountDto, StoredSession } from './types';
 
 import { ACCOUNT_SLOT } from '../../util/multiaccount';
+
+import useForceUpdate from '../../hooks/useForceUpdate';
 
 export type ConnectionState = 'offline' | 'connecting' | 'online';
 
@@ -54,6 +56,16 @@ export function getPxgState(): PxgState {
 }
 
 export function setPxgState(patch: Partial<PxgState>) {
+  const isNewIdentity = 'session' in patch && (
+    state.session?.user.id !== patch.session?.user.id || state.session?.level !== patch.session?.level
+  );
+  if (isNewIdentity) {
+    state = { ...state,
+      accounts: undefined, sharedCount: undefined,
+      shareChatId: undefined, shareFolder: undefined, shareTopic: undefined,
+      isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
+    };
+  }
   state = { ...state, ...patch };
   if ('session' in patch) writeStoredSession(patch.session);
   listeners.forEach((listener) => listener());
@@ -68,19 +80,38 @@ export function subscribePxg(listener: NoneToVoidFunction) {
 
 /** Teact-хук: компонент перерисовывается, когда меняется выбранная часть состояния */
 export function usePxgState<T>(selector: (current: PxgState) => T): T {
-  const [value, setValue] = useState(() => selector(state));
+  const forceUpdate = useForceUpdate();
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
+  const value = selector(state);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   useEffect(() => {
-    setValue(selector(state));
-    return subscribePxg(() => setValue(selector(state)));
-    // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
-  }, []);
+    const update = () => {
+      const next = selectorRef.current(state);
+      if (Object.is(next, valueRef.current)) return;
+      valueRef.current = next;
+      forceUpdate();
+    };
+    update();
+    return subscribePxg(update);
+  }, [selectorRef, valueRef, forceUpdate]);
   return value;
 }
 
 export function readStoredSession(slot = ACCOUNT_SLOT): StoredSession | undefined {
   try {
     const raw = localStorage.getItem(pxgSessionKey(slot));
-    return raw ? JSON.parse(raw) as StoredSession : undefined;
+    if (!raw) return undefined;
+    const session = JSON.parse(raw) as Partial<StoredSession> | undefined;
+    if (!session || (session.level !== 'guest' && session.level !== 'client')
+      || typeof session.accessToken !== 'string' || !session.accessToken
+      || typeof session.refreshToken !== 'string'
+      || session.refreshToken.length < 16 || session.refreshToken.length > 128
+      || !Number.isFinite(session.accessExpiresAt)
+      || !session.user || typeof session.user.id !== 'string' || !session.user.id
+      || !Number.isSafeInteger(session.user.tgUserId)) return undefined;
+    return session as StoredSession;
   } catch {
     return undefined;
   }
@@ -116,6 +147,5 @@ function writeStoredSession(session?: StoredSession) {
 // Другая вкладка продлила или завершила сессию — подхватываем, иначе refresh-токены разойдутся
 window.addEventListener('storage', (event) => {
   if (event.key !== SESSION_KEY) return;
-  state = { ...state, session: readStoredSession() };
-  listeners.forEach((listener) => listener());
+  setPxgState({ session: readStoredSession() });
 });

@@ -135,6 +135,7 @@ export interface PollDto {
 }
 
 export interface MessageDto {
+  permissions?: Permissions;
   isMediaUnavailable?: boolean;
   accountId: string;
   peerId: number;
@@ -214,6 +215,7 @@ export type ServiceActionDto =
 
 /** Тема форума; lastMsgId — последнее видимое гостю сообщение темы */
 export interface TopicDto {
+  permissions?: Permissions;
   id: number;
   title: string;
   iconColor: number | null;
@@ -390,7 +392,8 @@ export type ServerEvent =
   | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } }
   | { e: 'topics.changed'; d: { accountId: string; peerId: number } }
   | { e: 'read.changed'; d: { accountId: string; peerId: number; topicId: number | null } }
-  | { e: 'chats.state'; d: ChatStateDto };
+  | { e: 'chats.state'; d: ChatStateDto }
+  | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

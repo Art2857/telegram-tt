@@ -201,6 +201,8 @@
 "PxgShareHistoryFixed" = "Глубину истории выбирают при выдаче. Чтобы её изменить, отзовите доступ и выдайте заново.";
 "PxgShareExpiry" = "Срок";
 "PxgExpiryNever" = "Бессрочно";
+"PxgExpiryKeep" = "Сохранить текущий срок";
+"PxgShareStatusExpired" = "Срок истёк";
 "PxgExpiryDay" = "1 день";
 "PxgExpiryWeek" = "1 неделя";
 "PxgExpiryMonth" = "1 месяц";

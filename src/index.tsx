@@ -70,7 +70,7 @@ async function init() {
   localStorage.setItem(MULTITAB_STORAGE_KEY, '1');
   onBeforeUnload(() => {
     const global = getGlobal();
-    if (Object.keys(global.byTabId).length === 1) {
+    if (global.byTabId && Object.keys(global.byTabId).length === 1) {
       localStorage.removeItem(MULTITAB_STORAGE_KEY);
     }
   });

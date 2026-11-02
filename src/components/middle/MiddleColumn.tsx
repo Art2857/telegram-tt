@@ -511,7 +511,7 @@ function MiddleColumn({
   );
 
   const composerRestrictionMessage = messageSendingRestrictionReason
-    || getProxySendingRestrictionReason(lang, chat) // PXG
+    || getProxySendingRestrictionReason(lang, chat, topics?.[Number(threadId)]) // PXG
     || forumComposerPlaceholder
     || (shouldBlockSendInMonoforum ? lang('MonoforumComposerPlaceholder') : undefined)
     || (isContactRequirePremium ? <PremiumRequiredPlaceholder userId={chatId!} /> : undefined)

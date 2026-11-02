@@ -1430,7 +1430,7 @@ addActionHandler('addChatFolder', async (global, actions, payload): Promise<void
   const { orderedIds, byId } = global.chatFolders;
 
   const limit = selectCurrentLimit(global, 'dialogFilters');
-  if (Object.keys(byId).length >= limit) {
+  if (Object.values(byId).filter((item) => !item.pxgLocal).length >= limit - 1) {
     actions.openLimitReachedModal({
       limit: 'dialogFilters',
       tabId,
@@ -1443,7 +1443,11 @@ addActionHandler('addChatFolder', async (global, actions, payload): Promise<void
   // Clear fields from recommended folders
   const { id: recommendedId, description, ...newFolder } = folder;
 
-  const newId = maxId + 1;
+  let newId = maxId + 1;
+  if (global.currentUserId && isProxyPeerId(global.currentUserId)) {
+    newId = ARCHIVED_FOLDER_ID + 1;
+    while (byId[newId]) newId++;
+  }
   const folderUpdate = {
     id: newId,
     ...newFolder,
@@ -1463,7 +1467,7 @@ addActionHandler('addChatFolder', async (global, actions, payload): Promise<void
   actions.requestNextFoldersAction({
     foldersAction: {
       type: 'setFolderId',
-      payload: maxId + 1,
+      payload: newId,
     },
     tabId,
   });

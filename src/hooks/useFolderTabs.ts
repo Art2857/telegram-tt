@@ -153,7 +153,9 @@ const useFolderTabs = (params: Params) => {
           contextActions.push({
             title: lang('PxgShareFolderMenu'),
             icon: 'user',
-            handler: () => setPxgState({ shareFolder: { id, title: folder.title.text } }),
+            handler: () => setPxgState({
+              shareFolder: { id, title: folder.title.text }, shareChatId: undefined, shareTopic: undefined,
+            }),
           });
         }
 

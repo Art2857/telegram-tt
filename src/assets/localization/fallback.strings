@@ -4714,6 +4714,8 @@
 "PxgShareHistoryFixed" = "History depth is chosen when access is granted. To change it, revoke the access and grant it again.";
 "PxgShareExpiry" = "Duration";
 "PxgExpiryNever" = "No limit";
+"PxgExpiryKeep" = "Keep current expiry";
+"PxgShareStatusExpired" = "Expired";
 "PxgExpiryDay" = "1 day";
 "PxgExpiryWeek" = "1 week";
 "PxgExpiryMonth" = "1 month";

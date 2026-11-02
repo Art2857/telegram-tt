@@ -96,7 +96,6 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
   {
     screen: SettingsScreens.Folders,
     parent: SettingsScreens.Main,
-    requires: 'hasTelegramSession',
     titleKey: 'Filters',
     keywordsKey: 'SettingsKeywordsFolders',
     icon: 'folder-filled',

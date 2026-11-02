@@ -1,3 +1,4 @@
+import type { Permissions } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState, WebPageMediaSize } from '../../types';
 import type {
   ApiBotInlineMediaResult,
@@ -806,6 +807,7 @@ export interface ApiMessage {
   // PXG: имя гостя, отправившего исходящее владельца через прокси (оверлей полного клиента)
   pxgSentByName?: string;
   pxgIsOwn?: boolean;
+  pxgPermissions?: Permissions;
   pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)
   pxgEditHistory?: PxgEditVersion[];
@@ -1220,6 +1222,7 @@ export type LinkContextInner = {
 export type LinkContext = LinkContextMessage | LinkContextInner;
 
 export interface ApiTopic {
+  pxgPermissions?: Permissions;
   id: number;
   isClosed?: boolean;
   isPinned?: boolean;

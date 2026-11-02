@@ -17,7 +17,7 @@ import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
-import { INITIAL_GLOBAL_STATE } from '../../initialState';
+import { INITIAL_GLOBAL_STATE, INITIAL_SHARED_STATE } from '../../initialState';
 import {
   addChatListIds, addNotifyExceptions, updateChatFullInfo, updateChats, updateChatsLastMessageId, updateUsers,
 } from '../../reducers';
@@ -28,6 +28,7 @@ import { updateTopicsInfo } from '../../reducers/topics';
 import {
   selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException,
 } from '../../selectors';
+import { initSharedState } from '../../shared/sharedStateConnector';
 
 let loadGeneration = 0;
 
@@ -69,9 +70,11 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     },
   };
   setGlobal(global);
+  initSharedState(global.sharedState);
   // Telegram's peer colors never reach a guest, so avatar placeholders and names use the built-in palette
   if (!global.peerColors) updatePeerColors({});
   actions.loadProxyChats();
+  actions.loadChatFolders();
 });
 
 addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
@@ -84,6 +87,7 @@ addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   };
   setGlobal(global);
   actions.initApi();
+  initSharedState(INITIAL_SHARED_STATE);
 });
 
 addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {

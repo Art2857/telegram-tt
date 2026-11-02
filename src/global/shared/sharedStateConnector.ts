@@ -5,6 +5,8 @@ import type { SharedState } from '../types';
 import { deepDiff } from '../../util/deepDiff';
 import { deepMerge } from '../../util/deepMerge';
 import { throttleWithTickEnd } from '../../util/schedulers';
+import { isProxyGuest } from '../../api/proxy';
+import { getPxgState } from '../../proxygram/server/store';
 import { INITIAL_SHARED_STATE } from '../initialState';
 import { getGlobal, setGlobal } from '..';
 import {
@@ -20,7 +22,8 @@ let synced = false;
 let lastSharedState: SharedState = INITIAL_SHARED_STATE;
 
 export function initSharedState(localState: SharedState) {
-  sharedWorker = createSharedWorker();
+  destroySharedStatePort();
+  sharedWorker = createSharedWorker(isProxyGuest() ? `guest-${getPxgState().session!.user.id}` : undefined);
 
   sharedWorker.port.addEventListener('message', onMessage);
   sharedWorker.port.start();

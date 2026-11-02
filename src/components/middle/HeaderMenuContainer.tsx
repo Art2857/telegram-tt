@@ -694,7 +694,7 @@ const HeaderMenuContainer = ({
             <MenuItem
               icon="share-filled"
               onClick={() => {
-                setPxgState({ shareChatId: chatId });
+                setPxgState({ shareChatId: chatId, shareFolder: undefined, shareTopic: undefined });
                 closeMenu();
               }}
             >
@@ -708,7 +708,7 @@ const HeaderMenuContainer = ({
               onClick={() => {
                 const topicId = Number(threadId);
                 const title = selectTopic(getGlobal(), chatId, topicId)?.title || String(topicId);
-                setPxgState({ shareChatId: chatId, shareTopic: { id: topicId, title } });
+                setPxgState({ shareChatId: chatId, shareFolder: undefined, shareTopic: { id: topicId, title } });
                 closeMenu();
               }}
             >

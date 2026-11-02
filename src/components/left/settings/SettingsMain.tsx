@@ -163,18 +163,16 @@ const SettingsMain = ({
             <span className="subtitle">{lang('SettingsDataDesc')}</span>
           </ListItem>
 
-          {!isGuest && (
-            <ListItem
-              icon="folder-filled"
-              iconBg="blue"
-              multiline
-              narrow
-              onClick={() => openSettingsScreen({ screen: SettingsScreens.Folders })}
-            >
-              <span className="title">{lang('Filters')}</span>
-              <span className="subtitle">{lang('SettingsFoldersDesc')}</span>
-            </ListItem>
-          )}
+          <ListItem
+            icon="folder-filled"
+            iconBg="blue"
+            multiline
+            narrow
+            onClick={() => openSettingsScreen({ screen: SettingsScreens.Folders })}
+          >
+            <span className="title">{lang('Filters')}</span>
+            <span className="subtitle">{lang('SettingsFoldersDesc')}</span>
+          </ListItem>
 
           <ListItem
             icon="animations-filled"

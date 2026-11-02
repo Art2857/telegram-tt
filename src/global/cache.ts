@@ -51,6 +51,7 @@ import { hasStoredSession } from '../util/sessions';
 import { getSystemTheme } from '../util/systemTheme';
 import { getDefaultPatternColor } from '../util/wallpaper';
 import { migrateLegacyWallpaperBlobs, prefetchWallpaperUrl } from '../util/wallpaperStorage';
+import { getPxgState } from '../proxygram/server/store';
 import { buildPageAudioById } from './helpers/buildPageAudioById';
 import { clearProxyChats } from './reducers/proxy';
 import { selectSharedSettings } from './selectors/sharedState';
@@ -103,7 +104,7 @@ export function cacheGlobalForSlot(slot: number | undefined, global: GlobalState
 }
 
 export function cacheSharedState(state: SharedState) {
-  return MAIN_IDB_STORE.set(SHARED_STATE_CACHE_KEY, state);
+  return MAIN_IDB_STORE.set(getSharedStateCacheKey(), state);
 }
 
 export function loadCachedGlobal() {
@@ -115,7 +116,13 @@ export function loadCachedGlobalForSlot(slot: number | undefined) {
 }
 
 export function loadCachedSharedState() {
-  return MAIN_IDB_STORE.get<SharedState>(SHARED_STATE_CACHE_KEY);
+  return MAIN_IDB_STORE.get<SharedState>(getSharedStateCacheKey());
+}
+
+function getSharedStateCacheKey() {
+  const session = getPxgState().session;
+  return session?.level === 'guest' && !hasStoredSession()
+    ? `${SHARED_STATE_CACHE_KEY}-guest-${session.user.id}` : SHARED_STATE_CACHE_KEY;
 }
 
 export function removeGlobalFromCache() {
@@ -135,7 +142,7 @@ function isGlobalStateCacheKey(cacheKey: string) {
 }
 
 export function removeSharedStateFromCache() {
-  return MAIN_IDB_STORE.del(SHARED_STATE_CACHE_KEY);
+  return MAIN_IDB_STORE.del(getSharedStateCacheKey());
 }
 
 export function initCache() {

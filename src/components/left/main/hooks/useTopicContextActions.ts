@@ -8,6 +8,7 @@ import { getCanManageTopic, getHasAdminRight } from '../../../../global/helpers'
 import { IS_TAURI } from '../../../../util/browser/globalEnvironment';
 import { IS_OPEN_IN_NEW_TAB_SUPPORTED } from '../../../../util/browser/windowEnvironment';
 import { compact } from '../../../../util/iteratees';
+import { setPxgState, usePxgState } from '../../../../proxygram/server/store';
 
 import useLang from '../../../../hooks/useLang';
 
@@ -33,6 +34,7 @@ export default function useTopicContextActions({
   handleUnmute?: NoneToVoidFunction;
 }) {
   const lang = useLang();
+  const canShare = usePxgState((state) => state.session?.level === 'client');
 
   const preparedActions = useMemo(() => {
     const {
@@ -49,8 +51,9 @@ export default function useTopicContextActions({
       openQuickPreview,
     } = getActions();
 
-    const canToggleClosed = getCanManageTopic(chat, topic) && !chat.isBotForum;
-    const canTogglePinned = getHasAdminRight(chat, 'manageTopics');
+    const canAdmin = !chat.pxgProxy || (topic.pxgPermissions || chat.pxgProxy.permissions).admin;
+    const canToggleClosed = canAdmin && getCanManageTopic(chat, topic) && !chat.isBotForum;
+    const canTogglePinned = canAdmin && getHasAdminRight(chat, 'manageTopics');
 
     const actionOpenInNewTab = IS_OPEN_IN_NEW_TAB_SUPPORTED && {
       title: IS_TAURI ? lang('ChatListOpenInNewWindow') : lang('ChatListOpenInNewTab'),
@@ -124,6 +127,12 @@ export default function useTopicContextActions({
     return compact([
       actionOpenInNewTab,
       actionQuickPreview,
+      canShare && !chat.pxgProxy && {
+        title: lang('PxgShareTopic'), icon: 'share-filled',
+        handler: () => setPxgState({
+          shareChatId: chat.id, shareFolder: undefined, shareTopic: { id: topicId, title: topic.title },
+        }),
+      },
       actionPin,
       actionUnreadMark,
       actionMute,
@@ -132,7 +141,7 @@ export default function useTopicContextActions({
     ]) as MenuItemContextAction[];
   }, [
     chat, topic, unreadCount, wasOpened, isChatMuted, canDelete,
-    handleDelete, handleMute, handleUnmute, lang,
+    handleDelete, handleMute, handleUnmute, lang, canShare,
   ]);
 
   return preparedActions;

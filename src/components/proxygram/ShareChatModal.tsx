@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from '../../lib/teact/teact';
+import { memo, useEffect, useRef, useState } from '../../lib/teact/teact';
 import { getActions, getGlobal } from '../../global';
 
 import type {
@@ -7,6 +7,7 @@ import type {
 
 import { selectChat } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
+import { getServerTime } from '../../util/serverTime';
 import { callApi } from '../../api/gramjs';
 import { diffPermissions, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -14,6 +15,7 @@ import { setPxgState, usePxgState } from '../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from './helpers';
 
 import useLang from '../../hooks/useLang';
+import useLastCallback from '../../hooks/useLastCallback';
 
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
@@ -23,7 +25,7 @@ import Modal from '../ui/Modal';
 import styles from './ConnectServerModal.module.scss';
 
 type HistoryMode = 'all' | 'new_only' | 'last_n' | 'since_date';
-type Expiry = 'never' | 'day' | 'week' | 'month';
+type Expiry = 'keep' | 'never' | 'day' | 'week' | 'month';
 
 type OutgoingShare = {
   id: string;
@@ -38,7 +40,7 @@ type OutgoingShare = {
   label: string | null;
   limits: ShareLimits;
   expiresAt: string | null;
-  status: 'active' | 'paused';
+  status: 'active' | 'paused' | 'source_lost';
   grantee: { id: string; username: string | null; firstName: string | null };
 };
 
@@ -69,7 +71,8 @@ type OwnProps = {
 const PRESETS: PresetKey[] = ['readOnly', 'assistant', 'full'];
 const HISTORY_MODES: HistoryMode[] = ['all', 'new_only', 'last_n', 'since_date'];
 const EXPIRIES: Expiry[] = ['never', 'day', 'week', 'month'];
-const EXPIRY_DAYS: Record<Expiry, number> = { never: 0, day: 1, week: 7, month: 30 };
+const EDIT_EXPIRIES: Expiry[] = ['keep', ...EXPIRIES];
+const EXPIRY_DAYS: Record<Expiry, number> = { keep: 0, never: 0, day: 1, week: 7, month: 30 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_HISTORY_LIMIT = 100_000;
@@ -82,6 +85,7 @@ const HISTORY_KEYS: Record<HistoryMode, string> = {
   all: 'PxgHistoryAll', new_only: 'PxgHistoryNew', last_n: 'PxgHistoryLastN', since_date: 'PxgHistorySince',
 };
 const EXPIRY_KEYS: Record<Expiry, string> = {
+  keep: 'PxgExpiryKeep',
   never: 'PxgExpiryNever', day: 'PxgExpiryDay', week: 'PxgExpiryWeek', month: 'PxgExpiryMonth',
 };
 
@@ -111,6 +115,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [isFinding, setIsFinding] = useState(false);
+  const lookupRequestRef = useRef(0);
+  const loadRequestRef = useRef(0);
 
   const currentUserId = getGlobal().currentUserId;
   const peerTitle = chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
@@ -125,22 +131,35 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     return item.scope === 'chat' && item.peerId === peerId;
   };
 
-  const loadShares = () => {
-    if (!account) return;
+  const loadShares = useLastCallback(() => {
+    if (!account || connection !== 'online') return;
+    const request = ++loadRequestRef.current;
     void pxgRpc.call<OutgoingShare[]>('shares.outgoing')
-      .then((list) => setShares(list.filter((share) => share.accountId === account.id && isSameTarget(share))))
+      .then((list) => {
+        if (request === loadRequestRef.current) {
+          setShares(list.filter((share) => share.accountId === account.id && isSameTarget(share)));
+        }
+      })
       .catch((err) => setError(describePxgError(lang, err)));
     void pxgRpc.call<Invite[]>('invites.list', { accountId: account.id })
-      .then((list) => setInvites(list.filter(isSameTarget)))
+      .then((list) => {
+        if (request === loadRequestRef.current) setInvites(list.filter(isSameTarget));
+      })
       .catch(() => setInvites(undefined));
-  };
+  });
 
   // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
   useEffect(loadShares, [account?.id, peerId, folder?.id, topic?.id, connection]);
 
+  useEffect(() => pxgRpc.on((event) => {
+    if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
+  }), [loadShares]);
+
   const close = () => setPxgState({ shareChatId: undefined, shareFolder: undefined, shareTopic: undefined });
 
   const resetForm = () => {
+    lookupRequestRef.current++;
+    setIsFinding(false);
     setEditing(undefined);
     setGuest(undefined);
     setUsername('');
@@ -148,6 +167,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setPermissions(resolvePermissions('assistant'));
     setIsCustomizing(false);
     setHistoryMode('all');
+    setHistoryLimit(String(DEFAULT_HISTORY_LIMIT));
+    setHistorySince('');
     setExpiry('never');
     setLabel('');
     setSendLimit('');
@@ -162,19 +183,23 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const find = async () => {
+    const request = ++lookupRequestRef.current;
+    setGuest(undefined);
     setError(undefined);
     setIsFinding(true);
     try {
       const value = username.trim();
       const isPhone = PHONE.test(value);
       const found = await pxgRpc.call<UserLookup>('users.lookup', isPhone ? { phone: value } : { username: value });
+      if (request !== lookupRequestRef.current) return;
       // Someone who has never signed in is still found through the owner's own Telegram (PLAN.md 7.5)
       const candidate = found.registered || found.candidate ? found.candidate : await resolveCandidate(value, isPhone);
+      if (request !== lookupRequestRef.current) return;
       setGuest({ ...found, candidate });
     } catch (err) {
-      setError(describePxgError(lang, err));
+      if (request === lookupRequestRef.current) setError(describePxgError(lang, err));
     } finally {
-      setIsFinding(false);
+      if (request === lookupRequestRef.current) setIsFinding(false);
     }
   };
 
@@ -202,12 +227,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const startEdit = (share: OutgoingShare) => {
+    lookupRequestRef.current++;
+    setIsFinding(false);
     setEditing(share);
     setGuest(undefined);
     setPreset(share.preset);
     setPermissions(resolvePermissions(share.preset, share.permissions));
     setIsCustomizing(Object.keys(share.permissions).length > 0);
-    setExpiry('never');
+    setExpiry('keep');
     setLabel(share.label || '');
     setSendLimit(share.limits.sendPerMinute ? String(share.limits.sendPerMinute) : '');
     setDeleteLimit(share.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '');
@@ -220,8 +247,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   });
 
   const expiresAt = () => {
+    if (expiry === 'keep') return editing?.expiresAt || undefined;
     const days = EXPIRY_DAYS[expiry];
-    return days ? new Date(Date.now() + days * DAY_MS).toISOString() : undefined;
+    return days ? new Date(getServerTime() * 1000 + days * DAY_MS).toISOString() : undefined;
   };
 
   const save = async () => {
@@ -374,7 +402,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           </p>
         ) : (
           <>
-            {renderOptions(HISTORY_MODES, historyMode, (mode) => t(HISTORY_KEYS[mode]), setHistoryMode)}
+            {renderOptions(HISTORY_MODES.filter((mode) => !folder || mode !== 'last_n'), historyMode,
+              (mode) => t(HISTORY_KEYS[mode]), setHistoryMode)}
             {historyMode === 'last_n' && (
               <InputText
                 label={lang('PxgHistoryCount')}
@@ -401,7 +430,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         {editing?.expiresAt && (
           <p className={styles.secondary}>{lang('PxgShareExpires', { date: formatDateTime(editing.expiresAt) })}</p>
         )}
-        {renderOptions(EXPIRIES, expiry, (item) => t(EXPIRY_KEYS[item]), setExpiry)}
+        {renderOptions(editing ? EDIT_EXPIRIES : EXPIRIES, expiry, (item) => t(EXPIRY_KEYS[item]), setExpiry)}
 
         <InputText
           label={lang('PxgShareLabel')}
@@ -474,6 +503,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                 label={lang('PxgShareUsername')}
                 value={username}
                 onChange={(e) => {
+                  lookupRequestRef.current++;
+                  setIsFinding(false);
                   setUsername(e.target.value);
                   setGuest(undefined);
                 }}
@@ -586,6 +617,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                       {` · ${presetLabel(share.preset)}`}
                       {Object.keys(share.permissions).length ? '*' : ''}
                       {share.status === 'paused' ? ` · ${lang('PxgShareStatusPaused')}` : ''}
+                      {share.status === 'source_lost' ? ` · ${lang('PxgShareStatusLost')}` : ''}
+                      {share.expiresAt && Date.parse(share.expiresAt) <= getServerTime() * 1000
+                        ? ` · ${lang('PxgShareStatusExpired')}` : ''}
                       {share.expiresAt
                         ? ` · ${lang('PxgShareExpires', { date: formatDateTime(share.expiresAt) })}` : ''}
                       {share.label ? ` · ${share.label}` : ''}
@@ -599,6 +633,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                       size="tiny"
                       isText
                       fluid={false}
+                      disabled={share.status === 'source_lost'}
                       onClick={() => void setStatus(share, share.status === 'paused' ? 'active' : 'paused')}
                     >
                       {lang(share.status === 'paused' ? 'PxgShareResume' : 'PxgSharePause')}

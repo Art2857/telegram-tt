@@ -596,7 +596,7 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
   const chatFullInfo = selectChatFullInfo(global, message.chatId);
   // PXG: Only implemented native operations are exposed
   if (chat.pxgProxy) {
-    const { permissions } = chat.pxgProxy;
+    const permissions = message.pxgPermissions || chat.pxgProxy.permissions;
     const isOwn = message.pxgIsOwn;
     const canManage = message.isOutgoing && permissions.manageOwnerOutgoing;
     const isSaved = !isLocalMessageId(message.id) && !message.pxgDeletedAt;
@@ -605,7 +605,7 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     // A guest pins as the owner: either side in a private chat, otherwise the owner's rights given to the guest
     const canPinProxy = isSaved && !message.content.action && (isUserId(chat.id)
       ? permissions.write
-      : getHasAdminRight(chat, isChatChannel(chat) ? 'editMessages' : 'pinMessages')
+      : (permissions.admin && getHasAdminRight(chat, isChatChannel(chat) ? 'editMessages' : 'pinMessages'))
         || (permissions.admin && !chat.hasUsername && !chat.defaultBannedRights?.pinMessages && !isChatChannel(chat)));
     const isPinnedProxy = Boolean(selectPinnedIds(global, chat.id, threadId)?.includes(message.id));
     return {

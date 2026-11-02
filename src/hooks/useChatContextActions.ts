@@ -16,6 +16,7 @@ import { IS_OPEN_IN_NEW_TAB_SUPPORTED } from '../util/browser/windowEnvironment'
 import { isUserId } from '../util/entities/ids';
 import { buildCollectionByCallback, compact } from '../util/iteratees';
 import { isProxyPeerId } from '../api/proxy/ids';
+import { setPxgState, usePxgState } from '../proxygram/server/store';
 import useSelector, { useShallowSelector } from './data/useSelector';
 import useLang from './useLang';
 
@@ -65,6 +66,7 @@ const useChatContextActions = ({
   } = getActions();
 
   const lang = useLang();
+  const canShare = usePxgState((state) => state.session?.level === 'client');
 
   const { isSelf } = user || {};
   const isServiceNotifications = user?.id === SERVICE_NOTIFICATIONS_USER_ID;
@@ -235,7 +237,8 @@ const useChatContextActions = ({
 
     if (isGuestChat) {
       return compact([
-        actionMarkAsRead, !isInSearch && actionPin, actionMute, !isInSearch && folderId === undefined && actionArchive,
+        actionMarkAsRead, !isInSearch && actionAddToFolder, !isInSearch && actionPin,
+        actionMute, !isInSearch && folderId === undefined && actionArchive,
       ]);
     }
 
@@ -251,6 +254,10 @@ const useChatContextActions = ({
       actionOpenInNewTab,
       actionQuickPreview,
       canManageListPlacement && actionAddToFolder,
+      canShare && !isSavedDialog && !isServiceNotifications && {
+        title: lang('PxgShareTitle'), icon: 'share-filled',
+        handler: () => setPxgState({ shareChatId: chat.id, shareFolder: undefined, shareTopic: undefined }),
+      },
       actionMarkAsRead,
       actionMarkAsUnread,
       canManageListPlacement && actionPin,
@@ -263,7 +270,7 @@ const useChatContextActions = ({
     chat, isPreview, lang, isSavedDialog, isResolvedPinned, deleteTitle, handleDelete, canChangeFolder,
     handleChatFolderChange, isMuted, handleUnmute, handleMute, isInSearch, chatReadState, topicsReadStates,
     handleReport, user, folderId, isSelf, isServiceNotifications, currentUserId, isInCommunityPanel,
-    isLinkedCommunityCollapsed,
+    isLinkedCommunityCollapsed, canShare,
   ]);
 
   return preparedActions;
