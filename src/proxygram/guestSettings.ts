@@ -3,6 +3,8 @@ import { getGlobal, setGlobal } from '../global';
 
 import type { ApiNotifyPeerType, ApiPeerNotifySettings } from '../api/types';
 import type { SharedSettings } from '../global/types/sharedState';
+import type { AccountSettings, TranslationTone } from '../types';
+import { TRANSLATION_TONES } from '../types';
 
 import { INITIAL_SHARED_STATE } from '../global/initialState';
 import { pick } from '../util/iteratees';
@@ -15,12 +17,19 @@ const SETTINGS_KEYS = [
   'messageSendKeyCombo', 'shouldReplaceTextShortcuts', 'timeFormat', 'wasTimeFormatSetManually',
   'canDisplayChatInTitle', 'performance', 'wasAnimationLevelSetManually',
 ] as const;
+const TRANSLATION_KEYS = [
+  'canTranslate', 'canTranslateChats', 'doNotTranslate', 'translationLanguage', 'translationTone',
+] as const;
+
+type TranslationSettings = Partial<Pick<AccountSettings, typeof TRANSLATION_KEYS[number]>>;
 
 type GuestSettings = Partial<SharedSettings> & {
   /** Folder tags in the chat list: a Telegram account setting, which a guest keeps here */
   folderTags?: boolean;
   /** Notifications by chat type, also read by the server for Web Push */
   notifyDefaults?: NotifyDefaults;
+  /** Translation preferences belong to an account's settings, which a guest does not keep between reloads */
+  translation?: TranslationSettings;
 };
 
 type NotifyDefaults = Record<ApiNotifyPeerType, ApiPeerNotifySettings>;
@@ -38,14 +47,20 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
   let pending: ReturnType<typeof readSettings> | undefined;
   let timer: number | undefined;
 
-  function apply({ folderTags, notifyDefaults, ...shared }: GuestSettings) {
+  function apply({ folderTags, notifyDefaults, translation, ...shared }: GuestSettings) {
     applyShared(shared);
-    if (folderTags === undefined && !notifyDefaults) return;
+    if (folderTags === undefined && !notifyDefaults && !translation) return;
     let global = getGlobal();
     if (folderTags !== undefined) {
       global = { ...global, chatFolders: { ...global.chatFolders, areTagsEnabled: folderTags } };
     }
     if (notifyDefaults) global = { ...global, settings: { ...global.settings, notifyDefaults } };
+    if (translation) {
+      global = {
+        ...global,
+        settings: { ...global.settings, byKey: { ...global.settings.byKey, ...translation } },
+      };
+    }
     setGlobal(global);
   }
 
@@ -136,6 +151,25 @@ function readSettings() {
     ...pick(global.sharedState.settings, [...SETTINGS_KEYS]),
     folderTags: Boolean(global.chatFolders.areTagsEnabled),
     notifyDefaults: global.settings.notifyDefaults,
+    translation: pick(global.settings.byKey, [...TRANSLATION_KEYS]),
+  };
+}
+
+function sanitizeTranslation(value: unknown): TranslationSettings | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const {
+    canTranslate, canTranslateChats, doNotTranslate, translationLanguage, translationTone,
+  } = value as Record<string, unknown>;
+  return {
+    ...(typeof canTranslate === 'boolean' && { canTranslate }),
+    ...(typeof canTranslateChats === 'boolean' && { canTranslateChats }),
+    ...(Array.isArray(doNotTranslate) && {
+      doNotTranslate: doNotTranslate.filter((language): language is string => typeof language === 'string'),
+    }),
+    ...(typeof translationLanguage === 'string' && { translationLanguage }),
+    ...(TRANSLATION_TONES.includes(translationTone as TranslationTone) && {
+      translationTone: translationTone as TranslationTone,
+    }),
   };
 }
 
@@ -153,6 +187,8 @@ function sanitizeSettings(data: Record<string, unknown>): GuestSettings {
   if (typeof data.folderTags === 'boolean') result.folderTags = data.folderTags;
   const notifyDefaults = sanitizeNotifyDefaults(data.notifyDefaults);
   if (notifyDefaults) result.notifyDefaults = notifyDefaults;
+  const translation = sanitizeTranslation(data.translation);
+  if (translation) result.translation = translation;
   const defaults = INITIAL_SHARED_STATE.settings;
   SETTINGS_KEYS.forEach((key) => {
     const value = data[key];

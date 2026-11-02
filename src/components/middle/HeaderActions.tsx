@@ -444,13 +444,20 @@ export default memo(withGlobal<OwnProps>(
 
     const isRestricted = selectIsChatRestricted(global, chatId);
     if (!chat || chat.pxgProxy || isRestricted || selectIsInSelectMode(global)) {
+      const isProxyAvailable = Boolean(chat?.pxgProxy && !isRestricted && !selectIsInSelectMode(global));
+      const proxyFullInfo = isPrivate ? selectUserFullInfo(global, chatId) : selectChatFullInfo(global, chatId);
       return {
         noMenu: true,
-        canSearch: Boolean(chat?.pxgProxy && !isRestricted && !selectIsInSelectMode(global)),
+        canSearch: isProxyAvailable,
+        // A shared chat has no menu of its own, only search and translation
+        canTranslate: isProxyAvailable && selectCanTranslateChat(global, chatId)
+          && !proxyFullInfo?.isTranslationDisabled,
+        isTranslating: isProxyAvailable && Boolean(selectRequestedChatTranslationLanguage(global, chatId)),
+        detectedChatLanguage: chat?.detectedLanguage,
         language,
         translationLanguage,
         doNotTranslate,
-        currentTone: translationTone,
+        currentTone: isProxyAvailable ? selectRequestedChatTranslationTone(global, chatId) : translationTone,
       } as Complete<StateProps>;
     }
 

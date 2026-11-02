@@ -351,7 +351,10 @@ export function isMessageTranslatable(message: ApiMessage, allowOutgoing?: boole
     (richMessage && getRichMessageUsage(richMessage).textLength) || (text?.text.length && !text.emojiOnlyCount),
   );
 
-  return Boolean(hasTranslatableContent && !game && (allowOutgoing || !message.isOutgoing)
+  // In a shared chat only what the guest wrote is outgoing to the guest, not everything the owner's account sent
+  const isOutgoing = message.isOutgoing && message.pxgIsOwn !== false;
+
+  return Boolean(hasTranslatableContent && !game && (allowOutgoing || !isOutgoing)
     && !isLocal && !isServiceNotification && !isAction && !message.isScheduled && !message.isEphemeral);
 }
 

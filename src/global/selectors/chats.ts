@@ -294,7 +294,8 @@ export function selectShouldDetectChatLanguage<T extends GlobalState>(
 
   const { canTranslateChats } = global.settings.byKey;
 
-  const isPremium = selectIsCurrentUserPremium(global);
+  // A shared chat is translated through its owner's account, so the owner's Premium counts
+  const isPremium = selectIsCurrentUserPremium(global) || Boolean(chat.pxgProxy?.isProviderPremium);
   const isSavedMessages = selectIsChatWithSelf(global, chatId);
 
   return IS_TRANSLATION_SUPPORTED && canTranslateChats && isPremium && !isSavedMessages;

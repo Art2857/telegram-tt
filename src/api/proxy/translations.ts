@@ -14,7 +14,7 @@ export async function translateText(params: MethodArgs<'translateText'>[0]) {
   try {
     if (!peer) throw new Error('Unknown shared chat');
     const { texts } = await pxgRpc.call<{ texts: TranslationDto[] }>('messages.translate', {
-      ...peer, msgIds: messageIds, toLang: toLanguageCode,
+      ...peer, msgIds: messageIds, toLang: toLanguageCode, tone: tone === 'neutral' ? undefined : tone,
     });
     emitProxyUpdate({
       '@type': 'updateMessageTranslations',
