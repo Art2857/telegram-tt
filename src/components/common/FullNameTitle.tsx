@@ -20,8 +20,10 @@ import buildClassName from '../../util/buildClassName';
 import buildStyle from '../../util/buildStyle';
 import { copyTextToClipboard } from '../../util/clipboard';
 import stopEvent from '../../util/stopEvent';
+import { parseProxyCatalogId } from '../../api/proxy/mediaIds';
 import renderText from './helpers/renderText';
 
+import { useTransitionActiveKey } from '../../hooks/animations/useTransitionActiveKey';
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 
@@ -90,6 +92,9 @@ const FullNameTitle = ({
   const canShowEmojiStatus = withEmojiStatus && !isSavedMessages;
   const emojiStatus = realPeer?.emojiStatus
     || (customPeer?.emojiStatusId ? { type: 'regular', documentId: customPeer.emojiStatusId } : undefined);
+  // The document ID of a proxied status is not a number, and its sticker set and Premium offer are not the guest's
+  const statusActiveKey = useTransitionActiveKey([emojiStatus?.documentId]);
+  const isProxyStatus = Boolean(emojiStatus && parseProxyCatalogId(emojiStatus.documentId));
 
   const handleTitleClick = useLastCallback((e) => {
     if (!title || !canCopyTitle) {
@@ -160,7 +165,7 @@ const FullNameTitle = ({
             <Transition
               className={styles.statusTransition}
               slideClassName={styles.statusTransitionSlide}
-              activeKey={Number(emojiStatus.documentId)}
+              activeKey={statusActiveKey}
               name="slideFade"
               direction={-1}
               shouldCleanup
@@ -177,7 +182,7 @@ const FullNameTitle = ({
                   size={emojiStatusSize}
                   loopLimit={!noLoopLimit ? EMOJI_STATUS_LOOP_LIMIT : undefined}
                   observeIntersectionForLoading={observeIntersection}
-                  onClick={onEmojiStatusClick}
+                  onClick={isProxyStatus ? undefined : onEmojiStatusClick}
                 />
               </GiftEffectWrapper>
             </Transition>

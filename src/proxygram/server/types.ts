@@ -52,6 +52,7 @@ export interface AccessChat {
   type: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
   /** ID текущего фото чата или собеседника; сам аватар — через media.avatar */
   photoId: string | null;
+  badges?: PeerBadgesDto | null;
   /** Online status of the other side of a private chat */
   userStatus?: UserStatusDto | null;
   permissions: Permissions;
@@ -84,12 +85,21 @@ export interface OutgoingChatDto {
   grantees: string[];
 }
 
+/** Marks next to a name: verified, scam or fake, Premium, emoji status */
+export interface PeerBadgesDto {
+  verified?: true;
+  fake?: 'fake' | 'scam';
+  premium?: true;
+  emojiStatus?: { documentId: string; until?: number };
+}
+
 /** A member of a shared group or channel, as the owner sees them */
 export interface MemberDto {
   userId: number;
   name: string | null;
   username: string | null;
   photoId: string | null;
+  badges?: PeerBadgesDto | null;
   isBot: boolean;
   role: 'creator' | 'admin' | 'member';
   rank: string | null;
@@ -185,6 +195,7 @@ export interface MessageDto {
   senderName?: string | null;
   /** ID фото профиля отправителя — аватар через media.avatar */
   senderPhotoId?: string | null;
+  senderBadges?: PeerBadgesDto | null;
   /** Служебное сообщение: что произошло */
   action?: ServiceActionDto;
   /** Pinned in the chat */

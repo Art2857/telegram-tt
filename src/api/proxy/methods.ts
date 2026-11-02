@@ -167,7 +167,7 @@ export async function fetchProxyChats() {
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
-    buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId)
+    buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
   ));
   const pages = await Promise.all(chats.map(async (chat) => {
     try {
@@ -259,7 +259,7 @@ async function fetchMessages({
     });
   }
   const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
-    buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined, dto.senderPhotoId)
+    buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined, dto.senderPhotoId, dto.senderBadges)
   ));
   result.messages.forEach((dto) => emitRelated(dto));
   return {
@@ -390,7 +390,7 @@ async function fetchMembers({ chat, memberFilter = 'recent', offset, query }: Me
   const members = result.members.filter((member) => memberFilter !== 'admin' || member.role !== 'member');
   members.forEach((member) => {
     const user = buildProxyUser(peer.accountId, member.userId, member.name || member.username || undefined,
-      member.photoId);
+      member.photoId, member.badges);
     if (member.isBot) user.type = 'userTypeBot';
     emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
   });
@@ -485,7 +485,9 @@ function emitRelated(dto: MessageDto) {
     emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
   });
   if (!dto.senderId || dto.senderId < 0) return;
-  const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId);
+  const user = buildProxyUser(
+    dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId, dto.senderBadges,
+  );
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
 }
 
@@ -578,7 +580,9 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
   const access = await pxgRpc.call<AccessChat[]>('access.chats');
   const chat = access.find((item) => getProxyPeerId(item.accountId, item.peerId) === id);
   if (!chat) return undefined;
-  const user = buildProxyUser(peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId);
+  const user = buildProxyUser(
+    peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges,
+  );
   return { user, fullInfo: {}, users: [user], chats: [], userStatusesById: {} };
 }
 

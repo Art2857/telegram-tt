@@ -1,4 +1,6 @@
-import type { AccessChat, DraftDto, MessageDto, TopicDto, UserStatusDto } from '../../proxygram/server/types';
+import type {
+  AccessChat, DraftDto, MessageDto, PeerBadgesDto, TopicDto, UserStatusDto,
+} from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
   ApiMessagePoll, ApiMessageReplyInfo, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState,
@@ -7,6 +9,7 @@ import type {
 import type { ApiMessageAction } from '../types/messageActions';
 
 import { ARCHIVED_FOLDER_ID } from '../../config';
+import { getServerTime } from '../../util/serverTime';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
 import { getProxyPeerId, isProxyGuest } from './index';
@@ -33,6 +36,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
+    ...buildProxyBadges(chat.accountId, chat.badges),
     membersCount: chat.info?.participantsCount,
     usernames: chat.info?.usernames?.map((username) => ({ username, isActive: true })),
     hasUsername: Boolean(chat.info?.usernames?.length) || undefined,
@@ -149,8 +153,31 @@ export function buildProxyDraft({ text, entities, replyToMsgId, topicId, date }:
   };
 }
 
-/** `null` means the user has no photo; an omitted `photoId` keeps the avatar already known from other messages */
-export function buildProxyUser(accountId: string, userId: number, name?: string, photoId?: string | null): ApiUser {
+/** An emoji status is read through the provider's account, like custom emoji in text */
+function buildProxyBadges(
+  accountId: string, badges?: PeerBadgesDto | null,
+): Pick<ApiChat, 'isVerified' | 'fakeType' | 'emojiStatus'> {
+  const { verified, fake, emojiStatus } = badges || {};
+  const userId = getPxgState().session?.user.id;
+  const isStatusActive = emojiStatus && userId && (!emojiStatus.until || emojiStatus.until > getServerTime());
+  return {
+    isVerified: verified,
+    fakeType: fake,
+    emojiStatus: isStatusActive ? {
+      type: 'regular',
+      documentId: buildProxyCatalogMediaId(userId, accountId, emojiStatus.documentId),
+      until: emojiStatus.until,
+    } : undefined,
+  };
+}
+
+/**
+ * `null` means the user has no photo or no badges;
+ * an omitted `photoId` or `badges` keeps what is already known from other messages
+ */
+export function buildProxyUser(
+  accountId: string, userId: number, name?: string, photoId?: string | null, badges?: PeerBadgesDto | null,
+): ApiUser {
   const user: ApiUser = {
     id: getProxyPeerId(accountId, userId),
     type: 'userTypeRegular',
@@ -160,6 +187,7 @@ export function buildProxyUser(accountId: string, userId: number, name?: string,
     noStatus: true,
   };
   if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;
+  if (badges !== undefined) Object.assign(user, buildProxyBadges(accountId, badges), { isPremium: badges?.premium });
   return user;
 }
 
