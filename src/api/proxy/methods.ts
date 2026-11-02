@@ -32,9 +32,10 @@ import {
 } from './stickers';
 import { translateRichMessage, translateText } from './translations';
 import {
-  answerCallbackButton, createTopic, deleteMessages, deleteTopic, editChatPhoto, editMessage, editTopic,
-  forwardMessages, markMessageListRead, pinMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote,
-  sendReaction, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
+  answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
+  editTopic, fetchScheduledHistory, forwardMessages, markMessageListRead, pinMessage, rescheduleMessage, saveDraft,
+  sendMessage, sendMessageAction, sendPollVote, sendReaction, sendScheduledMessages, toggleChatArchived,
+  toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
 } from './writes';
 
@@ -94,6 +95,10 @@ const methods = {
   toggleChatArchived,
   toggleDialogUnread,
   updateChatMemberBannedRights,
+  fetchScheduledHistory,
+  sendScheduledMessages,
+  deleteScheduledMessages,
+  rescheduleMessage,
   saveDraft,
   fetchNotifyDefaultSettings,
   updateNotificationSettings,

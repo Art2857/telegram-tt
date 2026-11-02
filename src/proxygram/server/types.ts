@@ -198,6 +198,18 @@ export interface MessageDto {
   attachment?: AttachmentDto;
 }
 
+/** A scheduled message: it reaches the archive when Telegram sends it */
+export interface ScheduledMessageDto {
+  msgId: number;
+  date: number;
+  text: string;
+  entities: unknown[];
+  mediaKind: string | null;
+  fileName: string | null;
+  replyToMsgId: number | null;
+  topicId: number | null;
+}
+
 /** An attachment without a file; the ones a guest cannot open come with their kind only */
 export type AttachmentDto =
   | { type: 'geo'; lat: number; long: number; accuracyRadius?: number }

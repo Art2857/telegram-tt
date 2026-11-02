@@ -581,7 +581,7 @@ const Composer = ({
   const chatEmojiSetId = emojiSet?.id;
 
   const isEphemeralReply = draft?.replyInfo?.type === 'ephemeral';
-  const canSchedule = !chat?.pxgProxy && !paidMessagesStars && !isMonoforum && !isEphemeralReply;
+  const canSchedule = !paidMessagesStars && !isMonoforum && !isEphemeralReply;
 
   const {
     canSendStickers, canSendGifs, canAttachMedia, canAttachPolls, canAttachEmbedLinks, canAttachToDoLists,

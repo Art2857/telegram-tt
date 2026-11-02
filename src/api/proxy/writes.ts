@@ -1,6 +1,6 @@
-import type { MessageDto } from '../../proxygram/server/types';
+import type { MessageDto, ScheduledMessageDto } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
-import type { ApiMessage, ApiOnProgress } from '../types';
+import type { ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress } from '../types';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
@@ -10,7 +10,7 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { uploadFile } from '../../proxygram/server/upload';
 import { buildProxyMessage, buildProxyPoll } from './builders';
-import { buildProxyInputEntities } from './entities';
+import { buildProxyEntities, buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
 import { parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
@@ -20,16 +20,18 @@ const MAX_WAVEFORM_LENGTH = 100;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
-  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice } = params;
+  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
+  const isScheduled = Boolean(scheduledAt);
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
   const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
   const replyToMsgId = messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
   const localMessage: ApiMessage = params.localMessage || {
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
-    chatId: chat.id, date: getServerTime(), isOutgoing: true,
+    chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
+    isScheduled: isScheduled || undefined,
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
@@ -40,10 +42,15 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
   };
   if (!params.localMessage) {
-    emitProxyUpdate({ '@type': 'newMessage', id: localMessage.id, chatId: chat.id, message: localMessage });
+    emitProxyUpdate({
+      '@type': isScheduled ? 'newScheduledMessage' : 'newMessage',
+      id: localMessage.id,
+      chatId: chat.id,
+      message: localMessage,
+    });
   }
   try {
-    if (params.scheduledAt || params.todo || params.richMessage) {
+    if (params.todo || params.richMessage) {
       throw new PxgError('unsupported');
     }
     // The owner's sticker or GIF must come from the catalog of the chat's provider account
@@ -89,23 +96,95 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       replyToMsgId,
       topicId,
       silent: params.isSilent,
+      scheduleDate: scheduledAt,
     }) as { msgId: number };
+    if (isScheduled) {
+      // A scheduled message reaches the archive when Telegram sends it
+      emitProxyUpdate({
+        '@type': 'updateScheduledMessageSendSucceeded',
+        chatId: chat.id,
+        localId: localMessage.id,
+        message: { ...localMessage, id: result.msgId, sendingState: undefined },
+      });
+      return;
+    }
     const saved = await readSentMessage(chat, result.msgId);
     if (!saved) throw new PxgError('not_found');
     emitProxyUpdate({
       '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: saved,
     });
   } catch (err) {
+    const error = err instanceof Error ? err.message : 'Send failed';
     emitProxyUpdate({
-      '@type': 'updateMessageSendFailed', chatId: chat.id, localId: localMessage.id,
-      error: err instanceof Error ? err.message : 'Send failed',
+      '@type': isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
+      chatId: chat.id,
+      localId: localMessage.id,
+      error,
     });
+  }
+}
+
+/** The guest's own scheduled messages; the owner's other ones stay private unless they may manage them */
+export async function fetchScheduledHistory({ chat }: MethodArgs<'fetchScheduledHistory'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await runProxyJob('scheduled.list', peer) as { messages?: ScheduledMessageDto[] };
+  return {
+    messages: (result.messages || []).map((item): ApiMessage => ({
+      id: item.msgId,
+      chatId: chat.id,
+      date: item.date,
+      isOutgoing: true,
+      isScheduled: true,
+      pxgIsOwn: true,
+      content: {
+        text: item.text ? { text: item.text, entities: buildProxyEntities(item.entities, peer.accountId) } : undefined,
+      },
+      pxgMediaFallback: item.mediaKind ? { fileName: item.fileName || undefined } : undefined,
+      replyInfo: item.replyToMsgId ? { type: 'message', replyToMsgId: item.replyToMsgId } : undefined,
+    })),
+  };
+}
+
+export async function sendScheduledMessages({ chat, ids }: MethodArgs<'sendScheduledMessages'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('scheduled.send', { ...peer, msgIds: ids });
+    emitProxyUpdate({ '@type': 'deleteScheduledMessages', chatId: chat.id, ids });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+export function deleteScheduledMessages({ chat, messageIds }: MethodArgs<'deleteScheduledMessages'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  void runProxyJob('scheduled.delete', { ...peer, msgIds: messageIds })
+    .then(() => emitProxyUpdate({ '@type': 'deleteScheduledMessages', chatId: chat.id, ids: messageIds }))
+    .catch(emitProxyError);
+}
+
+export async function rescheduleMessage({ chat, message, scheduledAt }: MethodArgs<'rescheduleMessage'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('scheduled.reschedule', { ...peer, msgId: message.id, date: scheduledAt });
+    emitProxyUpdate({
+      '@type': 'updateScheduledMessage', chatId: chat.id, id: message.id, message: { date: scheduledAt },
+    });
+  } catch (err) {
+    emitProxyError(err);
   }
 }
 
 export async function editMessage({ chat, message, text, entities }: MethodArgs<'editMessage'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
+  if (message.isScheduled) {
+    await editScheduledMessage(chat, message, text, entities);
+    return;
+  }
   try {
     await runProxyJob('messages.edit', {
       ...peer,
@@ -119,6 +198,30 @@ export async function editMessage({ chat, message, text, entities }: MethodArgs<
     }
   } catch (err) {
     emitProxyUpdate({ '@type': 'updateMessage', id: message.id, chatId: chat.id, message, isFull: true });
+    emitProxyError(err);
+  }
+}
+
+async function editScheduledMessage(
+  chat: ApiChat, message: ApiMessage, text: string, entities?: ApiMessageEntity[],
+) {
+  const peer = resolveProxyPeer(chat.id)!;
+  try {
+    await runProxyJob('scheduled.edit', {
+      ...peer,
+      msgId: message.id,
+      date: message.date,
+      text,
+      entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+    });
+    emitProxyUpdate({
+      '@type': 'updateScheduledMessage',
+      chatId: chat.id,
+      id: message.id,
+      message: { content: { text: { text, entities } } },
+    });
+  } catch (err) {
+    emitProxyUpdate({ '@type': 'updateScheduledMessage', chatId: chat.id, id: message.id, message });
     emitProxyError(err);
   }
 }
