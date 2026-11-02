@@ -48,6 +48,8 @@ type OwnProps = {
   typingStatusByPeerId?: Record<string, ApiTypingStatus>;
   avatarSize?: 'tiny' | 'small' | 'medium' | 'large' | 'jumbo';
   status?: string;
+  /** Goes before the usual status, which stays: whose chat this is */
+  statusPrefix?: string;
   withDots?: boolean;
   withMediaViewer?: boolean;
   withUsername?: boolean;
@@ -84,6 +86,7 @@ const GroupChatInfo = ({
   avatarSize = 'medium',
   noAvatar,
   status,
+  statusPrefix,
   withDots,
   withMediaViewer,
   withUsername,
@@ -218,6 +221,7 @@ const GroupChatInfo = ({
 
     return (
       <span className="status">
+        {statusPrefix && `${statusPrefix} · `}
         {mainUsername && <span className="handle withStatus">{mainUsername}</span>}
         {!onlineStatusElement ? groupStatusElement
           : lang('GroupStatusWithOnline', {

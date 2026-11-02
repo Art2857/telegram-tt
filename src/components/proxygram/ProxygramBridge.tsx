@@ -6,7 +6,8 @@ import type { AccountDto, OutboxDoneDto, OutgoingChatDto } from '../../proxygram
 
 import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
-import { setProxyUpdateHandler } from '../../api/proxy';
+import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
+import { buildProxyUserStatus } from '../../api/proxy/builders';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
@@ -43,8 +44,8 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  */
 const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
-    loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
-    applyProxyChatState, apiUpdate, showNotification,
+    loadProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
+    applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
     loadChatFolders, setSharedSettingOption,
   } = getActions();
   const session = usePxgState((state) => state.session);
@@ -148,10 +149,8 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     loadProxyChats();
     if (isGuest) loadChatFolders();
     return pxgRpc.on((event) => {
-      if (event.e === 'access.changed') {
-        clearProxyChats();
-        loadProxyChats();
-      }
+      // Sent for a profile change too: only a chat whose access is gone closes
+      if (event.e === 'access.changed') loadProxyChats({ shouldKeepUnchanged: true });
       if (event.e === 'archive.change') refreshProxyMessage(event.d);
       if (event.e === 'outbox.done' && event.d.status === 'delayed' && !SILENT_JOB_KINDS.has(event.d.kind)) {
         showNotification({ message: { key: 'PxgFloodDelay', variables: { seconds: event.d.retryInSeconds } } });
@@ -163,9 +162,18 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.e === 'read.changed') refreshProxyUnread(event.d);
       if (event.e === 'chats.state') applyProxyChatState(event.d);
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();
+      if (event.e === 'chat.typing') applyProxyTyping(event.d);
+      if (event.e === 'user.status') {
+        apiUpdate({
+          '@type': 'updateUserStatus',
+          userId: getProxyPeerId(event.d.accountId, event.d.userId),
+          status: buildProxyUserStatus(event.d.status),
+        });
+      }
     });
-  }, [connection, hasOwnSession, isGuest, loadProxyChats, clearProxyChats, refreshProxyMessage, refreshProxyHistory,
-    refreshProxyTopics, refreshProxyUnread, applyProxyChatState, apiUpdate, showNotification, loadChatFolders]);
+  }, [connection, hasOwnSession, isGuest, loadProxyChats, refreshProxyMessage, refreshProxyHistory,
+    refreshProxyTopics, refreshProxyUnread, applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
+    loadChatFolders]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;

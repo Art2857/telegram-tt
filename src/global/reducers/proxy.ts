@@ -4,10 +4,14 @@ import { PROXY_FOLDER_ID } from '../../api/proxy/types';
 import { ALL_FOLDER_ID } from '../../config';
 import { isProxyPeerId } from '../../api/proxy/ids';
 
-/** Cached proxy data is discarded until the server revalidates the current accesses */
-export function clearProxyChats<T extends GlobalState>(global: T): T {
+/**
+ * Cached proxy data is discarded until the server revalidates the current accesses. `keptChatIds` are the chats
+ * whose access did not change: their messages and topics stay, so the open feed does not start over
+ */
+export function clearProxyChats<T extends GlobalState>(global: T, keptChatIds?: ReadonlySet<string>): T {
   const chats = Object.fromEntries(Object.entries(global.chats.byId).filter(([id]) => !isProxyPeerId(id)));
   const keepId = (id: string) => !isProxyPeerId(id);
+  const keepContentId = (id: string) => keepId(id) || Boolean(keptChatIds?.has(id));
   return {
     ...global,
     chats: {
@@ -25,7 +29,9 @@ export function clearProxyChats<T extends GlobalState>(global: T): T {
       },
       fullInfoById: Object.fromEntries(Object.entries(global.chats.fullInfoById).filter(([id]) => keepId(id))),
       // A topic access may have narrowed: the forum panel reloads the topics it is allowed to see
-      topicsInfoById: Object.fromEntries(Object.entries(global.chats.topicsInfoById).filter(([id]) => keepId(id))),
+      topicsInfoById: Object.fromEntries(Object.entries(global.chats.topicsInfoById).filter(([id]) => (
+        keepContentId(id)
+      ))),
       lastMessageIds: {
         ...global.chats.lastMessageIds,
         all: Object.fromEntries(Object.entries(global.chats.lastMessageIds.all || {}).filter(([id]) => keepId(id))),
@@ -33,13 +39,14 @@ export function clearProxyChats<T extends GlobalState>(global: T): T {
     },
     users: {
       ...global.users,
+      // Authors of the kept messages are proxy users too, and they come back only with their messages
       byId: Object.fromEntries(Object.entries(global.users.byId).filter(([id]) => (
-        keepId(id) || id === global.currentUserId
+        keepId(id) || id === global.currentUserId || keptChatIds?.size
       ))),
     },
     messages: {
       ...global.messages,
-      byChatId: Object.fromEntries(Object.entries(global.messages.byChatId).filter(([id]) => keepId(id))),
+      byChatId: Object.fromEntries(Object.entries(global.messages.byChatId).filter(([id]) => keepContentId(id))),
     },
     chatFolders: {
       ...global.chatFolders,

@@ -44,6 +44,8 @@ type BaseOwnProps = {
   avatarSize?: 'tiny' | 'small' | 'medium' | 'large' | 'jumbo';
   forceShowSelf?: boolean;
   status?: string;
+  /** Goes before the usual status, which stays: whose chat this is */
+  statusPrefix?: string;
   statusIcon?: IconName;
   ripple?: boolean;
   withDots?: boolean;
@@ -100,6 +102,7 @@ const PrivateChatInfo = ({
   typingStatusByPeerId,
   avatarSize = 'medium',
   status,
+  statusPrefix,
   statusIcon,
   withDots,
   withMediaViewer,
@@ -235,6 +238,7 @@ const PrivateChatInfo = ({
     const mainUserNameClassName = buildClassName('handle', translatedStatus && 'withStatus');
     return (
       <span className={buildClassName('status', !noUserStatus && isUserOnline(user, userStatus, true) && 'online')}>
+        {statusPrefix && `${statusPrefix} · `}
         {mainUsername && <span className={mainUserNameClassName}>{mainUsername}</span>}
         {translatedStatus && <span className="user-status" dir="auto">{translatedStatus}</span>}
       </span>

@@ -314,7 +314,8 @@ const MiddleHeader = ({
               userId={displayChatId}
               threadId={!isSavedDialog ? threadId : undefined}
               typingStatusByPeerId={typingStatusByPeerId}
-              status={connectionStatusText || savedMessagesStatus || proxyStatus}
+              status={connectionStatusText || savedMessagesStatus}
+              statusPrefix={proxyStatus}
               withDots={Boolean(connectionStatusText)}
               withFullInfo={threadId === MAIN_THREAD_ID}
               withMediaViewer={threadId === MAIN_THREAD_ID}
@@ -333,7 +334,8 @@ const MiddleHeader = ({
               threadId={!isSavedDialog ? threadId : undefined}
               typingStatusByPeerId={typingStatusByPeerId}
               withMonoforumStatus={chat?.isMonoforum}
-              status={connectionStatusText || savedMessagesStatus || proxyStatus}
+              status={connectionStatusText || savedMessagesStatus}
+              statusPrefix={proxyStatus}
               withDots={Boolean(connectionStatusText)}
               withMediaViewer={threadId === MAIN_THREAD_ID}
               withFullInfo={threadId === MAIN_THREAD_ID}

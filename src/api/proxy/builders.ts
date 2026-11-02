@@ -1,7 +1,7 @@
-import type { AccessChat, MessageDto, TopicDto } from '../../proxygram/server/types';
+import type { AccessChat, MessageDto, TopicDto, UserStatusDto } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage, ApiMessagePoll, ApiMessageReplyInfo,
-  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser, ApiWebPageFull,
+  ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 
@@ -54,7 +54,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       inviteUsers: true,
     },
     pxgProxy: {
-      accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions,
+      accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions, shareIds: chat.shareIds,
       restricted: chat.restricted || undefined,
       providerName: chat.providerName || undefined,
       providerUserId: chat.providerUserId || undefined,
@@ -121,6 +121,19 @@ export function buildProxyChatReactions(
       ? [{ type: 'custom', documentId: buildProxyCatalogMediaId(userId!, chat.accountId, reaction.documentId) }] : [];
   });
   return { enabledReactions: { type: 'some', allowed }, reactionsLimit: reactions.limit };
+}
+
+const USER_STATUS_TYPES: Record<UserStatusDto['type'], ApiUserStatus['type']> = {
+  online: 'userStatusOnline',
+  offline: 'userStatusOffline',
+  recently: 'userStatusRecently',
+  lastWeek: 'userStatusLastWeek',
+  lastMonth: 'userStatusLastMonth',
+  empty: 'userStatusEmpty',
+};
+
+export function buildProxyUserStatus({ type, expires, wasOnline }: UserStatusDto): ApiUserStatus {
+  return { type: USER_STATUS_TYPES[type], expires, wasOnline };
 }
 
 /** `null` means the user has no photo; an omitted `photoId` keeps the avatar already known from other messages */

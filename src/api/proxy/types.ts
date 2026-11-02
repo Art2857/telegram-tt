@@ -4,6 +4,7 @@ export type ProxyChatInfo = {
   accountId: string;
   peerId: number;
   permissions: Permissions;
+  shareIds: string[];
   restricted?: AccessRestriction;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;

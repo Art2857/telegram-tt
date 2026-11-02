@@ -1,5 +1,6 @@
 // Зеркало типов из packages/protocol: клиент живёт вне pnpm workspace и не тянет zod.
 // Меняя протокол на сервере — поменяйте и здесь.
+import type { ApiTypingStatus } from '../../api/types';
 
 export type SessionLevel = 'guest' | 'client';
 
@@ -51,6 +52,8 @@ export interface AccessChat {
   type: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
   /** ID текущего фото чата или собеседника; сам аватар — через media.avatar */
   photoId: string | null;
+  /** Online status of the other side of a private chat */
+  userStatus?: UserStatusDto | null;
   permissions: Permissions;
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
@@ -415,7 +418,27 @@ export interface GuestCandidate {
 
 export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox';
 
+/** Named as Web A names its typing statuses */
+export type TypingActionDto = Exclude<ApiTypingStatus['type'], 'watchingAnimations'> | 'cancel';
+
+export interface ChatTypingDto {
+  accountId: string;
+  peerId: number;
+  topicId?: number;
+  userId: number;
+  name: string | null;
+  action: TypingActionDto;
+}
+
+export interface UserStatusDto {
+  type: 'online' | 'offline' | 'recently' | 'lastWeek' | 'lastMonth' | 'empty';
+  expires?: number;
+  wasOnline?: number;
+}
+
 export type ServerEvent =
+  | { e: 'chat.typing'; d: ChatTypingDto }
+  | { e: 'user.status'; d: { accountId: string; userId: number; status: UserStatusDto } }
   | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }
   | { e: 'access.changed'; d: Record<string, never> }
   | { e: 'outbox.done'; d: OutboxDoneDto }

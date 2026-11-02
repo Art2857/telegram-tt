@@ -1,3 +1,4 @@
+import type { ApiChat } from '../../../api/types';
 import type { ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
 import type { ActionReturnType } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
@@ -7,6 +8,7 @@ import { LoadMoreDirection } from '../../../types';
 import { ARCHIVED_FOLDER_ID } from '../../../config';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey } from '../../../util/iteratees';
+import { getServerTime } from '../../../util/serverTime';
 import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, setProxyUpdateHandler } from '../../../api/proxy';
@@ -20,7 +22,8 @@ import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE, INITIAL_SHARED_STATE } from '../../initialState';
 import {
-  addChatListIds, addNotifyExceptions, updateChatFullInfo, updateChats, updateChatsLastMessageId, updateUsers,
+  addChatListIds, addNotifyExceptions, addUserStatuses, updateChatFullInfo, updateChats, updateChatsLastMessageId,
+  updateUsers,
 } from '../../reducers';
 import { replaceMessages } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
@@ -91,7 +94,7 @@ addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   initSharedState(INITIAL_SHARED_STATE);
 });
 
-addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
+addActionHandler('loadProxyChats', async (global, actions, payload): Promise<void> => {
   const generation = ++loadGeneration;
   const userId = getPxgState().session?.user.id;
   if (!userId) return;
@@ -108,9 +111,14 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
       }
     });
     global = getGlobal();
-    global = clearProxyChats(global);
+    const previousChats = global.chats.byId;
+    const keptChatIds = payload?.shouldKeepUnchanged ? new Set(result.chats.filter((chat) => (
+      isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
+    )).map((chat) => chat.id)) : undefined;
+    global = clearProxyChats(global, keptChatIds);
     global = updateChats(global, buildCollectionByKey(result.chats, 'id'));
     global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
+    global = addUserStatuses(global, result.userStatusesById);
     global = replaceMessages(global, result.messages);
     const archivedIds = new Set(result.archivedChatIds);
     global = addChatListIds(global, 'active', result.chatIds.filter((id) => !archivedIds.has(id)));
@@ -171,16 +179,12 @@ addActionHandler('loadProxyChats', async (global, actions): Promise<void> => {
   }
 });
 
-addActionHandler('clearProxyChats', (global, actions): ActionReturnType => {
-  loadGeneration++;
-  Object.values(global.byTabId).forEach(({ id: tabId, mediaViewer }) => {
-    const chatId = selectCurrentMessageList(global, tabId)?.chatId;
-    if (chatId && isProxyPeerId(chatId)) actions.openChat({ id: undefined, tabId });
-    if (mediaViewer?.chatId && isProxyPeerId(mediaViewer.chatId)) actions.closeMediaViewer({ tabId });
-  });
-  global = getGlobal();
-  return clearProxyChats(global);
-});
+/** The same permissions and the same grants: what the guest already sees of this chat stays valid */
+function isSameProxyAccess(previous: ApiChat['pxgProxy'], next: ApiChat['pxgProxy']) {
+  return previous && next && previous.restricted === next.restricted
+    && previous.shareIds.join() === next.shareIds.join()
+    && JSON.stringify(previous.permissions) === JSON.stringify(next.permissions);
+}
 
 addActionHandler('refreshProxyMessage', async (global, actions, {
   accountId, peerId, msgId, kind,
@@ -238,6 +242,23 @@ addActionHandler('openProxyChatOwner', (global, actions, payload): ActionReturnT
     return;
   }
   actions.showNotification({ message: { key: 'PxgOwnerUnreachable', variables: { name: providerName } }, tabId });
+});
+
+/** Someone is typing in a shared chat; Web A clears the status by itself when no new one comes */
+addActionHandler('applyProxyTyping', (global, actions, {
+  accountId, peerId, topicId, userId, name, action,
+}): ActionReturnType => {
+  const id = getProxyPeerId(accountId, peerId);
+  if (!global.chats.byId[id]?.pxgProxy) return;
+  const user = buildProxyUser(accountId, userId, name || undefined);
+  if (!global.users.byId[user.id]) emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+  emitProxyUpdate({
+    '@type': 'updateChatTypingStatus',
+    id,
+    peerId: user.id,
+    threadId: topicId,
+    typingStatus: action === 'cancel' ? undefined : { type: action, timestamp: getServerTime() },
+  });
 });
 
 /** Another device of the guest muted, pinned or archived a shared chat */

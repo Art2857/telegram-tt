@@ -82,7 +82,7 @@ import type { ApiCredentials } from '../../components/payment/PaymentModal';
 import type { FoldersActions } from '../../hooks/reducers/useFoldersReducer';
 import type { ReducerAction } from '../../hooks/useReducer';
 import type { P2pMessage } from '../../lib/vibecalls';
-import type { ChatStateDto } from '../../proxygram/server/types';
+import type { ChatStateDto, ChatTypingDto } from '../../proxygram/server/types';
 import type {
   AccountSettings,
   AttachmentCompression,
@@ -139,14 +139,14 @@ import type { AiEditorContent, ReactionDeletionContext, TabState } from './tabSt
 export type WithTabId = { tabId?: number };
 
 export interface ActionPayloads {
-  loadProxyChats: undefined;
-  clearProxyChats: undefined;
+  loadProxyChats: { shouldKeepUnchanged?: boolean } | undefined;
   initProxyGuest: undefined;
   resetProxyGuest: undefined;
   refreshProxyMessage: { accountId: string; peerId: number; msgId: number; kind?: string };
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   openProxyChatOwner: { chatId: string } & WithTabId;
+  applyProxyTyping: ChatTypingDto;
   refreshProxyUnread: { accountId: string; peerId: number; topicId: number | null };
   applyProxyChatState: ChatStateDto;
   // system

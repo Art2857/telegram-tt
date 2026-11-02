@@ -1,4 +1,4 @@
-import { useEffect } from '../lib/teact/teact';
+import { useEffect, useRef } from '../lib/teact/teact';
 
 import {
   addChatsCountCallback,
@@ -12,10 +12,17 @@ import useForceUpdate from './useForceUpdate';
 
 export function useFolderManagerForOrderedIds(folderId: number) {
   const forceUpdate = useForceUpdate();
+  const orderedIds = getOrderedIds(folderId);
+  const renderedIdsRef = useRef(orderedIds);
+  renderedIdsRef.current = orderedIds;
 
-  useEffect(() => addOrderedIdsCallback(folderId, forceUpdate), [folderId, forceUpdate]);
+  useEffect(() => {
+    // The list may have arrived between the render and this subscription, and no callback will tell about it
+    if (getOrderedIds(folderId) !== renderedIdsRef.current) forceUpdate();
+    return addOrderedIdsCallback(folderId, forceUpdate);
+  }, [folderId, forceUpdate]);
 
-  return getOrderedIds(folderId);
+  return orderedIds;
 }
 
 export function useFolderManagerForUnreadCounters() {

@@ -12,7 +12,7 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
   buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyMessage, buildProxyPoll, buildProxyTopic,
-  buildProxyUser, buildProxyWebPage,
+  buildProxyUser, buildProxyUserStatus, buildProxyWebPage,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -166,7 +166,9 @@ export async function fetchProxyChats() {
     chats, users, messages,
     chatIds: chats.map((chat) => chat.id),
     lastMessageByChatId: Object.fromEntries(messages.map((message) => [message.chatId, message.id])),
-    userStatusesById: {},
+    userStatusesById: Object.fromEntries(access.flatMap((item, index) => (
+      item.userStatus ? [[chats[index].id, buildProxyUserStatus(item.userStatus)]] : []
+    ))),
     draftsById: {},
     // A guest mutes a shared chat only for themselves; the server keeps it for every device and for pushes
     notifyExceptionById: Object.fromEntries(access.flatMap((item, index) => (
