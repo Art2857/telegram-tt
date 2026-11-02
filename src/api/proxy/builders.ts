@@ -224,7 +224,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
 
 /** The comments button of a channel post: the count comes from the archive of the shared discussion group */
 export function buildProxyCommentsInfo(dto: MessageDto): ApiCommentsInfo | undefined {
-  const { commentsPeerId, replies, lastReplyId } = dto.post || {};
+  const { commentsPeerId, replies, lastReplyId, recentRepliers } = dto.post || {};
   if (!commentsPeerId) return undefined;
   return {
     isCommentsInfo: true,
@@ -233,6 +233,9 @@ export function buildProxyCommentsInfo(dto: MessageDto): ApiCommentsInfo | undef
     originMessageId: dto.msgId,
     messagesCount: replies || 0,
     lastMessageId: lastReplyId,
+    // Users only: a channel signing a comment is not a chat the guest knows
+    recentReplierIds: recentRepliers?.filter(({ peerId }) => peerId > 0)
+      .map(({ peerId }) => getProxyPeerId(dto.accountId, peerId)),
   };
 }
 

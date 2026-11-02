@@ -199,6 +199,8 @@ export interface MessageDto {
     /** The discussion group, only when it is shared with the guest too */
     commentsPeerId?: number;
     lastReplyId?: number;
+    /** The latest distinct commenters, newest first */
+    recentRepliers?: { peerId: number; name: string | null; photoId: string | null }[];
   };
   /** Link preview; its picture is not served to guests yet */
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };

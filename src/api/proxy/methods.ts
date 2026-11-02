@@ -366,6 +366,7 @@ async function fetchMessageViews({ chat, ids }: MethodArgs<'fetchMessageViews'>[
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: ids.slice(0, 200) });
+  result.messages.forEach(emitRecentRepliers);
   return {
     viewsInfo: result.messages.map((dto) => ({
       id: dto.msgId,
@@ -471,6 +472,7 @@ async function fetchTopicById({ chat, topicId }: MethodArgs<'fetchTopicById'>[0]
 /** The sender profile, action participants, the poll and the link preview live in their own parts of the state */
 function emitRelated(dto: MessageDto) {
   if (dto.transcription) emitTranscription(dto.transcription);
+  emitRecentRepliers(dto);
   const commentsInfo = buildProxyCommentsInfo(dto);
   if (commentsInfo) emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo: commentsInfo });
   const poll = buildProxyPoll(dto);
@@ -485,6 +487,15 @@ function emitRelated(dto: MessageDto) {
   if (!dto.senderId || dto.senderId < 0) return;
   const user = buildProxyUser(dto.accountId, dto.senderId, dto.senderName || undefined, dto.senderPhotoId);
   emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+}
+
+/** Goes before the thread info: the comments button reads the profiles once, when the list of repliers changes */
+function emitRecentRepliers(dto: MessageDto) {
+  dto.post?.recentRepliers?.forEach(({ peerId, name, photoId }) => {
+    if (peerId < 0) return;
+    const user = buildProxyUser(dto.accountId, peerId, name || undefined, photoId);
+    emitProxyUpdate({ '@type': 'updateUser', id: user.id, user });
+  });
 }
 
 function emitTranscription({ id, text, pending }: NonNullable<MessageDto['transcription']>) {
