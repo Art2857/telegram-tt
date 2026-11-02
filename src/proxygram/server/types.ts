@@ -53,6 +53,8 @@ export interface AccessChat {
   /** ID текущего фото чата или собеседника; сам аватар — через media.avatar */
   photoId: string | null;
   badges?: PeerBadgesDto | null;
+  /** Up to where others read the account's outgoing messages */
+  readOutboxMaxId?: number | null;
   /** Online status of the other side of a private chat */
   userStatus?: UserStatusDto | null;
   permissions: Permissions;
@@ -90,6 +92,11 @@ export interface PeerBriefDto {
   peerId: number;
   name: string | null;
   photoId: string | null;
+}
+
+/** Who read a message and when, in unix seconds */
+export interface SeenByDto extends PeerBriefDto {
+  date: number;
 }
 
 /** Marks next to a name: verified, scam or fake, Premium, emoji status */
@@ -520,6 +527,7 @@ export interface UserStatusDto {
 export type ServerEvent =
   | { e: 'draft.changed'; d: { accountId: string; peerId: number; topicId: number | null; draft: DraftDto | null } }
   | { e: 'chat.typing'; d: ChatTypingDto }
+  | { e: 'chat.readOutbox'; d: { accountId: string; peerId: number; maxId: number } }
   | { e: 'user.status'; d: { accountId: string; userId: number; status: UserStatusDto } }
   | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }
   | { e: 'access.changed'; d: Record<string, never> }
@@ -537,7 +545,7 @@ export interface OutboxDoneDto {
   id: string;
   accountId: string;
   kind: 'send' | 'edit' | 'delete' | 'react' | 'forward' | 'callback' | 'vote' | 'read' | 'typing' | 'history'
-    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate';
+    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate' | 'seenBy';
   /** delayed — Telegram попросил подождать (FLOOD_WAIT), итог придёт позже */
   status: 'done' | 'failed' | 'delayed';
   /** delayed: через сколько секунд повтор */

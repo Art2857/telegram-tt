@@ -1,5 +1,6 @@
 import type {
-  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, TopicsListResult,
+  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, MemberDto, MessageDto, PeerBriefDto, SeenByDto,
+  TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -98,6 +99,7 @@ const methods = {
   toggleChatPinned,
   toggleChatArchived,
   toggleDialogUnread,
+  fetchSeenBy,
   fetchUnreadMentions,
   fetchUnreadReactions,
   readAllReactions,
@@ -203,7 +205,7 @@ export async function fetchProxyChats() {
       chatId: chat.id, threadId: MAIN_THREAD_ID, isCommentsInfo: false as const,
       lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
     })),
-    threadReadStatesById: buildProxyReadStates(unread),
+    threadReadStatesById: withReadOutbox(buildProxyReadStates(unread), access),
     fullInfoById: Object.fromEntries(access.map((item, index) => [
       chats[index].id, { ...buildProxyChatInfo(item), ...buildProxyChatReactions(item) },
     ])),
@@ -227,6 +229,16 @@ export function buildProxyReadStates(unread: ChatUnreadDto[]): Record<string, Th
     unreadMentionsCount: item.unreadMentionsCount,
     unreadReactionsCount: item.unreadReactionsCount,
   }]));
+}
+
+/** Up to where others read the account's outgoing messages: Telegram's double check marks */
+function withReadOutbox(readStates: Record<string, ThreadReadState>, access: AccessChat[]) {
+  access.forEach(({ accountId, peerId, readOutboxMaxId }) => {
+    if (!readOutboxMaxId) return;
+    const id = getProxyPeerId(accountId, peerId);
+    readStates[id] = { ...readStates[id], lastReadOutboxMessageId: readOutboxMaxId };
+  });
+  return readStates;
 }
 
 /** The main list and the archive are slices of the same accesses */
@@ -518,6 +530,17 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** Who read a message: Telegram answers for the owner's account, the profiles come with the answer */
+async function fetchSeenBy({ chat, messageId }: MethodArgs<'fetchSeenBy'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const readers = await pxgRpc.call<SeenByDto[]>('messages.seenBy', { ...peer, msgId: messageId })
+    .catch(() => undefined);
+  if (!readers) return undefined;
+  emitPeerBriefs(peer.accountId, readers);
+  return Object.fromEntries(readers.map(({ peerId, date }) => [getProxyPeerId(peer.accountId, peerId), date]));
 }
 
 /** Mentions of the owner that the guest has not read yet, by the guest's own read pointer */

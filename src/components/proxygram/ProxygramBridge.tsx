@@ -3,6 +3,7 @@ import { getActions, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
 import type { AccountDto, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
+import { MAIN_THREAD_ID } from '../../api/types';
 
 import { selectCurrentMessageList } from '../../global/selectors';
 import { callApi } from '../../api/gramjs';
@@ -32,7 +33,9 @@ const POLL_TIMEOUT_MS = 60_000;
 /** Сервер недоступен — пробуем снова, не мешая пользоваться Telegram */
 const RETRY_DELAY_MS = 60_000;
 /** Фоновые действия: о задержке Telegram гостю не сообщаем */
-const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>(['read', 'typing', 'history', 'transcribe', 'translate']);
+const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>([
+  'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy',
+]);
 
 export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dismissed-${tgUserId}`;
 
@@ -164,6 +167,14 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       if (event.e === 'chats.state') applyProxyChatState(event.d);
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();
       if (event.e === 'chat.typing') applyProxyTyping(event.d);
+      if (event.e === 'chat.readOutbox') {
+        apiUpdate({
+          '@type': 'updateThreadReadState',
+          chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
+          threadId: MAIN_THREAD_ID,
+          readState: { lastReadOutboxMessageId: event.d.maxId },
+        });
+      }
       if (event.e === 'draft.changed') {
         apiUpdate({
           '@type': 'draftMessage',
