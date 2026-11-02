@@ -32,7 +32,7 @@ const POLL_TIMEOUT_MS = 60_000;
 /** Сервер недоступен — пробуем снова, не мешая пользоваться Telegram */
 const RETRY_DELAY_MS = 60_000;
 /** Фоновые действия: о задержке Telegram гостю не сообщаем */
-const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>(['read', 'typing', 'history']);
+const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>(['read', 'typing', 'history', 'transcribe', 'translate']);
 
 export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dismissed-${tgUserId}`;
 

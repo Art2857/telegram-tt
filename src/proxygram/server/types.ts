@@ -502,7 +502,8 @@ export type ServerEvent =
 export interface OutboxDoneDto {
   id: string;
   accountId: string;
-  kind: 'send' | 'edit' | 'delete' | 'react' | 'forward' | 'callback' | 'vote' | 'read' | 'typing' | 'history';
+  kind: 'send' | 'edit' | 'delete' | 'react' | 'forward' | 'callback' | 'vote' | 'read' | 'typing' | 'history'
+    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate';
   /** delayed — Telegram попросил подождать (FLOOD_WAIT), итог придёт позже */
   status: 'done' | 'failed' | 'delayed';
   /** delayed: через сколько секунд повтор */
