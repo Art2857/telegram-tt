@@ -4,6 +4,8 @@ import type { MediaContent } from '../types';
 import { PxgError } from '../../proxygram/server/types';
 import { ApiMediaFormat } from '../types';
 
+import { MEDIA_CACHE_DISABLED, MEDIA_CACHE_MAX_BYTES, MEDIA_CACHE_NAME, MEDIA_CACHE_NAME_AVATARS } from '../../config';
+import * as cacheApi from '../../util/cacheApi';
 import { pause } from '../../util/schedulers';
 import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -14,8 +16,10 @@ import {
 } from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
-const MEDIA_WAIT_ATTEMPTS = 15;
+// After a server restart the worker takes the account in ~40 s: waiting less leaves media empty until a reload
+const MEDIA_WAIT_MS = 120_000;
 const MEDIA_WAIT_INTERVAL_MS = 2000;
+const MEDIA_WAIT_MAX_INTERVAL_MS = 8000;
 /** 1×1 transparent PNG: an animated sticker has no static thumbnail, its animation replaces the placeholder */
 const EMPTY_THUMBNAIL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
@@ -74,16 +78,18 @@ export async function downloadMedia(
   const request = userId && buildMediaRequest(url, userId, catalog);
   if (!request) return undefined;
   let signed: { url: string; mimeType: string; size?: number } | undefined;
-  for (let attempt = 0; attempt < MEDIA_WAIT_ATTEMPTS; attempt++) {
+  const deadline = Date.now() + MEDIA_WAIT_MS;
+  let interval = MEDIA_WAIT_INTERVAL_MS;
+  while (!signed) {
     if (onProgress?.isCanceled || userId !== getPxgState().session?.user.id) return undefined;
     try {
       signed = await pxgRpc.call(...request);
-      break;
     } catch (err) {
       // A document without a Telegram thumbnail gets an empty preview, so Web A keeps the emoji fallback
       if (catalog?.isThumbnail && err instanceof PxgError && err.code === 'not_found') return buildEmptyPreview();
-      if (!(err instanceof PxgError) || err.code !== 'media_pending' || attempt === MEDIA_WAIT_ATTEMPTS - 1) throw err;
-      await pause(MEDIA_WAIT_INTERVAL_MS);
+      if (!(err instanceof PxgError) || err.code !== 'media_pending' || Date.now() + interval > deadline) throw err;
+      await pause(interval);
+      interval = Math.min(interval * 1.5, MEDIA_WAIT_MAX_INTERVAL_MS);
     }
   }
   if (!signed) return undefined;
@@ -101,6 +107,12 @@ export async function downloadMedia(
   const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
+  // As GramJS does: documents by ID and avatars keyed by photo ID never change, so a reload takes them from the cache
+  // instead of asking the server again. Message files are not kept — the access to them can be revoked
+  const isImmutable = Boolean(catalog) || request[0] === 'media.avatar';
+  if (!MEDIA_CACHE_DISABLED && isImmutable && !isBuffer && buffer.byteLength <= MEDIA_CACHE_MAX_BYTES) {
+    void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
+  }
   return {
     dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size ?? buffer.byteLength,
   };

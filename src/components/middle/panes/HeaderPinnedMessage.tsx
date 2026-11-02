@@ -140,11 +140,13 @@ const HeaderPinnedMessage = ({
   );
   const isSpoiler = renderingPinnedMessage && getMessageIsSpoiler(renderingPinnedMessage);
 
+  // PXG: A guest's chat opened from the URL arrives after the first render, so loading waits for it
+  const hasChat = Boolean(chat);
   useEffect(() => {
-    if (isSynced && (threadId === MAIN_THREAD_ID || chat?.isForum)) {
+    if (hasChat && isSynced && (threadId === MAIN_THREAD_ID || chat?.isForum)) {
       loadPinnedMessages({ chatId, threadId });
     }
-  }, [chatId, threadId, isSynced, chat?.isForum]);
+  }, [chatId, threadId, isSynced, chat?.isForum, hasChat]);
 
   useEnsureMessage(chatId, pinnedMessageId, pinnedMessage);
 
