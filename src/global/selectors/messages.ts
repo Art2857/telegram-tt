@@ -600,8 +600,12 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     const isOwn = message.pxgIsOwn;
     const canManage = message.isOutgoing && permissions.manageOwnerOutgoing;
     const isSaved = !isLocalMessageId(message.id) && !message.pxgDeletedAt;
-    const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage);
-    const canDelete = isSaved && ((isOwn && permissions.deleteOwn) || canManage);
+    // As the owner's admin rights allow: anyone's messages in a group or channel, anyone's posts in a channel
+    const canAdminDelete = permissions.admin && !isUserId(chat.id) && getHasAdminRight(chat, 'deleteMessages');
+    const canAdminEdit = permissions.admin && isChatChannel(chat) && !message.content.action
+      && getHasAdminRight(chat, 'editMessages');
+    const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage || canAdminEdit);
+    const canDelete = isSaved && ((isOwn && permissions.deleteOwn) || canManage || canAdminDelete);
     // A guest pins as the owner: either side in a private chat, otherwise the owner's rights given to the guest
     const canPinProxy = isSaved && !message.content.action && (isUserId(chat.id)
       ? permissions.write
