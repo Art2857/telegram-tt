@@ -46,17 +46,24 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
   async function load() {
     if (!isCurrent() || pending || isSaving) return;
     const currentRequestId = ++requestId;
-    const before = JSON.stringify(readSettings());
     try {
       const result = await pxgRpc.call<{ data: Record<string, unknown> } | undefined>('settings.get');
       if (!isCurrent() || currentRequestId !== requestId) return;
+      const wasLoaded = isLoaded;
       isLoaded = true;
-      if (before !== JSON.stringify(readSettings()) || pending || isSaving) {
+      // The first device of the guest: its preferences become the ones every other device gets
+      if (!result) {
         pending = readSettings();
         void save();
         return;
       }
-      const settings = sanitizeSettings(result?.data || {});
+      // An edit made while the copy was on its way is newer. Before the first load nothing is an edit: a new
+      // device adjusts defaults itself (system theme, time format), and those must not replace the saved choice
+      if (wasLoaded && (pending || isSaving)) {
+        void save();
+        return;
+      }
+      const settings = sanitizeSettings(result.data || {});
       lastJson = JSON.stringify({ ...readSettings(), ...settings });
       apply(settings);
     } catch {
