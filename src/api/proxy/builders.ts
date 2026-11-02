@@ -48,7 +48,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       sendGifs: chat.permissions.useOwnerStickers ? undefined : true,
       sendVoices: chat.permissions.sendMedia ? undefined : true,
       sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
-      sendPolls: true,
+      sendPolls: chat.permissions.write ? undefined : true,
       // Topics are created as the owner: only with the admin permission
       manageTopics: chat.permissions.admin ? undefined : true,
       // Inviting people into the owner's chat is not a guest action

@@ -8,6 +8,7 @@ import {
   checkIfOfflinePushFailed,
   playNotifySound,
 } from '../../../util/notifications';
+import { isProxyGuest } from '../../../api/proxy';
 
 import useHistoryBack from '../../../hooks/useHistoryBack';
 import useLang from '../../../hooks/useLang';
@@ -229,11 +230,13 @@ const SettingsNotifications = ({
 
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('PhoneOther')}</IslandTitle>
       <Island>
-        <Checkbox
-          label={lang('ContactJoined')}
-          checked={hasContactJoinedNotifications}
-          onChange={handleContactNotificationChange}
-        />
+        {!isProxyGuest() && (
+          <Checkbox
+            label={lang('ContactJoined')}
+            checked={hasContactJoinedNotifications}
+            onChange={handleContactNotificationChange}
+          />
+        )}
         <Checkbox
           label={lang('PinnedMessagesNotifications')}
           checked={shouldNotifyAboutPinnedMessages}

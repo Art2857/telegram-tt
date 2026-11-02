@@ -1,6 +1,7 @@
 import { addCallback, removeCallback } from '../lib/teact/teactn';
 import { getGlobal, setGlobal } from '../global';
 
+import type { ApiNotifyPeerType, ApiPeerNotifySettings } from '../api/types';
 import type { SharedSettings } from '../global/types/sharedState';
 
 import { INITIAL_SHARED_STATE } from '../global/initialState';
@@ -18,7 +19,13 @@ const SETTINGS_KEYS = [
 type GuestSettings = Partial<SharedSettings> & {
   /** Folder tags in the chat list: a Telegram account setting, which a guest keeps here */
   folderTags?: boolean;
+  /** Notifications by chat type, also read by the server for Web Push */
+  notifyDefaults?: NotifyDefaults;
 };
+
+type NotifyDefaults = Record<ApiNotifyPeerType, ApiPeerNotifySettings>;
+
+const NOTIFY_PEER_TYPES: ApiNotifyPeerType[] = ['users', 'groups', 'channels'];
 
 /** Sync only portable interface preferences; browser geometry, debug flags and credentials stay on the device */
 export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSettings>) => void) {
@@ -31,11 +38,14 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
   let pending: ReturnType<typeof readSettings> | undefined;
   let timer: number | undefined;
 
-  function apply({ folderTags, ...shared }: GuestSettings) {
+  function apply({ folderTags, notifyDefaults, ...shared }: GuestSettings) {
     applyShared(shared);
-    if (folderTags === undefined) return;
+    if (folderTags === undefined && !notifyDefaults) return;
     let global = getGlobal();
-    global = { ...global, chatFolders: { ...global.chatFolders, areTagsEnabled: folderTags } };
+    if (folderTags !== undefined) {
+      global = { ...global, chatFolders: { ...global.chatFolders, areTagsEnabled: folderTags } };
+    }
+    if (notifyDefaults) global = { ...global, settings: { ...global.settings, notifyDefaults } };
     setGlobal(global);
   }
 
@@ -125,12 +135,24 @@ function readSettings() {
   return {
     ...pick(global.sharedState.settings, [...SETTINGS_KEYS]),
     folderTags: Boolean(global.chatFolders.areTagsEnabled),
+    notifyDefaults: global.settings.notifyDefaults,
   };
+}
+
+function sanitizeNotifyDefaults(value: unknown): NotifyDefaults | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const defaults = value as Record<string, ApiPeerNotifySettings | undefined>;
+  return Object.fromEntries(NOTIFY_PEER_TYPES.map((type) => [type, {
+    mutedUntil: Number(defaults[type]?.mutedUntil) || 0,
+    shouldShowPreviews: defaults[type]?.shouldShowPreviews !== false,
+  }])) as NotifyDefaults;
 }
 
 function sanitizeSettings(data: Record<string, unknown>): GuestSettings {
   const result: Record<string, unknown> = {};
   if (typeof data.folderTags === 'boolean') result.folderTags = data.folderTags;
+  const notifyDefaults = sanitizeNotifyDefaults(data.notifyDefaults);
+  if (notifyDefaults) result.notifyDefaults = notifyDefaults;
   const defaults = INITIAL_SHARED_STATE.settings;
   SETTINGS_KEYS.forEach((key) => {
     const value = data[key];

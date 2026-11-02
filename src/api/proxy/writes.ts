@@ -20,7 +20,7 @@ const MAX_WAVEFORM_LENGTH = 100;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
-  const { chat, attachment, text, entities, replyInfo, sticker, gif } = params;
+  const { chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
@@ -33,7 +33,8 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
-      text: { text: text || attachment?.filename || '', entities },
+      // A poll and a dice appear as they are once Telegram has them; until then their text stands in
+      text: { text: poll?.summary.question.text || dice || text || attachment?.filename || '', entities },
     },
     sendingState: 'messageSendingStatePending',
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
@@ -42,7 +43,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     emitProxyUpdate({ '@type': 'newMessage', id: localMessage.id, chatId: chat.id, message: localMessage });
   }
   try {
-    if (params.scheduledAt || params.poll || params.todo || params.richMessage) {
+    if (params.scheduledAt || params.todo || params.richMessage) {
       throw new PxgError('unsupported');
     }
     // The owner's sticker or GIF must come from the catalog of the chat's provider account
@@ -72,6 +73,19 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
       file,
       document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
+      poll: poll && {
+        question: poll.summary.question.text,
+        answers: poll.summary.answers.map(({ text: answer }) => answer.text),
+        isPublic: poll.summary.isPublic,
+        isMultipleChoice: poll.summary.isMultipleChoice,
+        canAddAnswers: poll.summary.canAddAnswers,
+        isRevoteDisabled: poll.summary.isRevoteDisabled,
+        shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
+        shouldHideResults: poll.summary.shouldHideResultsUntilClose,
+        correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
+        solution: poll.solution,
+      },
+      dice,
       replyToMsgId,
       topicId,
       silent: params.isSilent,
@@ -306,7 +320,12 @@ function emitProxyError(err: unknown) {
 async function readSentMessage(chat: NonNullable<MethodArgs<'sendMessage'>[0]['chat']>, msgId: number) {
   const peer = resolveProxyPeer(chat.id)!;
   const result = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', { ...peer, msgIds: [msgId] });
-  return result.messages[0] ? buildProxyMessage(result.messages[0], chat) : undefined;
+  const dto = result.messages[0];
+  if (!dto) return undefined;
+  // A poll lives in its own part of the state: the message alone would show an empty one
+  const poll = buildProxyPoll(dto);
+  if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
+  return buildProxyMessage(dto, chat);
 }
 
 /** In a private chat either side pins; in a group or channel the server checks the owner's admin rights */

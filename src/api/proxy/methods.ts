@@ -3,7 +3,9 @@ import type {
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
-import type { ApiChat, ApiChatMember, ApiMessage, ApiPeer, ApiPhoto, ApiUser } from '../types';
+import type {
+  ApiChat, ApiChatMember, ApiMessage, ApiNotifyPeerType, ApiPeer, ApiPeerNotifySettings, ApiPhoto, ApiUser,
+} from '../types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
@@ -92,6 +94,8 @@ const methods = {
   toggleChatArchived,
   toggleDialogUnread,
   saveDraft,
+  fetchNotifyDefaultSettings,
+  updateNotificationSettings,
   exportMessageLink,
   sendReaction,
   pinMessage,
@@ -179,7 +183,7 @@ export async function fetchProxyChats() {
     ])),
     // A guest mutes a shared chat only for themselves; the server keeps it for every device and for pushes
     notifyExceptionById: Object.fromEntries(access.flatMap((item, index) => (
-      item.mutedUntil ? [[chats[index].id, { mutedUntil: item.mutedUntil }]] : []
+      typeof item.mutedUntil === 'number' ? [[chats[index].id, { mutedUntil: item.mutedUntil }]] : []
     ))),
     threadInfos: chats.map((chat, index) => ({
       chatId: chat.id, threadId: MAIN_THREAD_ID, isCommentsInfo: false as const,
@@ -395,6 +399,19 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** Notifications by chat type are the guest's own: they are saved with the guest's settings */
+async function fetchNotifyDefaultSettings() {
+  type NotifyDefaults = Record<ApiNotifyPeerType, ApiPeerNotifySettings>;
+  const stored = await pxgRpc.call<{ data: { notifyDefaults?: NotifyDefaults } } | undefined>('settings.get')
+    .catch(() => undefined);
+  const enabled: ApiPeerNotifySettings = { mutedUntil: 0, shouldShowPreviews: true };
+  return stored?.data.notifyDefaults || { users: enabled, groups: enabled, channels: enabled };
+}
+
+function updateNotificationSettings() {
+  return Promise.resolve(true);
 }
 
 /** A link to the real message in Telegram: it opens for those who have that chat in their own Telegram */

@@ -142,8 +142,9 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     }
     global = updateChatsLastMessageId(global, result.lastMessageByChatId);
     // Mutes of shared chats are stored by the server for every device of the guest
+    // Without its own setting a chat follows the defaults for its type
     global = addNotifyExceptions(global, Object.fromEntries(result.chatIds.map((id) => [
-      id, result.notifyExceptionById[id] || { mutedUntil: 0 },
+      id, result.notifyExceptionById[id] || { mutedUntil: undefined },
     ])));
     result.threadInfos.forEach((info) => {
       global = updateThreadInfo(global, info);
@@ -273,7 +274,9 @@ addActionHandler('applyProxyChatState', (global, actions, state: ChatStateDto): 
   const chat = global.chats.byId[id];
   if (!chat?.pxgProxy || !isProxyGuest()) return;
   const folderId = state.archivedAt ? ARCHIVED_FOLDER_ID : 0;
-  emitProxyUpdate({ '@type': 'updateChatNotifySettings', chatId: id, settings: { mutedUntil: state.mutedUntil || 0 } });
+  emitProxyUpdate({
+    '@type': 'updateChatNotifySettings', chatId: id, settings: { mutedUntil: state.mutedUntil ?? undefined },
+  });
   if ((chat.folderId || 0) !== folderId) {
     emitProxyUpdate({ '@type': 'updateChatPinned', id, isPinned: false });
     emitProxyUpdate({ '@type': 'updateChatListType', id, folderId });

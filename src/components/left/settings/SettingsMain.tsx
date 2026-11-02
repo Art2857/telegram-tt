@@ -127,18 +127,16 @@ const SettingsMain = ({
             <span className="subtitle">{lang('SettingsGeneralDesc')}</span>
           </ListItem>
 
-          {!isGuest && (
-            <ListItem
-              icon="notifications-filled"
-              iconBg="red"
-              multiline
-              narrow
-              onClick={() => openSettingsScreen({ screen: SettingsScreens.Notifications })}
-            >
-              <span className="title">{lang('Notifications')}</span>
-              <span className="subtitle">{lang('SettingsNotificationsDesc')}</span>
-            </ListItem>
-          )}
+          <ListItem
+            icon="notifications-filled"
+            iconBg="red"
+            multiline
+            narrow
+            onClick={() => openSettingsScreen({ screen: SettingsScreens.Notifications })}
+          >
+            <span className="title">{lang('Notifications')}</span>
+            <span className="subtitle">{lang('SettingsNotificationsDesc')}</span>
+          </ListItem>
 
           {!isGuest && (
             <ListItem
