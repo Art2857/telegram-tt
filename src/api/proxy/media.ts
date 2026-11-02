@@ -142,7 +142,7 @@ function buildMediaRequest(
   }
   const avatar = parseProxyAvatarHash(url);
   const peer = avatar && resolveProxyPeer(avatar.peerId);
-  return peer ? ['media.avatar', { ...peer, big: avatar.isBig || undefined }] : undefined;
+  return peer ? ['media.avatar', { ...peer, big: avatar.isBig || undefined, photoId: avatar.photoId }] : undefined;
 }
 
 async function readResponse(

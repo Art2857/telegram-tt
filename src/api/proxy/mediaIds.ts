@@ -34,17 +34,20 @@ export function parseProxyCatalogHash(url: string) {
   };
 }
 
-/** The server serves the current photo of the peer, so the photo ID only keys the client cache */
+/**
+ * An avatar is the peer's current photo, so its photo ID only keys the client cache; a photo opened in the viewer
+ * may be any one from the profile gallery
+ */
 export function parseProxyAvatarHash(url: string) {
   const hash = getHash(url);
   const avatar = hash?.match(AVATAR_HASH);
   if (avatar) return isProxyPeerId(avatar[2]) ? { peerId: avatar[2], isBig: avatar[1] === 'profile' } : undefined;
   const photo = hash?.match(PROFILE_PHOTO_HASH);
   if (!photo || !isProxyPeerId(photo[1])) return undefined;
-  return { peerId: photo[1], isBig: !SMALL_PHOTO_SIZES.has(photo[3] || '') };
+  return { peerId: photo[1], photoId: photo[2], isBig: !SMALL_PHOTO_SIZES.has(photo[3] || '') };
 }
 
-/** The current profile photo of a shared chat or user, as Web A's viewer expects it */
+/** A profile photo of a shared chat or user, as Web A's viewer expects it */
 export function buildProxyProfilePhotoId(peerId: string, photoId: string) {
   return `pxgavatar_${peerId}_${photoId}`;
 }

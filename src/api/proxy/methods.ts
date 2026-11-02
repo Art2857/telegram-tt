@@ -290,16 +290,19 @@ async function fetchMembers({ chat, memberFilter = 'recent', offset, query }: Me
 }
 
 /** The current photo of a shared chat or user; the viewer opens it at full size */
-function fetchProfilePhotos({ peer }: MethodArgs<'fetchProfilePhotos'>[0]) {
-  const photoId = peer.avatarPhotoId;
-  if (!resolveProxyPeer(peer.id) || !photoId) return Promise.resolve(undefined);
-  const photo: ApiPhoto = {
+/** The whole profile gallery, newest first, as the owner sees it in Telegram */
+async function fetchProfilePhotos({ peer }: MethodArgs<'fetchProfilePhotos'>[0]) {
+  const proxyPeer = resolveProxyPeer(peer.id);
+  if (!proxyPeer) return undefined;
+  const { photos } = await pxgRpc.call<{ photos: { id: string; date: number }[] }>('media.photos', proxyPeer)
+    .catch(() => ({ photos: peer.avatarPhotoId ? [{ id: peer.avatarPhotoId, date: 0 }] : [] }));
+  const result = photos.map(({ id, date }): ApiPhoto => ({
     mediaType: 'photo',
-    id: buildProxyProfilePhotoId(peer.id, photoId),
-    date: 0,
+    id: buildProxyProfilePhotoId(peer.id, id),
+    date,
     sizes: [{ type: 'x', width: PROFILE_PHOTO_SIZE, height: PROFILE_PHOTO_SIZE }],
-  };
-  return Promise.resolve({ count: 1, photos: [photo], nextOffsetId: undefined });
+  }));
+  return { count: result.length, photos: result, nextOffsetId: undefined };
 }
 
 /** Pinned messages the guest may see; in a forum topic — only that topic's */
