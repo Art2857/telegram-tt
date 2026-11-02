@@ -413,6 +413,8 @@ export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   const replyInfo = draft?.replyInfo?.type === 'message' ? draft.replyInfo : undefined;
+  // A comment thread's draft stays on this device: the server keeps drafts of chats and forum topics only
+  if (!chat.isForum && replyInfo?.replyToTopId) return true;
   const topicId = chat.isForum ? replyInfo?.replyToTopId : undefined;
   const replyToMsgId = replyInfo?.replyToMsgId !== topicId ? replyInfo?.replyToMsgId : undefined;
   await pxgRpc.call('drafts.save', {
