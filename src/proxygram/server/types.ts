@@ -218,6 +218,8 @@ export type ServiceActionDto =
 /** Тема форума; lastMsgId — последнее видимое гостю сообщение темы */
 export interface TopicDto {
   permissions?: Permissions;
+  /** The guest's own topic mute, unix seconds; 0 — notify even in a muted chat, null — as the whole chat */
+  mutedUntil?: number | null;
   id: number;
   title: string;
   iconColor: number | null;

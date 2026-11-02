@@ -293,7 +293,8 @@ export function buildProxyTopic(dto: TopicDto, chatId: string): ApiTopicWithStat
       isHidden: dto.isHidden || undefined,
       date: parseDate(dto.date),
       fromId: chatId,
-      notifySettings: {},
+      // The guest's own topic mute; the owner's settings in Telegram stay as they are
+      notifySettings: { mutedUntil: dto.mutedUntil ?? undefined },
       pxgPermissions: dto.permissions,
     },
     // The guest's own read state: reading a shared topic does not mark it read for the owner

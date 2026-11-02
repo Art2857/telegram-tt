@@ -63,6 +63,7 @@ const methods = {
   fetchLangPack,
   fetchLangDifference,
   transcribeAudio,
+  updateTopicMutedState,
   fetchChats,
   fetchChat,
   searchChats,
@@ -374,6 +375,19 @@ async function transcribeAudio({ chat, messageId }: MethodArgs<'transcribeAudio'
   });
   emitTranscription(transcription);
   return transcription.id;
+}
+
+/** A guest mutes a topic only for themselves, as with whole chats */
+async function updateTopicMutedState({ chat, topicId, mutedUntil }: MethodArgs<'updateTopicMutedState'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  const result = await pxgRpc.call<{ mutedUntil: number | null }>('topics.mute', { ...peer, topicId, mutedUntil });
+  emitProxyUpdate({
+    '@type': 'updateTopicNotifySettings',
+    chatId: chat.id,
+    topicId,
+    settings: { mutedUntil: result.mutedUntil ?? undefined },
+  });
 }
 
 async function fetchFullChat(chat: ApiChat) {
