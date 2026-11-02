@@ -1,7 +1,7 @@
 import type { MethodArgs, Methods } from '../gramjs/methods/types';
 
 import { isProxyPeerId } from './ids';
-import { parseProxyCatalogHash, parseProxyMediaHash } from './mediaIds';
+import { parseProxyCatalogHash, parseProxyMapHash, parseProxyMediaHash } from './mediaIds';
 
 const PEER_ID_KEY = /^(?:(?:chat|user|peer|channel|bot|sender)Ids?|.*(?:Chat|User|Peer|Channel|Bot|Sender)Ids?)$/;
 const PEER_KEY = /^(?:(?:chat|user|peer|channel|bot)s?|.*(?:Chat|User|Peer|Channel|Bot)s?|sendAs)$/;
@@ -49,7 +49,7 @@ function hasProxyPeer(value: unknown, isPeer: boolean, isMedia: boolean, visited
   return Object.entries(params).some(([key, item]) => {
     if (isMedia && key === 'url' && typeof item === 'string') {
       if (item.startsWith(PROXY_MEDIA_PREFIX)) return true;
-      if (parseProxyMediaHash(item) || parseProxyCatalogHash(item)) return true;
+      if (parseProxyMediaHash(item) || parseProxyCatalogHash(item) || parseProxyMapHash(item)) return true;
       const peerId = item.match(PEER_MEDIA_HASH)?.[1];
       if (isProxyPeerId(peerId)) return true;
     }

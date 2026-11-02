@@ -12,10 +12,12 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { resolveProxyPeer } from './index';
 import {
-  buildProxyMediaId, parseProxyAvatarHash, parseProxyCatalogHash, parseProxyMediaHash,
+  buildProxyMapToken, buildProxyMediaId, parseProxyAvatarHash, parseProxyCatalogHash, parseProxyMapHash,
+  parseProxyMediaHash,
 } from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
+const UNREGISTERED_CONTACT_ID = '0';
 // After a server restart the worker takes the account in ~40 s: waiting less leaves media empty until a reload
 const MEDIA_WAIT_MS = 120_000;
 const MEDIA_WAIT_INTERVAL_MS = 2000;
@@ -68,6 +70,45 @@ export function buildProxyMedia(dto: MessageDto, chatId: string): Partial<MediaC
   }
 }
 
+/**
+ * Attachments without a file. Web A draws a dice from Telegram's own sticker sets and a game from its preview, which
+ * only a Telegram session can load, so both are shown as text
+ */
+export function buildProxyAttachment(dto: MessageDto, chatId: string): Partial<MediaContent> | undefined {
+  const { attachment } = dto;
+  if (!attachment) return undefined;
+  const geo = 'lat' in attachment ? {
+    lat: attachment.lat,
+    long: attachment.long,
+    accessHash: buildProxyMapToken(chatId, dto.msgId),
+    accuracyRadius: attachment.accuracyRadius,
+  } : undefined;
+  switch (attachment.type) {
+    case 'geo':
+      return { location: { mediaType: 'geo', geo: geo! } };
+    case 'venue':
+      return { location: {
+        mediaType: 'venue', geo: geo!, title: attachment.title, provider: attachment.provider,
+        address: attachment.address, venueId: attachment.venueId, venueType: attachment.venueType,
+      } };
+    case 'geoLive':
+      return { location: { mediaType: 'geoLive', geo: geo!, heading: attachment.heading, period: attachment.period } };
+    case 'contact':
+      return { contact: {
+        mediaType: 'contact', firstName: attachment.firstName, lastName: attachment.lastName,
+        phoneNumber: attachment.phoneNumber,
+        // The contact's Telegram profile belongs to the owner's session: a guest sees only what the message says
+        userId: UNREGISTERED_CONTACT_ID,
+      } };
+    case 'dice':
+      return { text: { text: `${attachment.emoji} ${attachment.value}` } };
+    case 'game':
+      return { text: { text: [`🎮 ${attachment.title}`, attachment.description].filter(Boolean).join('\n') } };
+    default:
+      return undefined;
+  }
+}
+
 /** Byte ranges use the same inclusive end as GramJS and the service worker */
 export async function downloadMedia(
   { url, mediaFormat, start, end }: MethodArgs<'downloadMedia'>[0],
@@ -107,9 +148,9 @@ export async function downloadMedia(
   const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
-  // As GramJS does: documents by ID and avatars keyed by photo ID never change, so a reload takes them from the cache
-  // instead of asking the server again. Message files are not kept — the access to them can be revoked
-  const isImmutable = Boolean(catalog) || request[0] === 'media.avatar';
+  // As GramJS does: documents by ID, avatars keyed by photo ID and maps of a point never change, so a reload takes
+  // them from the cache instead of asking the server again. Message files are not kept — the access can be revoked
+  const isImmutable = Boolean(catalog) || request[0] === 'media.avatar' || request[0] === 'media.map';
   if (!MEDIA_CACHE_DISABLED && isImmutable && !isBuffer && buffer.byteLength <= MEDIA_CACHE_MAX_BYTES) {
     void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
   }
@@ -139,6 +180,12 @@ function buildMediaRequest(
   if (message) {
     const peer = message.userId === userId ? resolveProxyPeer(message.chatId) : undefined;
     return peer && ['media.url', { ...peer, msgId: message.msgId }];
+  }
+  const map = parseProxyMapHash(url);
+  if (map) {
+    const mapPeer = resolveProxyPeer(map.chatId);
+    const { chatId: _chatId, ...image } = map;
+    return mapPeer && ['media.map', { ...mapPeer, ...image }];
   }
   const avatar = parseProxyAvatarHash(url);
   const peer = avatar && resolveProxyPeer(avatar.peerId);

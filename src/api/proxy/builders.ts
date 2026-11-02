@@ -9,7 +9,7 @@ import { ARCHIVED_FOLDER_ID } from '../../config';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
 import { getProxyPeerId, isProxyGuest } from './index';
-import { buildProxyMedia } from './media';
+import { buildProxyAttachment, buildProxyMedia } from './media';
 import { buildProxyCatalogMediaId } from './mediaIds';
 
 /** Telegram's blue topic icon, used when the topic has no color */
@@ -32,7 +32,6 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
-    isProtected: !chat.permissions.forwardOut,
     membersCount: chat.info?.participantsCount,
     usernames: chat.info?.usernames?.map((username) => ({ username, isActive: true })),
     hasUsername: Boolean(chat.info?.usernames?.length) || undefined,
@@ -156,9 +155,9 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
   const permissions = dto.permissions || chat.pxgProxy!.permissions;
   const media = permissions.download && !dto.isMediaUnavailable
     ? buildProxyMedia(dto, chat.id) : undefined;
-  const mediaFallback = !media && dto.media?.id ? {
-    fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable,
-  } : undefined;
+  const attachment = buildProxyAttachment(dto, chat.id);
+  const mediaFallback = dto.attachment?.type === 'other' ? { attachmentKind: dto.attachment.kind }
+    : !media && dto.media?.id ? { fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable } : undefined;
   return {
     id: dto.msgId,
     sendingState: undefined,
@@ -172,6 +171,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
       action: buildProxyAction(dto),
       text: dto.text ? { text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId) } : undefined,
       webPage: dto.webPage ? { id: buildProxyWebPageId(chat.id, dto.msgId) } : undefined,
+      ...attachment,
     },
     inlineButtons: buildInlineButtons(dto, chat),
     pxgMediaFallback: mediaFallback,
@@ -182,8 +182,9 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     pxgIsOwn: dto.sentByUserId === getPxgState().session?.user.id,
     pxgPermissions: permissions,
     transcriptionId: dto.transcription?.id,
-    isProtected: !permissions.forwardOut,
-    isForwardingAllowed: permissions.forwardOut || undefined,
+    // Without `forwardOut` a guest still copies and saves what they read; only Telegram's own protection forbids it
+    isProtected: dto.isProtected || undefined,
+    isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
     reactions: reactions?.length ? { results: reactions } : undefined,

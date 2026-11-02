@@ -4848,6 +4848,10 @@
 "PxgGuestNoChatsNoUsername" = "Nobody has shared a chat with you yet. Ask the owner to share one with you.";
 "PxgChatNotShared" = "This chat is not shared with you";
 "PxgWriteAsOwner" = "You write on behalf of {name}: the other side sees {name}, not you. {name} sees that it was you.";
+"PxgAttachInvoice" = "Invoice";
+"PxgAttachPaidMedia" = "Paid media";
+"PxgAttachTodo" = "Checklist";
+"PxgAttachOther" = "Attachment";
 "PxgFromOwner" = "from {name}";
 "PxgFromOwnerHint" = "{name} shared this chat with you. Click to go to this person";
 "PxgSharedFor" = "for {name}";

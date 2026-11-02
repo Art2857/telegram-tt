@@ -190,7 +190,25 @@ export interface MessageDto {
   post?: { views?: number; forwards?: number; author?: string; replies?: number };
   /** Link preview; its picture is not served to guests yet */
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
+  /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
+  isProtected?: boolean;
+  attachment?: AttachmentDto;
 }
+
+/** An attachment without a file; the ones a guest cannot open come with their kind only */
+export type AttachmentDto =
+  | { type: 'geo'; lat: number; long: number; accuracyRadius?: number }
+  | {
+    type: 'venue'; lat: number; long: number; accuracyRadius?: number; title: string; address: string;
+    provider: string; venueId: string; venueType: string;
+  }
+  | { type: 'geoLive'; lat: number; long: number; accuracyRadius?: number; heading?: number; period: number }
+  | { type: 'contact'; firstName: string; lastName: string; phoneNumber: string; userId: number }
+  | { type: 'dice'; emoji: string; value: number }
+  | { type: 'game'; title: string; description: string }
+  | { type: 'other'; kind: AttachmentKind };
+
+export type AttachmentKind = 'giveaway' | 'story' | 'invoice' | 'paidMedia' | 'todo' | 'unknown';
 
 export interface ActionUserDto {
   id: number;

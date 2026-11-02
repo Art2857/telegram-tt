@@ -183,9 +183,12 @@ export default function useChatListEntry({
 
     // A community previews a message from its member chat
     const senderChatId = chat && isChatCommunity(chat) ? lastMessage.chatId : chatId;
-    const senderName = lastMessageSender
-      ? getMessageSenderName(lang, senderChatId, lastMessageSender)
-      : undefined;
+    // PXG: A message written by this viewer is sent as the chat's owner, but it is still theirs
+    const senderName = lastMessage.pxgIsOwn && !isUserId(senderChatId)
+      ? lang('FromYou')
+      : lastMessageSender
+        ? getMessageSenderName(lang, senderChatId, lastMessageSender)
+        : undefined;
 
     return (
       <p className="last-message shared-canvas-container" dir={lang.isRtl ? 'auto' : 'ltr'}>

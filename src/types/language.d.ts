@@ -3677,6 +3677,10 @@ export interface LangPair {
   'PxgSharedWithMeHint': undefined;
   'PxgGuestNoChatsNoUsername': undefined;
   'PxgChatNotShared': undefined;
+  'PxgAttachInvoice': undefined;
+  'PxgAttachPaidMedia': undefined;
+  'PxgAttachTodo': undefined;
+  'PxgAttachOther': undefined;
   'PxgAutostart': undefined;
   'PxgAutostartHint': undefined;
   'PxgShareSelfChat': undefined;

@@ -1,4 +1,4 @@
-import type { Permissions } from '../../proxygram/server/types';
+import type { AttachmentKind, Permissions } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState, WebPageMediaSize } from '../../types';
 import type {
   ApiBotInlineMediaResult,
@@ -808,7 +808,7 @@ export interface ApiMessage {
   pxgSentByName?: string;
   pxgIsOwn?: boolean;
   pxgPermissions?: Permissions;
-  pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean };
+  pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; attachmentKind?: AttachmentKind };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)
   pxgEditHistory?: PxgEditVersion[];
   previousLocalId?: number;

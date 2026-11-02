@@ -335,6 +335,10 @@
 "PxgGuestNoChatsNoUsername" = "Вам пока ничего не открыли. Попросите владельца поделиться чатом с вами.";
 "PxgChatNotShared" = "Этот чат вам не открыт";
 "PxgWriteAsOwner" = "Вы пишете от имени {name}: собеседник видит {name}, а не вас. {name} видит, что это написали вы.";
+"PxgAttachInvoice" = "Счёт";
+"PxgAttachPaidMedia" = "Платные медиа";
+"PxgAttachTodo" = "Список задач";
+"PxgAttachOther" = "Вложение";
 "PxgFromOwner" = "от {name}";
 "PxgFromOwnerHint" = "Этим чатом с вами поделился {name}. Нажмите, чтобы перейти к этому человеку";
 "PxgSharedFor" = "для {name}";

@@ -141,6 +141,7 @@ import { parseTranslationCacheKey } from '../../../util/keys/translationKey';
 import { getServerTime } from '../../../util/serverTime';
 import stopEvent from '../../../util/stopEvent';
 import { isElementInViewport } from '../../../util/visibility/isElementInViewport';
+import { PROXY_ATTACHMENT_KEYS } from '../../../proxygram/attachmentKinds';
 import { getStickerDimensions, REM } from '../../common/helpers/mediaDimensions';
 import renderText from '../../common/helpers/renderText';
 import { getCustomEmojiSize } from '../composer/helpers/customEmoji';
@@ -1136,7 +1137,9 @@ const Message = ({
           <span className="pxg-media-fallback">
             📎
             {' '}
-            {message.pxgMediaFallback.fileName}
+            {message.pxgMediaFallback.attachmentKind
+              ? lang(PROXY_ATTACHMENT_KEYS[message.pxgMediaFallback.attachmentKind])
+              : message.pxgMediaFallback.fileName}
             {message.pxgMediaFallback.isUnavailable && (
               <>
                 <br />

@@ -8,6 +8,8 @@ const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?\d+$/;
 const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+)(?:\?size=(\w))?$/;
 /** Sizes small enough for the avatar's small version */
 const SMALL_PHOTO_SIZES = new Set(['a', 'b', 'm', 's']);
+const MAP_HASH = /^staticMap:pxg_(-?\d+)_(\d+)\?(.+)$/;
+const MAX_MAP_SCALE = 3;
 
 export function buildProxyMediaId(userId: string, chatId: string, msgId: number): string {
   return `pxg_${userId}_${chatId}_${msgId}`;
@@ -45,6 +47,29 @@ export function parseProxyAvatarHash(url: string) {
   const photo = hash?.match(PROFILE_PHOTO_HASH);
   if (!photo || !isProxyPeerId(photo[1])) return undefined;
   return { peerId: photo[1], photoId: photo[2], isBig: !SMALL_PHOTO_SIZES.has(photo[3] || '') };
+}
+
+/**
+ * A map picture is requested by the message it belongs to, so the geo point of a proxy message carries this token
+ * where a Telegram point has its access hash
+ */
+export function buildProxyMapToken(chatId: string, msgId: number) {
+  return `pxg_${chatId}_${msgId}`;
+}
+
+export function parseProxyMapHash(url: string) {
+  const match = url.match(MAP_HASH);
+  if (!match || !isProxyPeerId(match[1])) return undefined;
+  const params = new URLSearchParams(match[3]);
+  return {
+    chatId: match[1],
+    msgId: Number(match[2]),
+    width: Number(params.get('w')),
+    height: Number(params.get('h')),
+    zoom: Number(params.get('zoom')),
+    // Telegram accepts whole scales only, a device pixel ratio may be fractional
+    scale: Math.min(Math.max(Math.round(Number(params.get('scale'))), 1), MAX_MAP_SCALE),
+  };
 }
 
 /** A profile photo of a shared chat or user, as Web A's viewer expects it */

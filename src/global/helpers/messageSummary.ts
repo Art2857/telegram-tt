@@ -8,6 +8,7 @@ import { ApiMessageEntityTypes } from '../../api/types';
 import { type LangFn } from '../../util/localization';
 import trimText from '../../util/trimText';
 import { renderTextWithEntities } from '../../components/common/helpers/renderTextWithEntities';
+import { PROXY_ATTACHMENT_KEYS } from '../../proxygram/attachmentKinds';
 import {
   getMessageTextWithFallback, getMessageTranscription,
 } from './messages';
@@ -27,7 +28,9 @@ export function getMessageSummaryText(
   const emoji = !noEmoji && getMessageSummaryEmoji(message);
   const emojiWithSpace = emoji ? `${emoji} ` : '';
   if (message.pxgMediaFallback && !message.content.text?.text) {
-    return `${emojiWithSpace}${trimText(message.pxgMediaFallback.fileName || lang('AttachDocument'), truncateLength)}`;
+    const { attachmentKind, fileName } = message.pxgMediaFallback;
+    const label = attachmentKind ? lang(PROXY_ATTACHMENT_KEYS[attachmentKind]) : fileName || lang('AttachDocument');
+    return `${emojiWithSpace}${trimText(label, truncateLength)}`;
   }
   const text = trimText(getMessageTextWithSpoilers(lang, message, statefulContent, truncateLength), truncateLength);
   const description = getMessageSummaryDescription(lang, message, statefulContent, text, isExtended);

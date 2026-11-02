@@ -39,6 +39,7 @@ import {
 } from '../../../util/localization/format';
 import { conjuctionWithNodes } from '../../../util/localization/utils';
 import { getServerTime } from '../../../util/serverTime';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import renderText from '../../common/helpers/renderText';
 import { renderTextWithEntities } from '../../common/helpers/renderTextWithEntities';
 import {
@@ -96,7 +97,9 @@ const ActionMessageText = ({
     openTelegramLink,
     openUrl,
   } = getActions();
-  const { chatId, isOutgoing } = message;
+  const { chatId } = message;
+  // PXG: In a shared chat «outgoing» means the owner's account: the viewer did it only when the archive says so
+  const isOutgoing = isProxyPeerId(chatId) ? Boolean(message.pxgIsOwn) : message.isOutgoing;
   const action = message.content.action!;
 
   const lang = useLang();
