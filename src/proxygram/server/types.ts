@@ -25,6 +25,7 @@ export type LoginStart = {
   requestId: string;
   deviceSecret: string;
   expiresAt: string;
+  botLink: string;
 } & ({ delivery: 'bot' } | { delivery: 'deeplink'; deeplink: string });
 
 export interface SessionTokensResponse {

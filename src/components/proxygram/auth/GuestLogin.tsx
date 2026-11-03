@@ -23,6 +23,8 @@ const CODE_LENGTH = 6;
 // Telegram usernames start with a letter, so digits are always a phone number
 const PHONE_INPUT = /^\+?[\d\s().-]{7,24}$/;
 const USERNAME_INPUT = /^@?\w{5,32}$/;
+// The server gives a new code no sooner than a minute later
+const RESEND_SECONDS = 60;
 
 type RequestedLogin = { kind: 'username' | 'phone'; value: string };
 
@@ -36,6 +38,7 @@ const GuestLogin = () => {
   const [requestedLogin, setRequestedLogin] = useState<RequestedLogin>();
   const [error, setError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
 
   // Подтверждение в боте («Это я» или Start по ссылке) приходит само — опрашиваем сервер
   useEffect(() => {
@@ -57,6 +60,14 @@ const GuestLogin = () => {
       window.clearInterval(timer);
     };
   }, [lang, request]);
+
+  const isCodeStep = request?.delivery === 'bot';
+  useEffect(() => {
+    if (!isCodeStep) return undefined;
+    setResendIn(RESEND_SECONDS);
+    const timer = window.setInterval(() => setResendIn((left) => Math.max(0, left - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [isCodeStep, request?.requestId]);
 
   async function begin(withLogin: boolean) {
     setError(undefined);
@@ -157,6 +168,24 @@ const GuestLogin = () => {
           onChange={handleCodeChange}
         />
         {isLoading && <p className={styles.hint}>{lang('PxgGuestWaiting')}</p>}
+        <Button
+          className="auth-button"
+          isText
+          disabled={isLoading || resendIn > 0}
+          onClick={() => void begin(Boolean(requestedLogin))}
+        >
+          {resendIn > 0 ? lang('PxgGuestResendIn', { seconds: resendIn }) : lang('PxgGuestResend')}
+        </Button>
+        {request?.botLink && (
+          <Button
+            className="auth-button"
+            isText
+            href={request.botLink}
+            onClick={() => window.open(request.botLink, '_blank', 'noopener')}
+          >
+            {lang('PxgGuestOpenBot')}
+          </Button>
+        )}
       </>
     );
   }

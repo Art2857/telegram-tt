@@ -4584,6 +4584,9 @@
 "PxgErrorNetwork" = "The Proxygram server is unavailable. Check the connection and try again.";
 "PxgErrorInvalidCode" = "Wrong code";
 "PxgErrorExpired" = "The request has expired — start again";
+"PxgGuestResend" = "Send a new code";
+"PxgGuestResendIn" = "New code in {seconds} s";
+"PxgErrorResendLater" = "A new code can be requested in a minute";
 "PxgErrorTooMany" = "Too many attempts — start again";
 "PxgErrorDenied" = "Sign-in was declined";
 "PxgErrorForbidden" = "Not allowed";

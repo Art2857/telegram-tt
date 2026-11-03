@@ -7,6 +7,7 @@ const ERROR_KEYS: Record<string, string> = {
   invalid_code: 'PxgErrorInvalidCode',
   expired: 'PxgErrorExpired',
   too_many_attempts: 'PxgErrorTooMany',
+  resend_later: 'PxgErrorResendLater',
   denied: 'PxgErrorDenied',
   not_found: 'PxgErrorExpired',
   forbidden: 'PxgErrorForbidden',

@@ -71,6 +71,9 @@
 "PxgErrorNetwork" = "Сервер Proxygram недоступен. Проверьте связь и попробуйте ещё раз.";
 "PxgErrorInvalidCode" = "Неверный код";
 "PxgErrorExpired" = "Запрос устарел — начните заново";
+"PxgGuestResend" = "Новый код";
+"PxgGuestResendIn" = "Новый код через {seconds} с";
+"PxgErrorResendLater" = "Новый код можно запросить через минуту";
 "PxgErrorTooMany" = "Слишком много попыток — начните заново";
 "PxgErrorDenied" = "Вход отклонён";
 "PxgErrorForbidden" = "Нет доступа";

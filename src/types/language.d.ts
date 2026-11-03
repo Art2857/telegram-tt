@@ -3443,6 +3443,8 @@ export interface LangPair {
   'PxgErrorNetwork': undefined;
   'PxgErrorInvalidCode': undefined;
   'PxgErrorExpired': undefined;
+  'PxgGuestResend': undefined;
+  'PxgErrorResendLater': undefined;
   'PxgErrorTooMany': undefined;
   'PxgErrorDenied': undefined;
   'PxgErrorForbidden': undefined;
@@ -6029,6 +6031,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestMedia': {
     'type': V;
   };
+  'PxgGuestResendIn': {
+    'seconds': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -8354,6 +8359,7 @@ export interface LangKeyGroups {
   'seconds': {
     keys:
       | 'WalletConnectRemaining'
+      | 'PxgGuestResendIn'
       | 'PxgFloodDelay';
     variables: 'seconds';
   };
