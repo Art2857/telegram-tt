@@ -1,5 +1,6 @@
 import type { MethodArgs } from '../gramjs/methods/types';
 import type { ApiChatFolder } from '../types';
+import { isLocalFolderId } from './types';
 
 import { ALL_FOLDER_ID } from '../../config';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -47,7 +48,7 @@ export async function deleteChatFolder(id: number) {
 }
 
 export async function sortChatFolders(ids: number[]) {
-  await pxgRpc.call('folders.order', { ids: ids.filter((id) => id !== ALL_FOLDER_ID) });
+  await pxgRpc.call('folders.order', { ids: ids.filter((id) => id !== ALL_FOLDER_ID && !isLocalFolderId(id)) });
   return true as const;
 }
 

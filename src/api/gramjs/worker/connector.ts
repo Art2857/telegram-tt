@@ -4,7 +4,7 @@ import type { ApiError, ApiInitialArgs, ApiOnProgress, OnApiUpdate } from '../..
 import type { LocalDb } from '../localDb';
 import type { MethodArgs, MethodResponse, Methods } from '../methods/types';
 import type { OriginPayload, ThenArg, WorkerMessageEvent } from './types';
-import { PROXY_FOLDER_ID } from '../../proxy/types';
+import { isLocalFolderId } from '../../proxy/types';
 
 import { DEBUG, IGNORE_UNHANDLED_ERRORS } from '../../../config';
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
@@ -286,12 +286,12 @@ export function callApi<T extends keyof Methods>(fnName: T, ...args: MethodArgs<
   // PXG: Local folders never reach Telegram, including drag-to-reorder requests
   if (fnName === 'sortChatFolders') {
     const ids = args[0] as number[];
-    if (ids.includes(PROXY_FOLDER_ID)) {
-      return callApi('sortChatFolders', ids.filter((id) => id !== PROXY_FOLDER_ID)) as EnsurePromise<MethodResponse<T>>;
+    if (ids.some(isLocalFolderId)) {
+      return callApi('sortChatFolders', ids.filter((id) => !isLocalFolderId(id))) as EnsurePromise<MethodResponse<T>>;
     }
   }
-  if ((fnName === 'deleteChatFolder' && args[0] === PROXY_FOLDER_ID)
-    || (fnName === 'editChatFolder' && (args[0] as { id: number }).id === PROXY_FOLDER_ID)) {
+  if ((fnName === 'deleteChatFolder' && isLocalFolderId(args[0] as number))
+    || (fnName === 'editChatFolder' && isLocalFolderId((args[0] as { id: number }).id))) {
     return Promise.resolve(undefined) as EnsurePromise<MethodResponse<T>>;
   }
   // PXG: Route proxy peers before queuing or forwarding anything to the GramJS worker

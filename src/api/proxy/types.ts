@@ -25,6 +25,11 @@ export const PROXY_MAX_REACTIONS = 1;
 export const PROXY_MAX_REACTIONS_PREMIUM = 3;
 
 export const PROXY_FOLDER_ID = -2;
+
+/** Local tabs go down from here: the accesses tab, then one per owner. Telegram never sees them */
+export function isLocalFolderId(id: number) {
+  return id <= PROXY_FOLDER_ID;
+}
 export const MAX_PROXY_FOLDERS = 30;
 export const PROXY_REACTION_EMOJIS = ['👍', '❤', '🔥', '👏', '😁', '🤔', '👎'];
 export const PROXY_CONFIG = {

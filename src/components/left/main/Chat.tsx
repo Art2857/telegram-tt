@@ -51,6 +51,7 @@ import { formatCountdown } from '../../../util/dates/duration';
 import { isUserId } from '../../../util/entities/ids';
 import { getChatFolderIds } from '../../../util/folderManager';
 import { createLocationHash } from '../../../util/routing';
+import { isProxyGuest } from '../../../api/proxy';
 
 import { useSelectorSignal, useShallowSelector } from '../../../hooks/data/useSelector';
 import useAppLayout from '../../../hooks/useAppLayout';
@@ -490,6 +491,8 @@ const Chat = ({
             storyViewerOrigin={StoryViewerOrigin.ChatList}
             storyViewerMode="single-peer"
           />
+          {/* PXG: A chat someone shared with this full sign-in */}
+          {chat.pxgProxy && !isProxyGuest() && <span className="pxg-avatar-shared" aria-hidden>⇄</span>}
           <div className="avatar-badge-wrapper">
             <div
               className={buildClassName('avatar-online', 'avatar-badge', isAvatarOnlineShown && 'avatar-online-shown')}

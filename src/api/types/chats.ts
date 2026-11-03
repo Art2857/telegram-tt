@@ -265,6 +265,8 @@ export interface ApiChatBannedRights {
 export interface ApiChatFolder {
   id: number;
   pxgLocal?: true;
+  /** A local tab with the chats of one owner */
+  pxgOwnerName?: string;
   title: ApiFormattedText;
   noTitleAnimations?: true;
   description?: string;

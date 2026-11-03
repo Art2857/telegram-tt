@@ -6258,6 +6258,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgWriteAsOwner': {
     'name': V;
   };
+  'PxgOwnerTab': {
+    'name': V;
+  };
   'PxgFromOwner': {
     'name': V;
   };
@@ -7324,6 +7327,7 @@ export interface LangKeyGroups {
       | 'PxgAdminDisconnectConfirm'
       | 'PxgAdminRevokeConfirm'
       | 'PxgWriteAsOwner'
+      | 'PxgOwnerTab'
       | 'PxgFromOwner'
       | 'PxgFromOwnerHint'
       | 'PxgSharedFor'

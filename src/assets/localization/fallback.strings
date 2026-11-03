@@ -5005,6 +5005,7 @@
 "PxgAttachPaidMedia" = "Paid media";
 "PxgAttachTodo" = "Checklist";
 "PxgAttachOther" = "Attachment";
+"PxgOwnerTab" = "From {name}";
 "PxgFromOwner" = "from {name}";
 "PxgFromOwnerHint" = "{name} shared this chat with you. Click to go to this person";
 "PxgSharedFor" = "for {name}";

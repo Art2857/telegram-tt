@@ -188,6 +188,30 @@
     }
   }
 
+  .pxg-avatar-shared {
+    pointer-events: none;
+
+    position: absolute;
+    z-index: var(--z-badge);
+    top: 0;
+    left: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 1px solid var(--outline-color);
+    border-radius: 50%;
+
+    font-size: 0.6875rem;
+    line-height: 1;
+    color: var(--color-white);
+
+    background: var(--color-primary);
+  }
+
   .avatar-badge-wrapper {
     position: absolute;
     z-index: var(--z-badge);

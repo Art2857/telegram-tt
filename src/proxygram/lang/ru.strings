@@ -492,6 +492,7 @@
 "PxgAttachPaidMedia" = "Платные медиа";
 "PxgAttachTodo" = "Список задач";
 "PxgAttachOther" = "Вложение";
+"PxgOwnerTab" = "От {name}";
 "PxgFromOwner" = "от {name}";
 "PxgFromOwnerHint" = "Этим чатом с вами поделился {name}. Нажмите, чтобы перейти к этому человеку";
 "PxgSharedFor" = "для {name}";
