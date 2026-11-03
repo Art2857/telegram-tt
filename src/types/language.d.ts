@@ -3517,6 +3517,13 @@ export interface LangPair {
   'PxgAuditInlineBot': undefined;
   'PxgAuditAdminCancel': undefined;
   'PxgAuditAdminRetry': undefined;
+  'PxgAuditMessageDebug': undefined;
+  'PxgDevPanel': undefined;
+  'PxgDevRawJson': undefined;
+  'PxgDevVersions': undefined;
+  'PxgDevAttribution': undefined;
+  'PxgDevFile': undefined;
+  'PxgDevCopy': undefined;
   'PxgAuditPolicy': undefined;
   'PxgAuditDisconnect': undefined;
   'PxgAuditSessionRevoke': undefined;

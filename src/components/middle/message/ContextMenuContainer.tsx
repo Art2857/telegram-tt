@@ -83,6 +83,8 @@ import { copyTextToClipboard } from '../../../util/clipboard';
 import { isUserId } from '../../../util/entities/ids';
 import { getTranslationCacheKey, parseTranslationCacheKey } from '../../../util/keys/translationKey';
 import { purgeDeletedMessage } from '../../../proxygram/archive/purgeDeleted';
+import { getOwnAccountId } from '../../../proxygram/server/ownAccount';
+import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { getSelectionAsFormattedText } from './helpers/getSelectionAsFormattedText';
 import { isSelectionRangeInsideMessage } from './helpers/isSelectionRangeInsideMessage';
 
@@ -479,6 +481,19 @@ const ContextMenuContainer = ({
     purgeDeletedMessage(message).catch(() => showNotification({ message: { key: 'PxgPurgeFailed' } }));
   });
 
+  const isPxgAdmin = usePxgState((state) => state.session?.user.role === 'admin');
+  const debugAccountId = chat?.pxgProxy?.accountId || getOwnAccountId();
+  const debugTarget = isPxgAdmin && debugAccountId ? {
+    accountId: debugAccountId,
+    peerId: chat?.pxgProxy?.peerId ?? Number(message.chatId),
+    msgId: message.id,
+  } : undefined;
+
+  const handleDebugClick = useLastCallback(() => {
+    closeMenu();
+    setPxgState({ debugMessage: debugTarget });
+  });
+
   const handleDelete = useLastCallback(() => {
     setIsMenuOpen(false);
     closeMenu();
@@ -867,6 +882,7 @@ const ContextMenuContainer = ({
         onForward={handleForward}
         onDelete={handleDelete}
         onPxgPurge={message.pxgDeletedAt && !chat?.pxgProxy ? handlePurgeClick : undefined}
+        onPxgDebug={debugTarget ? handleDebugClick : undefined}
         onReport={handleReport}
         onFaveSticker={handleFaveSticker}
         onUnfaveSticker={handleUnfaveSticker}

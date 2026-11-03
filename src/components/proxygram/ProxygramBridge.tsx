@@ -19,6 +19,7 @@ import { formatDateTime } from './helpers';
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
+import DevMessageModal from './DevMessageModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
@@ -57,6 +58,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
+  const isAdmin = usePxgState((state) => state.session?.user.role === 'admin');
   const shareChatId = usePxgState((state) => state.shareChatId);
   const shareFolder = usePxgState((state) => state.shareFolder);
   const shareTopic = usePxgState((state) => state.shareTopic);
@@ -241,6 +243,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
+      {isAdmin && <DevMessageModal />}
     </>
   );
 };

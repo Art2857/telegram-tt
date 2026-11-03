@@ -1,0 +1,19 @@
+.error {
+  color: var(--color-error);
+}
+
+.json {
+  overflow: auto;
+
+  max-height: 50vh;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+
+  font-family: var(--font-family-monospace);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+
+  background: var(--color-background-secondary);
+}

@@ -127,6 +127,7 @@ type OwnProps = {
   onForward?: NoneToVoidFunction;
   onDelete?: NoneToVoidFunction;
   onPxgPurge?: NoneToVoidFunction;
+  onPxgDebug?: NoneToVoidFunction;
   onFaveSticker?: NoneToVoidFunction;
   onReport?: NoneToVoidFunction;
   onUnfaveSticker?: NoneToVoidFunction;
@@ -235,6 +236,7 @@ const MessageContextMenu = ({
   onForward,
   onDelete,
   onPxgPurge,
+  onPxgDebug,
   onFaveSticker,
   onReport,
   onUnfaveSticker,
@@ -602,6 +604,7 @@ const MessageContextMenu = ({
         {canSelect && <MenuItem icon="select" onClick={onSelect}>{lang('CommonSelect')}</MenuItem>}
         {canReport && <MenuItem icon="flag" onClick={onReport}>{lang('ReportPeerReport')}</MenuItem>}
         {onPxgPurge && <MenuItem destructive icon="delete" onClick={onPxgPurge}>{lang('PxgPurgeDeleted')}</MenuItem>}
+        {onPxgDebug && <MenuItem icon="bug" onClick={onPxgDebug}>{lang('PxgDevPanel')}</MenuItem>}
         {canDelete && (message.anchorMsgId ? (
           <MenuItem destructive icon="reload" onClick={onDelete}>
             <MenuItemTitle>{lang('EphemeralRevert')}</MenuItemTitle>

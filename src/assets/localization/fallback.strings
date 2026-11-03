@@ -4668,6 +4668,13 @@
 "PxgAuditInlineBot" = "used an inline bot";
 "PxgAuditAdminCancel" = "server admin cancelled an action";
 "PxgAuditAdminRetry" = "server admin retried an action";
+"PxgAuditMessageDebug" = "server admin viewed a message's raw data";
+"PxgDevPanel" = "Developer panel";
+"PxgDevRawJson" = "Raw JSON";
+"PxgDevVersions" = "Versions";
+"PxgDevAttribution" = "Attribution";
+"PxgDevFile" = "File";
+"PxgDevCopy" = "Copy JSON";
 "PxgAuditPolicy" = "changed the archive policy";
 "PxgAuditDisconnect" = "disconnected the account";
 "PxgAuditSessionRevoke" = "ended a session";

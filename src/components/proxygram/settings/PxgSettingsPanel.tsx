@@ -140,6 +140,7 @@ const AUDIT_KEYS: Record<string, string> = {
   'archive.policy': 'PxgAuditPolicy',
   'account.disconnect': 'PxgAuditDisconnect',
   'session.revoke': 'PxgAuditSessionRevoke',
+  'admin.message_debug': 'PxgAuditMessageDebug',
   'admin.outbox.cancel': 'PxgAuditAdminCancel',
   'admin.outbox.retry': 'PxgAuditAdminRetry',
 };

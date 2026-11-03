@@ -155,6 +155,13 @@
 "PxgAuditInlineBot" = "воспользовался инлайн-ботом";
 "PxgAuditAdminCancel" = "администратор сервера отменил действие";
 "PxgAuditAdminRetry" = "администратор сервера повторил действие";
+"PxgAuditMessageDebug" = "администратор сервера посмотрел сырые данные сообщения";
+"PxgDevPanel" = "Панель разработчика";
+"PxgDevRawJson" = "Сырой JSON";
+"PxgDevVersions" = "Версии";
+"PxgDevAttribution" = "Атрибуция";
+"PxgDevFile" = "Файл";
+"PxgDevCopy" = "Скопировать JSON";
 "PxgAuditPolicy" = "изменил политику архива";
 "PxgAuditDisconnect" = "отключил аккаунт";
 "PxgAuditSessionRevoke" = "завершил сессию";

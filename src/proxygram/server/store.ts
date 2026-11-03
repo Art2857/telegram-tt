@@ -32,6 +32,8 @@ export interface PxgState {
   shareTopic?: { id: number; title: string };
   /** Окно «Поделиться» открывается сразу в правке этого доступа (из профиля чата) */
   shareEditId?: string;
+  /** Панель разработчика: сообщение, о котором администратор смотрит данные архива */
+  debugMessage?: { accountId: string; peerId: number; msgId: number };
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';
@@ -67,6 +69,7 @@ export function setPxgState(patch: Partial<PxgState>) {
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+      debugMessage: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }
