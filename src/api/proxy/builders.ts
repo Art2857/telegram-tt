@@ -232,8 +232,8 @@ export function buildProxyUser(
 }
 
 /** A custom emoji reaction is read through the provider's account, like custom emoji in text */
-function buildProxyReaction(
-  accountId: string, { emoticon, documentId }: ReactionCountDto['reaction'],
+export function buildProxyReaction(
+  accountId: string, { emoticon, documentId }: Pick<ReactionCountDto['reaction'], 'emoticon' | 'documentId'>,
 ): ApiReaction | undefined {
   if (emoticon) return { type: 'emoji', emoticon };
   const userId = getPxgState().session?.user.id;
@@ -308,8 +308,11 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
-    reactions: reactions?.length
-      ? { results: reactions, recentReactions: buildProxyRecentReactions(dto, chat) } : undefined,
+    reactions: reactions?.length ? {
+      results: reactions,
+      recentReactions: buildProxyRecentReactions(dto, chat),
+      canSeeList: dto.reactions?.canSeeList,
+    } : undefined,
     isPinned: dto.isPinned || undefined,
     hasUnreadMention: dto.hasUnreadMention || undefined,
     viewsCount: dto.post?.views,

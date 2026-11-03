@@ -54,6 +54,21 @@
   }
 }
 
+.suggestionAvatar {
+  flex-shrink: 0;
+  margin-inline-end: 0.5rem;
+}
+
+.suggestionName {
+  overflow: hidden;
+  flex: 1;
+
+  min-width: 0;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .link {
   font-size: 0.875rem;
   overflow-wrap: anywhere;

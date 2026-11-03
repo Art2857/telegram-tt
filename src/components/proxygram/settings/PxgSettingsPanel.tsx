@@ -36,6 +36,7 @@ type ShareRow = {
   topicId: number | null;
   folderId: number | null;
   folderTitle: string | null;
+  hiddenAt?: string | null;
   preset: PresetKey;
   status: 'active' | 'paused' | 'source_lost';
   expiresAt: string | null;
@@ -151,6 +152,7 @@ const AUDIT_KEYS: Record<string, string> = {
   delegate_transcribe: 'PxgAuditTranscribe',
   delegate_translate: 'PxgAuditTranslate',
   delegate_seenBy: 'PxgAuditSeenBy',
+  delegate_reactors: 'PxgAuditReactors',
   delegate_sendAs: 'PxgAuditSendAs',
   delegate_inlineBot: 'PxgAuditInlineBot',
   delegate_sponsored: 'PxgAuditSponsored',
@@ -548,7 +550,9 @@ function byExpiry(a: ShareRow, b: ShareRow) {
   return Date.parse(a.expiresAt ?? '') - Date.parse(b.expiresAt ?? '');
 }
 
-const IncomingTab = memo(({ lang, t, ask }: TabProps) => {
+const IncomingTab = memo(({
+  lang, t, ask, run,
+}: TabProps) => {
   const { data, error, reload } = usePxgData<ShareRow[]>('shares.incoming', {}, ['access.changed']);
   if (!data) return <Loading error={error} lang={lang} />;
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgGuestNoChatsNoUsername')}</p>;
@@ -568,8 +572,19 @@ const IncomingTab = memo(({ lang, t, ask }: TabProps) => {
             <td>
               {describeTarget(t, share)}
               <div className={styles.secondary}>{describeShare(t, share)}</div>
+              {share.hiddenAt && <div className={styles.secondary}>{lang('PxgSettingsHiddenHint')}</div>}
             </td>
             <td className={styles.actions}>
+              <Button
+                size="tiny"
+                isText
+                onClick={() => run(async () => {
+                  await pxgRpc.call('shares.setHidden', { shareId: share.id, hidden: !share.hiddenAt });
+                  reload();
+                })}
+              >
+                {lang(share.hiddenAt ? 'PxgSettingsShow' : 'PxgSettingsHide')}
+              </Button>
               <Button
                 size="tiny"
                 color="danger"
@@ -714,6 +729,12 @@ const ArchiveTab = memo(({
           size: formatMegabytes(account.mediaBytes),
         })}
       </p>
+      <div className={styles.form}>
+        <h3 className={styles.sectionTitle}>{lang('PxgArchiveLimitsTitle')}</h3>
+        <p className={styles.secondary}>{lang('PxgArchiveLimitFiles')}</p>
+        <p className={styles.secondary}>{lang('PxgArchiveLimitBefore')}</p>
+        <p className={styles.secondary}>{lang('PxgArchiveLimitEdits')}</p>
+      </div>
       <div className={styles.form}>
         <h3 className={styles.sectionTitle}>{lang('PxgPolicyChatsTitle')}</h3>
         <p className={styles.secondary}>{lang('PxgPolicyChatsNote')}</p>

@@ -1,11 +1,13 @@
 import { memo, useEffect, useRef, useState } from '../../lib/teact/teact';
 import { getActions, getGlobal } from '../../global';
 
+import type { ApiUser } from '../../api/types';
 import type {
   GuestCandidate, PermissionKey, Permissions, PresetKey, UserLookup,
 } from '../../proxygram/server/types';
 
-import { selectChat, selectChatFullInfo } from '../../global/selectors';
+import { getMainUsername, getUserFullName } from '../../global/helpers';
+import { selectChat, selectChatFullInfo, selectUser } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
 import { getOrderedIds } from '../../util/folderManager';
 import { getServerTime } from '../../util/serverTime';
@@ -16,12 +18,15 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from './helpers';
 
+import useSelector from '../../hooks/data/useSelector';
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 
+import Avatar from '../common/Avatar';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import InputText from '../ui/InputText';
+import ListItem from '../ui/ListItem';
 import Modal from '../ui/Modal';
 
 import styles from './ConnectServerModal.module.scss';
@@ -44,7 +49,7 @@ type OutgoingShare = {
   limits: ShareLimits;
   expiresAt: string | null;
   status: 'active' | 'paused' | 'source_lost';
-  grantee: { id: string; username: string | null; firstName: string | null };
+  grantee: { id: string; username: string | null; firstName: string | null; tgUserId: number };
 };
 
 type ShareLimits = { sendPerMinute?: number; deletePerMinute?: number };
@@ -64,6 +69,15 @@ type Invite = {
   expiresAt: string;
 };
 
+/** Someone the owner can open access to in one click: a contact or a person who already has access to something */
+type GuestSuggestion = {
+  tgUserId: number;
+  name: string;
+  username?: string;
+  peer?: ApiUser;
+  lookup: UserLookup;
+};
+
 type OwnProps = {
   chatId?: string;
   folder?: { id: number; title: string };
@@ -81,6 +95,9 @@ const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_HISTORY_LIMIT = 100_000;
 const LABEL_MAX_LENGTH = 64;
 const MAX_RATE_LIMIT = 60;
+const MAX_GUEST_SUGGESTIONS = 6;
+/** The server answers about this many people at a time */
+const MAX_KNOWN_PEOPLE = 1000;
 const USERNAME = /^@?\w{5,32}$/;
 // A guest without a username is found by the phone number they shared with the bot
 const PHONE = /^\+?[\d\s().-]{7,24}$/;
@@ -99,7 +116,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const accounts = usePxgState((state) => state.accounts);
   const connection = usePxgState((state) => state.connection);
   const shareEditId = usePxgState((state) => state.shareEditId);
+  const contactIds = useSelector((global) => global.contactList?.userIds);
   const [shares, setShares] = useState<OutgoingShare[]>();
+  const [grantees, setGrantees] = useState<OutgoingShare['grantee'][]>();
+  const [knownPeople, setKnownPeople] = useState<Map<number, UserLookup>>();
   const [username, setUsername] = useState('');
   const [guest, setGuest] = useState<UserLookup>();
   const [editing, setEditing] = useState<OutgoingShare>();
@@ -143,6 +163,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       .then((list) => {
         if (request === loadRequestRef.current) {
           setShares(list.filter((share) => share.accountId === account.id && isSameTarget(share)));
+          setGrantees(list.map((share) => share.grantee));
         }
       })
       .catch((err) => setError(describePxgError(lang, err)));
@@ -159,6 +180,19 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   useEffect(() => pxgRpc.on((event) => {
     if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
   }), [loadShares]);
+
+  // Who of the owner's contacts and earlier guests the server knows: the rest get access by their Telegram ID
+  const hasAccount = Boolean(account);
+  useEffect(() => {
+    if (!hasAccount || connection !== 'online' || !grantees) return;
+    const tgUserIds = [...new Set([
+      ...grantees.map((person) => person.tgUserId),
+      ...(contactIds ?? []).map(Number),
+    ])].slice(0, MAX_KNOWN_PEOPLE);
+    void pxgRpc.call<(UserLookup & { tgUserId: number })[]>('users.inSystem', { tgUserIds })
+      .then((people) => setKnownPeople(new Map(people.map((person) => [person.tgUserId, person]))))
+      .catch(() => setKnownPeople(new Map()));
+  }, [hasAccount, connection, grantees, contactIds]);
 
   const close = () => setPxgState({
     shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
@@ -210,6 +244,64 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       if (request === lookupRequestRef.current) setIsFinding(false);
     }
   };
+
+  const pickSuggestion = ({ lookup, username: nick, name }: GuestSuggestion) => {
+    lookupRequestRef.current++;
+    setIsFinding(false);
+    setError(undefined);
+    setUsername(nick ? `@${nick}` : name);
+    setGuest(lookup);
+  };
+
+  /** PLAN.md 7.5: while the owner types — matching people; before that — contacts who are already in the system */
+  function buildSuggestions(): GuestSuggestion[] {
+    if (editing || isInviting || guest || !knownPeople) return [];
+    const global = getGlobal();
+    const taken = new Set(shares?.map((share) => share.grantee.id));
+    const people = new Map<number, GuestSuggestion>();
+    grantees?.forEach((person) => {
+      const lookup = knownPeople.get(person.tgUserId);
+      if (!lookup?.user || taken.has(person.id)) return;
+      people.set(person.tgUserId, {
+        tgUserId: person.tgUserId,
+        name: displayName(person),
+        username: person.username ?? undefined,
+        lookup,
+      });
+    });
+    contactIds?.forEach((id) => {
+      const user = selectUser(global, id);
+      const tgUserId = Number(id);
+      if (!user || user.type !== 'userTypeRegular' || id === currentUserId || people.has(tgUserId)) return;
+      const nick = getMainUsername(user);
+      const known = knownPeople.get(tgUserId);
+      // Blocked on this server: the answer has neither a person nor a candidate
+      if (known && !known.user && !known.candidate) return;
+      if (known?.user && taken.has(known.user.id)) return;
+      people.set(tgUserId, {
+        tgUserId,
+        name: getUserFullName(lang, user) ?? nick ?? id,
+        username: nick,
+        peer: user,
+        lookup: known ?? {
+          registered: false,
+          knownToBot: false,
+          user: null, // eslint-disable-line no-null/no-null
+          candidate: {
+            tgUserId, username: nick, firstName: user.firstName, lastName: user.lastName,
+          },
+        },
+      });
+    });
+    const query = username.trim().replace(/^@/, '').toLowerCase();
+    const isSignedIn = (item: GuestSuggestion) => Boolean(item.lookup.user && !item.lookup.user.isPending);
+    return [...people.values()]
+      .filter((item) => (query
+        ? item.name.toLowerCase().includes(query) || item.username?.toLowerCase().includes(query)
+        : isSignedIn(item)))
+      .sort((a, b) => Number(isSignedIn(b)) - Number(isSignedIn(a)))
+      .slice(0, MAX_GUEST_SUGGESTIONS);
+  }
 
   async function resolveCandidate(value: string, isPhone: boolean): Promise<GuestCandidate | undefined> {
     const result = isPhone
@@ -377,6 +469,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const toggleExcluded = (id: number, isIncluded: boolean) => {
     setExcludedIds(isIncluded ? excludedIds.filter((item) => item !== id) : [...excludedIds, id]);
   };
+  const suggestions = buildSuggestions();
 
   function renderOptions<T extends string>(
     items: T[], selected: T, labelOf: (item: T) => string, onSelect: (item: T) => void,
@@ -561,6 +654,28 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               >
                 {lang('PxgShareFind')}
               </Button>
+            </div>
+          )}
+
+          {suggestions.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.sectionTitle}>
+                {lang(username.trim() ? 'PxgShareSuggestions' : 'PxgShareContactsInSystem')}
+              </div>
+              {suggestions.map((item) => (
+                <ListItem key={item.tgUserId} narrow onClick={() => pickSuggestion(item)}>
+                  <Avatar size="small" peer={item.peer} text={item.name} className={styles.suggestionAvatar} />
+                  <span className={styles.suggestionName}>
+                    {item.name}
+                    {item.username && <span className={styles.secondary}>{` @${item.username}`}</span>}
+                  </span>
+                  {item.lookup.user && !item.lookup.user.isPending ? (
+                    <span className={styles.ok}>{lang('PxgShareChipInSystem')}</span>
+                  ) : (
+                    <span className={styles.secondary}>{lang('PxgShareChipNotSignedIn')}</span>
+                  )}
+                </ListItem>
+              ))}
             </div>
           )}
 

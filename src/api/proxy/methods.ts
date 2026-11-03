@@ -1,11 +1,12 @@
 import type {
   AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto, MemberDto, MessageDto,
-  PeerBriefDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
+  PeerBriefDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
 import type {
-  ApiChat, ApiChatMember, ApiMessage, ApiNotifyPeerType, ApiPeer, ApiPeerNotifySettings, ApiPhoto, ApiUser,
+  ApiChat, ApiChatMember, ApiMessage, ApiNotifyPeerType, ApiPeer, ApiPeerNotifySettings, ApiPeerReaction, ApiPhoto,
+  ApiUser,
 } from '../types';
 import { MAIN_THREAD_ID } from '../types';
 
@@ -17,7 +18,8 @@ import { getPxgState } from '../../proxygram/server/store';
 import {
   buildProxyAuthorChat, buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo,
   buildProxyDraft,
-  buildProxyMessage, buildProxyPoll, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser, buildProxyUserStatus,
+  buildProxyMessage, buildProxyPoll, buildProxyReaction, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser,
+  buildProxyUserStatus,
   buildProxyViaBot, buildProxyWebPage,
 } from './builders';
 import {
@@ -28,7 +30,7 @@ import { parseProxySponsoredId } from './ids';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { fetchLangDifference, fetchLangPack, fetchLanguage, fetchLanguages } from './langpacks';
 import { downloadMedia } from './media';
-import { buildProxyProfilePhotoId } from './mediaIds';
+import { buildProxyProfilePhotoId, parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
@@ -109,6 +111,7 @@ const methods = {
   fetchInlineBotResults,
   sendInlineBotResult,
   fetchSeenBy,
+  fetchMessageReactionsList,
   fetchSponsoredMessages,
   viewSponsoredMessage,
   clickSponsoredMessage,
@@ -710,6 +713,37 @@ async function fetchSeenBy({ chat, messageId }: MethodArgs<'fetchSeenBy'>[0]) {
   if (!readers) return undefined;
   emitPeerBriefs(peer.accountId, readers);
   return Object.fromEntries(readers.map(({ peerId, date }) => [getProxyPeerId(peer.accountId, peerId), date]));
+}
+
+/** Who reacted to a message: Telegram answers for the owner's account, the profiles come with the answer */
+async function fetchMessageReactionsList({
+  chat, messageId, reaction, offset,
+}: MethodArgs<'fetchMessageReactionsList'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const documentId = reaction?.type === 'custom' ? parseProxyCatalogId(reaction.documentId)?.documentId : undefined;
+  const filter = reaction?.type === 'emoji' ? { emoji: reaction.emoticon } : documentId ? { documentId } : undefined;
+  const result = await pxgRpc.call<ReactorsDto>('messages.reactors', {
+    ...peer, msgId: messageId, reaction: filter, offset,
+  }).catch(() => undefined);
+  if (!result) return undefined;
+  emitPeerBriefs(peer.accountId, result.reactions);
+  return {
+    count: result.count,
+    nextOffset: result.nextOffset ?? undefined,
+    reactions: result.reactions.flatMap(({
+      peerId, reaction: raw, date, isBig, isOwn,
+    }): ApiPeerReaction[] => {
+      const built = buildProxyReaction(peer.accountId, raw);
+      return built ? [{
+        peerId: getProxyPeerId(peer.accountId, peerId),
+        reaction: built,
+        addedDate: date,
+        isBig: isBig || undefined,
+        isOwn: isOwn || undefined,
+      }] : [];
+    }),
+  };
 }
 
 /** Telegram's own ads in the channel, the ones it would show the owner */

@@ -96,6 +96,7 @@ import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 import useSyncEffect from '../../hooks/useSyncEffect';
 import useSyncEffectWithPrevDeps from '../../hooks/useSyncEffectWithPrevDeps.ts';
+import useChatGranteeIds from '../proxygram/hooks/useChatGranteeIds';
 import useAsyncRendering from './hooks/useAsyncRendering';
 import useProfileState from './hooks/useProfileState';
 import useProfileViewportIds from './hooks/useProfileViewportIds';
@@ -119,6 +120,7 @@ import Island from '../gili/layout/Island';
 import Surface from '../gili/layout/Surface';
 import ChatList from '../left/main/ChatList';
 import ProxyAccessSection from '../proxygram/ProxyAccessSection';
+import ProxyMemberChip from '../proxygram/ProxyMemberChip';
 import MediaStory from '../story/MediaStory';
 import Button from '../ui/Button';
 import FloatingActionButton from '../ui/FloatingActionButton';
@@ -361,6 +363,8 @@ const Profile = ({
   const shouldSkipTransitionRef = useRef(false);
 
   const lang = useLang();
+  // PXG: Marks the members who also have access to the owner's group through the server
+  const pxgGranteeIds = useChatGranteeIds(chatId);
 
   const [isGiftTransitionEnabled, enableGiftTransition, disableGiftTransition] = useFlag();
 
@@ -1197,6 +1201,7 @@ const Profile = ({
                 forceShowSelf
                 withStory
               />
+              {pxgGranteeIds?.has(id) && <ProxyMemberChip />}
             </ListItem>
           ))
         ) : resultType === 'commonChats' ? (

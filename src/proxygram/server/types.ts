@@ -232,7 +232,7 @@ export interface MessageDto {
   replyTo: { replyToMsgId?: number; replyToTopId?: number; forumTopic?: boolean; quoteText?: string } | null;
   fwdFrom: unknown;
   /** Реакции в виде TL (messageReactions) */
-  reactions: { results?: ReactionCountDto[]; recentReactions?: PeerReactionDto[] } | null;
+  reactions: { results?: ReactionCountDto[]; recentReactions?: PeerReactionDto[]; canSeeList?: boolean } | null;
   /** The guest's own message got a reaction the guest has not seen yet */
   hasUnreadReaction?: boolean;
   /** Profiles of those who reacted last */
@@ -438,6 +438,18 @@ export interface ReactionCountDto {
   count: number;
   /** Есть — значит, эту реакцию поставил владелец аккаунта */
   chosenOrder?: number;
+}
+
+/** A page of "who reacted", as the owner sees it in Telegram */
+export interface ReactorsDto {
+  count: number;
+  nextOffset: string | null;
+  reactions: (PeerBriefDto & {
+    reaction: { emoticon?: string; documentId?: string };
+    date: number;
+    isBig: boolean;
+    isOwn: boolean;
+  })[];
 }
 
 /** A reaction as Telegram sends it, newest first; a channel has no `userId` */
@@ -673,7 +685,7 @@ export interface OutboxDoneDto {
   id: string;
   accountId: string;
   kind: 'send' | 'edit' | 'delete' | 'react' | 'forward' | 'callback' | 'vote' | 'read' | 'typing' | 'history'
-    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate' | 'seenBy' | 'sendAs';
+    | 'pin' | 'admin' | 'scheduled' | 'transcribe' | 'translate' | 'seenBy' | 'reactors' | 'sendAs';
   /** delayed — Telegram попросил подождать (FLOOD_WAIT), итог придёт позже */
   status: 'done' | 'failed' | 'delayed';
   /** delayed: через сколько секунд повтор */

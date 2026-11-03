@@ -41,6 +41,20 @@
   margin-top: 0.25rem;
 }
 
+.memberChip {
+  flex-shrink: 0;
+
+  margin-inline-start: 0.5rem;
+  padding: 0 0.5rem;
+  border-radius: 0.75rem;
+
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: var(--color-primary);
+
+  background: var(--color-primary-tint);
+}
+
 .chip {
   padding: 0 0.5rem;
   border-radius: 0.75rem;

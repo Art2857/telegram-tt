@@ -1144,8 +1144,11 @@ const Message = ({
             {message.pxgMediaFallback.isUnavailable && (
               <>
                 <br />
-                {lang('PxgGuestMediaNotArchived')}
-                {Boolean(message.pxgMediaFallback.size) && ` · ${formatFileSize(lang, message.pxgMediaFallback.size)}`}
+                <span title={lang('PxgGuestMediaNotArchivedHint')}>
+                  {lang('PxgGuestMediaNotArchived')}
+                  {Boolean(message.pxgMediaFallback.size)
+                    && ` · ${formatFileSize(lang, message.pxgMediaFallback.size)}`}
+                </span>
               </>
             )}
             {textMessage.content.text && <br />}

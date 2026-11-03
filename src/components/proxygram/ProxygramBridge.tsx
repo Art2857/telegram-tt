@@ -37,7 +37,7 @@ const POLL_TIMEOUT_MS = 60_000;
 const RETRY_DELAY_MS = 60_000;
 /** Фоновые действия: о задержке Telegram гостю не сообщаем */
 const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>([
-  'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy', 'sendAs',
+  'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy', 'reactors', 'sendAs',
 ]);
 const GUEST_BURST_MESSAGES = {
   burst: 'PxgGuestBurst',
