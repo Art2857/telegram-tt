@@ -3489,6 +3489,7 @@ export interface LangPair {
   'PxgAuditDelete': undefined;
   'PxgAuditReact': undefined;
   'PxgAuditForward': undefined;
+  'PxgAuditCopy': undefined;
   'PxgAuditCallback': undefined;
   'PxgAuditVote': undefined;
   'PxgAuditRead': undefined;

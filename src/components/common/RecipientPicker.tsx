@@ -219,7 +219,7 @@ const RecipientPicker = ({
       currentUserId,
     );
 
-    // PXG: Proxy chats forward natively only between chats of one provider account
+    // PXG: Messages of a shared chat go only to other shared chats
     return filterChatIdsByType(global, sorted, filter)
       .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id));
   }, [
@@ -386,13 +386,13 @@ function getIsRecipientAllowed(
   return !chatFullInfo || getCanPostInChat(chat, undefined, undefined, chatFullInfo);
 }
 
-// PXG: The server forwards between chats of one provider account only, and the guest needs `write` in the target
+// PXG: The server forwards or copies between shared chats, and the guest needs `write` in the target
 function getIsProxyForwardAllowed(global: GlobalState, id: string) {
   const fromChatId = selectTabState(global).forwardMessages.fromChatId;
   const source = fromChatId ? selectChat(global, fromChatId)?.pxgProxy : undefined;
   const target = selectChat(global, id)?.pxgProxy;
   if (!source || !target) return !source && !target;
-  return source.accountId === target.accountId && target.permissions.write;
+  return target.permissions.write;
 }
 
 export default memo(withGlobal<OwnProps>(

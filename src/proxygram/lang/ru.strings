@@ -126,6 +126,7 @@
 "PxgAuditDelete" = "удалил сообщения";
 "PxgAuditReact" = "поставил реакцию";
 "PxgAuditForward" = "переслал сообщения";
+"PxgAuditCopy" = "скопировал сообщение в чат другого владельца";
 "PxgAuditCallback" = "нажал кнопку бота";
 "PxgAuditVote" = "проголосовал в опросе";
 "PxgAuditRead" = "прочитал чат";

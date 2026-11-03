@@ -5,6 +5,7 @@ import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, LOCAL_MESSAGES_LIMIT } from '../../config';
+import { pause } from '../../util/schedulers';
 import { getServerTime } from '../../util/serverTime';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
@@ -20,6 +21,10 @@ const MAX_WAVEFORM_LENGTH = 100;
 const MAX_CHAT_PHOTO_BYTES = 50 * 1024 * 1024;
 /** The server accepts this many messages per `messages.readReactions` */
 const MAX_READ_REACTIONS = 200;
+const COPY_WAIT_MS = 15 * 60_000;
+const COPY_WAIT_INTERVAL_MS = 1000;
+const COPY_WAIT_MAX_INTERVAL_MS = 8000;
+const COPY_WAIT_BACKOFF = 1.5;
 let localCounter = 0;
 
 export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
@@ -328,25 +333,37 @@ export async function sendMessageAction({ peer: target, action }: MethodArgs<'se
   return true as const;
 }
 
-/** Between chats of one provider account Telegram forwards natively; other targets are not supported */
 /** Only a channel is named: the owner's own account is what Telegram uses anyway */
 export function getSendAsPeerId(sendAs?: ApiPeer) {
   const peer = sendAs && resolveProxyPeer(sendAs.id);
   return peer && peer.peerId < 0 ? peer.peerId : undefined;
 }
 
+/** Between chats of one provider account Telegram forwards natively, another owner's chat gets copies */
 export async function forwardMessages({
   fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions, sendAs,
 }: MethodArgs<'forwardMessages'>[0]): Promise<void> {
   const source = resolveProxyPeer(fromChat.id);
   const target = resolveProxyPeer(toChat.id);
   try {
-    if (!source || !target || source.accountId !== target.accountId) throw new PxgError('unsupported');
+    if (!source || !target) throw new PxgError('unsupported');
+    const topicId = toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined;
+    const sendAsPeerId = getSendAsPeerId(sendAs);
+    if (source.accountId !== target.accountId) {
+      for (const { id } of messages) {
+        const copied = await runCopyJob({
+          fromAccountId: source.accountId, fromPeerId: source.peerId, msgId: id,
+          accountId: target.accountId, peerId: target.peerId,
+          silent: isSilent, noCaptions, topicId, sendAsPeerId,
+        }) as { msgId: number };
+        const saved = await readSentMessage(toChat, copied.msgId);
+        if (saved) emitProxyUpdate({ '@type': 'newMessage', id: saved.id, chatId: toChat.id, message: saved });
+      }
+      return;
+    }
     const result = await runProxyJob('messages.forward', {
       accountId: target.accountId, fromPeerId: source.peerId, peerId: target.peerId,
-      msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions,
-      topicId: toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined,
-      sendAsPeerId: getSendAsPeerId(sendAs),
+      msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions, topicId, sendAsPeerId,
     }) as { msgIds: number[] };
     const forwarded = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
       ...target, msgIds: result.msgIds,
@@ -358,6 +375,21 @@ export async function forwardMessages({
     });
   } catch (err) {
     emitProxyError(err);
+  }
+}
+
+/** A file outside the source's archive is downloaded for the copy first: it takes as long as the file is big */
+async function runCopyJob(params: unknown) {
+  const deadline = Date.now() + COPY_WAIT_MS;
+  let interval = COPY_WAIT_INTERVAL_MS;
+  while (true) {
+    try {
+      return await runProxyJob('messages.copy', params);
+    } catch (err) {
+      if (!(err instanceof PxgError) || err.code !== 'media_pending' || Date.now() + interval > deadline) throw err;
+      await pause(interval);
+      interval = Math.min(interval * COPY_WAIT_BACKOFF, COPY_WAIT_MAX_INTERVAL_MS);
+    }
   }
 }
 
