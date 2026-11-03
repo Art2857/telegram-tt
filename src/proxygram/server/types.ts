@@ -516,6 +516,20 @@ export interface HashedResult<T> {
   data?: T;
 }
 
+export interface ArchiveSearchResult {
+  count: number;
+  messages: {
+    peerId: number;
+    peerTitle: string | null;
+    msgId: number;
+    date: string;
+    text: string;
+    mediaKind: string | null;
+    version: number;
+    deletedAt: string | null;
+  }[];
+}
+
 export interface ReactionLogEntryDto {
   at: string;
   reaction: { emoji: string } | { documentId: string } | null;

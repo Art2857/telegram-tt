@@ -18,6 +18,7 @@ import Checkbox from '../../ui/Checkbox';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import InputText from '../../ui/InputText';
 import TabList from '../../ui/TabList';
+import ArchiveTools from './ArchiveTools';
 
 import styles from '../admin/AdminPanel.module.scss';
 
@@ -137,6 +138,7 @@ const AUDIT_KEYS: Record<string, string> = {
   invite_revoke: 'PxgAuditInviteRevoke',
   archive_gap: 'PxgAuditArchiveGap',
   archive_purge: 'PxgAuditPurge',
+  archive_export: 'PxgAuditArchiveExport',
   'archive.policy': 'PxgAuditPolicy',
   'account.disconnect': 'PxgAuditDisconnect',
   'session.revoke': 'PxgAuditSessionRevoke',
@@ -248,6 +250,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'incoming' && <IncomingTab {...props} />}
         {tabKey === 'archive' && <HideDeletedOption lang={lang} />}
         {tabKey === 'archive' && <ArchiveTab {...props} />}
+        {tabKey === 'archive' && ownAccounts?.[0] && <ArchiveTools accountId={ownAccounts[0].id} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'devices' && <DevicesTab {...props} />}
       </div>

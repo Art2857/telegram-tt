@@ -3594,6 +3594,19 @@ export interface LangPair {
   'PxgPermSeePhones': undefined;
   'PxgPermAdmin': undefined;
   'PxgPermSignMessages': undefined;
+  'PxgArchiveSearch': undefined;
+  'PxgArchiveSearchLabel': undefined;
+  'PxgArchiveSearchRun': undefined;
+  'PxgArchiveEdited': undefined;
+  'PxgArchiveOpen': undefined;
+  'PxgArchiveAllChats': undefined;
+  'PxgArchiveThisChat': undefined;
+  'PxgArchiveMore': undefined;
+  'PxgArchiveExport': undefined;
+  'PxgArchiveExportHint': undefined;
+  'PxgArchiveExportFiles': undefined;
+  'PxgArchiveExportRun': undefined;
+  'PxgAuditArchiveExport': undefined;
   'PxgReactionLog': undefined;
   'PxgReactionLogEmpty': undefined;
   'PxgReactionLogUnknown': undefined;
@@ -6070,6 +6083,18 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareEditing': {
     'name': V;
   };
+  'PxgArchiveFound': {
+    'count': V;
+  };
+  'PxgArchiveDeleted': {
+    'date': V;
+  };
+  'PxgArchiveOnlyChat': {
+    'title': V;
+  };
+  'PxgArchiveExportChatHint': {
+    'title': V;
+  };
   'PxgReactionLogGuest': {
     'name': V;
   };
@@ -7393,6 +7418,7 @@ export interface LangKeyGroups {
       | 'PxgSettingsChats'
       | 'PxgSettingsGuests'
       | 'PxgAuditMassDelete'
+      | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
@@ -7435,6 +7461,7 @@ export interface LangKeyGroups {
       | 'StarsSubscriptionRefulfillInfo'
       | 'StarsSubscriptionRenews'
       | 'PxgInvitePending'
+      | 'PxgArchiveDeleted'
       | 'PxgShareExpires';
     variables: 'date';
   };
@@ -7772,7 +7799,9 @@ export interface LangKeyGroups {
       | 'ActionChangedTitleChannel'
       | 'ActionCreatedChatYou'
       | 'AiToneCreated'
-      | 'PxgSettingsLeaveConfirm';
+      | 'PxgSettingsLeaveConfirm'
+      | 'PxgArchiveOnlyChat'
+      | 'PxgArchiveExportChatHint';
     variables: 'title';
   };
   'from,text': {
