@@ -5,7 +5,7 @@ import type {
   GuestCandidate, PermissionKey, Permissions, PresetKey, UserLookup,
 } from '../../proxygram/server/types';
 
-import { selectChat } from '../../global/selectors';
+import { selectChat, selectChatFullInfo } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
 import { getServerTime } from '../../util/serverTime';
 import { callApi } from '../../api/gramjs';
@@ -350,6 +350,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const presetLabel = (key: PresetKey) => t(`PxgPreset${key[0].toUpperCase()}${key.slice(1)}`);
   const isFormVisible = Boolean(editing || guest?.user || guest?.candidate || isInviting);
   const guestTgUserId = guest?.user?.tgUserId ?? guest?.candidate?.tgUserId;
+  // PLAN.md 13: a member of the group sees it in their own Telegram as well, as long as the owner's client knows
+  const isGuestMember = Boolean(chatId && guestTgUserId !== undefined && selectChatFullInfo(getGlobal(), chatId)
+    ?.members?.some((member) => member.userId === String(guestTgUserId)));
   const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
 
   function renderOptions<T extends string>(
@@ -539,6 +542,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           {/* PLAN.md 13: sharing a private chat with its own counterpart */}
           {!editing && guestTgUserId !== undefined && !topic && peerId === guestTgUserId && (
             <p className={styles.secondary}>{lang('PxgShareSelfChat')}</p>
+          )}
+          {!editing && isGuestMember && (
+            <p className={styles.secondary}>
+              {lang('PxgShareGuestIsMember', { name: displayName(guest?.user ?? guest?.candidate) })}
+            </p>
           )}
           {!editing && !isInviting && (
             <Button size="smaller" isText fluid={false} onClick={startInvite}>{lang('PxgInviteCreate')}</Button>

@@ -3707,6 +3707,8 @@ export interface LangPair {
   'PxgNotifyViaBot': undefined;
   'PxgNotifyViaBotHint': undefined;
   'PxgNotifyViaBotHasPush': undefined;
+  'PxgAlsoMember': undefined;
+  'PxgOpenOwnChat': undefined;
   'PxgShareSelfChat': undefined;
   'PxgAdminStatMedia': undefined;
   'PxgAdminStatDisk': undefined;
@@ -6114,6 +6116,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgFloodDelay': {
     'seconds': V;
   };
+  'PxgShareGuestIsMember': {
+    'name': V;
+  };
   'PxgAdminWarnDisk': {
     'percent': V;
   };
@@ -7139,6 +7144,7 @@ export interface LangKeyGroups {
       | 'PxgFromOwnerHint'
       | 'PxgSharedFor'
       | 'PxgOwnerUnreachable'
+      | 'PxgShareGuestIsMember'
       | 'PxgSharePending';
     variables: 'name';
   };

@@ -15,6 +15,10 @@
   box-shadow: 0 1px 2px var(--color-default-shadow);
 }
 
+.wide {
+  flex-basis: 100%;
+}
+
 .icon {
   flex-shrink: 0;
   font-size: 1.25rem;

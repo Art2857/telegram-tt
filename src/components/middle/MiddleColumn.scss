@@ -179,6 +179,11 @@
     }
   }
 
+  // PXG: A proxy chat may show a notice above the composer, on a line of its own
+  .middle-column-footer.pxg-proxy-footer {
+    flex-wrap: wrap;
+  }
+
   .middle-column-footer {
     --base-height: var(--composer-height);
     --footer-side-inset: 1rem;

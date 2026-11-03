@@ -86,6 +86,7 @@ import Composer from '../common/Composer';
 import PrivacySettingsNoticeModal from '../common/PrivacySettingsNoticeModal.async';
 import SeenByModal from '../common/SeenByModal.async';
 import UnpinAllMessagesModal from '../common/UnpinAllMessagesModal.async';
+import ProxyMemberNotice from '../proxygram/ProxyMemberNotice';
 import Transition from '../ui/Transition';
 import ChatLanguageModal from './ChatLanguageModal.async';
 import { DropAreaState } from './composer/DropArea';
@@ -563,6 +564,7 @@ function MiddleColumn({
     'middle-column-footer',
     !renderingCanPost && 'no-composer',
     !hasFooter && 'no-content',
+    chat?.pxgProxy && 'pxg-proxy-footer', // PXG
   );
 
   useEffect(() => {
@@ -651,6 +653,8 @@ function MiddleColumn({
                   withScrollDown={renderingIsScrollDownShown}
                   isHidden={isRichInputExpanded}
                 />
+                {/* PXG: The guest is a member of this chat in their own Telegram too */}
+                {chat?.pxgProxy && <ProxyMemberNotice chatId={chat.id} />}
                 {renderingCanPost && !hasFooterActionBar && (
                   <Composer
                     type="messageList"

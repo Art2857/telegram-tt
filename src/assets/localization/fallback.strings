@@ -4889,6 +4889,9 @@
 "PxgNotifyViaBotHasPush" = "Push notifications already reach your devices: the bot writes only when there are none";
 "PxgShareExpiring" = "Access to {target} ends {time}";
 "PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";
+"PxgAlsoMember" = "You are a member of this chat too. Here you see it through the owner's access, your own chat is separate.";
+"PxgOpenOwnChat" = "Open your chat";
+"PxgShareGuestIsMember" = "{name} is a member of this chat too: they will have two chats, their own and the one through your access.";
 "PxgShareSelfChat" = "This is your chat with this very person: they will be writing to themselves on your behalf.";
 "PxgAdminStatMedia" = "Archive files";
 "PxgAdminStatDisk" = "Disk used";
