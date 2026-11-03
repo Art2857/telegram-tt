@@ -4841,6 +4841,12 @@
 "PxgShareSave" = "Save";
 "PxgShareCancelEdit" = "Cancel";
 "PxgShareEdit" = "Edit";
+"PxgShareViaFolder" = "folder {title}";
+"PxgShareChatExclude" = "Take this chat out of the access";
+"PxgShareChatInclude" = "Put this chat back into the access";
+"PxgShareChatExcluded" = "this chat is excluded";
+"PxgShareFolderChats" = "Chats in the access";
+"PxgShareFolderChatsHint" = "Unchecked chats stay closed to the guest. Chats added to the folder later open automatically.";
 "PxgSharePause" = "Pause";
 "PxgShareResume" = "Resume";
 "PxgShareReadWarning" = "When the guest reads the chat, it is marked as read for you too, so you may miss new messages.";
@@ -4983,6 +4989,9 @@
 "PxgNotifyViaBotHint" = "When your devices get no push notifications, the Proxygram bot tells you about new messages in chats shared with you, at most once in 5 minutes per chat";
 "PxgNotifyViaBotHasPush" = "Push notifications already reach your devices: the bot writes only when there are none";
 "PxgShareExpiring" = "Access to {target} ends {time}";
+"PxgShareGranted" = "You now have access to {target}, from {name}";
+"PxgShareBotWillInvite" = "The bot will send them an invitation.";
+"PxgShareBotCannotInvite" = "The bot cannot write first because they have not started it yet: send them an invite link instead.";
 "PxgGuestBurst" = "{name}: unusually many actions on your behalf. See the log in Proxygram settings";
 "PxgGuestRateLimited" = "{name} reached the action limit on your behalf, extra actions are not performed";
 "PxgGuestAccountLimit" = "Guests reached the shared limit of your account, the last action is by {name}";

@@ -85,6 +85,15 @@
   margin-bottom: 0.75rem;
 }
 
+.folderChats {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+
+  max-height: 14rem;
+  margin-bottom: 0.75rem;
+}
+
 .dateField {
   display: flex;
   flex-direction: column;

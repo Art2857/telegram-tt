@@ -192,6 +192,11 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           },
         });
       }
+      if (event.e === 'share.granted') {
+        showNotification({
+          message: { key: 'PxgShareGranted', variables: { target: event.d.target, name: event.d.from } },
+        });
+      }
       if (event.e === 'guest.burst') {
         showNotification({
           message: { key: GUEST_BURST_MESSAGES[event.d.reason], variables: { name: event.d.guestName } },

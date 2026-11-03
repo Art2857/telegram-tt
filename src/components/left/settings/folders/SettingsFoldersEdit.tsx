@@ -24,6 +24,7 @@ import { findIntersectionWithSet } from '../../../../util/iteratees';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import { CUSTOM_PEER_EXCLUDED_CHAT_TYPES, CUSTOM_PEER_INCLUDED_CHAT_TYPES } from '../../../../util/objects/customPeer';
 import { isProxyPeerId } from '../../../../api/proxy/ids';
+import { setPxgState, usePxgState } from '../../../../proxygram/server/store';
 import { LOCAL_TGS_URLS } from '../../../common/helpers/animatedAssets';
 import { renderTextWithEntities } from '../../../common/helpers/renderTextWithEntities';
 
@@ -106,6 +107,7 @@ const SettingsFoldersEdit = ({
   isGuest,
   isMobile,
 }: OwnProps & StateProps) => {
+  const isPxgClient = usePxgState((pxgState) => pxgState.session?.level === 'client');
   const {
     loadChatlistInvites,
     openLimitReachedModal,
@@ -371,6 +373,14 @@ const SettingsFoldersEdit = ({
     setIsIconPickerMenuOpen(true);
   });
 
+  const handleShareViaProxygram = useLastCallback(() => {
+    setPxgState({
+      shareFolder: { id: state.folderId!, title: state.folder.title.text },
+      shareChatId: undefined,
+      shareTopic: undefined,
+    });
+  });
+
   const titleText = useMemo(() => {
     let title = state.folder.title.text;
     if (currentCustomEmoji) {
@@ -572,6 +582,20 @@ const SettingsFoldersEdit = ({
                 </ListItem>
               ))}
             </Island>
+
+            {/* PXG: Open the whole folder to a guest, with exceptions (PLAN.md 7.6) */}
+            {state.folderId !== undefined && isPxgClient && (
+              <Island>
+                <ListItem
+                  className="settings-folders-list-item color-primary"
+                  icon="user"
+                  narrow
+                  onClick={handleShareViaProxygram}
+                >
+                  {lang('PxgShareFolderMenu')}
+                </ListItem>
+              </Island>
+            )}
           </>
         )}
       </Surface>

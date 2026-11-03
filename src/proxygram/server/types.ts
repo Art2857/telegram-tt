@@ -68,6 +68,8 @@ export interface AccessChat {
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
   restricted: AccessRestriction | null;
+  /** The owner's label for the guest: "Clients / Acme" */
+  label?: string | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
   /** Кто поделился: по ним полный вход переходит к этому человеку в своём Telegram */
@@ -657,6 +659,7 @@ export type ServerEvent =
     d: { accountId: string; peerId: number; topicId: number | null; threadId?: number; maxId?: number };
   }
   | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
+  | { e: 'share.granted'; d: { accountId: string; peerId: number | null; target: string; from: string } }
   | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }
   | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };

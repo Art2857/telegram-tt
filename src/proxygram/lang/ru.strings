@@ -328,6 +328,12 @@
 "PxgShareSave" = "Сохранить";
 "PxgShareCancelEdit" = "Отмена";
 "PxgShareEdit" = "Изменить";
+"PxgShareViaFolder" = "папка «{title}»";
+"PxgShareChatExclude" = "Убрать этот чат из доступа";
+"PxgShareChatInclude" = "Вернуть этот чат в доступ";
+"PxgShareChatExcluded" = "этот чат исключён";
+"PxgShareFolderChats" = "Чаты в доступе";
+"PxgShareFolderChatsHint" = "Чаты без галочки останутся закрытыми. Добавленные в папку позже откроются сами.";
 "PxgSharePause" = "Пауза";
 "PxgShareResume" = "Возобновить";
 "PxgShareReadWarning" = "Когда гость читает чат, он отмечается прочитанным и у вас — можно пропустить новые сообщения.";
@@ -470,6 +476,9 @@
 "PxgNotifyViaBotHint" = "Если на ваших устройствах нет push-уведомлений, о новых сообщениях в открытых вам чатах напишет бот Proxygram — не чаще раза в 5 минут на чат";
 "PxgNotifyViaBotHasPush" = "Push-уведомления уже приходят на ваши устройства: бот пишет, только когда их нет";
 "PxgShareExpiring" = "Доступ к «{target}» закончится {time}";
+"PxgShareGranted" = "Вам открыли доступ к «{target}», от: {name}";
+"PxgShareBotWillInvite" = "Бот пришлёт приглашение.";
+"PxgShareBotCannotInvite" = "Бот не может написать первым: этот человек ещё не запускал его. Отправьте ссылку-приглашение.";
 "PxgGuestBurst" = "{name}: необычно много действий от вашего имени. Подробности — в журнале настроек Proxygram";
 "PxgGuestRateLimited" = "{name}: лимит действий от вашего имени исчерпан, лишние не выполняются";
 "PxgGuestAccountLimit" = "Гости исчерпали общий лимит вашего аккаунта, последнее действие — {name}";

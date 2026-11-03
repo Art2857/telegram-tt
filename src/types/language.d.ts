@@ -3670,6 +3670,11 @@ export interface LangPair {
   'PxgShareSave': undefined;
   'PxgShareCancelEdit': undefined;
   'PxgShareEdit': undefined;
+  'PxgShareChatExclude': undefined;
+  'PxgShareChatInclude': undefined;
+  'PxgShareChatExcluded': undefined;
+  'PxgShareFolderChats': undefined;
+  'PxgShareFolderChatsHint': undefined;
   'PxgSharePause': undefined;
   'PxgShareResume': undefined;
   'PxgShareReadWarning': undefined;
@@ -3788,6 +3793,8 @@ export interface LangPair {
   'PxgNotifyViaBot': undefined;
   'PxgNotifyViaBotHint': undefined;
   'PxgNotifyViaBotHasPush': undefined;
+  'PxgShareBotWillInvite': undefined;
+  'PxgShareBotCannotInvite': undefined;
   'PxgAlsoMember': undefined;
   'PxgOpenOwnChat': undefined;
   'PxgShareSelfChat': undefined;
@@ -6162,6 +6169,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareExpires': {
     'date': V;
   };
+  'PxgShareViaFolder': {
+    'title': V;
+  };
   'PxgAdminWarnAccounts': {
     'count': V;
   };
@@ -6238,6 +6248,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareExpiring': {
     'target': V;
     'time': V;
+  };
+  'PxgShareGranted': {
+    'target': V;
+    'name': V;
   };
   'PxgGuestBurst': {
     'name': V;
@@ -7878,7 +7892,8 @@ export interface LangKeyGroups {
       | 'PxgArchiveClearChatHint'
       | 'PxgArchiveClearChatConfirm'
       | 'PxgArchiveOnlyChat'
-      | 'PxgArchiveExportChatHint';
+      | 'PxgArchiveExportChatHint'
+      | 'PxgShareViaFolder';
     variables: 'title';
   };
   'from,text': {
@@ -8614,6 +8629,11 @@ export interface LangKeyGroups {
     keys:
       | 'PxgShareExpiring';
     variables: 'target' | 'time';
+  };
+  'name,target': {
+    keys:
+      | 'PxgShareGranted';
+    variables: 'name' | 'target';
   };
 }
 

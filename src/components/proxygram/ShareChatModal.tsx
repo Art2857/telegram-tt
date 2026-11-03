@@ -7,8 +7,10 @@ import type {
 
 import { selectChat, selectChatFullInfo } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
+import { getOrderedIds } from '../../util/folderManager';
 import { getServerTime } from '../../util/serverTime';
 import { callApi } from '../../api/gramjs';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { diffPermissions, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
@@ -34,6 +36,7 @@ type OutgoingShare = {
   peerId: number | null;
   topicId: number | null;
   folderId: number | null;
+  excludePeerIds: number[];
   preset: PresetKey;
   permissions: Partial<Permissions>;
   historyMode: HistoryMode;
@@ -110,6 +113,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [label, setLabel] = useState('');
   const [sendLimit, setSendLimit] = useState('');
   const [deleteLimit, setDeleteLimit] = useState('');
+  const [excludedIds, setExcludedIds] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string>();
   const [invites, setInvites] = useState<Invite[]>();
@@ -176,6 +180,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setLabel('');
     setSendLimit('');
     setDeleteLimit('');
+    setExcludedIds([]);
     setIsInviting(false);
   };
 
@@ -241,6 +246,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setLabel(share.label || '');
     setSendLimit(share.limits.sendPerMinute ? String(share.limits.sendPerMinute) : '');
     setDeleteLimit(share.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '');
+    setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
   };
 
@@ -272,6 +278,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       permissions: diffPermissions(preset, permissions),
       label: label.trim() || undefined,
       limits: buildLimits(),
+      excludePeerIds: folder ? excludedIds : undefined,
     };
     const target = {
       scope: folder ? 'folder' : topic ? 'topic' : 'chat',
@@ -365,6 +372,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const isGuestMember = Boolean(chatId && guestTgUserId !== undefined && selectChatFullInfo(getGlobal(), chatId)
     ?.members?.some((member) => member.userId === String(guestTgUserId)));
   const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
+  // Chats of other owners may sit in the folder too: they are not this account's to share
+  const folderChatIds = folder ? (getOrderedIds(folder.id) ?? []).filter((id) => !isProxyPeerId(id)) : [];
+  const toggleExcluded = (id: number, isIncluded: boolean) => {
+    setExcludedIds(isIncluded ? excludedIds.filter((item) => item !== id) : [...excludedIds, id]);
+  };
 
   function renderOptions<T extends string>(
     items: T[], selected: T, labelOf: (item: T) => string, onSelect: (item: T) => void,
@@ -408,6 +420,23 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           </div>
         )}
         {permissions.markRead && <p className={styles.secondary}>{lang('PxgShareReadWarning')}</p>}
+
+        {folderChatIds.length > 0 && (
+          <>
+            <div className={styles.sectionTitle}>{lang('PxgShareFolderChats')}</div>
+            <p className={styles.secondary}>{lang('PxgShareFolderChatsHint')}</p>
+            <div className={styles.folderChats}>
+              {folderChatIds.map((id) => (
+                <Checkbox
+                  key={id}
+                  label={selectChat(getGlobal(), id)?.title ?? id}
+                  checked={!excludedIds.includes(Number(id))}
+                  onCheck={(isChecked) => toggleExcluded(Number(id), isChecked)}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         <div className={styles.sectionTitle}>{lang('PxgShareHistory')}</div>
         {editing ? (
@@ -548,6 +577,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           {!editing && (guest?.candidate || guest?.user?.isPending) && (
             <p className={styles.secondary}>
               {lang('PxgSharePending', { name: displayName(guest.user ?? guest.candidate) })}
+              {` ${lang(guest.knownToBot ? 'PxgShareBotWillInvite' : 'PxgShareBotCannotInvite')}`}
             </p>
           )}
           {/* PLAN.md 13: sharing a private chat with its own counterpart */}

@@ -6,6 +6,8 @@ export type ProxyChatInfo = {
   permissions: Permissions;
   shareIds: string[];
   restricted?: AccessRestriction;
+  /** The owner's label for the guest: "Clients / Acme" */
+  label?: string;
   /** The viewer's own account in thin mode: nobody's name to write on behalf of */
   isOwn?: boolean;
   /** The owner's account the guest writes on behalf of */

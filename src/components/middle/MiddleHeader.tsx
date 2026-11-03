@@ -292,9 +292,11 @@ const MiddleHeader = ({
       : undefined;
 
     const realChatId = isSavedDialog ? String(threadId) : chatId;
-    // PXG: A shared chat says whose account the viewer writes from; a forum topic keeps its message count
+    // PXG: A shared chat says whose account the viewer writes from and the owner's label for this access;
+    // a forum topic keeps its message count
     const proxyStatus = chat?.pxgProxy?.providerName && threadId === MAIN_THREAD_ID
-      ? lang('PxgFromOwner', { name: chat.pxgProxy.providerName }) : undefined;
+      ? [lang('PxgFromOwner', { name: chat.pxgProxy.providerName }), chat.pxgProxy.label].filter(Boolean).join(' · ')
+      : undefined;
 
     const displayChatId = chat?.isMonoforum ? chat.linkedMonoforumId! : realChatId;
     return (

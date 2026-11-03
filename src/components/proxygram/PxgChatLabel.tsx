@@ -18,7 +18,8 @@ type OwnProps = {
 /**
  * A full login has its own chats and shared ones in one list, so each says who it is shared with.
  * «from» leads to the person who shared the chat, «for» opens the access of a chat the viewer shared.
- * A guest has only shared chats and no Telegram of their own to go anywhere from, so the label stays hidden.
+ * A guest has only shared chats and no Telegram of their own to go anywhere from, so all they see is the label
+ * the owner gave this access (PLAN.md 7.5).
  */
 const PxgChatLabel = ({ chatId, proxy }: OwnProps) => {
   const { openProxyChatOwner } = getActions();
@@ -40,7 +41,7 @@ const PxgChatLabel = ({ chatId, proxy }: OwnProps) => {
     setPxgState({ shareChatId: chatId });
   });
 
-  if (isProxyGuest()) return undefined;
+  if (isProxyGuest()) return proxy?.label ? <span className="pxg-via">{proxy.label}</span> : undefined;
 
   if (proxy?.providerName) {
     return (
@@ -52,7 +53,7 @@ const PxgChatLabel = ({ chatId, proxy }: OwnProps) => {
         onMouseDown={handleMouseDown}
         onClick={handleOwnerClick}
       >
-        {lang('PxgFromOwner', { name: proxy.providerName })}
+        {[lang('PxgFromOwner', { name: proxy.providerName }), proxy.label].filter(Boolean).join(' · ')}
       </span>
     );
   }

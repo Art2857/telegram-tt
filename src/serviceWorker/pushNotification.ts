@@ -43,8 +43,9 @@ type FocusMessageData = {
   pxg?: PxgPushTarget;
 };
 
-// PXG: The Proxygram server pushes new messages of shared chats to guests
-type PxgPushTarget = { accountId: string; peerId: number; msgId: number };
+// PXG: The Proxygram server pushes new messages of shared chats to guests, and new accesses:
+// those have no message, and a folder has no chat either
+type PxgPushTarget = { accountId: string; peerId?: number; msgId?: number };
 type PxgPushData = { pxg: PxgPushTarget; title: string; body: string };
 
 type CloseNotificationData = {
@@ -160,7 +161,7 @@ function showPxgNotification({ pxg, title, body }: PxgPushData) {
     data: { pxg },
     icon: 'icon-192x192.png',
     badge: 'icon-192x192.png',
-    tag: `pxg:${pxg.accountId}:${pxg.peerId}`,
+    tag: `pxg:${pxg.accountId}:${pxg.peerId ?? 'folder'}`,
   });
 }
 

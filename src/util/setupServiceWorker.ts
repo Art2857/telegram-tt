@@ -33,9 +33,14 @@ function handleWorkerMessage(e: MessageEvent) {
       dispatch.focusMessage?.(payload as any);
       break;
     // PXG: A push of the Proxygram server names the shared chat by its provider account and peer
-    case 'pxgFocusChat':
-      dispatch.focusMessage?.({ chatId: getProxyPeerId(payload.accountId, payload.peerId), messageId: payload.msgId });
+    case 'pxgFocusChat': {
+      // A new access has no message yet, and a whole folder has no single chat to open
+      if (!payload.peerId) break;
+      const chatId = getProxyPeerId(payload.accountId, payload.peerId);
+      if (payload.msgId) dispatch.focusMessage?.({ chatId, messageId: payload.msgId });
+      else dispatch.openChat?.({ id: chatId });
       break;
+    }
     case 'playNotificationSound':
       playNotifySoundDebounced(action.payload.id);
       break;
