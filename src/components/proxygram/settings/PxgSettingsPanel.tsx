@@ -72,7 +72,10 @@ type Policy = {
   media: {
     maxBytes: number; includeVideo: boolean; includeDocuments: boolean; onDemand: boolean; onDemandKeepDays: number;
   };
-  import: { enabled: boolean; perChat: number; includeChannels: boolean };
+  import: { enabled: boolean; perChat: number };
+  chats: { channels: boolean; maxMembers: number };
+  /** Chats the owner archives or not regardless of the policy */
+  exceptions: { peerId: number; title: string | null; enabled: boolean }[];
 };
 
 type Confirm = { text: string; label: string; action: () => Promise<unknown> };
@@ -551,10 +554,11 @@ const ArchiveTab = memo(({
   const [maxMegabytes, setMaxMegabytes] = useState('');
   const [keepDays, setKeepDays] = useState('');
   const [perChat, setPerChat] = useState('');
+  const [maxMembers, setMaxMembers] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
   const accountId = account?.id;
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!accountId) return;
     pxgRpc.call<Policy>('archive.policy.get', { accountId })
       .then((result) => {
@@ -562,9 +566,12 @@ const ArchiveTab = memo(({
         setMaxMegabytes(String(Math.round(result.media.maxBytes / MB)));
         setKeepDays(String(result.media.onDemandKeepDays));
         setPerChat(String(result.import.perChat));
+        setMaxMembers(String(result.chats.maxMembers));
       })
       .catch(setError);
   }, [accountId]);
+
+  useEffect(load, [load]);
 
   if (!account) return <p className={styles.empty}>{lang('PxgSettingsNoAccounts')}</p>;
   if (!policy) return <Loading error={error} lang={lang} />;
@@ -573,9 +580,13 @@ const ArchiveTab = memo(({
     setIsSaved(false);
     setPolicy({ ...policy, media: { ...policy.media, [key]: value } });
   };
-  const toggleImport = (key: 'enabled' | 'includeChannels', value: boolean) => {
+  const toggleImport = (value: boolean) => {
     setIsSaved(false);
-    setPolicy({ ...policy, import: { ...policy.import, [key]: value } });
+    setPolicy({ ...policy, import: { ...policy.import, enabled: value } });
+  };
+  const toggleChannels = (value: boolean) => {
+    setIsSaved(false);
+    setPolicy({ ...policy, chats: { ...policy.chats, channels: value } });
   };
   const save = () => run(async () => {
     const result = await pxgRpc.call<Policy>('archive.policy.set', {
@@ -590,11 +601,20 @@ const ArchiveTab = memo(({
       import: {
         enabled: policy.import.enabled,
         perChat: Math.max(0, Number(perChat) || 0),
-        includeChannels: policy.import.includeChannels,
+      },
+      chats: {
+        channels: policy.chats.channels,
+        maxMembers: Math.max(0, Number(maxMembers) || 0),
       },
     });
     setPolicy(result);
     setIsSaved(true);
+  });
+  const resetException = (peerId: number) => run(async () => {
+    // The server goes back to the policy only on an explicit JSON `null`
+    // eslint-disable-next-line no-null/no-null
+    await pxgRpc.call('archive.chat.set', { accountId: account.id, peerId, enabled: null });
+    load();
   });
   const onDigits = (setter: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsSaved(false);
@@ -603,6 +623,42 @@ const ArchiveTab = memo(({
 
   return (
     <div className={styles.form}>
+      <h3 className={styles.sectionTitle}>{lang('PxgPolicyChatsTitle')}</h3>
+      <p className={styles.secondary}>{lang('PxgPolicyChatsNote')}</p>
+      <Checkbox
+        label={lang('PxgPolicyChannels')}
+        checked={policy.chats.channels}
+        onCheck={toggleChannels}
+      />
+      <InputText
+        label={lang('PxgPolicyMaxMembers')}
+        inputMode="numeric"
+        value={maxMembers}
+        onChange={onDigits(setMaxMembers)}
+      />
+      {policy.exceptions.length > 0 && (
+        <>
+          <p className={styles.secondary}>{lang('PxgPolicyExceptions')}</p>
+          <table className={styles.table}>
+            <tbody>
+              {policy.exceptions.map((exception) => (
+                <tr key={exception.peerId}>
+                  <td className={styles.name}>{exception.title ?? exception.peerId}</td>
+                  <td className={styles.secondary}>
+                    {lang(exception.enabled ? 'PxgPolicyExceptionOn' : 'PxgPolicyExceptionOff')}
+                  </td>
+                  <td className={styles.actions}>
+                    <Button size="smaller" isText fluid={false} onClick={() => void resetException(exception.peerId)}>
+                      {lang('PxgPolicyExceptionReset')}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      <h3 className={styles.sectionTitle}>{lang('PxgPolicyFilesTitle')}</h3>
       <p className={styles.secondary}>{lang('PxgPolicyNote')}</p>
       <InputText
         label={lang('PxgPolicyMaxSize')}
@@ -634,14 +690,9 @@ const ArchiveTab = memo(({
       <Checkbox
         label={lang('PxgPolicyImport')}
         checked={policy.import.enabled}
-        onCheck={(value) => toggleImport('enabled', value)}
+        onCheck={toggleImport}
       />
       <InputText label={lang('PxgPolicyPerChat')} inputMode="numeric" value={perChat} onChange={onDigits(setPerChat)} />
-      <Checkbox
-        label={lang('PxgPolicyChannels')}
-        checked={policy.import.includeChannels}
-        onCheck={(value) => toggleImport('includeChannels', value)}
-      />
       <div className={styles.formButtons}>
         <Button fluid={false} onClick={() => void save()}>{lang('PxgShareSave')}</Button>
         {isSaved && <span className={styles.secondary}>{t('PxgSettingsSaved')}</span>}

@@ -16,6 +16,7 @@ import useLastCallback from '../../hooks/useLastCallback';
 
 import Island, { IslandTitle } from '../gili/layout/Island';
 import Button from '../ui/Button';
+import Checkbox from '../ui/Checkbox';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 import styles from './ProxyAccessSection.module.scss';
@@ -40,29 +41,47 @@ type Share = {
   grantee: { id: string; username: string | null; firstName: string | null };
 };
 
+type ArchiveScope = {
+  archived: boolean;
+  reason: 'shared' | 'enabled' | 'disabled' | 'policy';
+  /** The owner's exception; the server sends null when the policy decides */
+  enabled?: boolean;
+};
+
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
-/** PLAN.md 7.9: the chat profile lists whom the owner shares this chat or its topics with, to change or revoke */
+/**
+ * PLAN.md 7.9: the chat profile lists whom the owner shares this chat or its topics with, to change or revoke, and
+ * whether the server archives the chat (5.5: channels and large groups are not archived unless shared)
+ */
 const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
   const lang = useLang();
   const t = lang as unknown as Translate;
   const accountId = usePxgState(() => getOwnAccountId());
   const connection = usePxgState((state) => state.connection);
   const [shares, setShares] = useState<Share[]>();
+  const [archive, setArchive] = useState<ArchiveScope>();
   const [revoking, setRevoking] = useState<Share>();
   const peerId = Number(chatId);
 
+  const isAvailable = Boolean(accountId) && connection === 'online' && !isProxyPeerId(chatId);
+
   const load = useLastCallback(() => {
-    if (!accountId || connection !== 'online' || isProxyPeerId(chatId)) return;
+    if (!isAvailable) return;
     pxgRpc.call<Share[]>('shares.outgoing')
       .then((list) => setShares(list.filter((share) => (
         share.accountId === accountId && share.peerId === peerId && share.scope !== 'folder'
       ))))
       .catch(() => undefined);
+    // the worker has not seen the chat yet: there is nothing to switch
+    pxgRpc.call<ArchiveScope>('archive.chat.get', { accountId, peerId })
+      .then(setArchive)
+      .catch(() => setArchive(undefined));
   });
 
   useEffect(() => {
     setShares(undefined);
+    setArchive(undefined);
     load();
   }, [accountId, connection, chatId, load]);
 
@@ -87,11 +106,41 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
     load();
   });
 
-  if (!shares?.length) return undefined;
+  const handleShare = useLastCallback(() => {
+    setPxgState({
+      shareChatId: chatId, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+    });
+  });
+
+  const setArchiveEnabled = useLastCallback((enabled?: boolean) => {
+    // The server goes back to the policy only on an explicit JSON `null`
+    // eslint-disable-next-line no-null/no-null
+    pxgRpc.call<ArchiveScope>('archive.chat.set', { accountId, peerId, enabled: enabled ?? null })
+      .then(setArchive)
+      .catch(() => undefined);
+  });
+
+  if (!isAvailable || !shares) return undefined;
 
   return (
     <Island className={buildClassName(styles.root, className)}>
       <IslandTitle>{lang('PxgProxyAccessTitle')}</IslandTitle>
+      {archive && (
+        <div className={styles.archive}>
+          <Checkbox
+            label={lang('PxgArchiveChat')}
+            subLabel={describeArchive(t, archive)}
+            checked={archive.archived}
+            disabled={archive.reason === 'shared'}
+            onCheck={setArchiveEnabled}
+          />
+          {typeof archive.enabled === 'boolean' && archive.reason !== 'shared' && (
+            <Button size="tiny" isText fluid={false} onClick={() => setArchiveEnabled()}>
+              {lang('PxgArchiveChatReset')}
+            </Button>
+          )}
+        </div>
+      )}
       {shares.map((share) => (
         <div key={share.id} className={styles.row}>
           <div className={styles.info}>
@@ -121,6 +170,9 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
           />
         </div>
       ))}
+      <Button className={styles.add} isText fluid={false} iconName="add" onClick={handleShare}>
+        {lang('PxgProxyAccessAdd')}
+      </Button>
       <ConfirmDialog
         isOpen={Boolean(revoking)}
         onClose={() => setRevoking(undefined)}
@@ -135,6 +187,13 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
     </Island>
   );
 };
+
+function describeArchive(t: Translate, archive: ArchiveScope) {
+  if (archive.reason === 'shared') return t('PxgArchiveChatShared');
+  if (archive.reason === 'enabled') return t('PxgArchiveChatEnabled');
+  if (archive.reason === 'disabled') return t('PxgArchiveChatDisabled');
+  return t(archive.archived ? 'PxgArchiveChatPolicyOn' : 'PxgArchiveChatPolicyOff');
+}
 
 /** The preset, then what makes this access special: own permissions, pause, end date, the owner's label */
 function describeChips(t: Translate, share: Share) {
