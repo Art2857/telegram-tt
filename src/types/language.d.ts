@@ -3493,6 +3493,17 @@ export interface LangPair {
   'PxgAuditInviteDecline': undefined;
   'PxgAuditInviteRevoke': undefined;
   'PxgAuditArchiveGap': undefined;
+  'PxgAuditPurge': undefined;
+  'PxgAuditPin': undefined;
+  'PxgAuditAdmin': undefined;
+  'PxgAuditScheduled': undefined;
+  'PxgAuditTranscribe': undefined;
+  'PxgAuditTranslate': undefined;
+  'PxgAuditSeenBy': undefined;
+  'PxgAuditSendAs': undefined;
+  'PxgAuditInlineBot': undefined;
+  'PxgAuditAdminCancel': undefined;
+  'PxgAuditAdminRetry': undefined;
   'PxgAuditPolicy': undefined;
   'PxgAuditDisconnect': undefined;
   'PxgAuditSessionRevoke': undefined;
@@ -5989,6 +6000,9 @@ export interface LangPairWithVariables<V = LangVariable> {
     'name': V;
     'title': V;
   };
+  'PxgAuditMassDelete': {
+    'count': V;
+  };
   'PxgInvitePending': {
     'date': V;
   };
@@ -7323,6 +7337,7 @@ export interface LangKeyGroups {
       | 'GiveawayStarsPrepaidTitle'
       | 'SimilarChannelsLimitSubtitle'
       | 'PxgSettingsChats'
+      | 'PxgAuditMassDelete'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'

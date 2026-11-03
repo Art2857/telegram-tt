@@ -48,6 +48,8 @@ type AuditRow = {
   action: string;
   peerTitle: string | null;
   msgIds: number[] | null;
+  /** Messages affected when the entry keeps only some of their IDs (a mass deletion) */
+  count: number | null;
   actor: Person;
 };
 
@@ -115,6 +117,14 @@ const AUDIT_KEYS: Record<string, string> = {
   delegate_vote: 'PxgAuditVote',
   delegate_read: 'PxgAuditRead',
   delegate_history: 'PxgAuditHistory',
+  delegate_pin: 'PxgAuditPin',
+  delegate_admin: 'PxgAuditAdmin',
+  delegate_scheduled: 'PxgAuditScheduled',
+  delegate_transcribe: 'PxgAuditTranscribe',
+  delegate_translate: 'PxgAuditTranslate',
+  delegate_seenBy: 'PxgAuditSeenBy',
+  delegate_sendAs: 'PxgAuditSendAs',
+  delegate_inlineBot: 'PxgAuditInlineBot',
   media_fetch: 'PxgAuditMediaFetch',
   invite_create: 'PxgAuditInviteCreate',
   invite_open: 'PxgAuditInviteOpen',
@@ -122,11 +132,16 @@ const AUDIT_KEYS: Record<string, string> = {
   invite_decline: 'PxgAuditInviteDecline',
   invite_revoke: 'PxgAuditInviteRevoke',
   archive_gap: 'PxgAuditArchiveGap',
+  archive_purge: 'PxgAuditPurge',
   'archive.policy': 'PxgAuditPolicy',
   'account.disconnect': 'PxgAuditDisconnect',
   'session.revoke': 'PxgAuditSessionRevoke',
+  'admin.outbox.cancel': 'PxgAuditAdminCancel',
+  'admin.outbox.retry': 'PxgAuditAdminRetry',
 };
 const FAILED_SUFFIX = '_failed';
+/** Someone cleared the history or removed many messages at once: the count, not a wall of IDs */
+const MASS_DELETE = 'mass_delete';
 
 /** Данные раздела; перечитываются по событиям сервера, которые их меняют */
 function usePxgData<T>(method: string, params: unknown, reloadOn: ServerEvent['e'][]) {
@@ -573,8 +588,13 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
                 <div className={styles.name}>{row.actor ? displayName(row.actor) : '—'}</div>
               </td>
               <td>
-                {describeAction(t, row.action)}
-                {row.msgIds?.length ? <span className={styles.secondary}>{` · ${row.msgIds.join(', ')}`}</span> : ''}
+                {row.action === MASS_DELETE ? t('PxgAuditMassDelete', { count: row.count ?? 0 }) : (
+                  <>
+                    {describeAction(t, row.action)}
+                    {row.msgIds?.length
+                      ? <span className={styles.secondary}>{` · ${row.msgIds.join(', ')}`}</span> : ''}
+                  </>
+                )}
               </td>
               <td className={styles.secondary}>{row.peerTitle ?? ''}</td>
             </tr>
