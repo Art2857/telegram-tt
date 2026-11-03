@@ -4790,6 +4790,13 @@
 "PxgPermSignMessages" = "Sign messages with the guest's name";
 "PxgThinMode" = "Chats on devices without a Telegram login";
 "PxgThinModeHint" = "On a device where you signed in with the bot, all chats of the account open through the server: messages, read marks and files go from your account. A device signed in to Telegram keeps its own chats.";
+"PxgWipeTitle" = "Delete everything of mine";
+"PxgWipeHint" = "Disconnects all your accounts from the server, ends their sessions in Telegram and erases the archive, files, accesses you gave and invites. Your Proxygram sign-in and chats others shared with you stay.";
+"PxgWipeRun" = "Delete everything of mine";
+"PxgWipeConfirm" = "Delete all your accounts from the server with their archive and files? Guests lose access at once, deleted messages kept only here are lost for good. This cannot be undone.";
+"PxgReasonLogoutPending" = "ending the session in Telegram";
+"PxgReasonLoggedOut" = "session ended, the archive is kept";
+"PxgReasonWipePending" = "being erased from the server";
 "PxgAuditThinMode" = "changed chats on devices without a Telegram login";
 "PxgArchiveSearch" = "Archive search";
 "PxgArchiveSearchLabel" = "All chats of the account, deleted messages too";

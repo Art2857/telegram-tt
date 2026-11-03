@@ -314,7 +314,9 @@ const ServerTab = memo(({
                   </td>
                   <td>
                     <Badge tone={status.tone} text={t(status.key)} />
-                    {account.statusReason && <div className={styles.secondary}>{account.statusReason}</div>}
+                    {account.statusReason && (
+                      <div className={styles.secondary}>{describeStatusReason(t, account.statusReason)}</div>
+                    )}
                   </td>
                   <td>
                     {t('PxgAdminMessages', { count: account.messages })}
@@ -373,9 +375,38 @@ const ServerTab = memo(({
           {lang('PxgConnectTitle')}
         </Button>
       )}
+      {accounts.length > 0 && (
+        <div className={styles.form}>
+          <h3 className={styles.name}>{lang('PxgWipeTitle')}</h3>
+          <p className={styles.secondary}>{lang('PxgWipeHint')}</p>
+          <Button
+            size="smaller"
+            color="danger"
+            fluid={false}
+            onClick={() => ask(lang('PxgWipeConfirm'), lang('PxgWipeRun'), async () => {
+              await pxgRpc.call('accounts.wipe');
+              reloadAccounts();
+            })}
+          >
+            {lang('PxgWipeRun')}
+          </Button>
+        </div>
+      )}
     </>
   );
 });
+
+/** Reasons the server sets itself are codes; the rest is Telegram's own error text */
+const STATUS_REASON_KEYS: Record<string, string> = {
+  logout_pending: 'PxgReasonLogoutPending',
+  logged_out: 'PxgReasonLoggedOut',
+  wipe_pending: 'PxgReasonWipePending',
+};
+
+function describeStatusReason(t: Translate, reason: string) {
+  const key = STATUS_REASON_KEYS[reason];
+  return key ? t(key) : reason;
+}
 
 function renderImport(t: Translate, state: ImportStateDto | null) {
   if (state?.status !== 'running') return undefined;

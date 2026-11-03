@@ -3625,6 +3625,13 @@ export interface LangPair {
   'PxgPermSignMessages': undefined;
   'PxgThinMode': undefined;
   'PxgThinModeHint': undefined;
+  'PxgWipeTitle': undefined;
+  'PxgWipeHint': undefined;
+  'PxgWipeRun': undefined;
+  'PxgWipeConfirm': undefined;
+  'PxgReasonLogoutPending': undefined;
+  'PxgReasonLoggedOut': undefined;
+  'PxgReasonWipePending': undefined;
   'PxgAuditThinMode': undefined;
   'PxgArchiveSearch': undefined;
   'PxgArchiveSearchLabel': undefined;
