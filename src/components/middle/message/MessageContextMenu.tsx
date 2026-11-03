@@ -128,6 +128,7 @@ type OwnProps = {
   onDelete?: NoneToVoidFunction;
   onPxgPurge?: NoneToVoidFunction;
   onPxgDebug?: NoneToVoidFunction;
+  onPxgReactionLog?: NoneToVoidFunction;
   onFaveSticker?: NoneToVoidFunction;
   onReport?: NoneToVoidFunction;
   onUnfaveSticker?: NoneToVoidFunction;
@@ -237,6 +238,7 @@ const MessageContextMenu = ({
   onDelete,
   onPxgPurge,
   onPxgDebug,
+  onPxgReactionLog,
   onFaveSticker,
   onReport,
   onUnfaveSticker,
@@ -604,6 +606,9 @@ const MessageContextMenu = ({
         {canSelect && <MenuItem icon="select" onClick={onSelect}>{lang('CommonSelect')}</MenuItem>}
         {canReport && <MenuItem icon="flag" onClick={onReport}>{lang('ReportPeerReport')}</MenuItem>}
         {onPxgPurge && <MenuItem destructive icon="delete" onClick={onPxgPurge}>{lang('PxgPurgeDeleted')}</MenuItem>}
+        {onPxgReactionLog && (
+          <MenuItem icon="heart-outline" onClick={onPxgReactionLog}>{lang('PxgReactionLog')}</MenuItem>
+        )}
         {onPxgDebug && <MenuItem icon="bug" onClick={onPxgDebug}>{lang('PxgDevPanel')}</MenuItem>}
         {canDelete && (message.anchorMsgId ? (
           <MenuItem destructive icon="reload" onClick={onDelete}>

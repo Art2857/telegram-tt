@@ -6,6 +6,7 @@ import type { PermissionKey, Permissions, PresetKey } from './server/types';
 export const PERMISSION_KEYS: PermissionKey[] = [
   'read', 'write', 'sendMedia', 'useOwnerStickers', 'react', 'editOwn', 'deleteOwn', 'manageOwnerOutgoing',
   'interact', 'download', 'forwardOut', 'seeArchive', 'seeAttribution', 'markRead', 'typing', 'seePhones', 'admin',
+  'signMessages',
 ];
 
 const NONE = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, false])) as Permissions;
@@ -31,6 +32,7 @@ export const PRESETS: Record<PresetKey, Permissions> = {
     ...(Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as Permissions),
     seePhones: false,
     admin: false,
+    signMessages: false,
   },
 };
 

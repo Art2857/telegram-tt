@@ -3593,6 +3593,12 @@ export interface LangPair {
   'PxgPermTyping': undefined;
   'PxgPermSeePhones': undefined;
   'PxgPermAdmin': undefined;
+  'PxgPermSignMessages': undefined;
+  'PxgReactionLog': undefined;
+  'PxgReactionLogEmpty': undefined;
+  'PxgReactionLogUnknown': undefined;
+  'PxgReactionLogRemoved': undefined;
+  'PxgReactionLogNow': undefined;
   'PxgHistoryLastN': undefined;
   'PxgHistorySince': undefined;
   'PxgHistoryCount': undefined;
@@ -6064,6 +6070,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareEditing': {
     'name': V;
   };
+  'PxgReactionLogGuest': {
+    'name': V;
+  };
   'PxgShareExpires': {
     'date': V;
   };
@@ -7163,6 +7172,7 @@ export interface LangKeyGroups {
       | 'PxgConnectActive'
       | 'PxgShareFound'
       | 'PxgShareEditing'
+      | 'PxgReactionLogGuest'
       | 'PxgAdminOwner'
       | 'PxgAdminFromAccount'
       | 'PxgAdminKickConfirm'

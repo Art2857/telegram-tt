@@ -21,6 +21,7 @@ import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
 import DevMessageModal from './DevMessageModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
+import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
 import TombstonesLoader from './TombstonesLoader';
@@ -244,6 +245,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
       {isAdmin && <DevMessageModal />}
+      <ReactionLogModal />
     </>
   );
 };

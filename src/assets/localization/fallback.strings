@@ -4752,6 +4752,13 @@
 "PxgPermTyping" = "Show “typing” as you";
 "PxgPermSeePhones" = "See members' phone numbers";
 "PxgPermAdmin" = "Admin actions";
+"PxgPermSignMessages" = "Sign messages with the guest's name";
+"PxgReactionLog" = "Reaction history";
+"PxgReactionLogEmpty" = "No changes yet: the history starts from now on, and big chats don't report who reacted.";
+"PxgReactionLogGuest" = "{name} (guest)";
+"PxgReactionLogUnknown" = "Someone";
+"PxgReactionLogRemoved" = "removed";
+"PxgReactionLogNow" = "now";
 "PxgHistoryLastN" = "Last messages";
 "PxgHistorySince" = "Since a date";
 "PxgHistoryCount" = "How many messages";

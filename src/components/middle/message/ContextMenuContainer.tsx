@@ -482,16 +482,21 @@ const ContextMenuContainer = ({
   });
 
   const isPxgAdmin = usePxgState((state) => state.session?.user.role === 'admin');
-  const debugAccountId = chat?.pxgProxy?.accountId || getOwnAccountId();
-  const debugTarget = isPxgAdmin && debugAccountId ? {
-    accountId: debugAccountId,
+  const archiveAccountId = chat?.pxgProxy?.accountId || getOwnAccountId();
+  const archiveTarget = archiveAccountId ? {
+    accountId: archiveAccountId,
     peerId: chat?.pxgProxy?.peerId ?? Number(message.chatId),
     msgId: message.id,
   } : undefined;
 
   const handleDebugClick = useLastCallback(() => {
     closeMenu();
-    setPxgState({ debugMessage: debugTarget });
+    setPxgState({ debugMessage: archiveTarget });
+  });
+
+  const handleReactionLogClick = useLastCallback(() => {
+    closeMenu();
+    if (archiveTarget) setPxgState({ reactionLogMessage: { ...archiveTarget, isProxy: Boolean(chat?.pxgProxy) } });
   });
 
   const handleDelete = useLastCallback(() => {
@@ -882,7 +887,8 @@ const ContextMenuContainer = ({
         onForward={handleForward}
         onDelete={handleDelete}
         onPxgPurge={message.pxgDeletedAt && !chat?.pxgProxy ? handlePurgeClick : undefined}
-        onPxgDebug={debugTarget ? handleDebugClick : undefined}
+        onPxgDebug={isPxgAdmin && archiveTarget ? handleDebugClick : undefined}
+        onPxgReactionLog={archiveTarget && message.reactions?.results.length ? handleReactionLogClick : undefined}
         onReport={handleReport}
         onFaveSticker={handleFaveSticker}
         onUnfaveSticker={handleUnfaveSticker}

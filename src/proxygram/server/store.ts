@@ -34,6 +34,8 @@ export interface PxgState {
   shareEditId?: string;
   /** Панель разработчика: сообщение, о котором администратор смотрит данные архива */
   debugMessage?: { accountId: string; peerId: number; msgId: number };
+  /** Журнал реакций сообщения: прокси-чата или своего */
+  reactionLogMessage?: { accountId: string; peerId: number; msgId: number; isProxy: boolean };
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';
@@ -69,7 +71,7 @@ export function setPxgState(patch: Partial<PxgState>) {
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
-      debugMessage: undefined,
+      debugMessage: undefined, reactionLogMessage: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }

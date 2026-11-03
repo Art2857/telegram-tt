@@ -38,7 +38,7 @@ export interface SessionTokensResponse {
 export type PermissionKey =
   | 'read' | 'write' | 'sendMedia' | 'useOwnerStickers' | 'react' | 'editOwn' | 'deleteOwn'
   | 'manageOwnerOutgoing' | 'interact' | 'download' | 'forwardOut' | 'seeArchive' | 'seeAttribution'
-  | 'markRead' | 'typing' | 'seePhones' | 'admin';
+  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages';
 
 export type Permissions = Record<PermissionKey, boolean>;
 
@@ -514,6 +514,14 @@ export interface HashedResult<T> {
   hash: string;
   /** Absent when the contents match the hash of the request */
   data?: T;
+}
+
+export interface ReactionLogEntryDto {
+  at: string;
+  reaction: { emoji: string } | { documentId: string } | null;
+  isRemoved: boolean;
+  guestName: string | null;
+  peerName: string | null;
 }
 
 export interface VersionFileDto {

@@ -239,6 +239,13 @@
 "PxgPermTyping" = "Показывать «печатает» от вашего имени";
 "PxgPermSeePhones" = "Видеть номера телефонов участников";
 "PxgPermAdmin" = "Действия администратора";
+"PxgPermSignMessages" = "Подпись гостя в конце сообщения";
+"PxgReactionLog" = "История реакций";
+"PxgReactionLogEmpty" = "Изменений пока нет: история ведётся с этого момента, а большие чаты не сообщают, кто поставил реакцию.";
+"PxgReactionLogGuest" = "{name} (гость)";
+"PxgReactionLogUnknown" = "Кто-то";
+"PxgReactionLogRemoved" = "снята";
+"PxgReactionLogNow" = "сейчас";
 "PxgHistoryLastN" = "Последние сообщения";
 "PxgHistorySince" = "С даты";
 "PxgHistoryCount" = "Сколько сообщений";
