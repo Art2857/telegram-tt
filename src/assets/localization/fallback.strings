@@ -4514,6 +4514,13 @@
 "PxgUnofficialNotice" = "Unofficial client built on the Telegram API";
 "PxgDeleted" = "deleted";
 "PxgDeletedAt" = "Deleted {time}";
+"PxgDeletedByAt" = "Deleted by {name}, {time}";
+"PxgHideDeleted" = "Hide deleted messages";
+"PxgShowDeleted" = "Show deleted messages";
+"PxgPurgeDeleted" = "Delete from archive forever";
+"PxgPurgeConfirm" = "Delete this message from the archive forever? It cannot be restored.";
+"PxgPurgeFailed" = "Could not delete from the archive";
+"PxgSettingsHideDeleted" = "Hide deleted messages in all chats";
 "PxgEditHistoryTitle" = "Edit history";
 "PxgEditHistoryCurrent" = "Current";
 "PxgEditHistoryOriginal" = "Original";

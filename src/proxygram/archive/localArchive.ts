@@ -63,6 +63,19 @@ export function selectLocalTombstones(
     }));
 }
 
+export async function removeFromLocalArchive(ownerId: string, chatId: string, ids: number[]) {
+  try {
+    await updateChatArchive(ownerId, chatId, (archive) => {
+      ids.forEach((id) => {
+        delete archive.deleted[id];
+        delete archive.versions[id];
+      });
+    });
+  } catch {
+    // Storage may be unavailable; the archive then lives only in memory
+  }
+}
+
 /** Drops what is older than the retention period: by deletion time and by the time a version was captured */
 export async function pruneLocalArchive(ownerId: string, now: number) {
   const threshold = now - RETENTION_SECONDS;

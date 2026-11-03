@@ -39,6 +39,7 @@ import {
   selectIsChatRestricted,
   selectIsChatWithSelf,
   selectIsCurrentUserFrozen,
+  selectIsDeletedHidden,
   selectIsRightColumnShown,
   selectNotifyDefaults,
   selectNotifyException,
@@ -122,6 +123,8 @@ type StateProps = {
   isForumAsMessages?: true;
   canAddContact?: boolean;
   canDeleteChat?: boolean;
+  canHideDeleted?: boolean;
+  isDeletedHidden?: boolean;
   canReportChat?: boolean;
   canGift?: boolean;
   canSendMoney?: boolean;
@@ -176,6 +179,8 @@ const HeaderMenuContainer = ({
   isPrivate,
   isMuted,
   canDeleteChat,
+  canHideDeleted,
+  isDeletedHidden,
   canGift,
   canSendMoney,
   hasLinkedChat,
@@ -205,6 +210,7 @@ const HeaderMenuContainer = ({
 }: OwnProps & StateProps) => {
   const {
     updateChatMutedState,
+    setSettingOption,
     enterMessageSelectMode,
     sendBotCommand,
     restartBot,
@@ -701,6 +707,19 @@ const HeaderMenuContainer = ({
               {lang('PxgShareTitle')}
             </MenuItem>
           )}
+          {/* PXG: удалённые сообщения остаются в ленте, пока их не скроют */}
+          {canHideDeleted && (
+            <MenuItem
+              icon="delete"
+              onClick={() => {
+                const { pxgHideDeletedChats } = getGlobal().settings.byKey;
+                setSettingOption({ pxgHideDeletedChats: { ...pxgHideDeletedChats, [chatId]: !isDeletedHidden } });
+                closeMenu();
+              }}
+            >
+              {lang(isDeletedHidden ? 'PxgShowDeleted' : 'PxgHideDeleted')}
+            </MenuItem>
+          )}
           {/* PXG: открыть гостю только эту тему форума */}
           {hasPxgSession && isTopic && (
             <MenuItem
@@ -1034,6 +1053,8 @@ export default memo(withGlobal<OwnProps>(
       isForumAsMessages: chat?.isForumAsMessages,
       canAddContact,
       canDeleteChat: getCanDeleteChat(chat),
+      canHideDeleted: !chat.pxgProxy || chat.pxgProxy.permissions.seeArchive,
+      isDeletedHidden: selectIsDeletedHidden(global, chatId),
       canReportChat,
       canGift,
       canSendMoney: selectCanSendMoneyToUser(global, chatId),

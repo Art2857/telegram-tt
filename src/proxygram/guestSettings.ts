@@ -21,7 +21,10 @@ const TRANSLATION_KEYS = [
   'canTranslate', 'canTranslateChats', 'doNotTranslate', 'translationLanguage', 'translationTone',
 ] as const;
 
+const DELETED_VIEW_KEYS = ['pxgHideDeleted', 'pxgHideDeletedChats'] as const;
+
 type TranslationSettings = Partial<Pick<AccountSettings, typeof TRANSLATION_KEYS[number]>>;
+type DeletedViewSettings = Partial<Pick<AccountSettings, typeof DELETED_VIEW_KEYS[number]>>;
 
 type GuestSettings = Partial<SharedSettings> & {
   /** Folder tags in the chat list: a Telegram account setting, which a guest keeps here */
@@ -30,6 +33,8 @@ type GuestSettings = Partial<SharedSettings> & {
   notifyDefaults?: NotifyDefaults;
   /** Translation preferences belong to an account's settings, which a guest does not keep between reloads */
   translation?: TranslationSettings;
+  /** Whether deleted messages stay in the feed, an account setting too */
+  deletedView?: DeletedViewSettings;
 };
 
 type NotifyDefaults = Record<ApiNotifyPeerType, ApiPeerNotifySettings>;
@@ -47,9 +52,11 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
   let pending: ReturnType<typeof readSettings> | undefined;
   let timer: number | undefined;
 
-  function apply({ folderTags, notifyDefaults, translation, ...shared }: GuestSettings) {
+  function apply({
+    folderTags, notifyDefaults, translation, deletedView, ...shared
+  }: GuestSettings) {
     applyShared(shared);
-    if (folderTags === undefined && !notifyDefaults && !translation) return;
+    if (folderTags === undefined && !notifyDefaults && !translation && !deletedView) return;
     let global = getGlobal();
     if (folderTags !== undefined) {
       global = { ...global, chatFolders: { ...global.chatFolders, areTagsEnabled: folderTags } };
@@ -59,6 +66,12 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
       global = {
         ...global,
         settings: { ...global.settings, byKey: { ...global.settings.byKey, ...translation } },
+      };
+    }
+    if (deletedView) {
+      global = {
+        ...global,
+        settings: { ...global.settings, byKey: { ...global.settings.byKey, ...deletedView } },
       };
     }
     setGlobal(global);
@@ -152,6 +165,7 @@ function readSettings() {
     folderTags: Boolean(global.chatFolders.areTagsEnabled),
     notifyDefaults: global.settings.notifyDefaults,
     translation: pick(global.settings.byKey, [...TRANSLATION_KEYS]),
+    deletedView: pick(global.settings.byKey, [...DELETED_VIEW_KEYS]),
   };
 }
 
@@ -182,6 +196,18 @@ function sanitizeNotifyDefaults(value: unknown): NotifyDefaults | undefined {
   }])) as NotifyDefaults;
 }
 
+function sanitizeDeletedView(value: unknown): DeletedViewSettings | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const { pxgHideDeleted, pxgHideDeletedChats } = value as Record<string, unknown>;
+  return {
+    ...(typeof pxgHideDeleted === 'boolean' && { pxgHideDeleted }),
+    ...(typeof pxgHideDeletedChats === 'object' && pxgHideDeletedChats && {
+      pxgHideDeletedChats: Object.fromEntries(Object.entries(pxgHideDeletedChats)
+        .filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean')),
+    }),
+  };
+}
+
 function sanitizeSettings(data: Record<string, unknown>): GuestSettings {
   const result: Record<string, unknown> = {};
   if (typeof data.folderTags === 'boolean') result.folderTags = data.folderTags;
@@ -189,6 +215,8 @@ function sanitizeSettings(data: Record<string, unknown>): GuestSettings {
   if (notifyDefaults) result.notifyDefaults = notifyDefaults;
   const translation = sanitizeTranslation(data.translation);
   if (translation) result.translation = translation;
+  const deletedView = sanitizeDeletedView(data.deletedView);
+  if (deletedView) result.deletedView = deletedView;
   const defaults = INITIAL_SHARED_STATE.settings;
   SETTINGS_KEYS.forEach((key) => {
     const value = data[key];

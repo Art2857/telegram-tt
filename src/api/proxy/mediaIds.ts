@@ -5,6 +5,7 @@ const EFFECT_SIZE = '?size=f';
 const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|$)/;
 // Reaction animations are requested as `sticker<id>` too
 const CATALOG_HASH = /^(?:document|sticker|photo)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
+const ARCHIVE_HASH = /^(?:photo|document|sticker)pxga_([0-9a-f-]{36})_(-?\d+)_(\d+)(?:[?:]|$)/;
 const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?\d+$/;
 /** A profile photo opened in the viewer: `photo<id>` with the size the viewer asks for */
 const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+)(?:\?size=(\w))?$/;
@@ -20,6 +21,17 @@ export function buildProxyMediaId(userId: string, chatId: string, msgId: number)
 /** Owner's stickers and GIFs are not tied to a message, so their IDs name the provider account */
 export function buildProxyCatalogMediaId(userId: string, accountId: string, documentId: string): string {
   return `pxgs_${userId}_${accountId}_${documentId}`;
+}
+
+/** A file of the owner's own archive: a deleted message has nothing left in Telegram to ask for */
+export function buildProxyArchiveMediaId(accountId: string, peerId: number, msgId: number): string {
+  return `pxga_${accountId}_${peerId}_${msgId}`;
+}
+
+export function parseProxyArchiveHash(url: string) {
+  const match = getHash(url)?.match(ARCHIVE_HASH);
+  if (!match) return undefined;
+  return { accountId: match[1], peerId: Number(match[2]), msgId: Number(match[3]), isPreview: url.includes('?size=') };
 }
 
 export function parseProxyMediaHash(url: string) {

@@ -76,7 +76,7 @@ const TombstonesLoader = ({
           let global = getGlobal();
           if (tombstones.length) {
             const messages = tombstones.map((dto) => tombstoneToApiMessage(dto, chatId));
-            global = insertTombstones(global, chatId, messages, { isAtEnd }, getCurrentTabId());
+            global = insertTombstones(global, chatId, messages, { isAtEnd, isFromServer: true }, getCurrentTabId());
           }
           global = applyAttribution(global, chatId, entries);
           setGlobal(global);

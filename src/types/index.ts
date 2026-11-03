@@ -191,6 +191,9 @@ export interface AccountSettings {
   translationLanguage?: string;
   doNotTranslate: string[];
   translationTone?: TranslationTone;
+  // PXG: Deleted messages stay in the feed unless hidden, everywhere or by chat; the chat's choice wins
+  pxgHideDeleted?: boolean;
+  pxgHideDeletedChats?: Record<string, boolean>;
   shouldPaidMessageAutoApprove: boolean;
 }
 

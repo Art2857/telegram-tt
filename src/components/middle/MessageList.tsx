@@ -46,6 +46,7 @@ import {
   selectIsChatWithSelf,
   selectIsCurrentUserFrozen,
   selectIsCurrentUserPremium,
+  selectIsDeletedHidden,
   selectIsInSelectMode,
   selectIsViewportNewest,
   selectMonoforumChannel,
@@ -73,6 +74,7 @@ import resetScroll from '../../util/resetScroll';
 import { debounce, onTickEnd } from '../../util/schedulers';
 import { getServerTime } from '../../util/serverTime';
 import getOffsetToContainer from '../../util/visibility/getOffsetToContainer';
+import useMessageIdsWithoutDeleted from '../../proxygram/archive/useMessageIdsWithoutDeleted';
 import { REM } from '../common/helpers/mediaDimensions';
 import { groupMessages } from './helpers/groupMessages';
 import { requestMessageListReflow } from './helpers/messageListReflow';
@@ -143,6 +145,7 @@ type StateProps = {
   photoChangeDate?: number;
   isSynced?: boolean;
   messageIds?: number[];
+  isDeletedHidden?: boolean;
   messagesById?: Record<number, ApiMessage>;
   ephemeralById?: Record<number, ApiMessage>;
   anchoredById?: Record<number, ApiMessage>;
@@ -256,7 +259,8 @@ const MessageList = ({
   isNonContact,
   nameChangeDate,
   photoChangeDate,
-  messageIds,
+  messageIds: allMessageIds,
+  isDeletedHidden,
   messagesById,
   ephemeralById,
   anchoredById,
@@ -297,6 +301,8 @@ const MessageList = ({
     loadViewportMessages, setScrollOffset, loadSponsoredMessages, loadMessageReactions, copyMessagesByIds,
     loadMessageViews, loadPeerStoriesByIds, loadFactChecks, requestChatTranslation,
   } = getActions();
+
+  const messageIds = useMessageIdsWithoutDeleted(allMessageIds, messagesById, isDeletedHidden); // PXG
   const lang = useLang();
 
   const restrictionReasons = useMemo(() => getApplicableRestrictionReasons(
@@ -1447,6 +1453,7 @@ export default memo(withGlobal<OwnProps>(
     }
 
     const messageIds = selectCurrentMessageIds(global, chatId, threadId, type);
+    const isDeletedHidden = selectIsDeletedHidden(global, chatId);
     const chatMessagesById = selectChatMessages(global, chatId);
     const ephemeralById = type === 'thread' ? selectChatEphemeralMessages(global, chatId) : undefined;
     const anchoredById = type === 'thread' ? selectChatAnchoredMessages(global, chatId) : undefined;
@@ -1543,6 +1550,7 @@ export default memo(withGlobal<OwnProps>(
       currentUserId,
       isChatProtected: selectIsChatProtected(global, chatId),
       lastMessage: withLastMessageWhenPreloading ? lastMessage : undefined,
+      isDeletedHidden,
       isAccountFrozen,
       hasCustomGreeting,
       isAppConfigLoaded,

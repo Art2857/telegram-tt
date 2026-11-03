@@ -803,6 +803,8 @@ export interface ApiMessage {
   isDeleting?: boolean;
   // PXG: время удаления (сек, время сервера) — сообщение сохранено антиудалением
   pxgDeletedAt?: number;
+  // PXG: кто из гостей удалил сообщение через прокси
+  pxgDeletedBy?: string;
   pxgSentByUserId?: string;
   // PXG: имя гостя, отправившего исходящее владельца через прокси (оверлей полного клиента)
   pxgSentByName?: string;

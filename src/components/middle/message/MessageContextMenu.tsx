@@ -29,6 +29,7 @@ import {
 import { getPeerTitle } from '../../../global/helpers/peers';
 import buildClassName from '../../../util/buildClassName';
 import { isUserId } from '../../../util/entities/ids';
+import { formatDateTime, secondsToDate } from '../../../util/localization/dateFormat';
 import { disableScrolling } from '../../../util/scrollLock';
 import { REM } from '../../common/helpers/mediaDimensions';
 import renderText from '../../common/helpers/renderText';
@@ -125,6 +126,7 @@ type OwnProps = {
   onUnpin?: NoneToVoidFunction;
   onForward?: NoneToVoidFunction;
   onDelete?: NoneToVoidFunction;
+  onPxgPurge?: NoneToVoidFunction;
   onFaveSticker?: NoneToVoidFunction;
   onReport?: NoneToVoidFunction;
   onUnfaveSticker?: NoneToVoidFunction;
@@ -232,6 +234,7 @@ const MessageContextMenu = ({
   onUnpin,
   onForward,
   onDelete,
+  onPxgPurge,
   onFaveSticker,
   onReport,
   onUnfaveSticker,
@@ -598,12 +601,24 @@ const MessageContextMenu = ({
         {canForward && <MenuItem icon="forward" onClick={onForward}>{lang('Forward')}</MenuItem>}
         {canSelect && <MenuItem icon="select" onClick={onSelect}>{lang('CommonSelect')}</MenuItem>}
         {canReport && <MenuItem icon="flag" onClick={onReport}>{lang('ReportPeerReport')}</MenuItem>}
+        {onPxgPurge && <MenuItem destructive icon="delete" onClick={onPxgPurge}>{lang('PxgPurgeDeleted')}</MenuItem>}
         {canDelete && (message.anchorMsgId ? (
           <MenuItem destructive icon="reload" onClick={onDelete}>
             <MenuItemTitle>{lang('EphemeralRevert')}</MenuItemTitle>
             <MenuItemSubtitle>{lang('EphemeralRevertDescription')}</MenuItemSubtitle>
           </MenuItem>
         ) : <DeleteMenuItem autoDeleteAt={autoDeleteAt} onDelete={onDelete} />)}
+        {Boolean(message.pxgDeletedAt) && (
+          <>
+            <MenuSeparator size="thick" />
+            <MenuItem className="smaller" disabled withWrap>
+              {lang(message.pxgDeletedBy ? 'PxgDeletedByAt' : 'PxgDeletedAt', {
+                time: formatDateTime(lang, secondsToDate(message.pxgDeletedAt), { date: 'short', time: 'short' }),
+                name: message.pxgDeletedBy,
+              })}
+            </MenuItem>
+          </>
+        )}
         {message.isEphemeral && (
           <>
             <MenuSeparator size="thick" />

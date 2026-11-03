@@ -3378,6 +3378,12 @@ export interface LangPair {
   'SettingsSearchEmpty': undefined;
   'PxgUnofficialNotice': undefined;
   'PxgDeleted': undefined;
+  'PxgHideDeleted': undefined;
+  'PxgShowDeleted': undefined;
+  'PxgPurgeDeleted': undefined;
+  'PxgPurgeConfirm': undefined;
+  'PxgPurgeFailed': undefined;
+  'PxgSettingsHideDeleted': undefined;
   'PxgEditHistoryTitle': undefined;
   'PxgEditHistoryCurrent': undefined;
   'PxgEditHistoryOriginal': undefined;
@@ -5944,6 +5950,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgDeletedAt': {
     'time': V;
   };
+  'PxgDeletedByAt': {
+    'name': V;
+    'time': V;
+  };
   'PxgEditHistoryVersion': {
     'number': V;
   };
@@ -8358,6 +8368,11 @@ export interface LangKeyGroups {
       | 'PeerPickerUnknownPeer'
       | 'PxgSettingsFolder';
     variables: 'id';
+  };
+  'name,time': {
+    keys:
+      | 'PxgDeletedByAt';
+    variables: 'name' | 'time';
   };
   'size': {
     keys:

@@ -1,6 +1,13 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
 "PxgDeleted" = "удалено";
 "PxgDeletedAt" = "Удалено {time}";
+"PxgDeletedByAt" = "Удалил {name}, {time}";
+"PxgHideDeleted" = "Скрывать удалённые";
+"PxgShowDeleted" = "Показывать удалённые";
+"PxgPurgeDeleted" = "Удалить из архива навсегда";
+"PxgPurgeConfirm" = "Удалить это сообщение из архива навсегда? Восстановить его будет нельзя.";
+"PxgPurgeFailed" = "Не удалось удалить из архива";
+"PxgSettingsHideDeleted" = "Скрывать удалённые сообщения во всех чатах";
 "PxgEditHistoryTitle" = "История изменений";
 "PxgEditHistoryCurrent" = "Текущая";
 "PxgEditHistoryOriginal" = "Исходная";

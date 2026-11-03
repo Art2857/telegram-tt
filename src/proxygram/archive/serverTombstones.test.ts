@@ -88,6 +88,7 @@ describe('надгробия из серверного архива', () => {
     const message = tombstoneToApiMessage(
       tombstone(30, { text: 'смотри', media: { kind: 'photo', key: 'photo:1' } }), PRIVATE_CHAT,
     );
-    expect(message.content.text?.text).toBe('🖼 смотри');
+    expect(message.content.text?.text).toBe('смотри');
+    expect(message.content.photo?.id).toBe(`pxga_acc_${PRIVATE_CHAT}_30`);
   });
 });

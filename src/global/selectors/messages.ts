@@ -576,11 +576,17 @@ export function selectCanForwardMessage<T extends GlobalState>(global: T, messag
   const isChatProtected = selectIsChatProtected(global, message.chatId);
   const isStoryForwardForbidden = story && ('isDeleted' in story || ('noForwards' in story && story.noForwards));
   const canForward = (
-    !isLocal && !isAction && !isChatProtected && !isStoryForwardForbidden
+    !isLocal && !isAction && !isChatProtected && !isStoryForwardForbidden && !message.pxgDeletedAt
     && (message.isForwardingAllowed || isServiceNotification) && !hasTtl
   );
 
   return canForward;
+}
+
+// PXG
+export function selectIsDeletedHidden<T extends GlobalState>(global: T, chatId: string) {
+  const { pxgHideDeleted, pxgHideDeletedChats } = global.settings.byKey;
+  return pxgHideDeletedChats?.[chatId] ?? pxgHideDeleted ?? false;
 }
 
 // This selector is slow and not to be used within lists (e.g. Message component)
@@ -591,6 +597,13 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
   const isRestricted = selectIsChatRestricted(global, message.chatId);
   if (!chat || isRestricted) {
     return {};
+  }
+
+  // PXG: A tombstone of the owner's own chat no longer exists in Telegram: it can only be read and saved
+  if (message.pxgDeletedAt && !chat.pxgProxy) {
+    return {
+      noOptions: false, canCopy: true, canDownload: Boolean(selectMessageDownloadableMedia(global, message)),
+    };
   }
 
   const chatFullInfo = selectChatFullInfo(global, message.chatId);

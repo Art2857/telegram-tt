@@ -12,8 +12,8 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { resolveProxyPeer } from './index';
 import {
-  buildProxyMapToken, buildProxyMediaId, parseProxyAvatarHash, parseProxyCatalogHash, parseProxyMapHash,
-  parseProxyMediaHash,
+  buildProxyArchiveMediaId, buildProxyMapToken, buildProxyMediaId, parseProxyArchiveHash, parseProxyAvatarHash,
+  parseProxyCatalogHash, parseProxyMapHash, parseProxyMediaHash,
 } from './mediaIds';
 
 const DEFAULT_MEDIA_SIZE = 512;
@@ -27,10 +27,20 @@ const MEDIA_WAIT_MAX_INTERVAL_MS = 8000;
 const EMPTY_THUMBNAIL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
 export function buildProxyMedia(dto: MessageDto, chatId: string): Partial<MediaContent> | undefined {
-  const media = dto.media;
   const userId = getPxgState().session?.user.id;
-  if (!media || !userId) return undefined;
-  const id = buildProxyMediaId(userId, chatId, dto.msgId);
+  if (!dto.media || !userId) return undefined;
+  return buildMediaContent(dto, dto.media, buildProxyMediaId(userId, chatId, dto.msgId));
+}
+
+/** The attachment of a tombstone comes from the owner's own archive */
+export function buildProxyArchiveMedia(dto: MessageDto): Partial<MediaContent> | undefined {
+  if (!dto.media) return undefined;
+  return buildMediaContent(dto, dto.media, buildProxyArchiveMediaId(dto.accountId, dto.peerId, dto.msgId));
+}
+
+function buildMediaContent(
+  dto: MessageDto, media: NonNullable<MessageDto['media']>, id: string,
+): Partial<MediaContent> | undefined {
   const width = media.width || DEFAULT_MEDIA_SIZE;
   const height = media.height || DEFAULT_MEDIA_SIZE;
   const size = media.size || 0;
@@ -137,7 +147,8 @@ export async function downloadMedia(
   }
   if (!signed) return undefined;
   // The server has only the sticker's animation for a message: it is no picture, and it plays over the placeholder
-  if (signed.mimeType === ANIMATED_STICKER_MIME && parseProxyMediaHash(url)?.isPreview) return buildEmptyPreview();
+  const fileHash = parseProxyMediaHash(url) || parseProxyArchiveHash(url);
+  if (signed.mimeType === ANIMATED_STICKER_MIME && fileHash?.isPreview) return buildEmptyPreview();
   const headers: Record<string, string> = {};
   if (start !== undefined || end !== undefined) {
     headers.Range = `bytes=${start || 0}-${end ?? ''}`;
@@ -182,6 +193,10 @@ function buildMediaRequest(
       thumb: catalog.isThumbnail || undefined,
       effect: catalog.isEffect || undefined,
     }];
+  }
+  const archived = parseProxyArchiveHash(url);
+  if (archived) {
+    return ['archive.mediaUrl', { accountId: archived.accountId, peerId: archived.peerId, msgId: archived.msgId }];
   }
   const message = parseProxyMediaHash(url);
   if (message) {

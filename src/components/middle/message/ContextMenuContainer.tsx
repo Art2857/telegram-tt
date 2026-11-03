@@ -82,6 +82,7 @@ import buildClassName from '../../../util/buildClassName';
 import { copyTextToClipboard } from '../../../util/clipboard';
 import { isUserId } from '../../../util/entities/ids';
 import { getTranslationCacheKey, parseTranslationCacheKey } from '../../../util/keys/translationKey';
+import { purgeDeletedMessage } from '../../../proxygram/archive/purgeDeleted';
 import { getSelectionAsFormattedText } from './helpers/getSelectionAsFormattedText';
 import { isSelectionRangeInsideMessage } from './helpers/isSelectionRangeInsideMessage';
 
@@ -318,6 +319,7 @@ const ContextMenuContainer = ({
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isClosePollDialogOpen, openClosePollDialog, closeClosePollDialog] = useFlag();
+  const [isPurgeDialogOpen, openPurgeDialog, closePurgeDialog] = useFlag(); // PXG
   const [selectionQuoteOffset, setSelectionQuoteOffset] = useState(UNQUOTABLE_OFFSET);
   const [requestCalendar, calendar] = useSchedule(
     canScheduleUntilOnline,
@@ -459,6 +461,22 @@ const ContextMenuContainer = ({
   const closeMenu = useLastCallback(() => {
     setIsMenuOpen(false);
     onClose();
+  });
+
+  // PXG
+  const handlePurgeClick = useLastCallback(() => {
+    setIsMenuOpen(false);
+    openPurgeDialog();
+  });
+
+  const handlePurgeClose = useLastCallback(() => {
+    closePurgeDialog();
+    closeMenu();
+  });
+
+  const handlePurgeConfirm = useLastCallback(() => {
+    handlePurgeClose();
+    purgeDeletedMessage(message).catch(() => showNotification({ message: { key: 'PxgPurgeFailed' } }));
   });
 
   const handleDelete = useLastCallback(() => {
@@ -848,6 +866,7 @@ const ContextMenuContainer = ({
         onUnpin={handleUnpin}
         onForward={handleForward}
         onDelete={handleDelete}
+        onPxgPurge={message.pxgDeletedAt && !chat?.pxgProxy ? handlePurgeClick : undefined}
         onReport={handleReport}
         onFaveSticker={handleFaveSticker}
         onUnfaveSticker={handleUnfaveSticker}
@@ -883,6 +902,14 @@ const ContextMenuContainer = ({
         messageId={message.id}
         chatId={message.chatId}
         onClose={closePinModal}
+      />
+      <ConfirmDialog
+        isOpen={isPurgeDialogOpen}
+        onClose={handlePurgeClose}
+        text={lang('PxgPurgeConfirm')}
+        confirmLabel={lang('PxgPurgeDeleted')}
+        confirmHandler={handlePurgeConfirm}
+        confirmIsDestructive
       />
       <ConfirmDialog
         isOpen={isClosePollDialogOpen}

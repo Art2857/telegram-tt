@@ -236,7 +236,8 @@ export interface MessageDto {
   ttlExpiresAt: string | null;
   version: number;
   changeSeq: string;
-  deleted: { at: string; reason: 'delegate' | 'external' } | null;
+  /** byName — кто из гостей удалил; только в надгробиях для владельца */
+  deleted: { at: string; reason: 'delegate' | 'external'; byName?: string | null } | null;
   /** Пересланное: имя автора оригинала */
   forwardName?: string | null;
   /** Встроенные кнопки бота; data и варианты опроса — base64, гость отправляет их обратно серверу */

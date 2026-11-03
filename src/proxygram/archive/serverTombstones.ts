@@ -8,8 +8,10 @@ import {
 } from '../../global/reducers';
 import { selectChatMessage, selectViewportIds } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
+import { buildProxyEntities } from '../../api/proxy/entities';
+import { buildProxyArchiveMedia } from '../../api/proxy/media';
 
-/** Значок вложения: тип файла известен, а самого объекта Web A у надгробия нет */
+/** Значок вложения без файла: опрос, геопозиция, контакт */
 export const MEDIA_ICONS: Record<string, string> = {
   photo: '🖼',
   video: '🎬',
@@ -25,12 +27,17 @@ export const MEDIA_ICONS: Record<string, string> = {
 };
 
 /**
- * Удалённое сообщение из серверного архива → сообщение Web A с пометкой «удалено».
- * Медиа восстановить в виде объекта Web A нельзя — остаются текст и значок вложения.
+ * Удалённое сообщение из серверного архива → сообщение Web A с пометкой «удалено». Файл берётся из архива,
+ * а если его там нет, вместо него — название и подпись «не сохранён»
  */
 export function tombstoneToApiMessage(dto: MessageDto, chatId: string): ApiMessage {
-  const icon = dto.media && dto.media.kind !== 'webpage' ? MEDIA_ICONS[dto.media.kind] ?? '📎' : undefined;
-  const text = [icon, dto.text].filter(Boolean).join(' ');
+  const media = dto.isMediaUnavailable ? undefined : buildProxyArchiveMedia(dto);
+  const icon = !media && !dto.isMediaUnavailable && dto.media && dto.media.kind !== 'webpage'
+    ? MEDIA_ICONS[dto.media.kind] ?? '📎' : undefined;
+  const prefix = icon ? `${icon} ` : '';
+  const entities = buildProxyEntities(dto.entities, dto.accountId)
+    .map((entity) => ({ ...entity, offset: entity.offset + prefix.length }));
+  const text = prefix || dto.text ? { text: `${prefix}${dto.text}`.trimEnd(), entities } : undefined;
 
   return {
     id: dto.msgId,
@@ -38,10 +45,12 @@ export function tombstoneToApiMessage(dto: MessageDto, chatId: string): ApiMessa
     date: toUnix(dto.date),
     isOutgoing: dto.isOutgoing,
     senderId: dto.senderId ? String(dto.senderId) : undefined,
-    content: { text: { text } },
+    content: { ...media, text },
+    pxgMediaFallback: dto.isMediaUnavailable ? { fileName: dto.media?.fileName, isUnavailable: true } : undefined,
     editDate: dto.editDate ? toUnix(dto.editDate) : undefined,
     isEdited: Boolean(dto.editDate) || undefined,
     pxgDeletedAt: dto.deleted ? toUnix(dto.deleted.at) : toUnix(dto.date),
+    pxgDeletedBy: dto.deleted?.byName || undefined,
   };
 }
 
@@ -54,10 +63,23 @@ export function insertTombstones<T extends GlobalState>(
   global: T,
   chatId: string,
   tombstones: ApiMessage[],
-  options: { isAtEnd?: boolean },
+  options: { isAtEnd?: boolean; isFromServer?: boolean },
   ...[tabId = getCurrentTabId()]: TabArgs<T>
 ): T {
-  const fresh = tombstones.filter((message) => !selectChatMessage(global, chatId, message.id));
+  const fresh: ApiMessage[] = [];
+  tombstones.forEach((message) => {
+    const existing = selectChatMessage(global, chatId, message.id);
+    if (!existing) {
+      fresh.push(message);
+      return;
+    }
+    // The server knows who deleted the message and has its file; the device keeps only what it saw
+    if (options.isFromServer && existing.pxgDeletedAt) {
+      global = updateChatMessage(global, chatId, message.id, message.pxgMediaFallback
+        ? { pxgDeletedBy: message.pxgDeletedBy }
+        : { pxgDeletedBy: message.pxgDeletedBy, content: message.content });
+    }
+  });
   if (fresh.length === 0) return global;
 
   const byId: Record<number, ApiMessage> = {};

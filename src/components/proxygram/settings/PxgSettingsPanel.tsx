@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from '../../../lib/teact/teact';
+import { getActions } from '../../../global';
 
 import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
 
@@ -9,6 +10,7 @@ import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
 
+import useSelector from '../../../hooks/data/useSelector';
 import useLang from '../../../hooks/useLang';
 
 import Button from '../../ui/Button';
@@ -224,6 +226,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'server' && <ServerTab {...props} />}
         {tabKey === 'outgoing' && <OutgoingTab {...props} />}
         {tabKey === 'incoming' && <IncomingTab {...props} />}
+        {tabKey === 'archive' && <HideDeletedOption lang={lang} />}
         {tabKey === 'archive' && <ArchiveTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'devices' && <DevicesTab {...props} />}
@@ -416,6 +419,19 @@ const IncomingTab = memo(({ lang, t, ask }: TabProps) => {
         )))}
       </tbody>
     </table>
+  );
+});
+
+const HideDeletedOption = memo(({ lang }: { lang: Lang }) => {
+  const { setSettingOption } = getActions();
+  const isHidden = useSelector((global) => global.settings.byKey.pxgHideDeleted);
+
+  return (
+    <Checkbox
+      label={lang('PxgSettingsHideDeleted')}
+      checked={Boolean(isHidden)}
+      onCheck={(pxgHideDeleted) => setSettingOption({ pxgHideDeleted, pxgHideDeletedChats: {} })}
+    />
   );
 });
 
