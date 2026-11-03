@@ -31,7 +31,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "longDescription": "",
+    "longDescription": "Неофициальный клиент на Telegram API: архив сообщений и общий доступ к чатам",
     "macOS": {
       "entitlements": "entitlements.mac.plist",
       "exceptionDomain": "",
@@ -40,7 +40,7 @@
       "signingIdentity": null
     },
     "resources": [],
-    "shortDescription": "",
+    "shortDescription": "Неофициальный клиент на Telegram API: архив сообщений и общий доступ к чатам",
     "targets": [
       "app",
       "nsis",
