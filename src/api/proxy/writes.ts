@@ -293,8 +293,13 @@ export async function markMessageListRead({
 }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
-  // A comment thread has no reading pointer of its own: reading it must not read the whole group
-  if (!chat.isForum && threadId !== MAIN_THREAD_ID) return;
+  // A comment thread has a pointer of its own: reading it does not read the whole group
+  if (!chat.isForum && threadId !== MAIN_THREAD_ID) {
+    if (maxId) {
+      await pxgRpc.call('messages.read', { ...peer, maxId, threadId: Number(threadId) }).catch(() => undefined);
+    }
+    return;
+  }
   // A forum topic is read on its own, like `messages.readDiscussion` in Telegram
   const topicId = chat.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined;
   // Without `maxId` the whole chat is read from the chat list, up to the latest message the guest can see

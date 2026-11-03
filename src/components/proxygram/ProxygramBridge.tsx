@@ -163,7 +163,17 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
         refreshProxyHistory(event.d);
       }
       if (event.e === 'topics.changed') refreshProxyTopics(event.d);
-      if (event.e === 'read.changed') refreshProxyUnread(event.d);
+      if (event.e === 'read.changed' && event.d.threadId) {
+        // A comment thread read on another device: the group's counters stay as they are
+        apiUpdate({
+          '@type': 'updateThreadReadState',
+          chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
+          threadId: event.d.threadId,
+          readState: { lastReadInboxMessageId: event.d.maxId },
+        });
+      } else if (event.e === 'read.changed') {
+        refreshProxyUnread(event.d);
+      }
       if (event.e === 'chats.state') applyProxyChatState(event.d);
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();
       if (event.e === 'chat.typing') applyProxyTyping(event.d);

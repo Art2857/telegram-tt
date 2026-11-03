@@ -362,8 +362,8 @@ async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDisc
   dtos.forEach((dto) => emitRelated(dto));
   const topMessages = discussion.messages.map((dto) => buildProxyMessage(dto, group));
   const lastMessageId = discussion.lastMsgId ?? undefined;
-  // The post itself is never unread; an empty thread is read up to it
-  const readMaxId = Math.max(threadId, lastMessageId || 0, ...topMessages.map(({ id }) => id));
+  // The post itself is never unread; as in Telegram, a thread the guest never read opens from its start
+  const readMaxId = Math.max(threadId, discussion.readMaxId || 0, ...topMessages.map(({ id }) => id));
   // A thread opened by its own link starts with the post's copy, which tells whose comments these are
   const origin = discussion.peerId === peer.peerId
     ? getSavedFromPost(discussion.messages[0]) : { chatId: chat.id, msgId: messageId };
@@ -381,9 +381,9 @@ async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDisc
       fromChannelId: origin?.chatId,
       fromMessageId: origin?.msgId,
     },
-    // The guest's reading of a comment thread is not tracked: it is read as soon as it is open
+    // The guest's own pointer of the thread, kept by the server apart from the group's
     threadReadState: {
-      unreadCount: 0,
+      unreadCount: discussion.unreadCount || 0,
       lastReadInboxMessageId: readMaxId,
       lastReadOutboxMessageId: discussion.readOutboxMaxId ?? undefined,
     },

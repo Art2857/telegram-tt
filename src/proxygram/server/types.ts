@@ -265,6 +265,8 @@ export interface MessageDto {
     /** The discussion group, only when it is shared with the guest too */
     commentsPeerId?: number;
     lastReplyId?: number;
+    /** The guest has read the thread before and new comments came since */
+    hasUnreadComments?: boolean;
     /** The latest distinct commenters, newest first */
     recentRepliers?: PeerBriefDto[];
   };
@@ -396,6 +398,10 @@ export interface DiscussionDto {
   lastMsgId: number | null;
   /** Up to where others read the account's outgoing comments in this thread */
   readOutboxMaxId?: number | null;
+  /** Up to where the guest read the thread; null until the first reading */
+  readMaxId?: number | null;
+  /** Incoming comments past the guest's pointer, all of them before the first reading */
+  unreadCount?: number;
 }
 
 export interface TopicsListResult {
@@ -599,7 +605,10 @@ export type ServerEvent =
   | { e: 'session.revoked'; d: Record<string, never> }
   | { e: 'accounts.changed'; d: { accountId: string; status: AccountDto['status'] } }
   | { e: 'topics.changed'; d: { accountId: string; peerId: number } }
-  | { e: 'read.changed'; d: { accountId: string; peerId: number; topicId: number | null } }
+  | {
+    e: 'read.changed';
+    d: { accountId: string; peerId: number; topicId: number | null; threadId?: number; maxId?: number };
+  }
   | { e: 'chats.state'; d: ChatStateDto }
   | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };
 
