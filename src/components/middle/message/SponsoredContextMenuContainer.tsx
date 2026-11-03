@@ -4,6 +4,8 @@ import { getActions } from '../../../global';
 
 import type { IAnchorPosition } from '../../../types';
 
+import { isProxySponsoredId } from '../../../api/proxy/ids';
+
 import useLastCallback from '../../../hooks/useLastCallback';
 import useShowTransition from '../../../hooks/useShowTransition';
 
@@ -101,7 +103,7 @@ const SponsoredMessageContextMenuContainer: FC<OwnProps> = ({
         onClose={onClose}
         onCloseAnimationEnd={onClose}
         onAboutAdsClick={handleAboutAdsOpen}
-        onSponsoredHide={handleSponsoredHide}
+        onSponsoredHide={isProxySponsoredId(randomId) ? undefined : handleSponsoredHide}
         onSponsorInfo={handleSponsorInfo}
         onSponsoredReport={handleReportSponsoredMessage}
       />

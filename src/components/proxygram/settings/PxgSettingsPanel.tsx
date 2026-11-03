@@ -130,6 +130,7 @@ const AUDIT_KEYS: Record<string, string> = {
   delegate_seenBy: 'PxgAuditSeenBy',
   delegate_sendAs: 'PxgAuditSendAs',
   delegate_inlineBot: 'PxgAuditInlineBot',
+  delegate_sponsored: 'PxgAuditSponsored',
   media_fetch: 'PxgAuditMediaFetch',
   invite_create: 'PxgAuditInviteCreate',
   invite_open: 'PxgAuditInviteOpen',

@@ -1,17 +1,19 @@
 import type {
-  AccessChat, DraftDto, MessageDto, PeerBadgesDto, ReactionCountDto, TopicDto, UserStatusDto,
+  AccessChat, DraftDto, MessageDto, PeerBadgesDto, ReactionCountDto, SponsoredMessageDto, TopicDto, UserStatusDto,
 } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
   ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount,
-  ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
+  ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
+import type { ProxyPeer } from './ids';
 
-import { ARCHIVED_FOLDER_ID } from '../../config';
+import { ARCHIVED_FOLDER_ID, SPONSORED_MESSAGE_CACHE_MS } from '../../config';
 import { getServerTime } from '../../util/serverTime';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyEntities } from './entities';
+import { getProxySponsoredId } from './ids';
 import { getProxyPeerId, isProxyGuest } from './index';
 import { buildProxyAttachment, buildProxyMedia } from './media';
 import { buildProxyCatalogMediaId } from './mediaIds';
@@ -162,6 +164,23 @@ const USER_STATUS_TYPES: Record<UserStatusDto['type'], ApiUserStatus['type']> = 
 
 export function buildProxyUserStatus({ type, expires, wasOnline }: UserStatusDto): ApiUserStatus {
   return { type: USER_STATUS_TYPES[type], expires, wasOnline };
+}
+
+export function buildProxySponsoredMessage(
+  dto: SponsoredMessageDto, chatId: string, peer: ProxyPeer,
+): ApiSponsoredMessage {
+  return {
+    chatId,
+    randomId: getProxySponsoredId(peer, dto.randomId),
+    expiresAt: Math.round(Date.now() / 1000) + SPONSORED_MESSAGE_CACHE_MS,
+    isRecommended: dto.isRecommended || undefined,
+    sponsorInfo: dto.sponsorInfo ?? undefined,
+    additionalInfo: dto.additionalInfo ?? undefined,
+    buttonText: dto.buttonText,
+    title: dto.title,
+    url: dto.url,
+    content: { text: { text: dto.text, entities: buildProxyEntities(dto.entities, peer.accountId) } },
+  };
 }
 
 export function buildProxyDraft({ text, entities, replyToMsgId, topicId, date }: DraftDto): ApiDraft {

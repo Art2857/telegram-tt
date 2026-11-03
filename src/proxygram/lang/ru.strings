@@ -152,6 +152,7 @@
 "PxgAuditTranslate" = "перевёл сообщения";
 "PxgAuditSeenBy" = "посмотрел, кто прочитал";
 "PxgAuditSendAs" = "узнал, от чьего имени можно писать";
+"PxgAuditSponsored" = "получил или посмотрел рекламу Telegram";
 "PxgAuditInlineBot" = "воспользовался инлайн-ботом";
 "PxgAuditAdminCancel" = "администратор сервера отменил действие";
 "PxgAuditAdminRetry" = "администратор сервера повторил действие";

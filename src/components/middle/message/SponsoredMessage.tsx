@@ -20,6 +20,7 @@ import {
 import { selectMessageDownloadableMedia } from '../../../global/selectors/media';
 import { IS_ANDROID } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
+import { isProxySponsoredId } from '../../../api/proxy/ids';
 import { renderTextWithEntities } from '../../common/helpers/renderTextWithEntities';
 import { preventMessageInputBlur } from '../helpers/preventMessageInputBlur';
 
@@ -251,15 +252,17 @@ const SponsoredMessage = ({
         <div className="message-action-buttons-container">
           <div className="message-action-buttons-sticky-zone">
             <div className="message-action-buttons message-action-button-sticky">
-              <Button
-                className="message-action-button"
-                color="translucent-white"
-                round
-                iconName="close"
-                iconClassName="sponsored-action-icon"
-                ariaLabel={lang('Close')}
-                onClick={handleHideSponsoredMessage}
-              />
+              {!isProxySponsoredId(message.randomId) && (
+                <Button
+                  className="message-action-button"
+                  color="translucent-white"
+                  round
+                  iconName="close"
+                  iconClassName="sponsored-action-icon"
+                  ariaLabel={lang('Close')}
+                  onClick={handleHideSponsoredMessage}
+                />
+              )}
               {message.canReport && (
                 <Button
                   className="message-action-button"

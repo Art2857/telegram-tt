@@ -1,6 +1,6 @@
 import type {
   AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto, MemberDto, MessageDto,
-  PeerBriefDto, SeenByDto, SendAsPeerDto, TopicsListResult,
+  PeerBriefDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -17,13 +17,14 @@ import { getPxgState } from '../../proxygram/server/store';
 import {
   buildProxyAuthorChat, buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo,
   buildProxyDraft,
-  buildProxyMessage, buildProxyPoll, buildProxyTopic, buildProxyUser, buildProxyUserStatus, buildProxyViaBot,
-  buildProxyWebPage,
+  buildProxyMessage, buildProxyPoll, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser, buildProxyUserStatus,
+  buildProxyViaBot, buildProxyWebPage,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
   toggleDialogFilterTags,
 } from './folders';
+import { parseProxySponsoredId } from './ids';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { fetchLangDifference, fetchLangPack, fetchLanguage, fetchLanguages } from './langpacks';
 import { downloadMedia } from './media';
@@ -108,6 +109,9 @@ const methods = {
   fetchInlineBotResults,
   sendInlineBotResult,
   fetchSeenBy,
+  fetchSponsoredMessages,
+  viewSponsoredMessage,
+  clickSponsoredMessage,
   fetchSendAs,
   saveDefaultSendAs,
   fetchUnreadMentions,
@@ -706,6 +710,27 @@ async function fetchSeenBy({ chat, messageId }: MethodArgs<'fetchSeenBy'>[0]) {
   if (!readers) return undefined;
   emitPeerBriefs(peer.accountId, readers);
   return Object.fromEntries(readers.map(({ peerId, date }) => [getProxyPeerId(peer.accountId, peerId), date]));
+}
+
+/** Telegram's own ads in the channel, the ones it would show the owner */
+async function fetchSponsoredMessages({ peer }: MethodArgs<'fetchSponsoredMessages'>[0]) {
+  const target = resolveProxyPeer(peer.id);
+  if (!target) return undefined;
+  const messages = await pxgRpc.call<SponsoredMessageDto[]>('messages.sponsored', target).catch(() => undefined);
+  if (!messages?.length) return undefined;
+  return { messages: messages.map((message) => buildProxySponsoredMessage(message, peer.id, target)) };
+}
+
+function viewSponsoredMessage({ random }: MethodArgs<'viewSponsoredMessage'>[0]) {
+  const ad = parseProxySponsoredId(random);
+  if (!ad) return Promise.resolve();
+  return pxgRpc.call('messages.sponsoredView', ad).then(() => undefined, () => undefined);
+}
+
+function clickSponsoredMessage({ random, isMedia, isFullscreen }: MethodArgs<'clickSponsoredMessage'>[0]) {
+  const ad = parseProxySponsoredId(random);
+  if (!ad) return Promise.resolve(undefined);
+  return pxgRpc.call('messages.sponsoredClick', { ...ad, isMedia, isFullscreen }).then(() => true, () => undefined);
 }
 
 /** Mentions of the owner that the guest has not read yet, by the guest's own read pointer */

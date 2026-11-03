@@ -3514,6 +3514,7 @@ export interface LangPair {
   'PxgAuditTranslate': undefined;
   'PxgAuditSeenBy': undefined;
   'PxgAuditSendAs': undefined;
+  'PxgAuditSponsored': undefined;
   'PxgAuditInlineBot': undefined;
   'PxgAuditAdminCancel': undefined;
   'PxgAuditAdminRetry': undefined;

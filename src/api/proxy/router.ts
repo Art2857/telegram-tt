@@ -1,6 +1,6 @@
 import type { MethodArgs, Methods } from '../gramjs/methods/types';
 
-import { isProxyPeerId } from './ids';
+import { isProxyPeerId, isProxySponsoredId } from './ids';
 import { parseProxyArchiveHash, parseProxyCatalogHash, parseProxyMapHash, parseProxyMediaHash } from './mediaIds';
 
 const PEER_ID_KEY = /^(?:(?:chat|user|peer|channel|bot|sender)Ids?|.*(?:Chat|User|Peer|Channel|Bot|Sender)Ids?)$/;
@@ -14,10 +14,15 @@ const MEDIA_METHODS = new Set<keyof Methods>(['downloadMedia']);
 const CATALOG_ID_PREFIX = 'pxgs_';
 const PROXY_MEDIA_PREFIX = 'pxg:';
 const PEER_MEDIA_HASH = /^(?:avatar|profile)(-?\d+)(?:[?:]|$)/;
+const SPONSORED_METHODS = new Set<keyof Methods>(['viewSponsoredMessage', 'clickSponsoredMessage']);
 
 /** Routes only peer references, leaving numeric message text and document IDs alone */
 export function shouldRouteToProxy(fnName: keyof Methods, args: readonly unknown[], isGuest?: boolean): boolean {
   if (isGuest) return true;
+  // These two have no peer to route by, only the ad ID
+  if (SPONSORED_METHODS.has(fnName)) {
+    return isProxySponsoredId((args[0] as MethodArgs<'viewSponsoredMessage'>[0]).random);
+  }
   // Custom emoji of shared messages carry catalog IDs; `loadCustomEmojis` keeps them apart from Telegram ones
   if (fnName === 'fetchCustomEmoji') {
     const ids = (args[0] as MethodArgs<'fetchCustomEmoji'>[0]).documentId;

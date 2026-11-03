@@ -24,7 +24,7 @@ type OwnProps = {
   onClose: NoneToVoidFunction;
   onCloseAnimationEnd?: NoneToVoidFunction;
   onAboutAdsClick: NoneToVoidFunction;
-  onSponsoredHide: NoneToVoidFunction;
+  onSponsoredHide?: NoneToVoidFunction;
   onSponsorInfo?: NoneToVoidFunction;
   onSponsoredReport?: NoneToVoidFunction;
 };
@@ -51,7 +51,7 @@ const SponsoredContextMenu = ({
   const getMenuElement = useLastCallback(() => menuRef.current);
   const getRootElement = useLastCallback(() => document.body);
 
-  const isSeparatorNeeded = sponsorInfo || !shouldSkipAbout || canReport;
+  const isSeparatorNeeded = onSponsoredHide && (sponsorInfo || !shouldSkipAbout || canReport);
 
   return (
     <Menu
@@ -81,9 +81,11 @@ const SponsoredContextMenu = ({
         </MenuItem>
       )}
       {isSeparatorNeeded && <MenuSeparator />}
-      <MenuItem icon="close-circle" onClick={onSponsoredHide}>
-        {lang('HideAd')}
-      </MenuItem>
+      {onSponsoredHide && (
+        <MenuItem icon="close-circle" onClick={onSponsoredHide}>
+          {lang('HideAd')}
+        </MenuItem>
+      )}
     </Menu>
   );
 };

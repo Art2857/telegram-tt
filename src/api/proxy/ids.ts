@@ -12,6 +12,7 @@ const HASH_SPACE = 2 ** HASH_BITS;
 const FNV_OFFSET = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
 const FNV_BITS = 64;
+const SPONSORED_ID_PREFIX = 'pxg-ad:';
 const encoder = new TextEncoder();
 
 /** Recognizes reserved IDs even before the registry is restored from storage */
@@ -23,6 +24,21 @@ export function isProxyPeerId(value: unknown): value is string {
 
   const rawId = id > 0 ? id : -id - CHANNEL_ID_BASE;
   return rawId >= USER_ID_BASE && rawId < USER_ID_BASE + HASH_SPACE;
+}
+
+/** Web A views and clicks an ad knowing only its ID, so the ID also says whose chat the ad came from */
+export function getProxySponsoredId({ accountId, peerId }: ProxyPeer, randomId: string) {
+  return `${SPONSORED_ID_PREFIX}${accountId}:${peerId}:${randomId}`;
+}
+
+export function isProxySponsoredId(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith(SPONSORED_ID_PREFIX);
+}
+
+export function parseProxySponsoredId(id: string) {
+  if (!isProxySponsoredId(id)) return undefined;
+  const [accountId, peerId, randomId] = id.slice(SPONSORED_ID_PREFIX.length).split(':');
+  return { accountId, peerId: Number(peerId), randomId };
 }
 
 /** A private-chat participant and the same sender share an ID within one provider account */

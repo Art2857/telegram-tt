@@ -4665,6 +4665,7 @@
 "PxgAuditTranslate" = "translated messages";
 "PxgAuditSeenBy" = "checked who read a message";
 "PxgAuditSendAs" = "checked who to send as";
+"PxgAuditSponsored" = "loaded or viewed a Telegram ad";
 "PxgAuditInlineBot" = "used an inline bot";
 "PxgAuditAdminCancel" = "server admin cancelled an action";
 "PxgAuditAdminRetry" = "server admin retried an action";

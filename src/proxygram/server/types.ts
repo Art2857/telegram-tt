@@ -516,6 +516,18 @@ export interface HashedResult<T> {
   data?: T;
 }
 
+export interface SponsoredMessageDto {
+  randomId: string;
+  title: string;
+  text: string;
+  entities: unknown[];
+  url: string;
+  buttonText: string;
+  sponsorInfo: string | null;
+  additionalInfo: string | null;
+  isRecommended: boolean;
+}
+
 export interface ArchiveSearchResult {
   count: number;
   messages: {
