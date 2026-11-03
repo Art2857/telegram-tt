@@ -4688,6 +4688,9 @@
 "PxgAuditInviteRevoke" = "revoked an invite link";
 "PxgAuditArchiveGap" = "gap in the channel archive";
 "PxgAuditMassDelete" = "mass deletion, messages: {count}";
+"PxgAuditGuestBurst" = "unusually many messages and deletions on your behalf";
+"PxgAuditGuestRateLimited" = "reached the action limit";
+"PxgAuditGuestAccountLimit" = "guests reached the shared limit of the account";
 "PxgAuditPurge" = "deleted from the archive forever";
 "PxgAuditPin" = "pinned or unpinned a message";
 "PxgAuditAdmin" = "changed the chat as an admin";
@@ -4980,6 +4983,9 @@
 "PxgNotifyViaBotHint" = "When your devices get no push notifications, the Proxygram bot tells you about new messages in chats shared with you, at most once in 5 minutes per chat";
 "PxgNotifyViaBotHasPush" = "Push notifications already reach your devices: the bot writes only when there are none";
 "PxgShareExpiring" = "Access to {target} ends {time}";
+"PxgGuestBurst" = "{name}: unusually many actions on your behalf. See the log in Proxygram settings";
+"PxgGuestRateLimited" = "{name} reached the action limit on your behalf, extra actions are not performed";
+"PxgGuestAccountLimit" = "Guests reached the shared limit of your account, the last action is by {name}";
 "PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";
 "PxgAlsoMember" = "You are a member of this chat too. Here you see it through the owner's access, your own chat is separate.";
 "PxgOpenOwnChat" = "Open your chat";

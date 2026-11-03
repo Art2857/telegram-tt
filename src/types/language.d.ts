@@ -3531,6 +3531,9 @@ export interface LangPair {
   'PxgAuditInviteDecline': undefined;
   'PxgAuditInviteRevoke': undefined;
   'PxgAuditArchiveGap': undefined;
+  'PxgAuditGuestBurst': undefined;
+  'PxgAuditGuestRateLimited': undefined;
+  'PxgAuditGuestAccountLimit': undefined;
   'PxgAuditPurge': undefined;
   'PxgAuditPin': undefined;
   'PxgAuditAdmin': undefined;
@@ -6236,6 +6239,15 @@ export interface LangPairWithVariables<V = LangVariable> {
     'target': V;
     'time': V;
   };
+  'PxgGuestBurst': {
+    'name': V;
+  };
+  'PxgGuestRateLimited': {
+    'name': V;
+  };
+  'PxgGuestAccountLimit': {
+    'name': V;
+  };
   'PxgFloodDelay': {
     'seconds': V;
   };
@@ -7269,6 +7281,9 @@ export interface LangKeyGroups {
       | 'PxgFromOwnerHint'
       | 'PxgSharedFor'
       | 'PxgOwnerUnreachable'
+      | 'PxgGuestBurst'
+      | 'PxgGuestRateLimited'
+      | 'PxgGuestAccountLimit'
       | 'PxgShareGuestIsMember'
       | 'PxgSharePending';
     variables: 'name';

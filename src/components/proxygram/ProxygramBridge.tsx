@@ -2,7 +2,7 @@ import { memo, useEffect } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
-import type { AccountDto, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
+import type { AccountDto, GuestBurstReason, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import { selectCurrentMessageList } from '../../global/selectors';
@@ -39,6 +39,11 @@ const RETRY_DELAY_MS = 60_000;
 const SILENT_JOB_KINDS = new Set<OutboxDoneDto['kind']>([
   'read', 'typing', 'history', 'transcribe', 'translate', 'seenBy', 'sendAs',
 ]);
+const GUEST_BURST_MESSAGES = {
+  burst: 'PxgGuestBurst',
+  rate_limited: 'PxgGuestRateLimited',
+  account_limit: 'PxgGuestAccountLimit',
+} as const satisfies Record<GuestBurstReason, string>;
 
 export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dismissed-${tgUserId}`;
 
@@ -185,6 +190,11 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
             key: 'PxgShareExpiring',
             variables: { target: event.d.target, time: formatDateTime(event.d.expiresAt) },
           },
+        });
+      }
+      if (event.e === 'guest.burst') {
+        showNotification({
+          message: { key: GUEST_BURST_MESSAGES[event.d.reason], variables: { name: event.d.guestName } },
         });
       }
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();

@@ -188,6 +188,7 @@ export type ChatStateDto = Pick<
 >;
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
+export type GuestBurstReason = 'burst' | 'rate_limited' | 'account_limit';
 
 export type InlineButtonDto =
   | { kind: 'callback'; text: string; data: string }
@@ -656,6 +657,7 @@ export type ServerEvent =
     d: { accountId: string; peerId: number; topicId: number | null; threadId?: number; maxId?: number };
   }
   | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
+  | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }
   | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };
 
