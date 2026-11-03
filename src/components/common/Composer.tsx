@@ -3511,7 +3511,9 @@ export default memo(withGlobal<OwnProps>(
       attachBots: global.attachMenu.bots,
       attachMenuPeerType: selectChatType(global, chatId),
       theme: selectTheme(global),
-      fileSizeLimit: selectCurrentLimit(global, 'uploadMaxFileparts') * MAX_UPLOAD_FILEPART_SIZE,
+      // PXG: A guest's files go through the owner's account, so the owner's limit counts
+      fileSizeLimit: chat?.pxgProxy?.maxUploadBytes
+        ?? selectCurrentLimit(global, 'uploadMaxFileparts') * MAX_UPLOAD_FILEPART_SIZE,
       captionLimit: selectCurrentLimit(global, 'captionLength'),
       isCurrentUserPremium,
       canSendVoiceByPrivacy,

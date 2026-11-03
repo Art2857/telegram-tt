@@ -3,9 +3,6 @@ import { PxgError } from './types';
 import { PXG_SERVER_URL } from './http';
 import { getAccessToken } from './session';
 
-/** Столько принимает сервер (MAX_UPLOAD_BYTES) — проверяем заранее, чтобы не гонять файл зря */
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
-
 export interface UploadResult {
   uploadId: string;
   size: number;
@@ -20,9 +17,11 @@ export interface UploadResult {
 export async function uploadFile(
   file: File,
   target: { accountId: string; peerId: number },
+  maxBytes: number,
   onProgress?: (fraction: number) => void,
 ): Promise<UploadResult> {
-  if (file.size > MAX_UPLOAD_BYTES) throw new PxgError('too_large');
+  // Checked here too, so a file over the limit does not travel to the server for nothing
+  if (file.size > maxBytes) throw new PxgError('too_large');
   const token = await getAccessToken();
   if (!token) throw new PxgError('unauthorized');
 

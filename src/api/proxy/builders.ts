@@ -80,6 +80,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       providerUserId: chat.providerUserId || undefined,
       providerUsername: chat.providerUsername || undefined,
       isProviderPremium: chat.providerPremium || undefined,
+      maxUploadBytes: chat.maxUploadBytes,
     },
   };
 }

@@ -17,6 +17,7 @@ import { runProxyJob } from './outbox';
 
 const DELETE_BATCH_SIZE = 20;
 const MAX_WAVEFORM_LENGTH = 100;
+const MAX_CHAT_PHOTO_BYTES = 50 * 1024 * 1024;
 /** The server accepts this many messages per `messages.readReactions` */
 const MAX_READ_REACTIONS = 200;
 let localCounter = 0;
@@ -70,7 +71,8 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       if (attachment.ttlSeconds) throw new PxgError('unsupported');
       const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
       const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
-      const uploaded = await uploadFile(upload, peer, (fraction) => onProgress?.(fraction));
+      const maxBytes = chat.pxgProxy?.maxUploadBytes ?? 0;
+      const uploaded = await uploadFile(upload, peer, maxBytes, (fraction) => onProgress?.(fraction));
       const { voice, quick, isRoundVideo } = attachment;
       file = {
         uploadId: uploaded.uploadId,
@@ -490,7 +492,7 @@ export async function editChatPhoto({ chatId, photo }: MethodArgs<'editChatPhoto
   const peer = resolveProxyPeer(chatId);
   // Only a new file: restoring an old photo needs its Telegram ID
   if (!peer || !(photo instanceof File)) return undefined;
-  const { uploadId } = await uploadFile(photo, peer);
+  const { uploadId } = await uploadFile(photo, peer, MAX_CHAT_PHOTO_BYTES);
   await editProxyChat(chatId, { photo: { uploadId } });
   return true;
 }

@@ -9,6 +9,8 @@ import { revokeAttachmentUrls } from '../../../../util/attachments';
 import generateUniqueId from '../../../../util/generateUniqueId';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import { rafPromise } from '../../../../util/schedulers';
+import { formatFileSize } from '../../../../util/textFormat';
+import { isProxyPeerId } from '../../../../api/proxy/ids';
 import buildAttachment, {
   getPreparedPhotoDimensions,
   prepareAttachment,
@@ -139,9 +141,16 @@ export default function useAttachmentModal({
         showAllowedMessageTypesNotification({ chatId });
       } else if (newAttachments.some(({ size }) => size > fileSizeLimit)) {
         newAttachments.forEach((attachment) => revokeAttachmentUrls(attachment, attachments));
-        openLimitReachedModal({
-          limit: 'uploadMaxFileparts',
-        });
+        // PXG: A guest has no Premium of their own to buy: the limit is the owner's
+        if (isProxyPeerId(chatId)) {
+          showNotification({
+            message: { key: 'PxgGuestFileLimit', variables: { limit: formatFileSize(lang, fileSizeLimit) } },
+          });
+        } else {
+          openLimitReachedModal({
+            limit: 'uploadMaxFileparts',
+          });
+        }
       } else {
         const pendingAttachments = newAttachments.filter(({ isPreparing, uniqueId }) => (
           isPreparing && !attachments.some((attachment) => attachment.uniqueId === uniqueId)

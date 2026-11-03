@@ -13,6 +13,7 @@ export type ProxyChatInfo = {
   providerUsername?: string;
   /** Premium of the owner's account: several reactions and custom emoji */
   isProviderPremium?: boolean;
+  maxUploadBytes?: number;
 };
 
 /** Reactions per message: one, or as many as Telegram gives a Premium owner */

@@ -72,6 +72,8 @@ export interface AccessChat {
   providerUsername: string | null;
   /** Premium у аккаунта владельца: несколько реакций и кастомные эмодзи */
   providerPremium?: boolean;
+  /** How large a file can be sent: the limits of the server and of Telegram, higher with the owner's Premium */
+  maxUploadBytes: number;
   /** Reactions allowed in a group or channel; `null` until the provider's worker reads them, and in private chats */
   reactions?: ChatReactionsDto | null;
   /** Profile of a group or channel from its full info; `null` until read, and in private chats */

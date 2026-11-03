@@ -3678,6 +3678,7 @@ export interface LangPair {
   'PxgGuestAttach': undefined;
   'PxgGuestRemoveAttachment': undefined;
   'PxgGuestFileTooLarge': undefined;
+  'PxgGuestNoServerSpace': undefined;
   'PxgGuestCaptionPlaceholder': undefined;
   'PxgSharedWithMe': undefined;
   'PxgSharedWithMeHint': undefined;
@@ -6061,6 +6062,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestUploading': {
     'percent': V;
   };
+  'PxgGuestFileLimit': {
+    'limit': V;
+  };
   'PxgWriteAsOwner': {
     'name': V;
   };
@@ -7004,7 +7008,8 @@ export interface LangKeyGroups {
       | 'LimitReachedPinnedTopics'
       | 'LimitReachedSharedFoldersLocked'
       | 'LimitReachedSharedFoldersPremium'
-      | 'MoreSimilarText';
+      | 'MoreSimilarText'
+      | 'PxgGuestFileLimit';
     variables: 'limit';
   };
   'limit1,limit2,limit3,limit4,limit5': {

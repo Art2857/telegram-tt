@@ -335,7 +335,9 @@
 "PxgGuestAttach" = "Прикрепить файл";
 "PxgGuestRemoveAttachment" = "Убрать файл";
 "PxgGuestUploading" = "Загрузка… {percent}%";
-"PxgGuestFileTooLarge" = "Файл больше 50 МБ";
+"PxgGuestFileTooLarge" = "Файл слишком большой для этого чата";
+"PxgGuestFileLimit" = "В этот чат можно отправить файл до {limit}";
+"PxgGuestNoServerSpace" = "На сервере не хватает места для этого файла";
 "PxgGuestCaptionPlaceholder" = "Подпись";
 "PxgSharedWithMe" = "Открыто мне";
 "PxgSharedWithMeHint" = "Чаты, которые вам открыли другие";

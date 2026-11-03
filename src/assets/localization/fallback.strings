@@ -4848,7 +4848,9 @@
 "PxgGuestAttach" = "Attach a file";
 "PxgGuestRemoveAttachment" = "Remove the file";
 "PxgGuestUploading" = "Uploading… {percent}%";
-"PxgGuestFileTooLarge" = "The file is larger than 50 MB";
+"PxgGuestFileTooLarge" = "The file is too large for this chat";
+"PxgGuestFileLimit" = "Files up to {limit} can be sent to this chat";
+"PxgGuestNoServerSpace" = "The server does not have enough space for this file";
 "PxgGuestCaptionPlaceholder" = "Caption";
 "PxgSharedWithMe" = "Shared with me";
 "PxgSharedWithMeHint" = "Chats other people opened for you";
