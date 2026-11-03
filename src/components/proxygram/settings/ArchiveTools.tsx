@@ -19,6 +19,10 @@ import styles from '../admin/AdminPanel.module.scss';
 
 type OwnProps = {
   accountId: string;
+  accountName: string;
+  /** Confirmation of the settings panel: clearing cannot be undone */
+  ask: (text: string, label: string, action: () => Promise<unknown>) => void;
+  onCleared: NoneToVoidFunction;
 };
 
 type ChatFilter = {
@@ -29,10 +33,18 @@ type ChatFilter = {
 const SEARCH_PAGE = 30;
 const SNIPPET_LENGTH = 200;
 
-/** Phase 6: the owner searches the whole archive, deleted messages too, and downloads it as a file */
-const ArchiveTools = ({ accountId }: OwnProps) => {
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+/**
+ * Phase 6: the owner searches the whole archive, deleted messages too, downloads it as a file
+ * and clears it (PLAN.md 7.12)
+ */
+const ArchiveTools = ({
+  accountId, accountName, ask, onCleared,
+}: OwnProps) => {
   const { focusMessage, openChat } = getActions();
   const lang = useLang();
+  const t = lang as unknown as Translate;
   const canOpenChats = usePxgState((state) => state.session?.level === 'client');
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -41,6 +53,7 @@ const ArchiveTools = ({ accountId }: OwnProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [withFiles, setWithFiles] = useState(false);
   const [chat, setChat] = useState<ChatFilter>();
+  const [cleared, setCleared] = useState<number>();
 
   const load = useLastCallback(async (searched: string, offset: number, peerId = chat?.peerId) => {
     setIsLoading(true);
@@ -91,6 +104,24 @@ const ArchiveTools = ({ accountId }: OwnProps) => {
     } catch (err) {
       setError(describePxgError(lang, err));
     }
+  });
+
+  const handleClear = useLastCallback(() => {
+    const target = chat;
+    ask(
+      target
+        ? t('PxgArchiveClearChatConfirm', { title: target.title })
+        : t('PxgArchiveClearConfirm', { name: accountName }),
+      lang('PxgArchiveClearRun'),
+      async () => {
+        const removed = await pxgRpc.call<{ messages: number }>('archive.clear', {
+          accountId, peerId: target?.peerId,
+        });
+        setCleared(removed.messages);
+        setResult(undefined);
+        onCleared();
+      },
+    );
   });
 
   return (
@@ -179,6 +210,15 @@ const ArchiveTools = ({ accountId }: OwnProps) => {
         </p>
         <Checkbox label={lang('PxgArchiveExportFiles')} checked={withFiles} onCheck={setWithFiles} />
         <Button onClick={() => void handleExport()}>{lang('PxgArchiveExportRun')}</Button>
+      </div>
+
+      <div className={styles.form}>
+        <h3 className={styles.name}>{lang('PxgArchiveClear')}</h3>
+        <p className={styles.secondary}>
+          {chat ? lang('PxgArchiveClearChatHint', { title: chat.title }) : lang('PxgArchiveClearHint')}
+        </p>
+        <Button color="danger" onClick={handleClear}>{lang('PxgArchiveClearRun')}</Button>
+        {cleared !== undefined && <p className={styles.secondary}>{t('PxgArchiveCleared', { count: cleared })}</p>}
       </div>
     </>
   );

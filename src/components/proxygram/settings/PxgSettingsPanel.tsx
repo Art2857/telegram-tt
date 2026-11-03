@@ -70,8 +70,14 @@ type SessionRow = {
 
 type Policy = {
   media: {
-    maxBytes: number; includeVideo: boolean; includeDocuments: boolean; onDemand: boolean; onDemandKeepDays: number;
+    maxBytes: number;
+    includeVideo: boolean;
+    includeDocuments: boolean;
+    onDemand: boolean;
+    onDemandKeepDays: number;
+    keepDays: number;
   };
+  retention: { deletedDays: number };
   import: { enabled: boolean; perChat: number };
   chats: { channels: boolean; maxMembers: number };
   /** Chats the owner archives or not regardless of the policy */
@@ -143,7 +149,10 @@ const AUDIT_KEYS: Record<string, string> = {
   archive_gap: 'PxgAuditArchiveGap',
   archive_purge: 'PxgAuditPurge',
   archive_export: 'PxgAuditArchiveExport',
+  archive_clear: 'PxgAuditArchiveClear',
+  archive_retention: 'PxgAuditArchiveRetention',
   'archive.policy': 'PxgAuditPolicy',
+  'archive.chat': 'PxgAuditArchiveChat',
   'account.disconnect': 'PxgAuditDisconnect',
   'account.thin_mode': 'PxgAuditThinMode',
   'session.revoke': 'PxgAuditSessionRevoke',
@@ -255,7 +264,6 @@ const PxgSettingsPanel = () => {
         {tabKey === 'incoming' && <IncomingTab {...props} />}
         {tabKey === 'archive' && <HideDeletedOption lang={lang} />}
         {tabKey === 'archive' && <ArchiveTab {...props} />}
-        {tabKey === 'archive' && ownAccounts?.[0] && <ArchiveTools accountId={ownAccounts[0].id} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'devices' && <DevicesTab {...props} />}
       </div>
@@ -546,23 +554,30 @@ const HideDeletedOption = memo(({ lang }: { lang: Lang }) => {
 });
 
 const ArchiveTab = memo(({
-  lang, t, run, accounts,
+  lang, t, run, ask, accounts, reloadAccounts,
 }: TabProps) => {
-  const account = accounts?.[0];
+  const [selectedId, setSelectedId] = useState<string>();
+  const account = accounts?.find((item) => item.id === selectedId) ?? accounts?.[0];
   const [policy, setPolicy] = useState<Policy>();
   const [error, setError] = useState<unknown>();
   const [maxMegabytes, setMaxMegabytes] = useState('');
   const [keepDays, setKeepDays] = useState('');
   const [perChat, setPerChat] = useState('');
   const [maxMembers, setMaxMembers] = useState('');
+  const [filesDays, setFilesDays] = useState('');
+  const [deletedDays, setDeletedDays] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
   const accountId = account?.id;
   const load = useCallback(() => {
     if (!accountId) return;
+    setPolicy(undefined);
+    setIsSaved(false);
     pxgRpc.call<Policy>('archive.policy.get', { accountId })
       .then((result) => {
         setPolicy(result);
+        setFilesDays(String(result.media.keepDays));
+        setDeletedDays(String(result.retention.deletedDays));
         setMaxMegabytes(String(Math.round(result.media.maxBytes / MB)));
         setKeepDays(String(result.media.onDemandKeepDays));
         setPerChat(String(result.import.perChat));
@@ -597,7 +612,9 @@ const ArchiveTab = memo(({
         includeDocuments: policy.media.includeDocuments,
         onDemand: policy.media.onDemand,
         onDemandKeepDays: Math.max(1, Number(keepDays) || 1),
+        keepDays: Number(filesDays) || 0,
       },
+      retention: { deletedDays: Number(deletedDays) || 0 },
       import: {
         enabled: policy.import.enabled,
         perChat: Math.max(0, Number(perChat) || 0),
@@ -622,82 +639,131 @@ const ArchiveTab = memo(({
   };
 
   return (
-    <div className={styles.form}>
-      <h3 className={styles.sectionTitle}>{lang('PxgPolicyChatsTitle')}</h3>
-      <p className={styles.secondary}>{lang('PxgPolicyChatsNote')}</p>
-      <Checkbox
-        label={lang('PxgPolicyChannels')}
-        checked={policy.chats.channels}
-        onCheck={toggleChannels}
-      />
-      <InputText
-        label={lang('PxgPolicyMaxMembers')}
-        inputMode="numeric"
-        value={maxMembers}
-        onChange={onDigits(setMaxMembers)}
-      />
-      {policy.exceptions.length > 0 && (
-        <>
-          <p className={styles.secondary}>{lang('PxgPolicyExceptions')}</p>
-          <table className={styles.table}>
-            <tbody>
-              {policy.exceptions.map((exception) => (
-                <tr key={exception.peerId}>
-                  <td className={styles.name}>{exception.title ?? exception.peerId}</td>
-                  <td className={styles.secondary}>
-                    {lang(exception.enabled ? 'PxgPolicyExceptionOn' : 'PxgPolicyExceptionOff')}
-                  </td>
-                  <td className={styles.actions}>
-                    <Button size="smaller" isText fluid={false} onClick={() => void resetException(exception.peerId)}>
-                      {lang('PxgPolicyExceptionReset')}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+    <>
+      {accounts && accounts.length > 1 && (
+        <div className={styles.filters}>
+          {accounts.map((item) => (
+            <Button
+              key={item.id}
+              size="smaller"
+              fluid={false}
+              color={item.id === account.id ? 'primary' : 'translucent'}
+              onClick={() => setSelectedId(item.id)}
+            >
+              {item.displayName ?? '—'}
+            </Button>
+          ))}
+        </div>
       )}
-      <h3 className={styles.sectionTitle}>{lang('PxgPolicyFilesTitle')}</h3>
-      <p className={styles.secondary}>{lang('PxgPolicyNote')}</p>
-      <InputText
-        label={lang('PxgPolicyMaxSize')}
-        inputMode="numeric"
-        value={maxMegabytes}
-        onChange={onDigits(setMaxMegabytes)}
-      />
-      <Checkbox
-        label={lang('PxgPolicyVideo')}
-        checked={policy.media.includeVideo}
-        onCheck={(value) => toggleMedia('includeVideo', value)}
-      />
-      <Checkbox
-        label={lang('PxgPolicyDocuments')}
-        checked={policy.media.includeDocuments}
-        onCheck={(value) => toggleMedia('includeDocuments', value)}
-      />
-      <Checkbox
-        label={lang('PxgPolicyOnDemand')}
-        checked={policy.media.onDemand}
-        onCheck={(value) => toggleMedia('onDemand', value)}
-      />
-      <InputText
-        label={lang('PxgPolicyKeepDays')}
-        inputMode="numeric"
-        value={keepDays}
-        onChange={onDigits(setKeepDays)}
-      />
-      <Checkbox
-        label={lang('PxgPolicyImport')}
-        checked={policy.import.enabled}
-        onCheck={toggleImport}
-      />
-      <InputText label={lang('PxgPolicyPerChat')} inputMode="numeric" value={perChat} onChange={onDigits(setPerChat)} />
-      <div className={styles.formButtons}>
-        <Button fluid={false} onClick={() => void save()}>{lang('PxgShareSave')}</Button>
-        {isSaved && <span className={styles.secondary}>{t('PxgSettingsSaved')}</span>}
+      <p className={styles.secondary}>
+        {t('PxgPolicyUsage', {
+          count: account.messages,
+          size: formatMegabytes(account.mediaBytes),
+        })}
+      </p>
+      <div className={styles.form}>
+        <h3 className={styles.sectionTitle}>{lang('PxgPolicyChatsTitle')}</h3>
+        <p className={styles.secondary}>{lang('PxgPolicyChatsNote')}</p>
+        <Checkbox
+          label={lang('PxgPolicyChannels')}
+          checked={policy.chats.channels}
+          onCheck={toggleChannels}
+        />
+        <InputText
+          label={lang('PxgPolicyMaxMembers')}
+          inputMode="numeric"
+          value={maxMembers}
+          onChange={onDigits(setMaxMembers)}
+        />
+        {policy.exceptions.length > 0 && (
+          <>
+            <p className={styles.secondary}>{lang('PxgPolicyExceptions')}</p>
+            <table className={styles.table}>
+              <tbody>
+                {policy.exceptions.map((exception) => (
+                  <tr key={exception.peerId}>
+                    <td className={styles.name}>{exception.title ?? exception.peerId}</td>
+                    <td className={styles.secondary}>
+                      {lang(exception.enabled ? 'PxgPolicyExceptionOn' : 'PxgPolicyExceptionOff')}
+                    </td>
+                    <td className={styles.actions}>
+                      <Button size="smaller" isText fluid={false} onClick={() => void resetException(exception.peerId)}>
+                        {lang('PxgPolicyExceptionReset')}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+        <h3 className={styles.sectionTitle}>{lang('PxgPolicyFilesTitle')}</h3>
+        <p className={styles.secondary}>{lang('PxgPolicyNote')}</p>
+        <InputText
+          label={lang('PxgPolicyMaxSize')}
+          inputMode="numeric"
+          value={maxMegabytes}
+          onChange={onDigits(setMaxMegabytes)}
+        />
+        <Checkbox
+          label={lang('PxgPolicyVideo')}
+          checked={policy.media.includeVideo}
+          onCheck={(value) => toggleMedia('includeVideo', value)}
+        />
+        <Checkbox
+          label={lang('PxgPolicyDocuments')}
+          checked={policy.media.includeDocuments}
+          onCheck={(value) => toggleMedia('includeDocuments', value)}
+        />
+        <Checkbox
+          label={lang('PxgPolicyOnDemand')}
+          checked={policy.media.onDemand}
+          onCheck={(value) => toggleMedia('onDemand', value)}
+        />
+        <InputText
+          label={lang('PxgPolicyKeepDays')}
+          inputMode="numeric"
+          value={keepDays}
+          onChange={onDigits(setKeepDays)}
+        />
+        <Checkbox
+          label={lang('PxgPolicyImport')}
+          checked={policy.import.enabled}
+          onCheck={toggleImport}
+        />
+        <InputText
+          label={lang('PxgPolicyPerChat')}
+          inputMode="numeric"
+          value={perChat}
+          onChange={onDigits(setPerChat)}
+        />
+        <h3 className={styles.sectionTitle}>{lang('PxgPolicyRetentionTitle')}</h3>
+        <p className={styles.secondary}>{lang('PxgPolicyRetentionNote')}</p>
+        <InputText
+          label={lang('PxgPolicyDeletedDays')}
+          inputMode="numeric"
+          value={deletedDays}
+          onChange={onDigits(setDeletedDays)}
+        />
+        <InputText
+          label={lang('PxgPolicyFilesDays')}
+          inputMode="numeric"
+          value={filesDays}
+          onChange={onDigits(setFilesDays)}
+        />
+        <div className={styles.formButtons}>
+          <Button fluid={false} onClick={() => void save()}>{lang('PxgShareSave')}</Button>
+          {isSaved && <span className={styles.secondary}>{t('PxgSettingsSaved')}</span>}
+        </div>
       </div>
-    </div>
+      <ArchiveTools
+        key={account.id}
+        accountId={account.id}
+        accountName={account.displayName ?? ''}
+        ask={ask}
+        onCleared={reloadAccounts}
+      />
+    </>
   );
 });
 

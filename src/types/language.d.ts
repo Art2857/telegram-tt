@@ -3493,6 +3493,13 @@ export interface LangPair {
   'PxgPolicyExceptionOff': undefined;
   'PxgPolicyExceptionReset': undefined;
   'PxgPolicyFilesTitle': undefined;
+  'PxgPolicyRetentionTitle': undefined;
+  'PxgPolicyRetentionNote': undefined;
+  'PxgPolicyDeletedDays': undefined;
+  'PxgPolicyFilesDays': undefined;
+  'PxgArchiveClear': undefined;
+  'PxgArchiveClearHint': undefined;
+  'PxgArchiveClearRun': undefined;
   'PxgArchiveChat': undefined;
   'PxgArchiveChatShared': undefined;
   'PxgArchiveChatPolicyOn': undefined;
@@ -3544,6 +3551,9 @@ export interface LangPair {
   'PxgDevFile': undefined;
   'PxgDevCopy': undefined;
   'PxgAuditPolicy': undefined;
+  'PxgAuditArchiveClear': undefined;
+  'PxgAuditArchiveRetention': undefined;
+  'PxgAuditArchiveChat': undefined;
   'PxgAuditDisconnect': undefined;
   'PxgAuditSessionRevoke': undefined;
   'PxgAuditFailed': undefined;
@@ -6080,6 +6090,22 @@ export interface LangPairWithVariables<V = LangVariable> {
     'name': V;
     'title': V;
   };
+  'PxgPolicyUsage': {
+    'count': V;
+    'size': V;
+  };
+  'PxgArchiveClearChatHint': {
+    'title': V;
+  };
+  'PxgArchiveClearConfirm': {
+    'name': V;
+  };
+  'PxgArchiveClearChatConfirm': {
+    'title': V;
+  };
+  'PxgArchiveCleared': {
+    'count': V;
+  };
   'PxgAuditMassDelete': {
     'count': V;
   };
@@ -7218,6 +7244,7 @@ export interface LangKeyGroups {
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
       | 'PxgSettingsFrom'
+      | 'PxgArchiveClearConfirm'
       | 'PxgInviteAwaiting'
       | 'PxgConnectActive'
       | 'PxgShareFound'
@@ -7442,6 +7469,7 @@ export interface LangKeyGroups {
       | 'SimilarChannelsLimitSubtitle'
       | 'PxgSettingsChats'
       | 'PxgSettingsGuests'
+      | 'PxgArchiveCleared'
       | 'PxgAuditMassDelete'
       | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
@@ -7825,6 +7853,8 @@ export interface LangKeyGroups {
       | 'ActionCreatedChatYou'
       | 'AiToneCreated'
       | 'PxgSettingsLeaveConfirm'
+      | 'PxgArchiveClearChatHint'
+      | 'PxgArchiveClearChatConfirm'
       | 'PxgArchiveOnlyChat'
       | 'PxgArchiveExportChatHint';
     variables: 'title';
@@ -8522,6 +8552,11 @@ export interface LangKeyGroups {
     keys:
       | 'PxgSettingsRevokeConfirm';
     variables: 'name' | 'title';
+  };
+  'count,size': {
+    keys:
+      | 'PxgPolicyUsage';
+    variables: 'count' | 'size';
   };
   'done,total': {
     keys:
