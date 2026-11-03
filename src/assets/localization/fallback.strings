@@ -4529,6 +4529,11 @@
 "PxgEditHistoryOriginal" = "Original";
 "PxgEditHistoryVersion" = "Version {number}";
 "PxgEditHistoryShowDiff" = "Show changes";
+"PxgEditHistoryPhotoReplaced" = "Photo replaced";
+"PxgEditHistoryVideoReplaced" = "Video replaced";
+"PxgEditHistoryFileReplaced" = "File replaced";
+"PxgEditHistoryFileNotSaved" = "This file was not saved to the archive";
+"PxgEditHistoryOpenFile" = "Open file";
 "PxgEditHistoryNotCaptured" = "This message was edited before the app saw it — earlier versions were not saved.";
 "PxgAuthChoiceTitle" = "Proxygram";
 "PxgAuthChoiceNote" = "Choose how to sign in";

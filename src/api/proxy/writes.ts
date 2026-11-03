@@ -1,6 +1,8 @@
 import type { MessageDto, ScheduledMessageDto } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
-import type { ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer } from '../types';
+import type {
+  ApiAttachment, ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer,
+} from '../types';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
@@ -74,10 +76,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     if (attachment) {
       // Self-destructing media is never sent through the server: the archive could not honor the timer
       if (attachment.ttlSeconds) throw new PxgError('unsupported');
-      const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
-      const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
-      const maxBytes = chat.pxgProxy?.maxUploadBytes ?? 0;
-      const uploaded = await uploadFile(upload, peer, maxBytes, (fraction) => onProgress?.(fraction));
+      const uploaded = await uploadAttachment(chat, attachment, onProgress);
       const { voice, quick, isRoundVideo } = attachment;
       file = {
         uploadId: uploaded.uploadId,
@@ -142,6 +141,13 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
   }
 }
 
+async function uploadAttachment(chat: ApiChat, attachment: ApiAttachment, onProgress?: ApiOnProgress) {
+  const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
+  const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
+  const maxBytes = chat.pxgProxy?.maxUploadBytes ?? 0;
+  return uploadFile(upload, resolveProxyPeer(chat.id)!, maxBytes, (fraction) => onProgress?.(fraction));
+}
+
 /** The guest's own scheduled messages; the owner's other ones stay private unless they may manage them */
 export async function fetchScheduledHistory({ chat }: MethodArgs<'fetchScheduledHistory'>[0]) {
   const peer = resolveProxyPeer(chat.id);
@@ -196,7 +202,9 @@ export async function rescheduleMessage({ chat, message, scheduledAt }: MethodAr
   }
 }
 
-export async function editMessage({ chat, message, text, entities }: MethodArgs<'editMessage'>[0]): Promise<void> {
+export async function editMessage({
+  chat, message, attachment, text, entities,
+}: MethodArgs<'editMessage'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
   if (message.isScheduled) {
@@ -209,6 +217,7 @@ export async function editMessage({ chat, message, text, entities }: MethodArgs<
       msgId: message.id,
       text,
       entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+      file: attachment && { uploadId: (await uploadAttachment(chat, attachment)).uploadId },
     });
     const saved = await readSentMessage(chat, message.id);
     if (saved) {

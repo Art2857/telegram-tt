@@ -3391,6 +3391,11 @@ export interface LangPair {
   'PxgEditHistoryCurrent': undefined;
   'PxgEditHistoryOriginal': undefined;
   'PxgEditHistoryShowDiff': undefined;
+  'PxgEditHistoryPhotoReplaced': undefined;
+  'PxgEditHistoryVideoReplaced': undefined;
+  'PxgEditHistoryFileReplaced': undefined;
+  'PxgEditHistoryFileNotSaved': undefined;
+  'PxgEditHistoryOpenFile': undefined;
   'PxgEditHistoryNotCaptured': undefined;
   'PxgAuthChoiceTitle': undefined;
   'PxgAuthChoiceNote': undefined;

@@ -37,6 +37,35 @@
   white-space: pre-wrap;
 }
 
+.replaced {
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-primary);
+}
+
+.preview {
+  display: block;
+
+  max-width: 100%;
+  max-height: 12rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.5rem;
+
+  object-fit: contain;
+}
+
+.audio {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.fileLink {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
 .added {
   border-radius: 0.25rem;
   background-color: color-mix(in srgb, var(--color-success) 20%, transparent);

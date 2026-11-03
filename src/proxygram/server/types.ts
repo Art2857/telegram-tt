@@ -516,9 +516,17 @@ export interface HashedResult<T> {
   data?: T;
 }
 
+export interface VersionFileDto {
+  kind: string;
+  fileName?: string;
+}
+
 export interface MessageVersionDto {
   version: number;
   text: string;
+  media: VersionFileDto | null;
+  /** The next version's file, when it differs; on the last row it is the current file */
+  replacedBy: VersionFileDto | null;
   editDate: string | null;
   capturedAt: string;
 }

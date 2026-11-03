@@ -16,6 +16,11 @@
 "PxgEditHistoryOriginal" = "Исходная";
 "PxgEditHistoryVersion" = "Версия {number}";
 "PxgEditHistoryShowDiff" = "Показать различия";
+"PxgEditHistoryPhotoReplaced" = "Фото заменено";
+"PxgEditHistoryVideoReplaced" = "Видео заменено";
+"PxgEditHistoryFileReplaced" = "Файл заменён";
+"PxgEditHistoryFileNotSaved" = "Этот файл не сохранён в архиве";
+"PxgEditHistoryOpenFile" = "Открыть файл";
 "PxgEditHistoryNotCaptured" = "Сообщение изменили до того, как приложение его увидело, — прежние версии не сохранились.";
 "PxgAuthChoiceTitle" = "Proxygram";
 "PxgAuthChoiceNote" = "Выберите, как войти";
