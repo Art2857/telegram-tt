@@ -1,0 +1,45 @@
+.root {
+  padding-bottom: 0.5rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.5rem 0.25rem 0.5rem 1rem;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic {
+  font-weight: normal;
+  color: var(--color-text-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.chip {
+  padding: 0 0.5rem;
+  border-radius: 0.75rem;
+
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: var(--color-primary);
+
+  background: var(--color-primary-tint);
+}

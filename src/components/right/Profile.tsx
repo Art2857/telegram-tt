@@ -118,6 +118,7 @@ import WebLink from '../common/WebLink';
 import Island from '../gili/layout/Island';
 import Surface from '../gili/layout/Surface';
 import ChatList from '../left/main/ChatList';
+import ProxyAccessSection from '../proxygram/ProxyAccessSection';
 import MediaStory from '../story/MediaStory';
 import Button from '../ui/Button';
 import FloatingActionButton from '../ui/FloatingActionButton';
@@ -1364,6 +1365,10 @@ const Profile = ({
           isOwnProfile={isOwnProfile}
           className={styles.chatExtraBlock}
         />
+        {/* PXG: Whom the owner shares this chat with through the server */}
+        {!isSavedDialog && !isOwnProfile && (
+          <ProxyAccessSection chatId={profileId} className={styles.chatExtraBlock} />
+        )}
       </div>
     );
   }

@@ -29,7 +29,10 @@ type AccountRow = AccountDto & { messages: number; mediaBytes: number; activeSha
 
 type ShareRow = {
   id: string;
+  accountId: string;
   scope: 'chat' | 'topic' | 'folder';
+  peerId: number | null;
+  topicId: number | null;
   folderId: number | null;
   folderTitle: string | null;
   preset: PresetKey;
@@ -346,51 +349,116 @@ function renderImport(t: Translate, state: ImportStateDto | null) {
   );
 }
 
+type OutgoingView = 'guest' | 'chat' | 'expiring';
+type OutgoingGroup = { key: string; title?: string; items: ShareRow[] };
+
+const OUTGOING_VIEWS: { view: OutgoingView; key: string }[] = [
+  { view: 'guest', key: 'PxgSharesByGuest' },
+  { view: 'chat', key: 'PxgSharesByChat' },
+  { view: 'expiring', key: 'PxgSharesExpiring' },
+];
+
+/** «Я поделился» (PLAN.md 7.12): по гостям или по чатам с отзывом всей группы, отдельно — доступы со сроком */
 const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
   const { data, error, reload } = usePxgData<ShareRow[]>('shares.outgoing', {}, ['shares.changed', 'access.changed']);
+  const [view, setView] = useState<OutgoingView>('guest');
   if (!data) return <Loading error={error} lang={lang} />;
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
 
+  const revoke = (items: ShareRow[], text: string) => ask(text, lang('PxgShareRevoke'), async () => {
+    await pxgRpc.call('shares.revokeMany', { shareIds: items.map((share) => share.id) });
+    reload();
+  });
+  const groups: OutgoingGroup[] = view === 'guest'
+    ? groupBy(data, (share) => share.grantee?.id ?? '')
+      .map(([key, items]) => ({ key, title: displayName(items[0].grantee), items }))
+    : view === 'chat'
+      ? groupBy(data, targetKey).map(([key, items]) => ({ key, title: describeTarget(t, items[0]), items }))
+      : [{ key: 'expiring', items: data.filter((share) => share.expiresAt).sort(byExpiry) }];
+  const rowTitle = (share: ShareRow) => (view === 'guest' ? describeTarget(t, share)
+    : view === 'chat' ? displayName(share.grantee)
+      : `${displayName(share.grantee)} · ${describeTarget(t, share)}`);
+
   return (
-    <table className={styles.table}>
-      <tbody>
-        {groupBy(data, (share) => share.grantee?.id ?? '').map(([guestId, items]) => items.map((share, index) => (
-          <tr key={share.id}>
-            <td>
-              {index === 0 && <div className={styles.name}>{displayName(items[0].grantee)}</div>}
-              {index === 0 && guestId && items.length > 1 && (
-                <div className={styles.secondary}>{t('PxgSettingsChats', { count: items.length })}</div>
-              )}
-            </td>
-            <td>
-              {describeTarget(t, share)}
-              <div className={styles.secondary}>{describeShare(t, share)}</div>
-            </td>
-            <td className={styles.actions}>
-              <Button
-                size="tiny"
-                color="danger"
-                isText
-                onClick={() => ask(
-                  t('PxgSettingsRevokeConfirm', {
-                    name: displayName(share.grantee), title: describeTarget(t, share),
-                  }),
-                  lang('PxgShareRevoke'),
-                  async () => {
-                    await pxgRpc.call('shares.revoke', { shareId: share.id });
-                    reload();
-                  },
+    <>
+      <div className={styles.filters}>
+        {OUTGOING_VIEWS.map((item) => (
+          <Button
+            key={item.view}
+            size="smaller"
+            pill
+            fluid={false}
+            color={view === item.view ? 'primary' : 'translucent'}
+            onClick={() => setView(item.view)}
+          >
+            {t(item.key)}
+          </Button>
+        ))}
+      </div>
+      {!groups[0]?.items.length ? <p className={styles.empty}>{lang('PxgSharesNoExpiring')}</p> : (
+        <table className={styles.table}>
+          <tbody>
+            {groups.map((group) => group.items.map((share, index) => (
+              <tr key={share.id}>
+                {group.title !== undefined && (
+                  <td>
+                    {index === 0 && <div className={styles.name}>{group.title}</div>}
+                    {index === 0 && group.items.length > 1 && (
+                      <>
+                        <div className={styles.secondary}>
+                          {t(view === 'guest' ? 'PxgSettingsChats' : 'PxgSettingsGuests', {
+                            count: group.items.length,
+                          })}
+                        </div>
+                        <Button
+                          size="tiny"
+                          color="danger"
+                          isText
+                          fluid
+                          onClick={() => revoke(group.items, t(
+                            view === 'guest' ? 'PxgRevokeAllOfGuestConfirm' : 'PxgRevokeAllOfChatConfirm',
+                            { title: group.title ?? '', count: group.items.length },
+                          ))}
+                        >
+                          {lang('PxgRevokeAll')}
+                        </Button>
+                      </>
+                    )}
+                  </td>
                 )}
-              >
-                {lang('PxgShareRevoke')}
-              </Button>
-            </td>
-          </tr>
-        )))}
-      </tbody>
-    </table>
+                <td>
+                  {rowTitle(share)}
+                  <div className={styles.secondary}>{describeShare(t, share)}</div>
+                </td>
+                <td className={styles.actions}>
+                  <Button
+                    size="tiny"
+                    color="danger"
+                    isText
+                    onClick={() => revoke([share], t('PxgSettingsRevokeConfirm', {
+                      name: displayName(share.grantee), title: describeTarget(t, share),
+                    }))}
+                  >
+                    {lang('PxgShareRevoke')}
+                  </Button>
+                </td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 });
+
+/** Одна цель доступа: чат, тема или папка своего аккаунта */
+function targetKey(share: ShareRow) {
+  return [share.accountId, share.scope, share.peerId, share.topicId, share.folderId].join(':');
+}
+
+function byExpiry(a: ShareRow, b: ShareRow) {
+  return Date.parse(a.expiresAt ?? '') - Date.parse(b.expiresAt ?? '');
+}
 
 const IncomingTab = memo(({ lang, t, ask }: TabProps) => {
   const { data, error, reload } = usePxgData<ShareRow[]>('shares.incoming', {}, ['access.changed']);

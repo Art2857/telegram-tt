@@ -90,6 +90,16 @@
 "PxgSettingsFrom" = "От {name}";
 "PxgSettingsLeave" = "Выйти";
 "PxgSettingsLeaveConfirm" = "Выйти из доступа к «{title}»? Вернуть его сможет только владелец.";
+"PxgSettingsGuests" = "Гостей: {count}";
+"PxgSharesByGuest" = "По гостям";
+"PxgSharesByChat" = "По чатам";
+"PxgSharesExpiring" = "Со сроком";
+"PxgSharesNoExpiring" = "Доступов со сроком нет";
+"PxgRevokeAll" = "Отозвать все";
+"PxgRevokeAllOfGuestConfirm" = "Отозвать у {title} все доступы ({count})?";
+"PxgRevokeAllOfChatConfirm" = "Отозвать доступ к «{title}» у всех ({count})?";
+"PxgProxyAccessTitle" = "Доступ через прокси";
+"PxgShareChipCustom" = "свои права";
 "PxgSettingsRevokeConfirm" = "Отозвать у {name} доступ к «{title}»?";
 "PxgSettingsEnd" = "Завершить";
 "PxgSettingsEndConfirm" = "Завершить сессию Proxygram на этом устройстве? Там придётся войти заново.";

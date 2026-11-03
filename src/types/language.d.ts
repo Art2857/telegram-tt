@@ -3457,6 +3457,13 @@ export interface LangPair {
   'PxgSettingsDevices': undefined;
   'PxgSettingsNoAccounts': undefined;
   'PxgSettingsLeave': undefined;
+  'PxgSharesByGuest': undefined;
+  'PxgSharesByChat': undefined;
+  'PxgSharesExpiring': undefined;
+  'PxgSharesNoExpiring': undefined;
+  'PxgRevokeAll': undefined;
+  'PxgProxyAccessTitle': undefined;
+  'PxgShareChipCustom': undefined;
   'PxgSettingsEnd': undefined;
   'PxgSettingsEndConfirm': undefined;
   'PxgSettingsThisDevice': undefined;
@@ -6001,6 +6008,17 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgSettingsLeaveConfirm': {
     'title': V;
   };
+  'PxgSettingsGuests': {
+    'count': V;
+  };
+  'PxgRevokeAllOfGuestConfirm': {
+    'title': V;
+    'count': V;
+  };
+  'PxgRevokeAllOfChatConfirm': {
+    'title': V;
+    'count': V;
+  };
   'PxgSettingsRevokeConfirm': {
     'name': V;
     'title': V;
@@ -7350,6 +7368,7 @@ export interface LangKeyGroups {
       | 'GiveawayStarsPrepaidTitle'
       | 'SimilarChannelsLimitSubtitle'
       | 'PxgSettingsChats'
+      | 'PxgSettingsGuests'
       | 'PxgAuditMassDelete'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnQueue'
@@ -8414,6 +8433,12 @@ export interface LangKeyGroups {
     keys:
       | 'PxgSettingsMedia';
     variables: 'size';
+  };
+  'count,title': {
+    keys:
+      | 'PxgRevokeAllOfGuestConfirm'
+      | 'PxgRevokeAllOfChatConfirm';
+    variables: 'count' | 'title';
   };
   'name,title': {
     keys:

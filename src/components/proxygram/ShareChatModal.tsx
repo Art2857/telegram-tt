@@ -95,6 +95,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const lang = useLang();
   const accounts = usePxgState((state) => state.accounts);
   const connection = usePxgState((state) => state.connection);
+  const shareEditId = usePxgState((state) => state.shareEditId);
   const [shares, setShares] = useState<OutgoingShare[]>();
   const [username, setUsername] = useState('');
   const [guest, setGuest] = useState<UserLookup>();
@@ -155,7 +156,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
   }), [loadShares]);
 
-  const close = () => setPxgState({ shareChatId: undefined, shareFolder: undefined, shareTopic: undefined });
+  const close = () => setPxgState({
+    shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+  });
 
   const resetForm = () => {
     lookupRequestRef.current++;
@@ -240,6 +243,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setDeleteLimit(share.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '');
     setIsInviting(false);
   };
+
+  // Opened from the chat profile to change one particular access
+  useEffect(() => {
+    const share = shareEditId ? shares?.find((item) => item.id === shareEditId) : undefined;
+    if (!share) return;
+    startEdit(share);
+    setPxgState({ shareEditId: undefined });
+  }, [shares, shareEditId]);
 
   const buildLimits = (): ShareLimits => ({
     sendPerMinute: parseLimit(sendLimit),

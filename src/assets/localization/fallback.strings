@@ -4603,6 +4603,16 @@
 "PxgSettingsFrom" = "From {name}";
 "PxgSettingsLeave" = "Leave";
 "PxgSettingsLeaveConfirm" = "Leave the access to «{title}»? Only the owner can give it back.";
+"PxgSettingsGuests" = "{count} guests";
+"PxgSharesByGuest" = "By guest";
+"PxgSharesByChat" = "By chat";
+"PxgSharesExpiring" = "With an end date";
+"PxgSharesNoExpiring" = "No access has an end date";
+"PxgRevokeAll" = "Revoke all";
+"PxgRevokeAllOfGuestConfirm" = "Revoke all access of {title} ({count})?";
+"PxgRevokeAllOfChatConfirm" = "Revoke everyone's access to «{title}» ({count})?";
+"PxgProxyAccessTitle" = "Access through Proxygram";
+"PxgShareChipCustom" = "own permissions";
 "PxgSettingsRevokeConfirm" = "Revoke {name}'s access to «{title}»?";
 "PxgSettingsEnd" = "End session";
 "PxgSettingsEndConfirm" = "End the Proxygram session on this device? It will have to sign in again.";

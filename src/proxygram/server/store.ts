@@ -30,6 +30,8 @@ export interface PxgState {
   shareFolder?: { id: number; title: string };
   /** Тема форума shareChatId, которой делятся отдельно от остального форума */
   shareTopic?: { id: number; title: string };
+  /** Окно «Поделиться» открывается сразу в правке этого доступа (из профиля чата) */
+  shareEditId?: string;
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';
@@ -64,7 +66,7 @@ export function setPxgState(patch: Partial<PxgState>) {
   if (isNewIdentity) {
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
-      shareChatId: undefined, shareFolder: undefined, shareTopic: undefined,
+      shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }
