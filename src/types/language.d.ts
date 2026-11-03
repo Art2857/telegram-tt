@@ -3595,6 +3595,9 @@ export interface LangPair {
   'PxgPermSeePhones': undefined;
   'PxgPermAdmin': undefined;
   'PxgPermSignMessages': undefined;
+  'PxgThinMode': undefined;
+  'PxgThinModeHint': undefined;
+  'PxgAuditThinMode': undefined;
   'PxgArchiveSearch': undefined;
   'PxgArchiveSearchLabel': undefined;
   'PxgArchiveSearchRun': undefined;

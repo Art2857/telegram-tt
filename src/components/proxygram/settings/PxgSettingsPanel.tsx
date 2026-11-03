@@ -142,6 +142,7 @@ const AUDIT_KEYS: Record<string, string> = {
   archive_export: 'PxgAuditArchiveExport',
   'archive.policy': 'PxgAuditPolicy',
   'account.disconnect': 'PxgAuditDisconnect',
+  'account.thin_mode': 'PxgAuditThinMode',
   'session.revoke': 'PxgAuditSessionRevoke',
   'admin.message_debug': 'PxgAuditMessageDebug',
   'admin.outbox.cancel': 'PxgAuditAdminCancel',
@@ -281,7 +282,7 @@ function Badge({ tone, text }: { tone: 'green' | 'red' | 'gray' | 'blue'; text: 
 }
 
 const ServerTab = memo(({
-  lang, t, ask, accounts, reloadAccounts,
+  lang, t, ask, run, accounts, reloadAccounts,
 }: TabProps) => {
   const isClient = usePxgState((state) => state.session?.level === 'client');
   if (!accounts) return <Loading error={undefined} lang={lang} />;
@@ -333,6 +334,23 @@ const ServerTab = memo(({
             })}
           </tbody>
         </table>
+      )}
+      {accounts.length > 0 && (
+        <div className={styles.form}>
+          <h3 className={styles.name}>{lang('PxgThinMode')}</h3>
+          <p className={styles.secondary}>{lang('PxgThinModeHint')}</p>
+          {accounts.map((account) => (
+            <Checkbox
+              key={account.id}
+              label={account.displayName ?? account.id}
+              checked={account.thinMode}
+              onCheck={(enabled) => run(async () => {
+                await pxgRpc.call('accounts.setThinMode', { accountId: account.id, enabled });
+                reloadAccounts();
+              })}
+            />
+          ))}
+        </div>
       )}
       {/* Connecting the server signs it in with this device's Telegram session */}
       {isClient && (

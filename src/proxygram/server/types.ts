@@ -47,6 +47,8 @@ export type PresetKey = 'readOnly' | 'assistant' | 'full';
 export interface AccessChat {
   accountId: string;
   peerId: number;
+  /** The viewer's own account in thin mode, not a chat someone shared */
+  isOwn?: boolean;
   title: string | null;
   username: string | null;
   type: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
@@ -572,6 +574,7 @@ export interface AccountDto {
   status: 'connecting' | 'active' | 'paused' | 'auth_lost' | 'flood' | 'revoked';
   statusReason: string | null;
   connectedAt: string | null;
+  thinMode: boolean;
   importState: ImportStateDto | null;
 }
 

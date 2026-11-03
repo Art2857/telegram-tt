@@ -6,6 +6,8 @@ export type ProxyChatInfo = {
   permissions: Permissions;
   shareIds: string[];
   restricted?: AccessRestriction;
+  /** The viewer's own account in thin mode: nobody's name to write on behalf of */
+  isOwn?: boolean;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;
   /** Who shared the chat: a full login goes to this person in their own Telegram */
