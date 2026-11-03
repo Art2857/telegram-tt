@@ -1,6 +1,9 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
 "PxgDeleted" = "удалено";
 "PxgDeletedAt" = "Удалено {time}";
+"PxgSignOutKeepServer" = "Выйти, прокси продолжит работать";
+"PxgSignOutDisconnect" = "Выйти и отключить сервер";
+"PxgSignOutServerNote" = "Сервер продолжит работать без этого устройства, гости сохранят доступ. Отключение завершит серверную сессию в Telegram, архив останется.";
 "PxgDeletedByAt" = "Удалил {name}, {time}";
 "PxgHideDeleted" = "Скрывать удалённые";
 "PxgShowDeleted" = "Показывать удалённые";

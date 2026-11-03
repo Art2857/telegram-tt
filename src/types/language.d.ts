@@ -3378,6 +3378,9 @@ export interface LangPair {
   'SettingsSearchEmpty': undefined;
   'PxgUnofficialNotice': undefined;
   'PxgDeleted': undefined;
+  'PxgSignOutKeepServer': undefined;
+  'PxgSignOutDisconnect': undefined;
+  'PxgSignOutServerNote': undefined;
   'PxgHideDeleted': undefined;
   'PxgShowDeleted': undefined;
   'PxgPurgeDeleted': undefined;

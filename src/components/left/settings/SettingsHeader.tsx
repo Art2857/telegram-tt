@@ -14,6 +14,10 @@ import { formatTonShortFromNanos } from '../../../util/formatCurrency';
 import { formatTonAsIcon } from '../../../util/localization/format';
 import { pause } from '../../../util/schedulers';
 import { isProxyPeerId } from '../../../api/proxy/ids';
+import { getConnectedOwnAccountId } from '../../../proxygram/server/ownAccount';
+import { pxgRpc } from '../../../proxygram/server/rpc';
+import { usePxgState } from '../../../proxygram/server/store';
+import { describePxgError } from '../../proxygram/helpers';
 
 import useSelector from '../../../hooks/data/useSelector';
 import useAppLayout from '../../../hooks/useAppLayout';
@@ -57,6 +61,7 @@ const SettingsHeader = ({
 }: OwnProps) => {
   const {
     signOut,
+    showNotification,
     openDeleteChatFolderModal,
     openSettingsScreen,
   } = getActions();
@@ -127,6 +132,19 @@ const SettingsHeader = ({
     closeSignOutConfirmation();
     signOut({ forceInitApi: true });
   }, [closeSignOutConfirmation, signOut]);
+
+  // PXG: The server's session is separate from this device: signing out leaves it running unless asked otherwise
+  const connectedServerAccountId = usePxgState(() => getConnectedOwnAccountId());
+  const handleSignOutAndDisconnect = useLastCallback(async () => {
+    closeSignOutConfirmation();
+    try {
+      await pxgRpc.call('accounts.disconnect', { accountId: connectedServerAccountId! });
+    } catch (err) {
+      showNotification({ message: describePxgError(lang, err) });
+      return;
+    }
+    signOut({ forceInitApi: true });
+  });
 
   const SettingsMenuButton = useMemo(() => {
     return ({ onTrigger, isOpen }: { onTrigger: () => void; isOpen?: boolean }) => (
@@ -394,10 +412,22 @@ const SettingsHeader = ({
       <ConfirmDialog
         isOpen={isSignOutDialogOpen}
         onClose={closeSignOutConfirmation}
-        confirmLabel={lang('AccountSettingsLogout')}
+        confirmLabel={lang(connectedServerAccountId ? 'PxgSignOutKeepServer' : 'AccountSettingsLogout')}
         confirmHandler={handleSignOutMessage}
         confirmIsDestructive
         isConfirmLoading={isCheckingWallets}
+        areButtonsInColumn={Boolean(connectedServerAccountId)}
+        extraButtons={connectedServerAccountId && (
+          <Button
+            className="confirm-dialog-button"
+            isText
+            color="danger"
+            disabled={isCheckingWallets}
+            onClick={handleSignOutAndDisconnect}
+          >
+            {lang('PxgSignOutDisconnect')}
+          </Button>
+        )}
       >
         <p>
           {hasUnbackedWallet && unbackedWalletNanos > 0 ? lang(
@@ -408,6 +438,7 @@ const SettingsHeader = ({
         </p>
         {hasUnbackedWallet && !unbackedWalletNanos && <p>{lang('WalletLogoutWarning')}</p>}
         {isKeyRotationWarned && <p>{lang('WalletLogoutKeyRotation')}</p>}
+        {connectedServerAccountId && <p>{lang('PxgSignOutServerNote')}</p>}
       </ConfirmDialog>
     </div>
   );

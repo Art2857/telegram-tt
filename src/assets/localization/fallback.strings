@@ -4514,6 +4514,9 @@
 "PxgUnofficialNotice" = "Unofficial client built on the Telegram API";
 "PxgDeleted" = "deleted";
 "PxgDeletedAt" = "Deleted {time}";
+"PxgSignOutKeepServer" = "Log out, proxy keeps working";
+"PxgSignOutDisconnect" = "Log out and disconnect the server";
+"PxgSignOutServerNote" = "The server keeps working without this device and guests keep their access. Disconnecting ends the server's Telegram session but keeps the archive.";
 "PxgDeletedByAt" = "Deleted by {name}, {time}";
 "PxgHideDeleted" = "Hide deleted messages";
 "PxgShowDeleted" = "Show deleted messages";

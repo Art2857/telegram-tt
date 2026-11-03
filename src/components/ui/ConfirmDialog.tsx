@@ -24,6 +24,8 @@ type OwnProps = {
   isConfirmLoading?: boolean;
   isOnlyConfirm?: boolean;
   areButtonsInColumn?: boolean;
+  // PXG: An alternative action placed between confirm and cancel
+  extraButtons?: TeactNode;
   className?: string;
   children?: React.ReactNode;
   confirmHandler: NoneToVoidFunction;
@@ -44,6 +46,7 @@ const ConfirmDialog: FC<OwnProps> = ({
   isConfirmLoading,
   isOnlyConfirm,
   areButtonsInColumn,
+  extraButtons,
   className,
   children,
   confirmHandler,
@@ -95,6 +98,7 @@ const ConfirmDialog: FC<OwnProps> = ({
         >
           {confirmLabel || lang('GeneralConfirm')}
         </Button>
+        {extraButtons}
         {!isOnlyConfirm && (
           <Button className="confirm-dialog-button" isText onClick={onClose} autoFocus={confirmIsDestructive}>
             {lang('Cancel')}
