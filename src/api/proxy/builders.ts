@@ -273,7 +273,9 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     ? buildProxyMedia(dto, chat.id) : undefined;
   const attachment = buildProxyAttachment(dto, chat.id);
   const mediaFallback = dto.attachment?.type === 'other' ? { attachmentKind: dto.attachment.kind }
-    : !media && dto.media?.id ? { fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable } : undefined;
+    : !media && dto.media?.id ? {
+      fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable, size: dto.media.size,
+    } : undefined;
   return {
     id: dto.msgId,
     sendingState: undefined,
@@ -295,6 +297,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     isEdited: dto.version > 1 || undefined,
     pxgDeletedAt: dto.deleted ? parseDate(dto.deleted.at) : undefined,
     pxgSentByUserId: dto.sentByUserId || undefined,
+    pxgSentByName: dto.sentByName || undefined,
     pxgIsOwn: dto.sentByUserId === getPxgState().session?.user.id,
     pxgPermissions: permissions,
     transcriptionId: dto.transcription?.id,

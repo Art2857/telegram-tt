@@ -140,6 +140,7 @@ import { getMessageKey } from '../../../util/keys/messageKey';
 import { parseTranslationCacheKey } from '../../../util/keys/translationKey';
 import { getServerTime } from '../../../util/serverTime';
 import stopEvent from '../../../util/stopEvent';
+import { formatFileSize } from '../../../util/textFormat';
 import { isElementInViewport } from '../../../util/visibility/isElementInViewport';
 import { PROXY_ATTACHMENT_KEYS } from '../../../proxygram/attachmentKinds';
 import { getStickerDimensions, REM } from '../../common/helpers/mediaDimensions';
@@ -1144,6 +1145,7 @@ const Message = ({
               <>
                 <br />
                 {lang('PxgGuestMediaNotArchived')}
+                {Boolean(message.pxgMediaFallback.size) && ` · ${formatFileSize(lang, message.pxgMediaFallback.size)}`}
               </>
             )}
             {textMessage.content.text && <br />}

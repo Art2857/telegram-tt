@@ -810,7 +810,7 @@ export interface ApiMessage {
   pxgSentByName?: string;
   pxgIsOwn?: boolean;
   pxgPermissions?: Permissions;
-  pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; attachmentKind?: AttachmentKind };
+  pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; size?: number; attachmentKind?: AttachmentKind };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)
   pxgEditHistory?: PxgEditVersion[];
   previousLocalId?: number;

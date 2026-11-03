@@ -3534,6 +3534,17 @@ export interface LangPair {
   'PxgAuditGuestBurst': undefined;
   'PxgAuditGuestRateLimited': undefined;
   'PxgAuditGuestAccountLimit': undefined;
+  'PxgAuditFilterCategory': undefined;
+  'PxgAuditFilterAllActions': undefined;
+  'PxgAuditFilterActions': undefined;
+  'PxgAuditFilterAccess': undefined;
+  'PxgAuditFilterArchive': undefined;
+  'PxgAuditFilterWarnings': undefined;
+  'PxgAuditFilterActor': undefined;
+  'PxgAuditFilterAllPeople': undefined;
+  'PxgAuditFilterChat': undefined;
+  'PxgAuditFilterAllChats': undefined;
+  'PxgSentByYou': undefined;
   'PxgAuditPurge': undefined;
   'PxgAuditPin': undefined;
   'PxgAuditAdmin': undefined;
@@ -6126,6 +6137,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAuditMassDelete': {
     'count': V;
   };
+  'PxgSettingsLastEvent': {
+    'time': V;
+  };
+  'PxgComposerOnBehalf': {
+    'name': V;
+  };
   'PxgInvitePending': {
     'date': V;
   };
@@ -7278,6 +7295,7 @@ export interface LangKeyGroups {
       | 'PxgGuestSignedInAs'
       | 'PxgSettingsFrom'
       | 'PxgArchiveClearConfirm'
+      | 'PxgComposerOnBehalf'
       | 'PxgInviteAwaiting'
       | 'PxgConnectActive'
       | 'PxgShareFound'
@@ -7336,6 +7354,7 @@ export interface LangKeyGroups {
       | 'ChannelBoostErrorBoostTooOftenText'
       | 'LiveLocationUpdatedYesterdayAt'
       | 'PxgDeletedAt'
+      | 'PxgSettingsLastEvent'
       | 'PxgAdminSince';
     variables: 'time';
   };

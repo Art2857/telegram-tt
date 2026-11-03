@@ -57,6 +57,20 @@ type AuditRow = {
   actor: Person;
 };
 
+type AuditFilters = {
+  actors: NonNullable<Person>[];
+  chats: { accountId: string; peerId: number; title: string | null }[];
+};
+
+/** Teact drops an empty `value`, and the option would then answer with its visible text */
+const AUDIT_FILTER_ALL = 'all';
+const AUDIT_CATEGORIES = [
+  { value: 'actions', key: 'PxgAuditFilterActions' },
+  { value: 'access', key: 'PxgAuditFilterAccess' },
+  { value: 'archive', key: 'PxgAuditFilterArchive' },
+  { value: 'warnings', key: 'PxgAuditFilterWarnings' },
+];
+
 type SessionRow = {
   id: string;
   level: 'guest' | 'client';
@@ -314,6 +328,11 @@ const ServerTab = memo(({
                   <td>
                     <div className={styles.name}>{account.displayName ?? '—'}</div>
                     <div className={styles.secondary}>{formatDateTime(account.connectedAt)}</div>
+                    {account.lastMessageAt && (
+                      <div className={styles.secondary}>
+                        {t('PxgSettingsLastEvent', { time: formatDateTime(account.lastMessageAt) })}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <Badge tone={status.tone} text={t(status.key)} />
@@ -805,23 +824,71 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
   const [rows, setRows] = useState<AuditRow[]>();
   const [error, setError] = useState<unknown>();
   const [hasMore, setHasMore] = useState(false);
+  const [filters, setFilters] = useState<AuditFilters>();
+  const [actorUserId, setActorUserId] = useState(AUDIT_FILTER_ALL);
+  const [chatKey, setChatKey] = useState(AUDIT_FILTER_ALL);
+  const [category, setCategory] = useState(AUDIT_FILTER_ALL);
+  const requestRef = useRef(0);
 
   const load = useCallback((beforeId?: string) => {
-    pxgRpc.call<AuditRow[]>('audit.mine', { limit: AUDIT_PAGE, beforeId })
+    const request = ++requestRef.current;
+    const [accountId, peerId] = chatKey !== AUDIT_FILTER_ALL ? chatKey.split(':') : [];
+    pxgRpc.call<AuditRow[]>('audit.mine', {
+      limit: AUDIT_PAGE,
+      beforeId,
+      accountId,
+      peerId: peerId ? Number(peerId) : undefined,
+      actorUserId: actorUserId !== AUDIT_FILTER_ALL ? actorUserId : undefined,
+      category: category !== AUDIT_FILTER_ALL ? category : undefined,
+    })
       .then((page) => {
+        // The answer to a filter the viewer has already changed
+        if (request !== requestRef.current) return;
         setRows((current) => (beforeId ? [...(current ?? []), ...page] : page));
         setHasMore(page.length === AUDIT_PAGE);
       })
       .catch(setError);
-  }, []);
+  }, [actorUserId, category, chatKey, requestRef]);
 
   useEffect(() => load(), [load]);
 
+  useEffect(() => {
+    pxgRpc.call<AuditFilters>('audit.filters').then(setFilters).catch(() => undefined);
+  }, []);
+
   if (!rows) return <Loading error={error} lang={lang} />;
-  if (rows.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
 
   return (
     <>
+      <div className={styles.filters}>
+        <select
+          aria-label={lang('PxgAuditFilterCategory')}
+          value={category}
+          onChange={(e) => setCategory(e.currentTarget.value)}
+        >
+          <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllActions')}</option>
+          {AUDIT_CATEGORIES.map(({ value, key }) => <option value={value}>{t(key)}</option>)}
+        </select>
+        <select
+          aria-label={lang('PxgAuditFilterActor')}
+          value={actorUserId}
+          onChange={(e) => setActorUserId(e.currentTarget.value)}
+        >
+          <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllPeople')}</option>
+          {filters?.actors.map((actor) => <option value={actor.id}>{displayName(actor)}</option>)}
+        </select>
+        <select
+          aria-label={lang('PxgAuditFilterChat')}
+          value={chatKey}
+          onChange={(e) => setChatKey(e.currentTarget.value)}
+        >
+          <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllChats')}</option>
+          {filters?.chats.map((chat) => (
+            <option value={`${chat.accountId}:${chat.peerId}`}>{chat.title ?? chat.peerId}</option>
+          ))}
+        </select>
+      </div>
+      {rows.length === 0 && <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>}
       <table className={styles.table}>
         <tbody>
           {rows.map((row) => (

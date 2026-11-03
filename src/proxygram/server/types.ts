@@ -252,6 +252,8 @@ export interface MessageDto {
   buttons?: InlineButtonDto[][];
   poll?: PollDto;
   sentByUserId: string | null;
+  /** The name of that guest */
+  sentByName?: string | null;
   /** Имя отправителя, если аккаунт его знает (участник группы, собеседник) */
   senderName?: string | null;
   /** ID фото профиля отправителя — аватар через media.avatar */
@@ -578,6 +580,8 @@ export interface AccountDto {
   status: 'connecting' | 'active' | 'paused' | 'auth_lost' | 'flood' | 'revoked';
   statusReason: string | null;
   connectedAt: string | null;
+  /** The last change in this account's archive */
+  lastMessageAt?: string | null;
   thinMode: boolean;
   importState: ImportStateDto | null;
 }

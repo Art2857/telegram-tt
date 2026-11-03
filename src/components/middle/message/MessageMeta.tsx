@@ -189,7 +189,7 @@ const MessageMeta = ({
       >
         {message.pxgSentByUserId && (
           <span className="message-delegated" title={lang('PxgGuestSentByGuest')}>
-            {message.pxgSentByName ? `✍ ${message.pxgSentByName} ` : '✍ '}
+            {message.pxgIsOwn ? `✍ ${lang('PxgSentByYou')} ` : `✍ ${message.pxgSentByName ?? ''} `}
           </span>
         )}
         {effectEmoji && (

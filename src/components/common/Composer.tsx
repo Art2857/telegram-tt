@@ -2427,6 +2427,10 @@ const Composer = ({
           ? lang('ComposerPlaceholderTopic', { topic: replyToTopic.title })
           : lang('ComposerPlaceholderTopicGeneral');
       }
+      // PXG: A guest writes as the owner (PLAN.md 7.8); the field says so without opening anything
+      if (chat?.pxgProxy?.providerName) {
+        return lang('PxgComposerOnBehalf', { name: chat.pxgProxy.providerName });
+      }
       if (isChannel) {
         return lang(isSilentPosting ? 'ComposerPlaceholderBroadcastSilent' : 'ComposerPlaceholderBroadcast');
       }

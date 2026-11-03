@@ -1,6 +1,7 @@
 import { memo } from '../../lib/teact/teact';
 
-import { formatDateTime, secondsToDate } from '../../util/localization/dateFormat';
+import { formatDateTime, isSameLocalDay, secondsToDate } from '../../util/localization/dateFormat';
+import { getServerTime } from '../../util/serverTime';
 
 import useLang from '../../hooks/useLang';
 
@@ -14,12 +15,16 @@ type OwnProps = {
 
 const DeletedMark = ({ deletedAt }: OwnProps) => {
   const lang = useLang();
-  const time = formatDateTime(lang, secondsToDate(deletedAt), { date: 'short', time: 'short' });
+  const date = secondsToDate(deletedAt);
+  const fullTime = formatDateTime(lang, date, { date: 'short', time: 'short' });
+  // PLAN.md 7.10: when it was deleted is visible at once; the date only if it was not today
+  const time = isSameLocalDay(date, secondsToDate(getServerTime()))
+    ? formatDateTime(lang, date, { time: 'short' }) : fullTime;
 
   return (
-    <span className={styles.root} title={lang('PxgDeletedAt', { time })}>
+    <span className={styles.root} title={lang('PxgDeletedAt', { time: fullTime })}>
       <Icon name="delete" className={styles.icon} />
-      {lang('PxgDeleted')}
+      {`${lang('PxgDeleted')} ${time}`}
     </span>
   );
 };
