@@ -617,6 +617,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
   return (
     <>
       {IS_TAURI && <AutostartToggle lang={lang} />}
+      <BotNotificationsToggle lang={lang} />
       <table className={styles.table}>
         <tbody>
           {data.map((row) => (
@@ -654,6 +655,23 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
     </>
   );
 });
+
+/** The fallback channel: the bot writes about new messages when no device of this person gets Web Push (PLAN.md 7.14) */
+function BotNotificationsToggle({ lang }: { lang: Lang }) {
+  const { data, reload } = usePxgData<{ viaBot: boolean; pushDevices: number }>('notifications.get', {}, []);
+  if (!data) return undefined;
+
+  return (
+    <Checkbox
+      label={lang('PxgNotifyViaBot')}
+      subLabel={lang(data.pushDevices ? 'PxgNotifyViaBotHasPush' : 'PxgNotifyViaBotHint')}
+      checked={data.viaBot}
+      onCheck={(isChecked) => {
+        pxgRpc.call('notifications.setViaBot', { enabled: isChecked }).then(reload).catch(() => undefined);
+      }}
+    />
+  );
+}
 
 /** The desktop app can start with the system and stay in the tray (PLAN.md 16) */
 function AutostartToggle({ lang }: { lang: Lang }) {

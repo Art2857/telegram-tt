@@ -15,6 +15,7 @@ import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
 import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store';
+import { formatDateTime } from './helpers';
 
 import AdminPanel from './admin/AdminPanel';
 import ConnectServerModal from './ConnectServerModal';
@@ -175,6 +176,14 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
         refreshProxyUnread(event.d);
       }
       if (event.e === 'chats.state') applyProxyChatState(event.d);
+      if (event.e === 'share.expiring') {
+        showNotification({
+          message: {
+            key: 'PxgShareExpiring',
+            variables: { target: event.d.target, time: formatDateTime(event.d.expiresAt) },
+          },
+        });
+      }
       if (event.e === 'folders.changed' && isGuest) loadChatFolders();
       if (event.e === 'chat.typing') applyProxyTyping(event.d);
       if (event.e === 'chat.readOutbox') {

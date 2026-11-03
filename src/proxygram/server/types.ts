@@ -609,6 +609,7 @@ export type ServerEvent =
     e: 'read.changed';
     d: { accountId: string; peerId: number; topicId: number | null; threadId?: number; maxId?: number };
   }
+  | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
   | { e: 'chats.state'; d: ChatStateDto }
   | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };
 

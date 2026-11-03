@@ -3704,6 +3704,9 @@ export interface LangPair {
   'PxgAttachOther': undefined;
   'PxgAutostart': undefined;
   'PxgAutostartHint': undefined;
+  'PxgNotifyViaBot': undefined;
+  'PxgNotifyViaBotHint': undefined;
+  'PxgNotifyViaBotHasPush': undefined;
   'PxgShareSelfChat': undefined;
   'PxgAdminStatMedia': undefined;
   'PxgAdminStatDisk': undefined;
@@ -6104,6 +6107,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgOwnerUnreachable': {
     'name': V;
   };
+  'PxgShareExpiring': {
+    'target': V;
+    'time': V;
+  };
   'PxgFloodDelay': {
     'seconds': V;
   };
@@ -8436,6 +8443,11 @@ export interface LangKeyGroups {
     keys:
       | 'PxgSharedForHint';
     variables: 'names';
+  };
+  'target,time': {
+    keys:
+      | 'PxgShareExpiring';
+    variables: 'target' | 'time';
   };
 }
 

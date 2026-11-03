@@ -4884,6 +4884,10 @@
 "PxgOwnerUnreachable" = "{name} has no username, and your Telegram has no chat with this person yet";
 "PxgAutostart" = "Start with the system";
 "PxgAutostartHint" = "The app opens in the tray and keeps receiving messages";
+"PxgNotifyViaBot" = "Notifications via the bot";
+"PxgNotifyViaBotHint" = "When your devices get no push notifications, the Proxygram bot tells you about new messages in chats shared with you, at most once in 5 minutes per chat";
+"PxgNotifyViaBotHasPush" = "Push notifications already reach your devices: the bot writes only when there are none";
+"PxgShareExpiring" = "Access to {target} ends {time}";
 "PxgFloodDelay" = "Telegram delayed sending for {seconds} s, it will go out by itself";
 "PxgShareSelfChat" = "This is your chat with this very person: they will be writing to themselves on your behalf.";
 "PxgAdminStatMedia" = "Archive files";
