@@ -484,6 +484,8 @@ export interface CatalogSetDto {
   shortName: string;
   count: number;
   thumbDocumentId: string | null;
+  /** The version of the set's contents: when it matches the stored one, stickers.set is not needed */
+  hash: string;
 }
 
 /** Стикеры и GIF владельца аккаунта, которые гость может отправлять (право useOwnerStickers) */
@@ -497,6 +499,12 @@ export interface StickerCatalogDto {
   recent: CatalogDocumentDto[];
   faved: CatalogDocumentDto[];
   gifs: CatalogDocumentDto[];
+}
+
+export interface HashedResult<T> {
+  hash: string;
+  /** Absent when the contents match the hash of the request */
+  data?: T;
 }
 
 export interface MessageVersionDto {

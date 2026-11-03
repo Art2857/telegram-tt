@@ -71,3 +71,5 @@ export const TON_CONNECT_IDB_STORE = new IdbStore('tt-tonconnect');
 export const WALLET_IDB_STORE = new IdbStore('tt-wallet');
 // PXG: local anti-delete archive of the full client (L1)
 export const PXG_ARCHIVE_IDB_STORE = new IdbStore('pxg-local-archive');
+// PXG: the owner's sticker catalog, set contents and Telegram's reactions and effects of a guest, until their hash changes
+export const PXG_CATALOG_IDB_STORE = new IdbStore('pxg-catalog');

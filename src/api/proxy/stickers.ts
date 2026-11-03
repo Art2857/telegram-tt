@@ -1,6 +1,6 @@
 import type {
-  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, InlineResultDto, ReactionAnimation,
-  StickerCatalogDto,
+  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, HashedResult, InlineResultDto,
+  ReactionAnimation, StickerCatalogDto,
 } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
 import type {
@@ -9,6 +9,9 @@ import type {
 } from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
 
+import {
+  pruneStoredSets, readStored, readStoredSet, saveStored, saveStoredSet,
+} from '../../proxygram/server/catalogCache';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { buildProxyCatalogMediaId, parseProxyCatalogId } from './mediaIds';
@@ -31,13 +34,36 @@ function getCatalog(): Promise<StickerCatalogDto[]> {
   const userId = getPxgState().session?.user.id;
   if (!userId) return Promise.resolve([]);
   if (cached?.userId !== userId || Date.now() - cached.at > CATALOG_TTL_MS) {
-    const catalog = pxgRpc.call<StickerCatalogDto[]>('stickers.catalog');
+    const catalog = loadCatalog(userId);
     cached = { userId, at: Date.now(), catalog };
     catalog.catch(() => {
       if (cached?.catalog === catalog) cached = undefined;
     });
   }
   return cached.catalog;
+}
+
+/** The server compares hashes under the guest's current rights, so stored data never outlives them */
+async function loadHashed<T>(userId: string, method: string) {
+  const stored = await readStored<T>(userId, method);
+  const { hash, data } = await pxgRpc.call<HashedResult<T>>(method, { hash: stored?.hash });
+  if (data === undefined) return stored?.data;
+  void saveStored(userId, method, { hash, data });
+  return data;
+}
+
+async function loadCatalog(userId: string) {
+  const catalogs = await loadHashed<StickerCatalogDto[]>(userId, 'stickers.catalog') || [];
+  void pruneStoredSets(userId, catalogs);
+  return catalogs;
+}
+
+async function loadSetDocuments(userId: string, accountId: string, { id: setId, hash }: CatalogSetDto) {
+  const stored = await readStoredSet(userId, accountId, setId);
+  if (stored?.hash === hash) return stored.data;
+  const documents = await pxgRpc.call<CatalogDocumentDto[]>('stickers.set', { accountId, setId });
+  void saveStoredSet(userId, accountId, setId, { hash, data: documents });
+  return documents;
 }
 
 export function buildProxyStickerSetId(accountId: string, setId: string) {
@@ -109,15 +135,14 @@ export async function fetchSavedGifs() {
 
 export async function fetchStickers({ stickerSetInfo }: MethodArgs<'fetchStickers'>[0]) {
   const parsed = 'id' in stickerSetInfo ? parseProxyStickerSetId(stickerSetInfo.id) : undefined;
-  if (!parsed) return undefined;
-  const [catalogs, documents] = await Promise.all([
-    getCatalog(),
-    pxgRpc.call<CatalogDocumentDto[]>('stickers.set', parsed),
-  ]);
+  const userId = getPxgState().session?.user.id;
+  if (!parsed || !userId) return undefined;
+  const catalogs = await getCatalog();
   const catalog = catalogs.find((item) => item.accountId === parsed.accountId);
   const emojiSet = catalog?.emojiSets.find((item) => item.id === parsed.setId);
   const set = emojiSet || catalog?.sets.find((item) => item.id === parsed.setId);
   if (!set) return undefined;
+  const documents = await loadSetDocuments(userId, parsed.accountId, set);
   const stickers = buildStickers(parsed.accountId, documents);
   const packs: Record<string, ApiSticker[]> = {};
   stickers.forEach((sticker) => {
@@ -142,7 +167,7 @@ export async function fetchStickersForEmoji({ emoji }: MethodArgs<'fetchStickers
 export async function fetchAvailableReactions(): Promise<ApiAvailableReaction[]> {
   const userId = getPxgState().session?.user.id;
   const result = userId
-    ? await pxgRpc.call<AvailableReactionsDto | null>('reactions.available').catch(() => undefined)
+    ? await loadHashed<AvailableReactionsDto | null>(userId, 'reactions.available').catch(() => undefined)
     : undefined;
   if (!userId || !result?.reactions.length) return buildFallbackReactions();
   return result.reactions.map((reaction): ApiAvailableReaction => ({
@@ -161,7 +186,7 @@ export async function fetchAvailableReactions(): Promise<ApiAvailableReaction[]>
 export async function fetchAvailableEffects() {
   const userId = getPxgState().session?.user.id;
   const result = userId
-    ? await pxgRpc.call<{ accountId: string; effects: AvailableEffectDto[] } | null>('reactions.effects')
+    ? await loadHashed<{ accountId: string; effects: AvailableEffectDto[] } | null>(userId, 'reactions.effects')
       .catch(() => undefined)
     : undefined;
   if (!userId || !result) return undefined;
