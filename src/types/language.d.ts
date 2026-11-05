@@ -3785,6 +3785,12 @@ export interface LangPair {
   'PxgAdminPause': undefined;
   'PxgAdminResume': undefined;
   'PxgAdminDisconnect': undefined;
+  'PxgAdminKeepArchive': undefined;
+  'PxgAdminDeleteArchive': undefined;
+  'PxgAdminRestart': undefined;
+  'PxgAdminRestartPending': undefined;
+  'PxgAdminConnected': undefined;
+  'PxgAdminLastEvent': undefined;
   'PxgAdminGrant': undefined;
   'PxgAdminRetry': undefined;
   'PxgAdminCancel': undefined;
@@ -6285,6 +6291,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminDisconnectConfirm': {
     'name': V;
   };
+  'PxgAdminArchiveChoice': {
+    'name': V;
+  };
   'PxgAdminRevokeConfirm': {
     'name': V;
   };
@@ -7364,6 +7373,7 @@ export interface LangKeyGroups {
       | 'PxgAdminBlockConfirm'
       | 'PxgAdminEndSessionConfirm'
       | 'PxgAdminDisconnectConfirm'
+      | 'PxgAdminArchiveChoice'
       | 'PxgAdminRevokeConfirm'
       | 'PxgWriteAsOwner'
       | 'PxgOwnerTab'

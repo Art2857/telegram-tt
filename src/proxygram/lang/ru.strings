@@ -463,6 +463,13 @@
 "PxgAdminResume" = "Возобновить";
 "PxgAdminDisconnect" = "Отключить";
 "PxgAdminDisconnectConfirm" = "Отключить «{name}» от сервера? Серверная сессия будет завершена в Telegram.";
+"PxgAdminArchiveChoice" = "Отключить «{name}» и завершить серверную сессию в Telegram? Архив можно оставить для чтения или безвозвратно удалить вместе с файлами, доступами и настройками аккаунта.";
+"PxgAdminKeepArchive" = "Отключить и оставить архив";
+"PxgAdminDeleteArchive" = "Отключить и удалить архив";
+"PxgAdminRestart" = "Перезапустить";
+"PxgAdminRestartPending" = "Перезапуск запрошен";
+"PxgAdminConnected" = "Подключён";
+"PxgAdminLastEvent" = "Последнее изменение архива";
 "PxgAdminRevokeConfirm" = "Отозвать доступ у {name}?";
 "PxgAdminGrant" = "Выдать доступ";
 "PxgAdminRetry" = "Повторить";

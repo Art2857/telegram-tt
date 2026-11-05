@@ -4976,6 +4976,13 @@
 "PxgAdminResume" = "Resume";
 "PxgAdminDisconnect" = "Disconnect";
 "PxgAdminDisconnectConfirm" = "Disconnect «{name}» from the server? The server session will be ended in Telegram.";
+"PxgAdminArchiveChoice" = "Disconnect «{name}» and end its server session in Telegram? Keep its archive for reading, or permanently delete its archive, files, access and settings.";
+"PxgAdminKeepArchive" = "Disconnect and keep archive";
+"PxgAdminDeleteArchive" = "Disconnect and delete archive";
+"PxgAdminRestart" = "Restart";
+"PxgAdminRestartPending" = "Restart requested";
+"PxgAdminConnected" = "Connected";
+"PxgAdminLastEvent" = "Last archive update";
 "PxgAdminRevokeConfirm" = "Revoke access for {name}?";
 "PxgAdminGrant" = "Give access";
 "PxgAdminRetry" = "Retry";
