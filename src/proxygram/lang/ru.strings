@@ -375,6 +375,11 @@
 "PxgAdminTitle" = "Администрирование";
 "PxgAdminOverview" = "Обзор";
 "PxgAdminUsers" = "Пользователи";
+"PxgAdminUserCard" = "Карточка пользователя";
+"PxgAdminReceived" = "Полученные доступы";
+"PxgAdminGranted" = "Выданные доступы";
+"PxgAdminRegistered" = "Регистрация: {time}";
+"PxgAdminLastSeen" = "Последняя активность: {time}";
 "PxgAdminSessions" = "Сессии";
 "PxgAdminAccounts" = "Аккаунты";
 "PxgAdminShares" = "Доступы";

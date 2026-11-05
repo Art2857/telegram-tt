@@ -82,6 +82,17 @@ type UserRow = {
   online: boolean;
 };
 
+type UserDetails = {
+  user: Pick<UserRow,
+    'id' | 'tgUserId' | 'username' | 'firstName' | 'lastName' | 'role' | 'blockedAt' | 'lastSeenAt'
+  > & {
+    createdAt: string;
+  };
+  sessions: SessionRow[];
+  accounts: AccountRow[];
+  shares: ShareRow[];
+};
+
 type SessionRow = {
   id: string;
   level: 'guest' | 'client';
@@ -115,6 +126,8 @@ type ShareRow = {
   id: string;
   scope: 'chat' | 'topic' | 'folder';
   peerId: number | null;
+  folderId: number | null;
+  topicId: number | null;
   preset: string;
   historyMode: string;
   status: 'active' | 'paused' | 'revoked' | 'source_lost';
@@ -412,7 +425,23 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
 
 const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
   const [query, setQuery] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<string>();
   const { data, error } = useAdminData<UserRow[]>('admin.users', { query: query || undefined, limit: 200 }, topics);
+
+  if (selectedUserId) {
+    return (
+      <UserCard
+        key={selectedUserId}
+        userId={selectedUserId}
+        lang={lang}
+        ask={ask}
+        run={run}
+        selfId={selfId}
+        topics={topics}
+        onClose={() => setSelectedUserId(undefined)}
+      />
+    );
+  }
 
   return (
     <>
@@ -441,7 +470,9 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
                 <td>
                   <div className={styles.name}>
                     {user.online && <span className={styles.onlineDot} />}
-                    {[user.firstName, user.lastName].filter(Boolean).join(' ') || displayName(user)}
+                    <Button size="tiny" color="translucent" isText onClick={() => setSelectedUserId(user.id)}>
+                      {[user.firstName, user.lastName].filter(Boolean).join(' ') || displayName(user)}
+                    </Button>
                     {user.role === 'admin' && <Badge tone="blue">{lang('PxgRoleAdmin')}</Badge>}
                     {user.blockedAt && <Badge tone="red">{lang('PxgAdminBlocked')}</Badge>}
                   </div>
@@ -459,51 +490,14 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
                   {t(lang, 'PxgAdminAccessCounts', { in: user.sharesIn, out: user.sharesOut, accounts: user.accounts })}
                 </td>
                 <td className={styles.actions}>
-                  {user.sessions > 0 && (
-                    <Button
-                      size="tiny"
-                      color="translucent"
-                      isText
-                      onClick={() => ask(t(lang, 'PxgAdminKickConfirm', { name: displayName(user) }),
-                        lang('PxgAdminKick'), call('admin.users.revokeSessions', { userId: user.id }))}
-                    >
-                      {lang('PxgAdminKick')}
-                    </Button>
-                  )}
-                  {user.id !== selfId && (
-                    <>
-                      <Button
-                        size="tiny"
-                        color="translucent"
-                        isText
-                        onClick={() => void run(call('admin.users.setRole', {
-                          userId: user.id, role: user.role === 'admin' ? 'user' : 'admin',
-                        }))}
-                      >
-                        {user.role === 'admin' ? lang('PxgAdminRemoveAdmin') : lang('PxgAdminMakeAdmin')}
-                      </Button>
-                      {user.blockedAt ? (
-                        <Button
-                          size="tiny"
-                          color="translucent"
-                          isText
-                          onClick={() => void run(call('admin.users.setBlocked', { userId: user.id, blocked: false }))}
-                        >
-                          {lang('PxgAdminUnblock')}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="tiny"
-                          color="danger"
-                          isText
-                          onClick={() => ask(t(lang, 'PxgAdminBlockConfirm', { name: displayName(user) }),
-                            lang('PxgAdminBlock'), call('admin.users.setBlocked', { userId: user.id, blocked: true }))}
-                        >
-                          {lang('PxgAdminBlock')}
-                        </Button>
-                      )}
-                    </>
-                  )}
+                  <UserActions
+                    user={user}
+                    hasSessions={user.sessions > 0}
+                    lang={lang}
+                    ask={ask}
+                    run={run}
+                    selfId={selfId}
+                  />
                 </td>
               </tr>
             ))}
@@ -513,6 +507,231 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
     </>
   );
 });
+
+function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
+  user: Omit<UserDetails['user'], 'createdAt'>;
+  hasSessions: boolean;
+} & Pick<TabProps, 'lang' | 'ask' | 'run' | 'selfId'>) {
+  return (
+    <>
+      {hasSessions && (
+        <Button
+          size="tiny"
+          color="translucent"
+          isText
+          onClick={() => ask(t(lang, 'PxgAdminKickConfirm', { name: displayName(user) }),
+            lang('PxgAdminKick'), call('admin.users.revokeSessions', { userId: user.id }))}
+        >
+          {lang('PxgAdminKick')}
+        </Button>
+      )}
+      {user.id !== selfId && (
+        <>
+          <Button
+            size="tiny"
+            color="translucent"
+            isText
+            onClick={() => void run(call('admin.users.setRole', {
+              userId: user.id, role: user.role === 'admin' ? 'user' : 'admin',
+            }))}
+          >
+            {user.role === 'admin' ? lang('PxgAdminRemoveAdmin') : lang('PxgAdminMakeAdmin')}
+          </Button>
+          {user.blockedAt ? (
+            <Button
+              size="tiny"
+              color="translucent"
+              isText
+              onClick={() => void run(call('admin.users.setBlocked', { userId: user.id, blocked: false }))}
+            >
+              {lang('PxgAdminUnblock')}
+            </Button>
+          ) : (
+            <Button
+              size="tiny"
+              color="danger"
+              isText
+              onClick={() => ask(t(lang, 'PxgAdminBlockConfirm', { name: displayName(user) }),
+                lang('PxgAdminBlock'), call('admin.users.setBlocked', { userId: user.id, blocked: true }))}
+            >
+              {lang('PxgAdminBlock')}
+            </Button>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+/** Карточка не читает переписку: только устройства, аккаунты, доступы и журнал действий */
+const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
+  userId: string;
+  onClose: () => void;
+}) => {
+  const topics: AdminTopic[] = ['users', 'sessions', 'presence', 'accounts', 'shares', 'outbox'];
+  const { data, error } = useAdminData<UserDetails>('admin.user', { userId }, topics, SYSTEM_REFRESH_MS);
+  return (
+    <>
+      <div className={styles.filters}>
+        <Button size="smaller" color="translucent" iconName="arrow-left" fluid={false} onClick={onClose}>
+          {lang('Back')}
+        </Button>
+        <h3 className={styles.sectionTitle}>{lang('PxgAdminUserCard')}</h3>
+      </div>
+      {(!data || error) ? <Loading error={error} lang={lang} /> : (
+        <>
+          <h2>{[data.user.firstName, data.user.lastName].filter(Boolean).join(' ') || displayName(data.user)}</h2>
+          <div className={styles.filters}>
+            {data.user.role === 'admin' && <Badge tone="blue">{lang('PxgRoleAdmin')}</Badge>}
+            {data.user.blockedAt && <Badge tone="red">{lang('PxgAdminBlocked')}</Badge>}
+            {data.sessions.some((session) => session.online) && <Badge tone="green">{lang('PxgAdminOnline')}</Badge>}
+            {data.user.username && <span>{`@${data.user.username}`}</span>}
+            <code>{data.user.tgUserId}</code>
+          </div>
+          <div className={buildClassName(styles.secondary, styles.details)}>{data.user.id}</div>
+          <p className={styles.secondary}>
+            {t(lang, 'PxgAdminRegistered', { time: formatDateTime(data.user.createdAt) })}
+            {' · '}
+            {t(lang, 'PxgAdminLastSeen', { time: formatDateTime(data.user.lastSeenAt) })}
+          </p>
+          <div className={styles.filters}>
+            <UserActions
+              user={data.user}
+              hasSessions={data.sessions.length > 0}
+              lang={lang}
+              ask={ask}
+              run={run}
+              selfId={selfId}
+            />
+          </div>
+
+          <h3 className={styles.sectionTitle}>{lang('PxgAdminSessions')}</h3>
+          {data.sessions.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
+            <div className={buildClassName(styles.stats, styles.userCards)}>
+              {data.sessions.map((session) => (
+                <div className={styles.stat} key={session.id}>
+                  <div className={styles.name}>
+                    {session.online && <span className={styles.onlineDot} />}
+                    {session.deviceName || session.platform || '—'}
+                  </div>
+                  <LevelBadge level={session.level} lang={lang} />
+                  <div className={styles.secondary}>
+                    {session.platform}
+                    {' '}
+                    ·
+                    {' '}
+                    {session.ip ?? '—'}
+                  </div>
+                  <div className={styles.secondary}>
+                    {t(lang, 'PxgAdminSince', { time: formatDateTime(session.createdAt) })}
+                  </div>
+                  <div className={styles.secondary}>{formatDateTime(session.lastActiveAt)}</div>
+                  {session.chat && (
+                    <div className={styles.secondary}>
+                      {lang('PxgAdminColChat')}
+                      :
+                      {' '}
+                      {session.chat.peerId}
+                    </div>
+                  )}
+                  <Button
+                    size="tiny"
+                    color="danger"
+                    isText
+                    onClick={() => ask(t(lang, 'PxgAdminEndSessionConfirm', { name: displayName(data.user) }),
+                      lang('PxgAdminEndSession'), call('admin.sessions.revoke', { sessionId: session.id }))}
+                  >
+                    {lang('PxgAdminEndSession')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <h3 className={styles.sectionTitle}>{lang('PxgAdminAccounts')}</h3>
+          {data.accounts.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
+            <div className={buildClassName(styles.stats, styles.userCards)}>
+              {data.accounts.map((account) => (
+                <div className={styles.stat} key={account.id}>
+                  <span className={styles.name}>{account.displayName ?? account.tgUserId}</span>
+                  <Badge tone={ACCOUNT_STATUS[account.status]?.tone}>
+                    {t(lang, ACCOUNT_STATUS[account.status]?.key ?? account.status)}
+                  </Badge>
+                  <div className={buildClassName(styles.secondary, styles.details)}>{account.id}</div>
+                  <div className={styles.secondary}>{t(lang, 'PxgAdminMessages', { count: account.messages })}</div>
+                  <div className={styles.secondary}>{formatDateTime(account.connectedAt)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <UserShares
+            title={lang('PxgAdminReceived')}
+            shares={data.shares.filter((share) => share.grantee?.id === userId)}
+            lang={lang}
+          />
+          <UserShares
+            title={lang('PxgAdminGranted')}
+            shares={data.shares.filter((share) => share.grantor?.id === userId)}
+            lang={lang}
+          />
+          <h3 className={styles.sectionTitle}>{lang('PxgAdminAudit')}</h3>
+          <AuditTab lang={lang} ask={ask} run={run} selfId={selfId} topics={topics} actorUserId={userId} />
+        </>
+      )}
+    </>
+  );
+});
+
+function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]; lang: TabProps['lang'] }) {
+  return (
+    <>
+      <h3 className={styles.sectionTitle}>{title}</h3>
+      {shares.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>{lang('PxgAdminColChat')}</th>
+              <th>{lang('PxgAdminColWho')}</th>
+              <th>{lang('PxgAdminColPermissions')}</th>
+              <th>{lang('PxgAdminColStatus')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shares.map((share) => (
+              <tr key={share.id}>
+                <td>
+                  {share.peerTitle ?? share.peerId ?? t(lang, 'PxgSettingsFolder', { id: share.folderId ?? '—' })}
+                  <div className={styles.secondary}>{share.account.displayName}</div>
+                  {Boolean(share.topicId) && (
+                    <div className={styles.secondary}>
+                      {lang('PxgAttributionTopic')}
+                      :
+                      {' '}
+                      {share.topicId}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {displayName(share.grantor)}
+                  {' '}
+                  →
+                  {' '}
+                  {displayName(share.grantee)}
+                </td>
+                <td>{t(lang, `PxgPreset${share.preset[0].toUpperCase()}${share.preset.slice(1)}`)}</td>
+                <td>
+                  <Badge tone={SHARE_STATUS[share.status].tone}>{t(lang, SHARE_STATUS[share.status].key)}</Badge>
+                  {share.expiresAt && <div className={styles.secondary}>{formatDateTime(share.expiresAt)}</div>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
 
 // ─── Сессии ─────────────────────────────────────────────────────────────────
 
@@ -805,7 +1024,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
 
 // ─── Журнал и очередь ───────────────────────────────────────────────────────
 
-const AuditTab = memo(({ lang, topics }: TabProps) => {
+const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?: string }) => {
   const [action, setAction] = useState('');
   const [peer, setPeer] = useState('');
   const [from, setFrom] = useState('');
@@ -814,6 +1033,7 @@ const AuditTab = memo(({ lang, topics }: TabProps) => {
   const peerId = /^-?\d+$/.test(peer.trim()) && Number.isSafeInteger(peerNumber) ? peerNumber : undefined;
   const { data, error } = useAdminData<AuditRow[]>('admin.audit', {
     limit: 200,
+    actorUserId,
     action: action.trim() || undefined,
     peerId,
     from: parseAuditDate(from),

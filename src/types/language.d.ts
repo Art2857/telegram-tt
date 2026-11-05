@@ -3714,6 +3714,9 @@ export interface LangPair {
   'PxgAdminTitle': undefined;
   'PxgAdminOverview': undefined;
   'PxgAdminUsers': undefined;
+  'PxgAdminUserCard': undefined;
+  'PxgAdminReceived': undefined;
+  'PxgAdminGranted': undefined;
   'PxgAdminSessions': undefined;
   'PxgAdminAccounts': undefined;
   'PxgAdminShares': undefined;
@@ -6227,6 +6230,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareViaFolder': {
     'title': V;
   };
+  'PxgAdminRegistered': {
+    'time': V;
+  };
+  'PxgAdminLastSeen': {
+    'time': V;
+  };
   'PxgAdminWarnAccounts': {
     'count': V;
   };
@@ -7404,6 +7413,8 @@ export interface LangKeyGroups {
       | 'LiveLocationUpdatedYesterdayAt'
       | 'PxgDeletedAt'
       | 'PxgSettingsLastEvent'
+      | 'PxgAdminRegistered'
+      | 'PxgAdminLastSeen'
       | 'PxgAdminSince';
     variables: 'time';
   };

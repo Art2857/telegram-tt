@@ -4888,6 +4888,11 @@
 "PxgAdminTitle" = "Administration";
 "PxgAdminOverview" = "Overview";
 "PxgAdminUsers" = "Users";
+"PxgAdminUserCard" = "User details";
+"PxgAdminReceived" = "Received access";
+"PxgAdminGranted" = "Granted access";
+"PxgAdminRegistered" = "Registered: {time}";
+"PxgAdminLastSeen" = "Last active: {time}";
 "PxgAdminSessions" = "Sessions";
 "PxgAdminAccounts" = "Accounts";
 "PxgAdminShares" = "Access";
