@@ -2,6 +2,9 @@
   "identifier": "default",
   "description": "Permissions available to Proxygram app content",
   "local": true,
+  "remote": {
+    "urls": ["https://proxygram.azhuleev.ru/*"]
+  },
   "webviews": ["*"],
   "permissions": [
     "allow-mark-title-bar-overlay",
@@ -13,6 +16,7 @@
     "core:event:default",
     "core:window:allow-is-fullscreen",
     "core:window:allow-start-dragging",
+    "deep-link:allow-get-current",
     "process:default",
     "updater:default",
     "notification:allow-is-permission-granted",

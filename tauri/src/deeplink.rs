@@ -20,10 +20,12 @@ impl Deeplink {
       info!("Deep link received: {:?}", urls);
 
       // Get the main window
-      if let Some(window) = app_handle.get_webview_window("main") {
+      if let Some(window) = app_handle.webview_windows().values().next() {
         // Emit the deep link event to the frontend
-        if let Err(err) = window.emit("deeplink", &urls) {
-          info!("Error emitting deeplink event: {:?}", err);
+        for url in urls {
+          if let Err(err) = window.emit("deeplink", url.as_str()) {
+            info!("Error emitting deeplink event: {:?}", err);
+          }
         }
 
         // Request user attention and focus the window

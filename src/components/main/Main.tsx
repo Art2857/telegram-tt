@@ -461,9 +461,8 @@ const Main = ({
     }
   }, [isSynced]);
 
-  useTauriEvent<string>('deeplink', (event) => {
+  const handleDesktopDeepLink = useLastCallback((url: string) => {
     try {
-      const url = event.payload || '';
       // PXG: The desktop app owns `proxygram://` so it never takes over `tg://` links from Telegram Desktop
       const decodedUrl = decodeURIComponent(url).replace(/^proxygram:/, 'tg:');
       processDeepLink(decodedUrl, { type: 'inner' });
@@ -474,6 +473,21 @@ const Main = ({
       }
     }
   });
+
+  useTauriEvent<string>('deeplink', (event) => handleDesktopDeepLink(event.payload));
+
+  // PXG: The OS can launch the app with a link before the web client subscribes to events
+  useEffect(() => {
+    if (!IS_TAURI || !isSynced) return;
+    let isActive = true;
+    void import('@tauri-apps/api/core').then(({ invoke }) => invoke<string[] | null>('plugin:deep-link|get_current'))
+      .then((urls) => {
+        if (isActive) urls?.forEach(handleDesktopDeepLink);
+      }).catch(() => undefined);
+    return () => {
+      isActive = false;
+    };
+  }, [isSynced]);
 
   useEffect(() => {
     const parsedLocationHash = parseLocationHash(currentUserId);

@@ -72,7 +72,8 @@ pub const DEFAULT_WINDOW_TITLE: &str = match std::option_env!("APP_TITLE") {
 
 pub const BASE_URL: &str = match std::option_env!("BASE_URL") {
   Some(url) => url,
-  None => "http://localhost:1234",
+  None if cfg!(debug_assertions) => "http://localhost:1234",
+  None => "https://proxygram.azhuleev.ru",
 };
 
 /// Passed by the system autostart entry: the app starts in the tray without a window
@@ -109,6 +110,8 @@ pub fn run() {
       let active_windows = app.windows();
       if active_windows.len() >= 1 {
         let window = active_windows.values().next().unwrap();
+        window.show().unwrap_or_default();
+        window.unminimize().unwrap_or_default();
         window.set_focus().unwrap_or_default();
       } else {
         open_new_window(app.clone(), BASE_URL.to_string()).unwrap();
