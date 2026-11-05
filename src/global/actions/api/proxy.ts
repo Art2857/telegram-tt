@@ -1,5 +1,5 @@
 import type { ApiChat } from '../../../api/types';
-import type { ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
+import type { AccessChat, ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
 import type { ActionReturnType } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { MAIN_THREAD_ID } from '../../../api/types';
@@ -11,8 +11,10 @@ import { buildCollectionByKey } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
 import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
-import { emitProxyUpdate, getProxyPeerId, isProxyGuest, setProxyUpdateHandler } from '../../../api/proxy';
-import { buildProxyUser } from '../../../api/proxy/builders';
+import {
+  emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer, setProxyUpdateHandler,
+} from '../../../api/proxy';
+import { buildProxyChat, buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
 import { buildProxyReadStates, fetchProxyChats } from '../../../api/proxy/methods';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
@@ -36,6 +38,51 @@ import { selectDraft } from '../../selectors/threads';
 import { initSharedState } from '../../shared/sharedStateConnector';
 
 let loadGeneration = 0;
+let mentionGeneration = 0;
+
+/** Упоминание открывает только доступный чат, в первую очередь — у владельца исходного сообщения */
+addActionHandler('openProxyMention', async (global, actions, payload): Promise<void> => {
+  const { chatId, userId, username, tabId = getCurrentTabId() } = payload;
+  const sessionUserId = getPxgState().session?.user.id;
+  const mentionedPeer = userId ? resolveProxyPeer(userId) : undefined;
+  const normalizedUsername = username?.replace(/^@/, '').toLowerCase();
+  if (!sessionUserId) return;
+  if (!mentionedPeer && !normalizedUsername) {
+    actions.showNotification({ message: { key: 'PxgChatNotShared' }, tabId });
+    return;
+  }
+  const accountId = (chatId && resolveProxyPeer(chatId)?.accountId) || mentionedPeer?.accountId;
+  const generation = ++mentionGeneration;
+  try {
+    const access = await pxgRpc.call<AccessChat[]>('access.chats');
+    if (generation !== mentionGeneration || sessionUserId !== getPxgState().session?.user.id) return;
+    const matches = access.filter((chat) => (
+      mentionedPeer ? chat.peerId === mentionedPeer.peerId
+        : [chat.username, ...chat.info?.usernames || []].some((name) => name?.toLowerCase() === normalizedUsername)
+    ));
+    const target = matches.find((chat) => chat.accountId === accountId) || matches[0];
+    if (!target) {
+      actions.showNotification({ message: { key: 'PxgChatNotShared' }, tabId });
+      return;
+    }
+    const chat = buildProxyChat(target);
+    global = getGlobal();
+    global = updateChats(global, { [chat.id]: chat });
+    if (target.peerId > 0) {
+      const user = buildProxyUser(target.accountId, target.peerId,
+        target.title || target.username || undefined, target.photoId, target.badges);
+      user.usernames = chat.usernames;
+      user.hasUsername = chat.hasUsername;
+      global = updateUsers(global, { [user.id]: user });
+    }
+    setGlobal(global);
+    actions.openChat({ id: chat.id, tabId });
+  } catch {
+    if (generation === mentionGeneration && sessionUserId === getPxgState().session?.user.id) {
+      actions.showNotification({ message: { key: 'PxgErrorNetwork' }, tabId });
+    }
+  }
+});
 
 addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
   const { session } = getPxgState();

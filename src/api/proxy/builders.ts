@@ -40,6 +40,7 @@ export function buildProxyAuthorChat(
 }
 
 export function buildProxyChat(chat: AccessChat): ApiChat {
+  const usernames = chat.info?.usernames?.length ? chat.info.usernames : chat.username ? [chat.username] : undefined;
   return {
     id: getProxyPeerId(chat.accountId, chat.peerId),
     type: chat.peerId > 0 ? 'chatTypePrivate'
@@ -53,8 +54,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     isLinkedInDiscussion: chat.hasLinkedChat || undefined,
     ...buildProxyBadges(chat.accountId, chat.badges),
     membersCount: chat.info?.participantsCount,
-    usernames: chat.info?.usernames?.map((username) => ({ username, isActive: true })),
-    hasUsername: Boolean(chat.info?.usernames?.length) || undefined,
+    usernames: usernames?.map((username) => ({ username, isActive: true })),
+    hasUsername: Boolean(usernames?.length) || undefined,
     ...buildProxyAdminRights(chat),
     currentUserBannedRights: {
       sendReactions: chat.permissions.react ? undefined : true,

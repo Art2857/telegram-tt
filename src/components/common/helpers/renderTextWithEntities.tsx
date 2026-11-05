@@ -574,13 +574,13 @@ function processEntity({
       return <em data-entity-type={entity.type}>{renderNestedMessagePart()}</em>;
     case ApiMessageEntityTypes.MentionName:
       return (
-        <MentionLink userId={entity.userId}>
+        <MentionLink userId={entity.userId} chatId={chatId}>
           {renderNestedMessagePart()}
         </MentionLink>
       );
     case ApiMessageEntityTypes.Mention:
       return (
-        <MentionLink username={entityText}>
+        <MentionLink username={entityText} chatId={chatId}>
           {renderNestedMessagePart()}
         </MentionLink>
       );

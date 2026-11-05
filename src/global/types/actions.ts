@@ -146,6 +146,7 @@ export interface ActionPayloads {
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   openProxyChatOwner: { chatId: string } & WithTabId;
+  openProxyMention: { chatId?: string; userId?: string; username?: string } & WithTabId;
   applyProxyTyping: ChatTypingDto;
   refreshProxyUnread: { accountId: string; peerId: number; topicId: number | null };
   applyProxyChatState: ChatStateDto;
