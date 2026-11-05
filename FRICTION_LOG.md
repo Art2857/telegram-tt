@@ -31,3 +31,7 @@ Contributors wanting special elements must work within these representations or 
 ## Generated icon files change line endings on Windows
 
 After updating icon sources on Windows, generated [`icons.scss`](src/styles/icons.scss) and [`preview.html`](src/styles/icons/preview.html) can contain CRLF despite their LF attributes in [`.gitattributes`](.gitattributes). This produces modified-file status and Git line-ending warnings even when their normalized content hashes match `HEAD` and `git diff` contains no content changes. [`vite.config.ts`](vite.config.ts) reruns [`buildIcons.ts`](dev/buildIcons.ts) when `src/assets/font-icons` changes, so merging upstream icon updates with the development server running can trigger this noise. The generator does not explicitly normalize these template outputs to LF; the exact source of CRLF emission still needs investigation.
+
+## Параллельные тесты сервера и клиента используют общий кэш Vitest
+
+При одновременном запуске тестов сервера из корня и `npm test` клиента на Windows клиент может упасть до начала тестов с `ENOTEMPTY` при удалении корневого `node_modules/.vitest-cache`. Повторный запуск клиента проходит. Репозитории используют разные установки Vitest, но ошибка указывает на один каталог кэша. Причину совместного использования и удаления кэша надо исследовать; последовательный запуск устраняет наблюдавшийся сбой.

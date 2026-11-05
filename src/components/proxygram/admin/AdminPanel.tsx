@@ -1,9 +1,10 @@
 import type { TeactNode } from '../../../lib/teact/teact';
-import { memo, useCallback, useEffect, useState } from '../../../lib/teact/teact';
+import { memo, useEffect, useState } from '../../../lib/teact/teact';
 
 import type { AdminTopic, ImportStateDto } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
+import { formatTimeDuration } from '../../../util/dates/duration';
 import { formatFileSize } from '../../../util/textFormat';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
@@ -30,6 +31,26 @@ type Overview = {
   outbox: Partial<Record<string, number>>;
   archive: { messagesEstimate: number; messagesLastDay: number };
   storage: { mediaBytes: number; disk: { totalBytes: number; freeBytes: number } | null };
+  staleLeases: number;
+};
+
+type SystemInfo = {
+  version: string | null;
+  node: string;
+  startedAt: string;
+  uptimeSeconds: number;
+  migrations: number | null;
+  workers: { workerId: string | null; accounts: number; leaseUntil: string | null; stale: number }[];
+  vpn: {
+    isReachable: boolean;
+    isHealthy?: boolean;
+    active?: string | null;
+    lastSweepAt?: string | null;
+    total?: number;
+    answering?: number;
+    activeRttMs?: number | null;
+    switches?: { at: string; from?: string; to: string; reason: string }[];
+  } | null;
 };
 
 type PresenceRow = {
@@ -38,6 +59,8 @@ type PresenceRow = {
   level: 'guest' | 'client';
   ip: string | null;
   connectedAt: string;
+  device: string | null;
+  platform: string | null;
   user: Person;
   chat: { accountId: string; peerId: number; since: string; title: string | null; accountName: string | null } | null;
 };
@@ -119,6 +142,7 @@ type Confirm = { text: string; label: string; action: () => Promise<unknown> };
 
 /** PLAN.md 13: the admin is warned before the storage disk runs out */
 const DISK_WARNING_PERCENT = 80;
+const SYSTEM_REFRESH_MS = 15000;
 
 const TABS = [
   { key: 'overview', title: 'PxgAdminOverview' },
@@ -128,6 +152,7 @@ const TABS = [
   { key: 'shares', title: 'PxgAdminShares' },
   { key: 'audit', title: 'PxgAdminAudit' },
   { key: 'outbox', title: 'PxgAdminQueue' },
+  { key: 'system', title: 'PxgAdminSystem' },
 ] as const;
 
 /** Какие события перерисовывают какую вкладку */
@@ -139,32 +164,47 @@ const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   shares: ['shares'],
   audit: ['users', 'sessions', 'accounts', 'shares', 'outbox'],
   outbox: ['outbox'],
+  system: ['accounts'],
 };
 
 /** Загрузка раздела админки с живым обновлением по событию admin.changed */
-function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[]) {
+function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
   const [data, setData] = useState<T>();
   const [error, setError] = useState<unknown>();
   const paramsKey = JSON.stringify(params);
-
-  const reload = useCallback(() => {
-    pxgRpc.call<T>(method, JSON.parse(paramsKey))
-      .then((result) => {
-        setData(result);
-        setError(undefined);
-      })
-      .catch(setError);
-  }, [method, paramsKey]);
+  const topicsKey = JSON.stringify(topics);
 
   useEffect(() => {
-    reload();
-    return pxgRpc.on((event) => {
-      if (event.e === 'admin.changed' && event.d.topics.some((topic) => topics.includes(topic))) reload();
-    });
-    // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
-  }, [reload]);
+    let isActive = true;
+    let requestId = 0;
 
-  return { data, error, reload };
+    function reload() {
+      const currentId = ++requestId;
+      pxgRpc.call<T>(method, JSON.parse(paramsKey))
+        .then((result) => {
+          if (!isActive || currentId !== requestId) return;
+          setData(result);
+          setError(undefined);
+        })
+        .catch((err) => {
+          if (isActive && currentId === requestId) setError(err);
+        });
+    }
+
+    reload();
+    const subscribedTopics = JSON.parse(topicsKey) as AdminTopic[];
+    const unsubscribe = pxgRpc.on((event) => {
+      if (event.e === 'admin.changed' && event.d.topics.some((topic) => subscribedTopics.includes(topic))) reload();
+    });
+    const timer = refreshMs ? window.setInterval(reload, refreshMs) : undefined;
+    return () => {
+      isActive = false;
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+  }, [method, paramsKey, topicsKey, refreshMs]);
+
+  return { data, error };
 }
 
 /** Админка (PLAN.md, 7.15): только метаданные — кто, какой чат, когда; не переписка */
@@ -214,6 +254,7 @@ const AdminPanel = () => {
         {tabKey === 'shares' && <SharesTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'outbox' && <OutboxTab {...props} />}
+        {tabKey === 'system' && <SystemTab {...props} />}
       </div>
       <ConfirmDialog
         isOpen={Boolean(confirm)}
@@ -282,7 +323,7 @@ const t = (lang: TabProps['lang'], key: string, vars?: Record<string, string | n
 // ─── Обзор ──────────────────────────────────────────────────────────────────
 
 const OverviewTab = memo(({ lang, topics }: TabProps) => {
-  const { data, error } = useAdminData<Overview>('admin.overview', {}, topics);
+  const { data, error } = useAdminData<Overview>('admin.overview', {}, topics, SYSTEM_REFRESH_MS);
   const presence = useAdminData<PresenceRow[]>('admin.presence', {}, ['presence']);
 
   if (!data) return <Loading error={error} lang={lang} />;
@@ -308,8 +349,9 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
 
   return (
     <>
-      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0 || isDiskFull) && (
+      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0 || isDiskFull || data.staleLeases > 0) && (
         <div className={styles.warning}>
+          {data.staleLeases > 0 && <div>{t(lang, 'PxgAdminWarnLease', { count: data.staleLeases })}</div>}
           {isDiskFull && <div>{t(lang, 'PxgAdminWarnDisk', { percent: diskPercent })}</div>}
           {brokenAccounts > 0 && <div>{t(lang, 'PxgAdminWarnAccounts', { count: brokenAccounts })}</div>}
           {(data.outbox.failed ?? 0) > 0 && (
@@ -325,6 +367,11 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
           </div>
         ))}
       </div>
+      <div className={styles.accountStatuses}>
+        {Object.entries(ACCOUNT_STATUS).map(([status, { key, tone }]) => (
+          <Badge key={status} tone={tone}>{`${t(lang, key)}: ${data.accounts[status] ?? 0}`}</Badge>
+        ))}
+      </div>
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminReadingNow')}</h3>
       {reading.length === 0 ? (
@@ -336,6 +383,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
               <th>{lang('PxgAdminColWho')}</th>
               <th>{lang('PxgAdminColChat')}</th>
               <th>{lang('PxgAdminColAccount')}</th>
+              <th>{lang('PxgAdminColDevice')}</th>
               <th>{lang('PxgAdminColSince')}</th>
             </tr>
           </thead>
@@ -349,6 +397,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
                 </td>
                 <td>{row.chat?.title ?? row.chat?.peerId}</td>
                 <td>{row.chat?.accountName ?? '—'}</td>
+                <td>{[row.device, row.platform].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{formatDateTime(row.chat?.since)}</td>
               </tr>
             ))}
@@ -758,9 +807,18 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
 
 const AuditTab = memo(({ lang, topics }: TabProps) => {
   const [action, setAction] = useState('');
-  const { data, error } = useAdminData<AuditRow[]>(
-    'admin.audit', { limit: 200, action: action.trim() || undefined }, topics,
-  );
+  const [peer, setPeer] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const peerNumber = Number(peer.trim());
+  const peerId = /^-?\d+$/.test(peer.trim()) && Number.isSafeInteger(peerNumber) ? peerNumber : undefined;
+  const { data, error } = useAdminData<AuditRow[]>('admin.audit', {
+    limit: 200,
+    action: action.trim() || undefined,
+    peerId,
+    from: parseAuditDate(from),
+    to: parseAuditDate(to, true),
+  }, topics);
 
   return (
     <>
@@ -770,6 +828,17 @@ const AuditTab = memo(({ lang, topics }: TabProps) => {
         value={action}
         onChange={(e) => setAction(e.target.value)}
       />
+      <div className={styles.auditFilters}>
+        <InputText label={lang('PxgAdminAuditChat')} value={peer} onChange={(e) => setPeer(e.target.value)} />
+        <label className={styles.dateFilter}>
+          {lang('PxgAdminAuditFrom')}
+          <input className={styles.dateInput} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className={styles.dateFilter}>
+          {lang('PxgAdminAuditTo')}
+          <input className={styles.dateInput} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+      </div>
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
       ) : (
@@ -793,6 +862,112 @@ const AuditTab = memo(({ lang, topics }: TabProps) => {
             ))}
           </tbody>
         </table>
+      )}
+    </>
+  );
+});
+
+// ─── Система ────────────────────────────────────────────────────────────────
+
+function parseAuditDate(value: string, isEndOfDay?: boolean) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T00:00:00`);
+  if (!Number.isFinite(date.getTime())) return undefined;
+  if (isEndOfDay) date.setDate(date.getDate() + 1);
+  return new Date(date.getTime() - (isEndOfDay ? 1 : 0)).toISOString();
+}
+
+const SystemTab = memo(({ lang, topics }: TabProps) => {
+  const { data, error } = useAdminData<SystemInfo>('admin.system', {}, topics, SYSTEM_REFRESH_MS);
+  if (!data) return <Loading error={error} lang={lang} />;
+  const { vpn } = data;
+
+  return (
+    <>
+      <div className={styles.stats}>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? '—'}</span>
+          <span className={styles.statLabel}>{lang('PxgAdminVersion')}</span>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>
+            {formatTimeDuration(lang, data.uptimeSeconds) ?? '—'}
+          </span>
+          <span className={styles.statLabel}>{lang('PxgAdminUptime')}</span>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>{data.node}</span>
+          <span className={styles.statLabel}>Node.js</span>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>{data.migrations ?? '—'}</span>
+          <span className={styles.statLabel}>{lang('PxgAdminMigrations')}</span>
+        </div>
+      </div>
+
+      <h3 className={styles.sectionTitle}>{lang('PxgAdminWorkers')}</h3>
+      {data.workers.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>{lang('PxgAdminWorker')}</th>
+              <th>{lang('PxgAdminAccounts')}</th>
+              <th>{lang('PxgAdminLease')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.workers.map((worker) => (
+              <tr key={worker.workerId ?? 'none'}>
+                <td><code>{worker.workerId ?? '—'}</code></td>
+                <td>{worker.accounts}</td>
+                <td>
+                  {formatDateTime(worker.leaseUntil ?? undefined)}
+                  {' '}
+                  {worker.stale > 0 && <Badge tone="red">{lang('PxgAdminLeaseStale')}</Badge>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {vpn && (
+        <>
+          <h3 className={styles.sectionTitle}>{lang('PxgAdminVpn')}</h3>
+          {!vpn.isReachable ? <p className={styles.empty}>{lang('PxgAdminVpnUnreachable')}</p> : (
+            <>
+              <p>
+                <Badge tone={vpn.isHealthy ? 'green' : 'red'}>
+                  {lang(vpn.isHealthy ? 'PxgAdminVpnHealthy' : 'PxgAdminVpnDown')}
+                </Badge>
+                {' '}
+                {vpn.active ?? '—'}
+                {vpn.activeRttMs ? ` · ${vpn.activeRttMs} ms` : ''}
+                {` · ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
+              </p>
+              {Boolean(vpn.switches?.length) && (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>{lang('PxgAdminColTime')}</th>
+                      <th>{lang('PxgAdminVpnSwitch')}</th>
+                      <th>{lang('PxgAdminColDetails')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vpn.switches.map((item) => (
+                      <tr key={item.at}>
+                        <td className={styles.nowrap}>{formatDateTime(item.at)}</td>
+                        <td>{[item.from, item.to].filter(Boolean).join(' → ')}</td>
+                        <td className={styles.details}>{item.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </>
       )}
     </>
   );

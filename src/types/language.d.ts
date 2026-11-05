@@ -3725,6 +3725,22 @@ export interface LangPair {
   'PxgAdminStatShares': undefined;
   'PxgAdminStatArchive': undefined;
   'PxgAdminStatQueue': undefined;
+  'PxgAdminSystem': undefined;
+  'PxgAdminAuditChat': undefined;
+  'PxgAdminAuditFrom': undefined;
+  'PxgAdminAuditTo': undefined;
+  'PxgAdminVersion': undefined;
+  'PxgAdminUptime': undefined;
+  'PxgAdminMigrations': undefined;
+  'PxgAdminWorkers': undefined;
+  'PxgAdminWorker': undefined;
+  'PxgAdminLease': undefined;
+  'PxgAdminLeaseStale': undefined;
+  'PxgAdminVpn': undefined;
+  'PxgAdminVpnUnreachable': undefined;
+  'PxgAdminVpnHealthy': undefined;
+  'PxgAdminVpnDown': undefined;
+  'PxgAdminVpnSwitch': undefined;
   'PxgAdminColWho': undefined;
   'PxgAdminColChat': undefined;
   'PxgAdminColAccount': undefined;
@@ -6207,6 +6223,13 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminWarnAccounts': {
     'count': V;
   };
+  'PxgAdminWarnLease': {
+    'count': V;
+  };
+  'PxgAdminVpnNodes': {
+    'answering': V;
+    'total': V;
+  };
   'PxgAdminWarnQueue': {
     'count': V;
   };
@@ -7547,6 +7570,7 @@ export interface LangKeyGroups {
       | 'PxgAuditMassDelete'
       | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
+      | 'PxgAdminWarnLease'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
       | 'PxgAdminMessages';
@@ -8642,6 +8666,11 @@ export interface LangKeyGroups {
     keys:
       | 'PxgConnectFailed';
     variables: 'reason';
+  };
+  'answering,total': {
+    keys:
+      | 'PxgAdminVpnNodes';
+    variables: 'answering' | 'total';
   };
   'accounts,in,out': {
     keys:
