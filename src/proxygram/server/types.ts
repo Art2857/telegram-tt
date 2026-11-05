@@ -464,6 +464,16 @@ export interface AttributionDto {
   msgId: number;
   userId: string;
   name: string;
+  tgUserId?: number;
+  username?: string | null;
+  date?: string;
+  share?: {
+    id: string;
+    scope: 'chat' | 'topic' | 'folder';
+    label: string | null;
+    topicId: number | null;
+    folderId: number | null;
+  } | null;
 }
 
 export interface CatalogDocumentDto {

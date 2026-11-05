@@ -808,6 +808,7 @@ export interface ApiMessage {
   pxgSentByUserId?: string;
   // PXG: имя гостя, отправившего исходящее владельца через прокси (оверлей полного клиента)
   pxgSentByName?: string;
+  pxgSentByTgUserId?: string;
   pxgIsOwn?: boolean;
   pxgPermissions?: Permissions;
   pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; size?: number; attachmentKind?: AttachmentKind };

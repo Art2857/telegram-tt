@@ -105,10 +105,13 @@ export function insertTombstones<T extends GlobalState>(
 
 /** «✍ Имя» у исходящих владельца, которые отправил гость; сообщения, которых нет в ленте, пропускаются */
 export function applyAttribution<T extends GlobalState>(global: T, chatId: string, entries: AttributionDto[]): T {
-  entries.forEach(({ msgId, userId, name }) => {
+  entries.forEach(({ msgId, userId, name, tgUserId }) => {
     const message = selectChatMessage(global, chatId, msgId);
-    if (!message || message.pxgSentByName === name) return;
-    global = updateChatMessage(global, chatId, msgId, { pxgSentByUserId: userId, pxgSentByName: name });
+    const guestId = tgUserId === undefined ? undefined : String(tgUserId);
+    if (!message || (message.pxgSentByName === name && message.pxgSentByTgUserId === guestId)) return;
+    global = updateChatMessage(global, chatId, msgId, {
+      pxgSentByUserId: userId, pxgSentByName: name, pxgSentByTgUserId: guestId,
+    });
   });
   return global;
 }

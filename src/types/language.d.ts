@@ -3545,6 +3545,13 @@ export interface LangPair {
   'PxgAuditFilterChat': undefined;
   'PxgAuditFilterAllChats': undefined;
   'PxgSentByYou': undefined;
+  'PxgAttributionTitle': undefined;
+  'PxgAttributionSentAt': undefined;
+  'PxgAttributionAccess': undefined;
+  'PxgAttributionUnknownAccess': undefined;
+  'PxgAttributionChat': undefined;
+  'PxgAttributionTopic': undefined;
+  'PxgAttributionFolder': undefined;
   'PxgAuditPurge': undefined;
   'PxgAuditPin': undefined;
   'PxgAuditAdmin': undefined;

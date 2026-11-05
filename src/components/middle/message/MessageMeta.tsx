@@ -26,6 +26,7 @@ import useLastCallback from '../../../hooks/useLastCallback';
 import AnimatedCounter from '../../common/AnimatedCounter';
 import Icon from '../../common/icons/Icon';
 import MessageOutgoingStatus from '../../common/MessageOutgoingStatus';
+import DelegatedMark from '../../proxygram/DelegatedMark';
 import DeletedMark from '../../proxygram/DeletedMark';
 import EditHistoryModal from '../../proxygram/EditHistoryModal';
 
@@ -187,11 +188,7 @@ const MessageMeta = ({
         onClick={onClick}
         data-ignore-on-paste
       >
-        {message.pxgSentByUserId && (
-          <span className="message-delegated" title={lang('PxgGuestSentByGuest')}>
-            {message.pxgIsOwn ? `✍ ${lang('PxgSentByYou')} ` : `✍ ${message.pxgSentByName ?? ''} `}
-          </span>
-        )}
+        {message.pxgSentByUserId && <DelegatedMark message={message} />}
         {effectEmoji && (
           <span className="message-effect-icon" onClick={onEffectClick}>
             {renderText(effectEmoji)}

@@ -1,0 +1,44 @@
+.mark {
+  display: inline-flex;
+  gap: 0.1875rem;
+  align-items: center;
+
+  margin-inline-end: 0.25rem;
+  padding: 0;
+  border: 0;
+
+  font: inherit;
+  font-size: 0.75rem;
+  color: inherit;
+  white-space: nowrap;
+
+  background: transparent;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  padding-bottom: 0.75rem;
+
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-weight: var(--font-weight-medium);
+}
+
+.label {
+  margin-top: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.secondary {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-error);
+}

@@ -4703,6 +4703,13 @@
 "PxgAuditFilterAllChats" = "All chats";
 "PxgSettingsLastEvent" = "Last event: {time}";
 "PxgSentByYou" = "you";
+"PxgAttributionTitle" = "Sent through Proxygram";
+"PxgAttributionSentAt" = "Sent at";
+"PxgAttributionAccess" = "Access used";
+"PxgAttributionUnknownAccess" = "Access details were not saved";
+"PxgAttributionChat" = "Chat access";
+"PxgAttributionTopic" = "Forum topic access";
+"PxgAttributionFolder" = "Folder access";
 "PxgComposerOnBehalf" = "Message on behalf of {name}";
 "PxgAuditPurge" = "deleted from the archive forever";
 "PxgAuditPin" = "pinned or unpinned a message";

@@ -190,6 +190,13 @@
 "PxgAuditFilterAllChats" = "Все чаты";
 "PxgSettingsLastEvent" = "Последнее событие: {time}";
 "PxgSentByYou" = "вы";
+"PxgAttributionTitle" = "Отправлено через Proxygram";
+"PxgAttributionSentAt" = "Время отправки";
+"PxgAttributionAccess" = "Через какой доступ";
+"PxgAttributionUnknownAccess" = "Сведения о доступе не сохранены";
+"PxgAttributionChat" = "Доступ к чату";
+"PxgAttributionTopic" = "Доступ к теме форума";
+"PxgAttributionFolder" = "Доступ к папке";
 "PxgComposerOnBehalf" = "Сообщение от имени {name}";
 "PxgAuditPurge" = "удалил из архива навсегда";
 "PxgAuditPin" = "закрепил или открепил сообщение";
