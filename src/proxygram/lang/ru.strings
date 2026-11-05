@@ -471,6 +471,12 @@
 "PxgAdminConnected" = "Подключён";
 "PxgAdminLastEvent" = "Последнее изменение архива";
 "PxgAdminRevokeConfirm" = "Отозвать доступ у {name}?";
+"PxgAdminShareTarget" = "Объект доступа";
+"PxgAdminChooseTarget" = "Выберите папку или тему";
+"PxgAdminGuestFilter" = "Имя, ник или Telegram ID гостя";
+"PxgAdminBulkRevokeConfirm" = "Отозвать выбранные доступы ({count})? Гости сразу потеряют доступ.";
+"PxgAdminRevokeSelected" = "Отозвать выбранные ({count})";
+"PxgAdminLastUsed" = "Последнее использование";
 "PxgAdminGrant" = "Выдать доступ";
 "PxgAdminRetry" = "Повторить";
 "PxgAdminCancel" = "Отменить";

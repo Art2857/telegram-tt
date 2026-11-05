@@ -4984,6 +4984,12 @@
 "PxgAdminConnected" = "Connected";
 "PxgAdminLastEvent" = "Last archive update";
 "PxgAdminRevokeConfirm" = "Revoke access for {name}?";
+"PxgAdminShareTarget" = "Access target";
+"PxgAdminChooseTarget" = "Choose a folder or topic";
+"PxgAdminGuestFilter" = "Guest name, username or Telegram ID";
+"PxgAdminBulkRevokeConfirm" = "Revoke the selected accesses ({count})? Guests will lose access immediately.";
+"PxgAdminRevokeSelected" = "Revoke selected ({count})";
+"PxgAdminLastUsed" = "Last used";
 "PxgAdminGrant" = "Give access";
 "PxgAdminRetry" = "Retry";
 "PxgAdminCancel" = "Cancel";

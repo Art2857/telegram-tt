@@ -1,10 +1,11 @@
-import { memo, useEffect, useRef, useState } from '../../lib/teact/teact';
+import { memo, useEffect, useMemo, useRef, useState } from '../../lib/teact/teact';
 import { getActions, getGlobal } from '../../global';
 
 import type { ApiUser } from '../../api/types';
 import type {
-  GuestCandidate, PermissionKey, Permissions, PresetKey, UserLookup,
+  GuestCandidate, Permissions, PresetKey, UserLookup,
 } from '../../proxygram/server/types';
+import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
 
 import { getMainUsername, getUserFullName } from '../../global/helpers';
 import { selectChat, selectChatFullInfo, selectUser } from '../../global/selectors';
@@ -13,7 +14,7 @@ import { getOrderedIds } from '../../util/folderManager';
 import { getServerTime } from '../../util/serverTime';
 import { callApi } from '../../api/gramjs';
 import { isProxyPeerId } from '../../api/proxy/ids';
-import { diffPermissions, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
+import { diffPermissions, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from './helpers';
@@ -24,15 +25,12 @@ import useLastCallback from '../../hooks/useLastCallback';
 
 import Avatar from '../common/Avatar';
 import Button from '../ui/Button';
-import Checkbox from '../ui/Checkbox';
 import InputText from '../ui/InputText';
 import ListItem from '../ui/ListItem';
 import Modal from '../ui/Modal';
+import ShareSettingsFields from './ShareSettingsFields';
 
 import styles from './ConnectServerModal.module.scss';
-
-type HistoryMode = 'all' | 'new_only' | 'last_n' | 'since_date';
-type Expiry = 'keep' | 'never' | 'day' | 'week' | 'month';
 
 type OutgoingShare = {
   id: string;
@@ -85,15 +83,10 @@ type OwnProps = {
   topic?: { id: number; title: string };
 };
 
-const PRESETS: PresetKey[] = ['readOnly', 'assistant', 'full'];
-const HISTORY_MODES: HistoryMode[] = ['all', 'new_only', 'last_n', 'since_date'];
-const EXPIRIES: Expiry[] = ['never', 'day', 'week', 'month'];
-const EDIT_EXPIRIES: Expiry[] = ['keep', ...EXPIRIES];
 const EXPIRY_DAYS: Record<Expiry, number> = { keep: 0, never: 0, day: 1, week: 7, month: 30 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_HISTORY_LIMIT = 100_000;
-const LABEL_MAX_LENGTH = 64;
 const MAX_RATE_LIMIT = 60;
 const MAX_GUEST_SUGGESTIONS = 6;
 /** The server answers about this many people at a time */
@@ -101,14 +94,6 @@ const MAX_KNOWN_PEOPLE = 1000;
 const USERNAME = /^@?\w{5,32}$/;
 // A guest without a username is found by the phone number they shared with the bot
 const PHONE = /^\+?[\d\s().-]{7,24}$/;
-const HISTORY_KEYS: Record<HistoryMode, string> = {
-  all: 'PxgHistoryAll', new_only: 'PxgHistoryNew', last_n: 'PxgHistoryLastN', since_date: 'PxgHistorySince',
-};
-const EXPIRY_KEYS: Record<Expiry, string> = {
-  keep: 'PxgExpiryKeep',
-  never: 'PxgExpiryNever', day: 'PxgExpiryDay', week: 'PxgExpiryWeek', month: 'PxgExpiryMonth',
-};
-
 /** «Поделиться чатом» и «Поделиться папкой» (PLAN.md, 7.5–7.6): кому, какие права, какая история, на какой срок */
 const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const { showNotification } = getActions();
@@ -317,15 +302,6 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     };
   }
 
-  const selectPreset = (key: PresetKey) => {
-    setPreset(key);
-    setPermissions(resolvePermissions(key));
-  };
-
-  const togglePermission = (key: PermissionKey, isChecked: boolean) => {
-    setPermissions({ ...permissions, [key]: isChecked });
-  };
-
   const startEdit = (share: OutgoingShare) => {
     lookupRequestRef.current++;
     setIsFinding(false);
@@ -465,132 +441,42 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     ?.members?.some((member) => member.userId === String(guestTgUserId)));
   const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
   // Chats of other owners may sit in the folder too: they are not this account's to share
-  const folderChatIds = folder ? (getOrderedIds(folder.id) ?? []).filter((id) => !isProxyPeerId(id)) : [];
-  const toggleExcluded = (id: number, isIncluded: boolean) => {
-    setExcludedIds(isIncluded ? excludedIds.filter((item) => item !== id) : [...excludedIds, id]);
-  };
+  const folderChatIds = folder ? getOrderedIds(folder.id) : undefined;
+  const folderChats = useMemo(() => {
+    const ids = (folderChatIds ?? []).filter((id) => !isProxyPeerId(id));
+    return ids.map((id) => ({ peerId: Number(id), title: selectChat(getGlobal(), id)?.title ?? id }));
+  }, [folderChatIds]);
+  const settings = useMemo<ShareSettings>(() => ({
+    preset, permissions, isCustomizing, historyMode, historyLimit, historySince, expiry, label,
+    sendLimit, deleteLimit, excludePeerIds: excludedIds,
+  }), [preset, permissions, isCustomizing, historyMode, historyLimit, historySince, expiry, label,
+    sendLimit, deleteLimit, excludedIds]);
+  const changeSettings = useLastCallback((patch: Partial<ShareSettings>) => {
+    if (patch.preset !== undefined) setPreset(patch.preset);
+    if (patch.permissions !== undefined) setPermissions(patch.permissions);
+    if (patch.isCustomizing !== undefined) setIsCustomizing(patch.isCustomizing);
+    if (patch.historyMode !== undefined) setHistoryMode(patch.historyMode);
+    if (patch.historyLimit !== undefined) setHistoryLimit(patch.historyLimit);
+    if (patch.historySince !== undefined) setHistorySince(patch.historySince);
+    if (patch.expiry !== undefined) setExpiry(patch.expiry);
+    if (patch.label !== undefined) setLabel(patch.label);
+    if (patch.sendLimit !== undefined) setSendLimit(patch.sendLimit);
+    if (patch.deleteLimit !== undefined) setDeleteLimit(patch.deleteLimit);
+    if (patch.excludePeerIds !== undefined) setExcludedIds(patch.excludePeerIds);
+  });
   const suggestions = buildSuggestions();
-
-  function renderOptions<T extends string>(
-    items: T[], selected: T, labelOf: (item: T) => string, onSelect: (item: T) => void,
-  ) {
-    return (
-      <div className={styles.options}>
-        {items.map((item) => (
-          <Button
-            key={item}
-            size="smaller"
-            pill
-            fluid={false}
-            color={selected === item ? 'primary' : 'translucent'}
-            onClick={() => onSelect(item)}
-          >
-            {labelOf(item)}
-          </Button>
-        ))}
-      </div>
-    );
-  }
 
   function renderForm() {
     return (
       <>
-        <div className={styles.sectionTitle}>{lang('PxgSharePreset')}</div>
-        {renderOptions(PRESETS, preset, presetLabel, selectPreset)}
-        <Button size="smaller" isText fluid={false} onClick={() => setIsCustomizing(!isCustomizing)}>
-          {lang('PxgShareCustomize')}
-        </Button>
-        {isCustomizing && (
-          <div className={styles.permissions}>
-            {PERMISSION_KEYS.filter((key) => key !== 'read').map((key) => (
-              <Checkbox
-                key={key}
-                label={t(`PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}
-                checked={permissions[key]}
-                onCheck={(isChecked) => togglePermission(key, isChecked)}
-              />
-            ))}
-          </div>
-        )}
-        {permissions.markRead && <p className={styles.secondary}>{lang('PxgShareReadWarning')}</p>}
-
-        {folderChatIds.length > 0 && (
-          <>
-            <div className={styles.sectionTitle}>{lang('PxgShareFolderChats')}</div>
-            <p className={styles.secondary}>{lang('PxgShareFolderChatsHint')}</p>
-            <div className={styles.folderChats}>
-              {folderChatIds.map((id) => (
-                <Checkbox
-                  key={id}
-                  label={selectChat(getGlobal(), id)?.title ?? id}
-                  checked={!excludedIds.includes(Number(id))}
-                  onCheck={(isChecked) => toggleExcluded(Number(id), isChecked)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        <div className={styles.sectionTitle}>{lang('PxgShareHistory')}</div>
-        {editing ? (
-          <p className={styles.secondary}>
-            {`${t(HISTORY_KEYS[editing.historyMode])}. ${lang('PxgShareHistoryFixed')}`}
-          </p>
-        ) : (
-          <>
-            {renderOptions(HISTORY_MODES.filter((mode) => !folder || mode !== 'last_n'), historyMode,
-              (mode) => t(HISTORY_KEYS[mode]), setHistoryMode)}
-            {historyMode === 'last_n' && (
-              <InputText
-                label={lang('PxgHistoryCount')}
-                inputMode="numeric"
-                value={historyLimit}
-                onChange={(e) => setHistoryLimit(e.target.value.replace(/\D/g, ''))}
-              />
-            )}
-            {historyMode === 'since_date' && (
-              <label className={styles.dateField}>
-                <span className={styles.secondary}>{lang('PxgHistoryDate')}</span>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={historySince}
-                  onChange={(e) => setHistorySince(e.currentTarget.value)}
-                />
-              </label>
-            )}
-          </>
-        )}
-
-        <div className={styles.sectionTitle}>{lang('PxgShareExpiry')}</div>
-        {editing?.expiresAt && (
-          <p className={styles.secondary}>{lang('PxgShareExpires', { date: formatDateTime(editing.expiresAt) })}</p>
-        )}
-        {renderOptions(editing ? EDIT_EXPIRIES : EXPIRIES, expiry, (item) => t(EXPIRY_KEYS[item]), setExpiry)}
-
-        <InputText
-          label={lang('PxgShareLabel')}
-          value={label}
-          maxLength={LABEL_MAX_LENGTH}
-          onChange={(e) => setLabel(e.target.value)}
+        <ShareSettingsFields
+          value={settings}
+          isFolder={Boolean(folder)}
+          editingHistory={editing?.historyMode}
+          expiresAt={editing?.expiresAt ?? undefined}
+          folderChats={folderChats}
+          onChange={changeSettings}
         />
-
-        <div className={styles.sectionTitle}>{lang('PxgShareLimits')}</div>
-        <p className={styles.secondary}>{lang('PxgShareLimitsHint')}</p>
-        <div className={styles.find}>
-          <InputText
-            label={lang('PxgShareLimitSend')}
-            inputMode="numeric"
-            value={sendLimit}
-            onChange={(e) => setSendLimit(e.target.value.replace(/\D/g, ''))}
-          />
-          <InputText
-            label={lang('PxgShareLimitDelete')}
-            inputMode="numeric"
-            value={deleteLimit}
-            onChange={(e) => setDeleteLimit(e.target.value.replace(/\D/g, ''))}
-          />
-        </div>
 
         <div className={styles.buttons}>
           <Button isLoading={isSaving} disabled={!isHistoryValid} onClick={() => void save()}>

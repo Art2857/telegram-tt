@@ -3791,6 +3791,10 @@ export interface LangPair {
   'PxgAdminRestartPending': undefined;
   'PxgAdminConnected': undefined;
   'PxgAdminLastEvent': undefined;
+  'PxgAdminShareTarget': undefined;
+  'PxgAdminChooseTarget': undefined;
+  'PxgAdminGuestFilter': undefined;
+  'PxgAdminLastUsed': undefined;
   'PxgAdminGrant': undefined;
   'PxgAdminRetry': undefined;
   'PxgAdminCancel': undefined;
@@ -6297,6 +6301,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminRevokeConfirm': {
     'name': V;
   };
+  'PxgAdminBulkRevokeConfirm': {
+    'count': V;
+  };
+  'PxgAdminRevokeSelected': {
+    'count': V;
+  };
   'PxgGuestUploading': {
     'percent': V;
   };
@@ -7601,7 +7611,9 @@ export interface LangKeyGroups {
       | 'PxgAdminWarnLease'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
-      | 'PxgAdminMessages';
+      | 'PxgAdminMessages'
+      | 'PxgAdminBulkRevokeConfirm'
+      | 'PxgAdminRevokeSelected';
     variables: 'count';
   };
   'duration,time': {
