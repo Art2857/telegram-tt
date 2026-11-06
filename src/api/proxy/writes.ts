@@ -7,8 +7,10 @@ import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, LOCAL_MESSAGES_LIMIT } from '../../config';
+import { getTranslationFn } from '../../util/localization';
 import { pause } from '../../util/schedulers';
 import { getServerTime } from '../../util/serverTime';
+import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { uploadFile } from '../../proxygram/server/upload';
@@ -289,7 +291,9 @@ function emitSendFailed(chat: ApiChat, localMessage: ApiMessage, err: unknown) {
   });
 }
 
+/** A refusal of the server travels as its reason: the failed message shows it in the interface language */
 function getErrorMessage(err: unknown) {
+  if (err instanceof PxgError && err.reason) return err.reason;
   return err instanceof Error ? err.message : 'Send failed';
 }
 
@@ -677,7 +681,7 @@ export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
 }
 
 export function emitProxyError(err: unknown) {
-  emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : 'Unknown error' } });
+  emitProxyUpdate({ '@type': 'error', error: { message: getPxgErrorMessage(getTranslationFn(), err) } });
 }
 
 async function readSentMessage(chat: NonNullable<MethodArgs<'sendMessage'>[0]['chat']>, msgId: number) {

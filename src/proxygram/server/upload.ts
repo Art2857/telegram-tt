@@ -41,7 +41,9 @@ export async function uploadFile(
     };
     xhr.onerror = () => reject(new PxgError('network'));
     xhr.onload = () => {
-      let body: { error?: string; message?: string } & Partial<UploadResult> = {};
+      let body: {
+        error?: string; message?: string; reason?: string; params?: Record<string, string | number>;
+      } & Partial<UploadResult> = {};
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
@@ -50,7 +52,7 @@ export async function uploadFile(
       if (xhr.status === 200 && body.uploadId) {
         resolve(body as UploadResult);
       } else {
-        reject(new PxgError(body.error ?? `http_${xhr.status}`, body.message));
+        reject(new PxgError(body.error ?? `http_${xhr.status}`, body.message, body.reason, body.params));
       }
     };
     xhr.send(file);

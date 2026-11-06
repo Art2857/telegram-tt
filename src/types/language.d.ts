@@ -3927,6 +3927,104 @@ export interface LangPair {
   'PxgAdminStatDisk': undefined;
   'PxgGuestDeeplinkScan': undefined;
   'PxgShareNotRegisteredPhone': undefined;
+  'PxgErrConnectDisabled': undefined;
+  'PxgErrExportDisabled': undefined;
+  'PxgErrMediaDisabled': undefined;
+  'PxgErrFilesDisabled': undefined;
+  'PxgErrInvitesDisabled': undefined;
+  'PxgErrPushDisabled': undefined;
+  'PxgErrLanguagesPending': undefined;
+  'PxgErrLangpackPending': undefined;
+  'PxgErrAccountUnavailable': undefined;
+  'PxgErrAccountAlreadyConnected': undefined;
+  'PxgErrConnectBusy': undefined;
+  'PxgErrConnectWrongAccount': undefined;
+  'PxgErrPasswordNotRequested': undefined;
+  'PxgErrPasswordAlgoUnknown': undefined;
+  'PxgErrAccountDisconnected': undefined;
+  'PxgErrNotYourAccount': undefined;
+  'PxgErrFileLoading': undefined;
+  'PxgErrFileNotArchived': undefined;
+  'PxgErrFileNotSaved': undefined;
+  'PxgErrFileEmpty': undefined;
+  'PxgErrNoSpace': undefined;
+  'PxgErrTooManyFiles': undefined;
+  'PxgErrUploadMissing': undefined;
+  'PxgErrNoForwardOut': undefined;
+  'PxgErrNoEditHistory': undefined;
+  'PxgErrNoDownload': undefined;
+  'PxgErrNoTopicAccess': undefined;
+  'PxgErrNoWrite': undefined;
+  'PxgErrNoSendFiles': undefined;
+  'PxgErrNoSendAttachments': undefined;
+  'PxgErrNoOwnerEmoji': undefined;
+  'PxgErrNoOwnerStickers': undefined;
+  'PxgErrNoReact': undefined;
+  'PxgErrNoOwnerEmojiReaction': undefined;
+  'PxgErrNoAdmin': undefined;
+  'PxgErrNoBotButtons': undefined;
+  'PxgErrNoVote': undefined;
+  'PxgErrNoUploadHere': undefined;
+  'PxgErrNoSourceAccess': undefined;
+  'PxgErrCannotEditMessage': undefined;
+  'PxgErrCannotDeleteMessage': undefined;
+  'PxgErrAccessGone': undefined;
+  'PxgErrUserBlocked': undefined;
+  'PxgErrJobNoActor': undefined;
+  'PxgErrTooManyActions': undefined;
+  'PxgErrSourceLost': undefined;
+  'PxgErrOwnerUnavailable': undefined;
+  'PxgErrOwnerFlood': undefined;
+  'PxgErrReactionsPremium': undefined;
+  'PxgErrTranscribePremium': undefined;
+  'PxgErrOwnerCannotPin': undefined;
+  'PxgErrOwnerCannotBan': undefined;
+  'PxgErrOwnerCannotCreateTopics': undefined;
+  'PxgErrOwnerCannotManageTopics': undefined;
+  'PxgErrOwnerCannotDeleteTopics': undefined;
+  'PxgErrOwnerCannotChangeInfo': undefined;
+  'PxgErrTopicsNeedFullForum': undefined;
+  'PxgErrGroupOnly': undefined;
+  'PxgErrAlbumParts': undefined;
+  'PxgErrQuizAnswerUnknown': undefined;
+  'PxgErrGeoUnavailable': undefined;
+  'PxgErrCopyUnsupported': undefined;
+  'PxgErrSameAccountForward': undefined;
+  'PxgErrForwardSameOwnerOnly': undefined;
+  'PxgErrMessageNotFound': undefined;
+  'PxgErrMessageNotInArchive': undefined;
+  'PxgErrButtonNotFound': undefined;
+  'PxgErrPollNotFound': undefined;
+  'PxgErrPollClosed': undefined;
+  'PxgErrPollOptionMissing': undefined;
+  'PxgErrStickerUnavailable': undefined;
+  'PxgErrRetryKeyRequired': undefined;
+  'PxgErrRetryKeyConflict': undefined;
+  'PxgErrRetryTooOld': undefined;
+  'PxgErrTelegramNoAnswer': undefined;
+  'PxgErrTranscribeFailed': undefined;
+  'PxgErrTranslateFailed': undefined;
+  'PxgErrSummaryFailed': undefined;
+  'PxgErrGranteeMissing': undefined;
+  'PxgErrInviteNotPending': undefined;
+  'PxgErrSinceDateRequired': undefined;
+  'PxgErrLastNChatOnly': undefined;
+  'PxgErrLastNNotFolder': undefined;
+  'PxgErrLastNMin': undefined;
+  'PxgErrShareExists': undefined;
+  'PxgErrShareRevoked': undefined;
+  'PxgErrServiceChatForbidden': undefined;
+  'PxgErrShareToSelf': undefined;
+  'PxgErrShareTargetMissing': undefined;
+  'PxgErrCannotBlockSelf': undefined;
+  'PxgErrAlreadyAdmin': undefined;
+  'PxgErrUnblockFirst': undefined;
+  'PxgErrRestartNotRunning': undefined;
+  'PxgErrAccountNotRunning': undefined;
+  'PxgErrAccountNotPaused': undefined;
+  'PxgErrAccountNoOwner': undefined;
+  'PxgErrRetryFailedOnly': undefined;
+  'PxgErrCancelPendingOnly': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -6470,6 +6568,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgSharePending': {
     'name': V;
   };
+  'PxgErrFileTooLarge': {
+    'mb': V;
+  };
+  'PxgErrFoldersLimit': {
+    'max': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -8861,6 +8965,16 @@ export interface LangKeyGroups {
     keys:
       | 'PxgShareGranted';
     variables: 'name' | 'target';
+  };
+  'mb': {
+    keys:
+      | 'PxgErrFileTooLarge';
+    variables: 'mb';
+  };
+  'max': {
+    keys:
+      | 'PxgErrFoldersLimit';
+    variables: 'max';
   };
 }
 

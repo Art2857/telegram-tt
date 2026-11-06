@@ -7,6 +7,7 @@ import type { AdminShare as ShareRow } from './types';
 import buildClassName from '../../../util/buildClassName';
 import { formatTimeDuration } from '../../../util/dates/duration';
 import { formatFileSize } from '../../../util/textFormat';
+import { getPxgReasonText } from '../../../proxygram/errorReasons';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
@@ -1444,7 +1445,9 @@ const OutboxTab = memo(({ lang, run, topics }: TabProps) => {
               <Badge tone={row.status === 'failed' ? 'red' : row.status === 'done' ? 'green' : 'blue'}>
                 {row.status}
               </Badge>
-              {row.error && <div className={styles.secondary}>{row.error}</div>}
+              {row.error && (
+                <div className={styles.secondary}>{getPxgReasonText(lang, row.error) ?? row.error}</div>
+              )}
             </td>
             <td className={styles.actions}>
               {row.status === 'failed' && (

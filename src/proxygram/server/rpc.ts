@@ -159,8 +159,10 @@ class PxgRpc {
       if (message.ok) {
         pending.resolve(message.r);
       } else {
-        const error = message.e as { code: string; message: string };
-        pending.reject(new PxgError(error.code, error.message));
+        const error = message.e as {
+          code: string; message: string; reason?: string; params?: Record<string, string | number>;
+        };
+        pending.reject(new PxgError(error.code, error.message, error.reason, error.params));
       }
       return;
     }

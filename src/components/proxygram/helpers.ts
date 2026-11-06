@@ -2,6 +2,9 @@ import type { MessageDto } from '../../proxygram/server/types';
 import type { LangFn } from '../../util/localization/types';
 import { PxgError } from '../../proxygram/server/types';
 
+import { getPxgReasonText } from '../../proxygram/errorReasons';
+import { getProxySendError } from '../../proxygram/sendErrors';
+
 const ERROR_KEYS: Record<string, string> = {
   network: 'PxgErrorNetwork',
   invalid_code: 'PxgErrorInvalidCode',
@@ -19,14 +22,19 @@ const ERROR_KEYS: Record<string, string> = {
   no_space: 'PxgGuestNoServerSpace',
 };
 
-/** Понятный текст ошибки сервера Proxygram */
+/**
+ * Понятный текст ошибки сервера Proxygram на языке интерфейса: по причине отказа, затем по коду, затем по коду
+ * Telegram. Готовую фразу сервера не показываем — она по-русски и только для его журнала (spec/07 §5)
+ */
 export function describePxgError(lang: LangFn, error: unknown): string {
-  const code = error instanceof PxgError ? error.code : undefined;
-  const key = code ? ERROR_KEYS[code] : undefined;
+  if (!(error instanceof PxgError)) return lang('PxgErrorGeneric');
+  const byReason = error.reason ? getPxgReasonText(lang, error.reason, error.params) : undefined;
+  if (byReason) return byReason;
+  const key = ERROR_KEYS[error.code];
   if (key) return (lang as unknown as (langKey: string) => string)(key);
-  // у ошибок методов сервер присылает уже человеческий текст
-  if (error instanceof PxgError && error.message && error.message !== error.code) return error.message;
-  return lang('PxgErrorGeneric');
+  const telegram = getProxySendError(error.message) as { key: string; variables?: object } | undefined;
+  if (!telegram) return lang('PxgErrorGeneric');
+  return (lang as unknown as (langKey: string, variables?: object) => string)(telegram.key, telegram.variables);
 }
 
 const AVATAR_COLORS = ['#e17076', '#7bc862', '#65aadd', '#a695e7', '#ee7aae', '#6ec9cb', '#faa774'];

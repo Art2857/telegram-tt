@@ -1,6 +1,8 @@
 import type { RegularLangKey } from '../types/language';
 import type { AdvancedLangFnParameters } from '../util/localization';
 
+import { isPxgErrorReason, PXG_ERROR_REASON_KEYS } from './errorReasons';
+
 const SEND_ERROR_KEYS: Record<string, RegularLangKey> = {
   CHAT_WRITE_FORBIDDEN: 'PxgSendErrorWrite',
   CHAT_ADMIN_REQUIRED: 'PxgSendErrorWrite',
@@ -35,5 +37,8 @@ export function getProxySendError(error: string): AdvancedLangFnParameters | und
   const wait = error.match(/^(SLOWMODE_WAIT|FLOOD_WAIT)_(\d+)$/);
   if (wait) return { key: 'PxgSendErrorWait', variables: { seconds: Number(wait[2]) } };
   const key = SEND_ERROR_KEYS[error];
-  return key ? { key } : undefined;
+  if (key) return { key };
+  // The server's own refusal, kept by the queue as a reason
+  // A queued job has no values to fill in, and the reasons that need them never come from the queue
+  return isPxgErrorReason(error) ? { key: PXG_ERROR_REASON_KEYS[error] } as AdvancedLangFnParameters : undefined;
 }

@@ -745,8 +745,15 @@ export interface OutboxDoneDto {
 export class PxgError extends Error {
   readonly code: string;
 
-  constructor(code: string, message?: string) {
+  /** Why the server refused (packages/protocol/src/errors.ts): the text comes from the client's strings */
+  readonly reason?: string;
+
+  readonly params?: Record<string, string | number>;
+
+  constructor(code: string, message?: string, reason?: string, params?: Record<string, string | number>) {
     super(message ?? code);
     this.code = code;
+    this.reason = reason;
+    this.params = params;
   }
 }

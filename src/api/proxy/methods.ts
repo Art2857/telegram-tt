@@ -12,6 +12,8 @@ import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
 import { getMessageLink } from '../../global/helpers/messages';
+import { getTranslationFn } from '../../util/localization';
+import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
@@ -181,7 +183,7 @@ export async function callProxyApi<T extends keyof Methods>(
     return await method?.(...args) as Awaited<MethodResponse<T>>;
   } catch (err) {
     // As with Telegram's own errors: a dialog explains why, and the screen that waits for the result moves on
-    emitProxyUpdate({ '@type': 'error', error: { message: err instanceof Error ? err.message : String(err) } });
+    emitProxyUpdate({ '@type': 'error', error: { message: getPxgErrorMessage(getTranslationFn(), err) } });
     return undefined as Awaited<MethodResponse<T>>;
   }
 }

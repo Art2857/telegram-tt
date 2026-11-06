@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import ruStrings from './lang/ru.strings?raw';
+import { PXG_ERROR_REASON_KEYS } from './errorReasons';
 import { getProxygramString } from './lang';
 
 import fallbackStrings from '../assets/localization/fallback.strings?raw';
@@ -132,3 +135,15 @@ function withoutComments(source: string) {
     .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
     .replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
 }
+
+describe('server refusal reasons', () => {
+  it('every reason of packages/protocol has a string, and no others', () => {
+    // Tests run from apps/client
+    const protocol = readFileSync(resolve(process.cwd(), '../../packages/protocol/src/errors.ts'), 'utf8');
+    const list = protocol.slice(protocol.indexOf('RPC_ERROR_REASONS = ['), protocol.indexOf('] as const'));
+    const reasons = [...list.matchAll(/'(\w+)'/g)].map(([, reason]) => reason);
+
+    expect(reasons.length).toBeGreaterThan(50);
+    expect(Object.keys(PXG_ERROR_REASON_KEYS).sort()).toEqual([...reasons].sort());
+  });
+});
