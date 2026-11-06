@@ -741,3 +741,7 @@
 "PxgErrAccountNoOwner" = "У аккаунта нет владельца в системе";
 "PxgErrRetryFailedOnly" = "Повторить можно только действие с ошибкой";
 "PxgErrCancelPendingOnly" = "Отменить можно только ожидающее действие";
+"PxgErrSavedQuota" = "«Избранное» заполнено: не больше {mb} МБ на человека";
+"PxgErrSavedNotFound" = "Такого сообщения в «Избранном» нет";
+"PxgErrSavedNotEditable" = "Сохранённое из чата не правится — только свои заметки";
+"PxgAuditSaveToFavorites" = "сохранил сообщение себе в «Избранное»";

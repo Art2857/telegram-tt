@@ -5254,3 +5254,7 @@
 "PxgErrAccountNoOwner" = "The account has no owner in the system";
 "PxgErrRetryFailedOnly" = "Only a failed action can be retried";
 "PxgErrCancelPendingOnly" = "Only a pending action can be cancelled";
+"PxgErrSavedQuota" = "Saved Messages are full: no more than {mb} MB per person";
+"PxgErrSavedNotFound" = "There is no such message in Saved Messages";
+"PxgErrSavedNotEditable" = "A message saved from a chat cannot be edited — only your own notes";
+"PxgAuditSaveToFavorites" = "saved a message to their Saved Messages";

@@ -4025,6 +4025,9 @@ export interface LangPair {
   'PxgErrAccountNoOwner': undefined;
   'PxgErrRetryFailedOnly': undefined;
   'PxgErrCancelPendingOnly': undefined;
+  'PxgErrSavedNotFound': undefined;
+  'PxgErrSavedNotEditable': undefined;
+  'PxgAuditSaveToFavorites': undefined;
 }
 
 export interface LangPairWithVariables<V = LangVariable> {
@@ -6574,6 +6577,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgErrFoldersLimit': {
     'max': V;
   };
+  'PxgErrSavedQuota': {
+    'mb': V;
+  };
 }
 
 export interface LangPairPlural {
@@ -8968,7 +8974,8 @@ export interface LangKeyGroups {
   };
   'mb': {
     keys:
-      | 'PxgErrFileTooLarge';
+      | 'PxgErrFileTooLarge'
+      | 'PxgErrSavedQuota';
     variables: 'mb';
   };
   'max': {
