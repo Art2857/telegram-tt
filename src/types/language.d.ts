@@ -3402,6 +3402,7 @@ export interface LangPair {
   'PxgAppDownloadWindows': undefined;
   'PxgAppUpdateDownload': undefined;
   'PxgAppDownloadAndroid': undefined;
+  'PxgAppDownloadAlso': undefined;
   'PxgServerChange': undefined;
   'PxgServerLocked': undefined;
   'PxgServerAddress': undefined;
@@ -3789,8 +3790,7 @@ export interface LangPair {
   'PxgAdminKick': undefined;
   'PxgAdminBlock': undefined;
   'PxgAdminUnblock': undefined;
-  'PxgAdminMakeAdmin': undefined;
-  'PxgAdminRemoveAdmin': undefined;
+  'PxgAdminTransfer': undefined;
   'PxgAdminEndSession': undefined;
   'PxgAdminPause': undefined;
   'PxgAdminResume': undefined;
@@ -6150,6 +6150,9 @@ export interface LangPairWithVariables<V = LangVariable> {
     'version': V;
     'host': V;
   };
+  'PxgAppDownloadApps': {
+    'version': V;
+  };
   'PxgServerSavedUnreachable': {
     'host': V;
   };
@@ -6313,6 +6316,9 @@ export interface LangPairWithVariables<V = LangVariable> {
     'name': V;
   };
   'PxgAdminBlockConfirm': {
+    'name': V;
+  };
+  'PxgAdminTransferConfirm': {
     'name': V;
   };
   'PxgAdminEndSessionConfirm': {
@@ -7407,6 +7413,7 @@ export interface LangKeyGroups {
       | 'PxgAdminFromAccount'
       | 'PxgAdminKickConfirm'
       | 'PxgAdminBlockConfirm'
+      | 'PxgAdminTransferConfirm'
       | 'PxgAdminEndSessionConfirm'
       | 'PxgAdminDisconnectConfirm'
       | 'PxgAdminArchiveChoice'
@@ -8711,7 +8718,8 @@ export interface LangKeyGroups {
   'version': {
     keys:
       | 'PxgAppUpdateAvailable'
-      | 'PxgAppDownloadHint';
+      | 'PxgAppDownloadHint'
+      | 'PxgAppDownloadApps';
     variables: 'version';
   };
   'host,version': {

@@ -38,6 +38,7 @@ const AuthChoice = () => {
         <div id="logo" />
         <h1>{lang('PxgAuthChoiceTitle')}</h1>
         <p className="note">{lang('PxgAuthChoiceNote')}</p>
+        <AppDownloadOffer />
 
         <button type="button" className={styles.option} onClick={() => setPxgState({ authChoice: 'telegram' })}>
           <Icon name="key" className={styles.icon} />
@@ -55,7 +56,6 @@ const AuthChoice = () => {
           </span>
         </button>
 
-        <AppDownloadOffer />
         <ServerPicker isLocked={canCancel} />
         <UnofficialNotice />
       </div>

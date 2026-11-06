@@ -516,16 +516,18 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       )}
       {user.id !== selfId && (
         <>
-          <Button
-            size="tiny"
-            color="translucent"
-            isText
-            onClick={() => void run(call('admin.users.setRole', {
-              userId: user.id, role: user.role === 'admin' ? 'user' : 'admin',
-            }))}
-          >
-            {user.role === 'admin' ? lang('PxgAdminRemoveAdmin') : lang('PxgAdminMakeAdmin')}
-          </Button>
+          {/* The server has exactly one administrator: rights move to another user, never get added */}
+          {user.role !== 'admin' && !user.blockedAt && (
+            <Button
+              size="tiny"
+              color="translucent"
+              isText
+              onClick={() => ask(t(lang, 'PxgAdminTransferConfirm', { name: displayName(user) }),
+                lang('PxgAdminTransfer'), call('admin.users.transferAdmin', { userId: user.id }))}
+            >
+              {lang('PxgAdminTransfer')}
+            </Button>
+          )}
           {user.blockedAt ? (
             <Button
               size="tiny"

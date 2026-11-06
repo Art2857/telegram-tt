@@ -89,3 +89,42 @@
   top: 1rem;
   left: 1rem;
 }
+
+.downloads {
+  margin-bottom: 1.25rem;
+}
+
+// The app for this device stands out from the sign-in options: it is offered first
+.download {
+  border-color: var(--color-primary);
+  color: var(--color-white);
+  background: var(--color-primary);
+
+  .icon,
+  .hint {
+    color: inherit;
+  }
+
+  .hint {
+    opacity: 0.85;
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary-shade);
+    color: var(--color-white);
+    background: var(--color-primary-shade);
+  }
+}
+
+.otherApps {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}

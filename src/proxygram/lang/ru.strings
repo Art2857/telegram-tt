@@ -6,6 +6,8 @@
 "PxgAppDownloadAndroid" = "Скачать приложение для Android";
 "PxgAppDownloadHint" = "Версия {version}: уведомления и запуск вместе с системой";
 "PxgAppDownloadHintServer" = "Версия {version}. После установки укажите сервер {host}";
+"PxgAppDownloadAlso" = "Есть и для";
+"PxgAppDownloadApps" = "Приложения Proxygram {version}:";
 "PxgServerChange" = "Сменить сервер";
 "PxgServerLocked" = "Чтобы перейти на другой сервер, выйдите из всех аккаунтов этого";
 "PxgServerAddress" = "Адрес сервера";
@@ -470,8 +472,8 @@
 "PxgAdminBlock" = "Заблокировать";
 "PxgAdminBlockConfirm" = "Заблокировать {name}? Все сессии завершатся, войти снова не получится.";
 "PxgAdminUnblock" = "Разблокировать";
-"PxgAdminMakeAdmin" = "Сделать админом";
-"PxgAdminRemoveAdmin" = "Снять админа";
+"PxgAdminTransfer" = "Передать права администратора";
+"PxgAdminTransferConfirm" = "Сделать {name} администратором сервера? Администратор один: вы станете обычным пользователем и потеряете доступ к админке.";
 "PxgAdminEndSession" = "Завершить";
 "PxgAdminEndSessionConfirm" = "Завершить эту сессию {name}?";
 "PxgAdminPause" = "Пауза";

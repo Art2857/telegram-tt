@@ -140,8 +140,11 @@ class PxgRpc {
       this.#isReady = true;
       this.#attempt = 0;
       const { session } = getPxgState();
-      // роль могли сменить в админке — берём свежую
-      if (session && message.user) setPxgState({ session: { ...session, user: { ...session.user, ...message.user } } });
+      // роль могли сменить в админке — берём свежую; передавшему права админка больше не нужна
+      if (session && message.user) {
+        const user = { ...session.user, ...message.user };
+        setPxgState({ session: { ...session, user }, ...(user.role !== 'admin' && { isAdminOpen: false }) });
+      }
       setPxgState({ connection: 'online' });
       this.#readyWaiters.splice(0).forEach((waiter) => waiter.resolve());
       this.#scheduleTokenRefresh();

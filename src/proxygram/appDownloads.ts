@@ -18,7 +18,8 @@ export type ReleaseManifest = {
   android?: { url: string; sha256?: string };
 };
 
-export type AppDownload = { platform: 'windows' | 'android'; version: string; url: string };
+export type AppPlatform = 'windows' | 'android';
+export type AppDownload = { platform: AppPlatform; version: string; url: string };
 
 export async function fetchReleaseManifest(): Promise<ReleaseManifest | undefined> {
   try {
@@ -29,17 +30,23 @@ export async function fetchReleaseManifest(): Promise<ReleaseManifest | undefine
   }
 }
 
-/** The app for the device this browser runs on; nothing inside the app itself or where there is none */
-export function getAppDownload(manifest: ReleaseManifest): AppDownload | undefined {
-  if (IS_TAURI) return undefined;
-  if (IS_WINDOWS) {
-    const url = manifest.platforms?.['windows-x86_64']?.url;
-    return url ? { platform: 'windows', version: manifest.version, url } : undefined;
-  }
-  if (IS_ANDROID && manifest.android?.url) {
-    return { platform: 'android', version: manifest.version, url: manifest.android.url };
-  }
+/** Which app fits the device this browser runs on */
+export function getDevicePlatform(): AppPlatform | undefined {
+  if (IS_WINDOWS) return 'windows';
+  if (IS_ANDROID) return 'android';
   return undefined;
+}
+
+/** Every app of the release, the one for this device first; nothing inside the app itself */
+export function getAppDownloads(manifest: ReleaseManifest): AppDownload[] {
+  if (IS_TAURI) return [];
+  const { version } = manifest;
+  const downloads: AppDownload[] = [];
+  const windowsUrl = manifest.platforms?.['windows-x86_64']?.url;
+  if (windowsUrl) downloads.push({ platform: 'windows', version, url: windowsUrl });
+  if (manifest.android?.url) downloads.push({ platform: 'android', version, url: manifest.android.url });
+  const own = getDevicePlatform();
+  return downloads.sort((a, b) => Number(b.platform === own) - Number(a.platform === own));
 }
 
 /** Tauri mobile cannot update itself: the Android shell offers the newer APK from the manifest */

@@ -4544,6 +4544,8 @@
 "PxgAppDownloadAndroid" = "Download the app for Android";
 "PxgAppDownloadHint" = "Version {version}: notifications and launch with the system";
 "PxgAppDownloadHintServer" = "Version {version}. After installing, enter the server {host}";
+"PxgAppDownloadAlso" = "Also available for";
+"PxgAppDownloadApps" = "Proxygram {version} apps:";
 "PxgServerChange" = "Change server";
 "PxgServerLocked" = "To use another server, sign out of every account on this one";
 "PxgServerAddress" = "Server address";
@@ -4983,8 +4985,8 @@
 "PxgAdminBlock" = "Block";
 "PxgAdminBlockConfirm" = "Block {name}? They will be signed out and will not be able to sign in.";
 "PxgAdminUnblock" = "Unblock";
-"PxgAdminMakeAdmin" = "Make admin";
-"PxgAdminRemoveAdmin" = "Remove admin";
+"PxgAdminTransfer" = "Transfer admin rights";
+"PxgAdminTransferConfirm" = "Make {name} the server administrator? There is only one administrator: you will become a regular user and lose access to this panel.";
 "PxgAdminEndSession" = "End session";
 "PxgAdminEndSessionConfirm" = "End this session of {name}?";
 "PxgAdminPause" = "Pause";
