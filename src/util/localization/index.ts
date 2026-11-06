@@ -28,6 +28,7 @@ import { FORCE_FALLBACK_LANG, LANG_PACK } from '../../config';
 import { callApi } from '../../api/gramjs';
 import renderText, { type TextFilter } from '../../components/common/helpers/renderText';
 import { getProxygramString } from '../../proxygram/lang';
+import { fetchPxgLangpack } from '../../proxygram/server/http';
 import { IS_INTL_LIST_FORMAT_SUPPORTED } from '../browser/globalEnvironment';
 import { MAIN_IDB_STORE } from '../browser/idb';
 import { getBasicListFormat } from '../browser/intlListFormat';
@@ -37,7 +38,7 @@ import readFallbackStrings from '../data/readFallbackStrings';
 import { initialEstablishmentPromise, isCurrentTabMaster } from '../establishMultitabRole';
 import { mapValues, omit, unique } from '../iteratees';
 import { replaceInStringsWithTeact } from '../replaceWithTeact';
-import { fastRaf } from '../schedulers';
+import { fastRaf, pause } from '../schedulers';
 import { resetDateFormatCache } from './dateFormat';
 
 import Deferred from '../Deferred';
@@ -51,6 +52,9 @@ const FORMATTERS_FALLBACK_LANG = FALLBACK_LANG_CODE;
 const FALLBACK_PLURAL_RULES = new Intl.PluralRules(FALLBACK_LANG_CODE);
 
 const STRING_CACHE_LIMIT = 400;
+// PXG: how long Telegram gets to answer before the Proxygram server is asked for the same pack
+const TELEGRAM_LANG_WAIT_MS = 3000;
+const SLOW = Symbol('slow');
 const TRANSLATION_CACHE = new LimitedMap<string, string>(STRING_CACHE_LIMIT);
 
 let language: ApiLanguage | undefined;
@@ -356,45 +360,74 @@ async function loadLanguage(langCode: string, requestId: number, newLanguage?: A
   await initialEstablishmentPromise;
   if (requestId !== languageRequestId) return false;
 
-  try {
-    const remoteLanguage = newLanguage || cachedData?.language
-      || await callApi('fetchLanguage', { langPack: LANG_PACK, langCode });
-    if (requestId !== languageRequestId) return false;
-    if (!remoteLanguage || remoteLanguage.langCode !== langCode) return activateFallbackLanguage(langCode, requestId);
-
-    const baseLangCode = getBaseLangCode(remoteLanguage);
-    const [remoteLangPack, remoteBaseLangPack] = await Promise.all([
-      cachedData?.langPack || callApi('fetchLangPack', { langPack: LANG_PACK, langCode }),
-      baseLangCode ? callApi('fetchLangPack', { langPack: LANG_PACK, langCode: baseLangCode }) : undefined,
-    ]);
-    if (requestId !== languageRequestId) return false;
-    if (!remoteLangPack || remoteLangPack.langCode !== langCode) return activateFallbackLanguage(langCode, requestId);
-    if (baseLangCode && remoteBaseLangPack?.langCode !== baseLangCode) return false;
-
-    const data: CachedLangData = {
-      language: remoteLanguage,
-      langPack: {
-        langCode,
-        version: remoteLangPack.version,
-        strings: remoteLangPack.strings,
-      },
-      baseLangPack: remoteBaseLangPack ? {
-        langCode: remoteBaseLangPack.langCode,
-        version: remoteBaseLangPack.version,
-        strings: remoteBaseLangPack.strings,
-      } : undefined,
-    };
-    const cachedRemoteData = await cacheLangData(data);
-    if (requestId !== languageRequestId) return false;
-    if (langPack?.langCode === langCode && langPack.version > cachedRemoteData.langPack.version) return true;
-
-    activateLanguage(cachedRemoteData);
-    return true;
-  } catch (err) {
+  // PXG: Telegram may be unreachable from this browser (the login page on a blocked network): GramJS would wait
+  // for it forever, so after a short wait the same Telegram pack comes from the Proxygram server instead
+  const fromTelegram = fetchTelegramLangData(langCode, newLanguage, cachedData).catch((err) => {
     // eslint-disable-next-line no-console
     console.warn('Failed to change language:', err);
-    return activateFallbackLanguage(langCode, requestId);
-  }
+    return undefined;
+  });
+  const quick = await Promise.race([fromTelegram, pause(TELEGRAM_LANG_WAIT_MS).then((): typeof SLOW => SLOW)]);
+  let data = quick !== SLOW ? quick : undefined;
+  if (!data) data = await fetchProxygramLangData(langCode);
+  // The server has no pack (no connected account yet): Telegram may still answer; English is bundled anyway
+  if (!data && quick === SLOW && langCode !== FALLBACK_LANG_CODE) data = await fromTelegram;
+  if (requestId !== languageRequestId) return false;
+  if (!data) return activateFallbackLanguage(langCode, requestId);
+
+  const cachedRemoteData = await cacheLangData(data);
+  if (requestId !== languageRequestId) return false;
+  if (langPack?.langCode === langCode && langPack.version > cachedRemoteData.langPack.version) return true;
+
+  activateLanguage(cachedRemoteData);
+  return true;
+}
+
+async function fetchTelegramLangData(
+  langCode: string, newLanguage: ApiLanguage | undefined, cachedData: CachedLangData | undefined,
+): Promise<CachedLangData | undefined> {
+  const remoteLanguage = newLanguage || cachedData?.language
+    || await callApi('fetchLanguage', { langPack: LANG_PACK, langCode });
+  if (!remoteLanguage || remoteLanguage.langCode !== langCode) return undefined;
+
+  const baseLangCode = getBaseLangCode(remoteLanguage);
+  const [remoteLangPack, remoteBaseLangPack] = await Promise.all([
+    cachedData?.langPack || callApi('fetchLangPack', { langPack: LANG_PACK, langCode }),
+    baseLangCode ? callApi('fetchLangPack', { langPack: LANG_PACK, langCode: baseLangCode }) : undefined,
+  ]);
+  if (!remoteLangPack || remoteLangPack.langCode !== langCode) return undefined;
+  if (baseLangCode && remoteBaseLangPack?.langCode !== baseLangCode) return undefined;
+
+  return {
+    language: remoteLanguage,
+    langPack: {
+      langCode,
+      version: remoteLangPack.version,
+      strings: remoteLangPack.strings,
+    },
+    baseLangPack: remoteBaseLangPack ? {
+      langCode: remoteBaseLangPack.langCode,
+      version: remoteBaseLangPack.version,
+      strings: remoteBaseLangPack.strings,
+    } : undefined,
+  };
+}
+
+/** PXG: the pack Telegram would send, from the Proxygram server's cache; no sign-in needed */
+async function fetchProxygramLangData(langCode: string): Promise<CachedLangData | undefined> {
+  const pack = await fetchPxgLangpack(langCode);
+  if (!pack || pack.language.langCode !== langCode) return undefined;
+  const baseLangCode = getBaseLangCode(pack.language);
+  const basePack = baseLangCode ? await fetchPxgLangpack(baseLangCode) : undefined;
+  if (baseLangCode && basePack?.language.langCode !== baseLangCode) return undefined;
+
+  return {
+    language: pack.language,
+    langPack: { langCode, version: pack.version, strings: pack.strings },
+    baseLangPack: basePack && baseLangCode
+      ? { langCode: baseLangCode, version: basePack.version, strings: basePack.strings }
+      : undefined,
+  };
 }
 
 function getBaseLangCode(languageInfo: ApiLanguage) {

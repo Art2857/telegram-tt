@@ -1,3 +1,4 @@
+import type { ApiLanguage, LangPackStringValue } from '../../api/types';
 import type { LoginStart, SessionLevel, SessionTokensResponse } from './types';
 import { PxgError } from './types';
 
@@ -6,6 +7,26 @@ import { PxgError } from './types';
  * проксирует Vite (vite.config.ts), в проде — обратный прокси перед сервером.
  */
 export const PXG_SERVER_URL = (import.meta.env.TG_PXG_SERVER_URL || '/pxg').replace(/\/$/, '');
+
+/** The server may first ask a worker to read a missing pack from Telegram (up to 15 s) */
+const LANGPACK_TIMEOUT_MS = 20000;
+
+export type PxgLangpack = { language: ApiLanguage; version: number; strings: Record<string, LangPackStringValue> };
+
+/**
+ * Telegram's language pack from the server's cache, without signing in: on the login page Telegram itself
+ * may be unreachable from the browser
+ */
+export async function fetchPxgLangpack(langCode: string): Promise<PxgLangpack | undefined> {
+  try {
+    const response = await fetch(`${PXG_SERVER_URL}/langpack/${encodeURIComponent(langCode)}`, {
+      signal: AbortSignal.timeout(LANGPACK_TIMEOUT_MS),
+    });
+    return response.ok ? await response.json() as PxgLangpack : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function getWebSocketUrl() {
   const base = new URL(PXG_SERVER_URL, window.location.href);
