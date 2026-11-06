@@ -389,16 +389,14 @@ const ServerTab = memo(({
           ))}
         </div>
       )}
-      {/* Connecting the server signs it in with this device's Telegram session */}
-      {isClient && (
-        <Button
-          size="smaller"
-          fluid={false}
-          onClick={() => setPxgState({ isSettingsOpen: false, isConnectOpen: true })}
-        >
-          {lang('PxgConnectTitle')}
-        </Button>
-      )}
+      {/* With Telegram on this device its session signs the server in; without it, a phone scans a QR code */}
+      <Button
+        size="smaller"
+        fluid={false}
+        onClick={() => setPxgState({ isSettingsOpen: false, isConnectOpen: true })}
+      >
+        {lang(isClient ? 'PxgConnectTitle' : 'PxgConnectQrTitle')}
+      </Button>
       {accounts.length > 0 && (
         <div className={styles.form}>
           <h3 className={styles.name}>{lang('PxgWipeTitle')}</h3>

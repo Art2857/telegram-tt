@@ -3622,6 +3622,13 @@ export interface LangPair {
   'PxgConnectOk': undefined;
   'PxgConnectRetry': undefined;
   'PxgConnectDisconnect': undefined;
+  'PxgConnectQrTitle': undefined;
+  'PxgConnectQrText1': undefined;
+  'PxgConnectQrText2': undefined;
+  'PxgConnectQrButton': undefined;
+  'PxgConnectQrHint': undefined;
+  'PxgConnectQrDone': undefined;
+  'PxgConnectQrMismatch': undefined;
   'PxgConnectDisconnectNote': undefined;
   'PxgShareTitle': undefined;
   'PxgShareUsername': undefined;

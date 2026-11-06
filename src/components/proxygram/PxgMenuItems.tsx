@@ -37,14 +37,15 @@ const PxgMenuItems = () => {
           {Boolean(sharedCount) && <div className="right-badge">{sharedCount}</div>}
         </MenuItem>
       )}
-      {session.level === 'client' && (
-        <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
-          <span className="menu-item-name">{lang('PxgMenuSharing')}</span>
-          {isLost ? <span className="menu-item-badge">{lang('PxgMenuSharingLost')}</span>
-            : isFlood ? <span className="menu-item-badge">{lang('PxgMenuSharingFlood')}</span>
-              : isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
-        </MenuItem>
-      )}
+      {/* Гость без Telegram на устройстве подключает свой аккаунт по QR и работает с ним через сервер */}
+      <MenuItem icon="share-filled" onClick={() => setPxgState({ isConnectOpen: true })}>
+        <span className="menu-item-name">
+          {lang(session.level === 'client' ? 'PxgMenuSharing' : 'PxgConnectQrTitle')}
+        </span>
+        {isLost ? <span className="menu-item-badge">{lang('PxgMenuSharingLost')}</span>
+          : isFlood ? <span className="menu-item-badge">{lang('PxgMenuSharingFlood')}</span>
+            : isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
+      </MenuItem>
       <MenuItem icon="settings" onClick={() => setPxgState({ isSettingsOpen: true })}>
         {lang('PxgSettingsTitle')}
       </MenuItem>

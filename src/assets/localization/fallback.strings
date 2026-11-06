@@ -4793,6 +4793,13 @@
 "PxgConnectRetry" = "Try again";
 "PxgConnectActive" = "Sharing is on for «{name}». To share a chat, open it → ⋮ → Share chat.";
 "PxgConnectDisconnect" = "Disconnect from server";
+"PxgConnectQrTitle" = "Your Telegram via the server";
+"PxgConnectQrText1" = "The Proxygram server will connect to your Telegram account, and your chats will be here — without Telegram on this device and without VPN.";
+"PxgConnectQrText2" = "You will need a phone signed in to Telegram: scan the code with it on the next step.";
+"PxgConnectQrButton" = "Show the code";
+"PxgConnectQrHint" = "The code refreshes by itself. Scan it with the account you signed in with here.";
+"PxgConnectQrDone" = "Done! Your chats will appear in the list in a few seconds: the server shows them here, no Telegram needed on this device.";
+"PxgConnectQrMismatch" = "the code was scanned by a different Telegram account. Scan it with the one you signed in with here";
 "PxgConnectDisconnectNote" = "Disconnecting ends the server session in Telegram. The archive stays, guests lose live access.";
 "PxgShareTitle" = "Share chat";
 "PxgShareUsername" = "Who gets access (username or phone)";

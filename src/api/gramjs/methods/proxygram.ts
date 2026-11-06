@@ -1,24 +1,16 @@
 // PXG: методы Proxygram, которым нужна сессия Telegram этого устройства (работают в воркере GramJS)
 import { Api as GramJs } from '../../../lib/gramjs';
 import { generateRandomBigInt } from '../../../lib/gramjs/Helpers';
-import { computeCheck } from '../../../lib/gramjs/Password';
 
 import type { SrpChallengeDto } from '../../../proxygram/server/types';
 
+import { computeSrpAnswer } from '../../../proxygram/srp';
 import { invokeRequest } from './client';
 
 function fromBase64(value: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const binary = atob(normalized + '='.repeat((4 - (normalized.length % 4)) % 4));
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-
-function toBase64(bytes: Uint8Array) {
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary);
 }
 
 /**
@@ -33,23 +25,8 @@ export async function pxgAcceptLoginToken(token: string) {
 }
 
 /** Ответ SRP на 2FA сервера: пароль остаётся на устройстве, на сервер уходит только доказательство */
-export async function pxgComputeSrp(challenge: SrpChallengeDto, password: string) {
-  const request = new GramJs.account.Password({
-    currentAlgo: new GramJs.PasswordKdfAlgoSHA256SHA256PBKDF2HMACSHA512iter100000SHA256ModPow({
-      salt1: fromBase64(challenge.salt1),
-      salt2: fromBase64(challenge.salt2),
-      g: challenge.g,
-      p: fromBase64(challenge.p),
-    }),
-    srp_B: fromBase64(challenge.srpB),
-    srpId: BigInt(challenge.srpId),
-    // для расчёта ответа не нужны, но обязательны в конструкторе
-    newAlgo: new GramJs.PasswordKdfAlgoUnknown(),
-    newSecureAlgo: new GramJs.SecurePasswordKdfAlgoUnknown(),
-    secureRandom: new Uint8Array(),
-  });
-  const check = await computeCheck(request, password);
-  return { srpId: check.srpId.toString(), A: toBase64(check.A), M1: toBase64(check.M1) };
+export function pxgComputeSrp(challenge: SrpChallengeDto, password: string) {
+  return computeSrpAnswer(challenge, password);
 }
 
 /** Нажать Start у бота Proxygram своей сессией: так сервер узнаёт, кто вошёл (PLAN.md, 7.3) */
