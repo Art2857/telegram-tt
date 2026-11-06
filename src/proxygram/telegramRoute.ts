@@ -34,3 +34,29 @@ export function getTelegramRelayUrl(): string | undefined {
 window.addEventListener('storage', (event) => {
   if (event.key === DIRECT_KEY) window.location.reload();
 });
+
+/**
+ * Через сервер Telegram определяет «ближайшую страну» по адресу сервера (VPN), а не человека. Страна для
+ * формы входа и формата времени — из языка браузера: регион из `ru-RU`, иначе по языку (`ru` → RU).
+ * Голый `en` не говорит о стране — тогда остаётся ответ Telegram
+ */
+export function getBrowserCountry(): string | undefined {
+  const tags = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const tag of tags) {
+    try {
+      const locale = new Intl.Locale(tag);
+      if (locale.region && /^[A-Z]{2}$/.test(locale.region)) return locale.region;
+      if (locale.language === 'en') continue;
+      const { region } = locale.maximize();
+      if (region && /^[A-Z]{2}$/.test(region)) return region;
+    } catch {
+      // неверный тег языка — следующий
+    }
+  }
+  return undefined;
+}
+
+/** Страна человека для Web A: при входе через сервер — из языка браузера */
+export function getRelayCountry(): string | undefined {
+  return getTelegramRelayUrl() ? getBrowserCountry() : undefined;
+}

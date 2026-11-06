@@ -45,7 +45,7 @@ import {
 } from '../../../api/gramjs';
 import { isProxyGuest } from '../../../api/proxy';
 import { signOutPxg } from '../../../proxygram/server/session';
-import { getTelegramRelayUrl } from '../../../proxygram/telegramRoute';
+import { getRelayCountry, getTelegramRelayUrl } from '../../../proxygram/telegramRoute';
 import { removeGlobalFromCache, removeSharedStateFromCache } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -348,7 +348,8 @@ addActionHandler('loadNearestCountry', async (global): Promise<void> => {
     return;
   }
 
-  const authNearestCountry = await callApi('fetchNearestCountry');
+  // PXG: through the relay Telegram sees the server's address, not the person's
+  const authNearestCountry = getRelayCountry() || await callApi('fetchNearestCountry');
 
   global = getGlobal();
   global = updateAuth(global, {

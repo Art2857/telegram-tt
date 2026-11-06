@@ -23,6 +23,7 @@ import requestActionTimeout from '../../../util/requestActionTimeout';
 import { getServerTime } from '../../../util/serverTime';
 import { resolveSettingsLink } from '../../../util/settingsLinks';
 import { callApi } from '../../../api/gramjs';
+import { getRelayCountry } from '../../../proxygram/telegramRoute';
 import { buildApiInputPrivacyRules } from '../../helpers';
 import { addActionHandler, getGlobal, getPromiseActions, setGlobal } from '../../index';
 import {
@@ -743,7 +744,8 @@ addActionHandler('ensureTimeFormat', async (global, actions): Promise<void> => {
     return;
   }
 
-  const nearestCountryCode = await callApi('fetchNearestCountry');
+  // PXG: through the relay Telegram sees the server's address, not the person's
+  const nearestCountryCode = getRelayCountry() || await callApi('fetchNearestCountry');
   if (nearestCountryCode) {
     const timeFormat = COUNTRIES_WITH_12H_TIME_FORMAT.has(nearestCountryCode.toUpperCase()) ? '12h' : '24h';
     actions.setSharedSettingOption({ timeFormat });
