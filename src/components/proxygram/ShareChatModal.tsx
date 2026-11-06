@@ -7,6 +7,7 @@ import type {
 } from '../../proxygram/server/types';
 import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
 
+import { SERVICE_NOTIFICATIONS_USER_ID } from '../../config';
 import { getMainUsername, getUserFullName } from '../../global/helpers';
 import { selectChat, selectChatFullInfo, selectUser } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
@@ -443,7 +444,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   // Chats of other owners may sit in the folder too: they are not this account's to share
   const folderChatIds = folder ? getOrderedIds(folder.id) : undefined;
   const folderChats = useMemo(() => {
-    const ids = (folderChatIds ?? []).filter((id) => !isProxyPeerId(id));
+    // Telegram's service chat with login codes stays closed even inside a shared folder: the server skips it
+    const ids = (folderChatIds ?? []).filter((id) => !isProxyPeerId(id) && id !== SERVICE_NOTIFICATIONS_USER_ID);
     return ids.map((id) => ({ peerId: Number(id), title: selectChat(getGlobal(), id)?.title ?? id }));
   }, [folderChatIds]);
   const settings = useMemo<ShareSettings>(() => ({

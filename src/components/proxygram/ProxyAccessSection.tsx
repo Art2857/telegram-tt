@@ -3,6 +3,7 @@ import { getGlobal } from '../../global';
 
 import type { PresetKey } from '../../proxygram/server/types';
 
+import { SERVICE_NOTIFICATIONS_USER_ID } from '../../config';
 import { selectChat } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
 import { isProxyPeerId } from '../../api/proxy/ids';
@@ -68,6 +69,8 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
   const peerId = Number(chatId);
 
   const isAvailable = Boolean(accountId) && connection === 'online' && !isProxyPeerId(chatId);
+  // Telegram's service chat carries the owner's login codes: the server never opens it to anyone
+  const isShareable = chatId !== SERVICE_NOTIFICATIONS_USER_ID;
 
   const load = useLastCallback(() => {
     if (!isAvailable) return;
@@ -200,9 +203,11 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
           />
         </div>
       ))}
-      <Button className={styles.add} isText fluid={false} iconName="add" onClick={handleShare}>
-        {lang('PxgProxyAccessAdd')}
-      </Button>
+      {isShareable && (
+        <Button className={styles.add} isText fluid={false} iconName="add" onClick={handleShare}>
+          {lang('PxgProxyAccessAdd')}
+        </Button>
+      )}
       <ConfirmDialog
         isOpen={Boolean(revoking)}
         onClose={() => setRevoking(undefined)}
