@@ -32,6 +32,8 @@ export interface ApiInitialArgs {
   isTestServerRequested?: boolean;
   accountIds?: string[];
   hasPasskeySupport?: boolean;
+  /** PXG: wss://<сервер>/pxg/tg — в Telegram через ретранслятор Proxygram; без него напрямую */
+  pxgTelegramRelayUrl?: string;
 }
 
 export type ApiPasskeyOption = {

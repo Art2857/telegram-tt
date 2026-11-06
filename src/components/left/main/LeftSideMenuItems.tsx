@@ -40,6 +40,7 @@ import useLastCallback from '../../../hooks/useLastCallback';
 
 import AttachBotItem from '../../middle/composer/AttachBotItem';
 import PxgMenuItems from '../../proxygram/PxgMenuItems'; // PXG
+import TelegramRouteItem from '../../proxygram/TelegramRouteItem'; // PXG
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import MenuItem from '../../ui/MenuItem';
 import MenuSeparator from '../../ui/MenuSeparator';
@@ -275,6 +276,8 @@ const LeftSideMenuItems = ({
               <span className="menu-item-name capitalize">{lang('MenuUIFeaturesSwitch')}</span>
               <Toggle value={animationLevelValue} />
             </MenuItem>
+            {/* PXG: Telegram через сервер Proxygram или напрямую; у гостя Telegram только через сервер */}
+            {!isGuest && <TelegramRouteItem />}
             <MenuSeparator />
             {!isGuest && (
               <MenuItem

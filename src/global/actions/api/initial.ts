@@ -45,6 +45,7 @@ import {
 } from '../../../api/gramjs';
 import { isProxyGuest } from '../../../api/proxy';
 import { signOutPxg } from '../../../proxygram/server/session';
+import { getTelegramRelayUrl } from '../../../proxygram/telegramRoute';
 import { removeGlobalFromCache, removeSharedStateFromCache } from '../../cache';
 import {
   addActionHandler, getGlobal, setGlobal,
@@ -96,6 +97,9 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       .map(({ userId }) => userId)
       .filter(Boolean);
 
+    // PXG: through the relay only WebSocket — the HTTP fallback transport would go to Telegram directly
+    const pxgTelegramRelayUrl = getTelegramRelayUrl();
+
     void initApi(actions.apiUpdate, {
       userAgent: navigator.userAgent,
       platform: PLATFORM_ENV,
@@ -105,8 +109,9 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       webAuthToken: token,
       webAuthUserId: token ? request!.userId : undefined,
       dcId: token ? request!.dcId : undefined,
-      shouldAllowHttpTransport,
-      shouldForceHttpTransport,
+      shouldAllowHttpTransport: shouldAllowHttpTransport && !pxgTelegramRelayUrl,
+      shouldForceHttpTransport: shouldForceHttpTransport && !pxgTelegramRelayUrl,
+      pxgTelegramRelayUrl,
       shouldDebugExportedSenders,
       langCode: language,
       isTestServerRequested: hasTestParam,

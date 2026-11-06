@@ -8,6 +8,7 @@ import type { TwoFaParams } from '../../../lib/gramjs/client/2fa';
 import TelegramClient from '../../../lib/gramjs/client/TelegramClient';
 import { RPCError } from '../../../lib/gramjs/errors';
 import { Logger as GramJsLogger } from '../../../lib/gramjs/extensions/index';
+import { setWebSocketRelay } from '../../../lib/gramjs/extensions/PromisedWebSockets';
 
 import type { ThreadId } from '../../../types';
 import type {
@@ -103,8 +104,10 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     userAgent, platform, sessionData, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     shouldForceHttpTransport, shouldAllowHttpTransport,
     shouldDebugExportedSenders, langCode, isTestServerRequested, accountIds,
-    hasPasskeySupport, webAuthUserId,
+    hasPasskeySupport, webAuthUserId, pxgTelegramRelayUrl,
   } = initialArgs;
+
+  setWebSocketRelay(pxgTelegramRelayUrl);
 
   const session = new sessions.CallbackSession(sessionData, onSessionUpdate);
 

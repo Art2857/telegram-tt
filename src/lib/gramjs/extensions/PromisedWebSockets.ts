@@ -3,6 +3,13 @@ import { Mutex } from 'async-mutex';
 import { concat } from '../../../util/encoding/buffer';
 
 const closeError = new Error('WebSocket was closed');
+
+// PXG: Telegram through the Proxygram server's MTProto relay instead of web.telegram.org (blocked networks)
+let relayUrl: string | undefined;
+
+export function setWebSocketRelay(url: string | undefined) {
+  relayUrl = url;
+}
 const CONNECTION_TIMEOUT = 3000;
 const MAX_TIMEOUT = 30000;
 
@@ -79,6 +86,10 @@ export default class PromisedWebSockets {
   }
 
   getWebSocketLink(ip: string, port: number, isTestServer?: boolean, isPremium?: boolean) {
+    if (relayUrl) {
+      // `zws2-1.web.telegram.org` → `<relay>/zws2-1/apiws…`: the relay knows only these hosts
+      return `${relayUrl}/${ip.split('.')[0]}/apiws${isTestServer ? '_test' : ''}${isPremium ? '_premium' : ''}`;
+    }
     if (port === 443) {
       return `wss://${ip}:${port}/apiws${isTestServer ? '_test' : ''}${isPremium ? '_premium' : ''}`;
     } else {

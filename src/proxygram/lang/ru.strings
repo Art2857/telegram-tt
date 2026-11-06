@@ -7,6 +7,9 @@
 "PxgAppDownloadHint" = "Версия {version}: уведомления и запуск вместе с системой";
 "PxgAppDownloadHintServer" = "Версия {version}. После установки укажите сервер {host}";
 "PxgAppDownloadAlso" = "Есть и для";
+"PxgTelegramViaServer" = "Telegram через сервер Proxygram";
+"PxgTelegramViaServerHint" = "Работает и там, где Telegram закрыт. Переписка остаётся зашифрованной: сервер её не читает.";
+"PxgTelegramDirectHint" = "Напрямую к Telegram — быстрее, если он открыт в вашей сети.";
 "PxgAppDownloadApps" = "Приложения Proxygram {version}:";
 "PxgServerChange" = "Сменить сервер";
 "PxgServerLocked" = "Чтобы перейти на другой сервер, выйдите из всех аккаунтов этого";

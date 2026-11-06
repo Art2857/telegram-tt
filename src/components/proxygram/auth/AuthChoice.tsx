@@ -11,6 +11,7 @@ import UnofficialNotice from '../UnofficialNotice';
 import AppDownloadOffer from './AppDownloadOffer';
 import AuthLanguagePicker from './AuthLanguagePicker';
 import ServerPicker from './ServerPicker';
+import TelegramRouteSwitch from './TelegramRouteSwitch';
 
 import styles from './AuthChoice.module.scss';
 
@@ -57,6 +58,7 @@ const AuthChoice = () => {
         </button>
 
         <ServerPicker isLocked={canCancel} />
+        <TelegramRouteSwitch />
         <UnofficialNotice />
       </div>
     </div>

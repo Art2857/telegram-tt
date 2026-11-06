@@ -4545,6 +4545,9 @@
 "PxgAppDownloadHint" = "Version {version}: notifications and launch with the system";
 "PxgAppDownloadHintServer" = "Version {version}. After installing, enter the server {host}";
 "PxgAppDownloadAlso" = "Also available for";
+"PxgTelegramViaServer" = "Telegram via Proxygram server";
+"PxgTelegramViaServerHint" = "Works where Telegram is blocked. Messages stay encrypted: the server cannot read them.";
+"PxgTelegramDirectHint" = "Directly to Telegram: faster if it is not blocked on your network.";
 "PxgAppDownloadApps" = "Proxygram {version} apps:";
 "PxgServerChange" = "Change server";
 "PxgServerLocked" = "To use another server, sign out of every account on this one";

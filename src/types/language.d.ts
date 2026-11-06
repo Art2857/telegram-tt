@@ -3403,6 +3403,9 @@ export interface LangPair {
   'PxgAppUpdateDownload': undefined;
   'PxgAppDownloadAndroid': undefined;
   'PxgAppDownloadAlso': undefined;
+  'PxgTelegramViaServer': undefined;
+  'PxgTelegramViaServerHint': undefined;
+  'PxgTelegramDirectHint': undefined;
   'PxgServerChange': undefined;
   'PxgServerLocked': undefined;
   'PxgServerAddress': undefined;
