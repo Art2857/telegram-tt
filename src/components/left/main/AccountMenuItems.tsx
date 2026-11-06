@@ -85,7 +85,9 @@ const AccountMenuItems = ({
   }
 
   const newAccountUrl = useMemo(() => {
-    if (!Object.values(accounts).length) {
+    // PXG: a device signed in only as a guest has no Telegram accounts, yet another sign-in can be added.
+    // Telegram's own slot appears in the list only after sync, while guest slots are known at once and skipped below
+    if (!Object.values(accounts).length && !isProxyPeerId(currentUser.id)) {
       return undefined;
     }
 
@@ -100,7 +102,7 @@ const AccountMenuItems = ({
     }
 
     return getAccountSlotUrl(freeIndex, true);
-  }, [accounts, currentCount, totalLimit]);
+  }, [accounts, currentCount, totalLimit, currentUser.id]);
 
   return (
     <>
