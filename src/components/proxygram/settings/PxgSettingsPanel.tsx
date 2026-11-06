@@ -947,6 +947,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
 
   return (
     <>
+      <ServerAdminLine lang={lang} t={t} />
       {IS_TAURI && <AutostartToggle lang={lang} />}
       <BotNotificationsToggle lang={lang} />
       <table className={styles.table}>
@@ -986,6 +987,28 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
     </>
   );
 });
+
+type ServerAdmin = { firstName: string | null; lastName: string | null; username: string | null; isYou: boolean };
+
+/** Who runs this server — whom to write when something breaks; the server has exactly one administrator */
+function ServerAdminLine({ lang, t }: { lang: Lang; t: Translate }) {
+  const { data } = usePxgData<ServerAdmin | null>('server.admin', {}, []);
+  if (!data) return undefined;
+  if (data.isYou) return <p className={styles.secondary}>{lang('PxgServerAdminYou')}</p>;
+
+  const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || (data.username ? `@${data.username}` : '—');
+  return (
+    <p className={styles.secondary}>
+      {t('PxgServerAdmin', { name })}
+      {data.username && (
+        <>
+          {' · '}
+          <a href={`https://t.me/${data.username}`} target="_blank" rel="noopener noreferrer">{`@${data.username}`}</a>
+        </>
+      )}
+    </p>
+  );
+}
 
 /** The fallback channel: the bot writes about new messages when no device of this person gets Web Push (PLAN.md 7.14) */
 function BotNotificationsToggle({ lang }: { lang: Lang }) {

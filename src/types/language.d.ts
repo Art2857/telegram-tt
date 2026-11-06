@@ -3489,6 +3489,7 @@ export interface LangPair {
   'PxgSettingsEnd': undefined;
   'PxgSettingsEndConfirm': undefined;
   'PxgSettingsThisDevice': undefined;
+  'PxgServerAdminYou': undefined;
   'PxgSettingsMore': undefined;
   'PxgSettingsSaved': undefined;
   'PxgPolicyNote': undefined;
@@ -6202,6 +6203,9 @@ export interface LangPairWithVariables<V = LangVariable> {
     'name': V;
     'title': V;
   };
+  'PxgServerAdmin': {
+    'name': V;
+  };
   'PxgPolicyUsage': {
     'count': V;
     'size': V;
@@ -7406,6 +7410,7 @@ export interface LangKeyGroups {
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
       | 'PxgSettingsFrom'
+      | 'PxgServerAdmin'
       | 'PxgArchiveClearConfirm'
       | 'PxgComposerOnBehalf'
       | 'PxgInviteAwaiting'

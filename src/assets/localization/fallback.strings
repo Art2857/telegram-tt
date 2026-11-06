@@ -4646,6 +4646,8 @@
 "PxgSettingsEnd" = "End session";
 "PxgSettingsEndConfirm" = "End the Proxygram session on this device? It will have to sign in again.";
 "PxgSettingsThisDevice" = "this device";
+"PxgServerAdmin" = "Server administrator: {name}";
+"PxgServerAdminYou" = "You are the administrator of this server";
 "PxgSettingsMore" = "Show more";
 "PxgSettingsSaved" = "Saved";
 "PxgPolicyNote" = "The policy applies to new files. Self-destructing messages are never kept.";

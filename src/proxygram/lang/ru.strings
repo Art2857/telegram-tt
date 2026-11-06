@@ -133,6 +133,8 @@
 "PxgSettingsEnd" = "Завершить";
 "PxgSettingsEndConfirm" = "Завершить сессию Proxygram на этом устройстве? Там придётся войти заново.";
 "PxgSettingsThisDevice" = "это устройство";
+"PxgServerAdmin" = "Администратор сервера: {name}";
+"PxgServerAdminYou" = "Вы — администратор этого сервера";
 "PxgSettingsMore" = "Показать ещё";
 "PxgSettingsSaved" = "Сохранено";
 "PxgPolicyNote" = "Политика действует для новых файлов. Самоуничтожающиеся сообщения не сохраняются никогда.";
