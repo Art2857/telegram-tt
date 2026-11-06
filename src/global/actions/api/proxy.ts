@@ -1,6 +1,7 @@
-import type { ApiChat } from '../../../api/types';
+import type { ApiChat, ApiMessage } from '../../../api/types';
 import type { AccessChat, ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
-import type { ActionReturnType } from '../../types';
+import type { RequiredGlobalActions } from '../../index';
+import type { ActionReturnType, GlobalState } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { MAIN_THREAD_ID } from '../../../api/types';
 import { LoadMoreDirection } from '../../../types';
@@ -16,7 +17,9 @@ import {
 } from '../../../api/proxy';
 import { buildProxyChat, buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
-import { buildProxyReadStates, fetchProxyChats } from '../../../api/proxy/methods';
+import {
+  buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
+} from '../../../api/proxy/methods';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
@@ -39,6 +42,13 @@ import { initSharedState } from '../../shared/sharedStateConnector';
 
 let loadGeneration = 0;
 let mentionGeneration = 0;
+/**
+ * The newest archive change this session has (`change_seq`, one sequence for the whole archive). A reconnect
+ * keeps what is loaded and asks `sync.changes` only for what came after it
+ */
+let syncCursor: { userId: string; seq?: string } | undefined;
+/** Pages of `sync.changes` replayed after a reconnect; beyond that reading everything again is cheaper */
+const MAX_SYNC_PAGES = 10;
 
 /** Упоминание открывает только доступный чат, в первую очередь — у владельца исходного сообщения */
 addActionHandler('openProxyMention', async (global, actions, payload): Promise<void> => {
@@ -132,6 +142,7 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
 addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   if (!global.currentUserId || !isProxyPeerId(global.currentUserId)) return;
   loadGeneration++;
+  syncCursor = undefined;
   global = clearProxyChats({ ...global, currentUserId: undefined });
   global = {
     ...global, auth: { ...global.auth, state: 'authorizationStateWaitPhoneNumber' },
@@ -146,6 +157,8 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
   const generation = ++loadGeneration;
   const userId = getPxgState().session?.user.id;
   if (!userId) return;
+  // The same session loaded before: the connection dropped, and only the missed changes are needed
+  const isReconnect = !payload && syncCursor?.userId === userId;
   try {
     const result = await fetchProxyChats();
     if (!result || generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
@@ -161,7 +174,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     global = getGlobal();
     const previousChats = global.chats.byId;
     const unsentMessages = selectProxyUnsentMessages(global);
-    const keptChatIds = payload?.shouldKeepUnchanged ? new Set(result.chats.filter((chat) => (
+    const keptChatIds = payload?.shouldKeepUnchanged || isReconnect ? new Set(result.chats.filter((chat) => (
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
     )).map((chat) => chat.id)) : undefined;
     global = clearProxyChats(global, keptChatIds);
@@ -222,6 +235,11 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       if (!allowedIds.has(message.chatId) || keptChatIds?.has(message.chatId)) return;
       actions.apiUpdate({ '@type': 'newMessage', id: message.id, chatId: message.chatId, message });
     });
+    if (isReconnect) {
+      actions.syncProxyChanges();
+    } else if (syncCursor?.userId !== userId) {
+      syncCursor = { userId, seq: result.changeSeq };
+    }
     setPxgState({ sharedCount: result.chats.length });
     // Telegram's reactions and message effects are read through a provider: the first shared chat brings them
     if (isProxyGuest() && result.chats.length) {
@@ -249,7 +267,7 @@ function isSameProxyAccess(previous: ApiChat['pxgProxy'], next: ApiChat['pxgProx
 }
 
 addActionHandler('refreshProxyMessage', async (global, actions, {
-  accountId, peerId, msgId, kind,
+  accountId, peerId, msgId, kind, changeSeq,
 }): Promise<void> => {
   const id = getProxyPeerId(accountId, peerId);
   const chat = global.chats.byId[id];
@@ -258,6 +276,7 @@ addActionHandler('refreshProxyMessage', async (global, actions, {
   try {
     const result = await callApi('fetchMessage', { chat, messageId: msgId });
     if (generation !== loadGeneration) return;
+    advanceSyncCursor(changeSeq);
     global = getGlobal();
     if (!global.chats.byId[id]?.pxgProxy) return;
     const current = selectChatMessage(global, id, msgId);
@@ -277,21 +296,73 @@ addActionHandler('refreshProxyMessage', async (global, actions, {
       actions.loadUnreadReactions({ chatId: id });
       actions.refreshProxyTopics({ accountId, peerId });
     }
-    if (!current && msgId < (global.chats.lastMessageIds.all?.[id] || 0)) return;
-    actions.apiUpdate(current ? {
-      '@type': 'updateMessage', id: msgId, chatId: id, message: { ...result.message, isDeleting: false }, isFull: true,
-    } : { '@type': 'newMessage', id: msgId, chatId: id, message: result.message });
-    // As in Telegram, a new incoming message brings an unmuted chat back from the archive
-    global = getGlobal();
-    const updatedChat = global.chats.byId[id];
-    if (!current && !result.message.isOutgoing && updatedChat?.folderId === ARCHIVED_FOLDER_ID
-      && !getIsChatMuted(updatedChat, selectNotifyDefaults(global), selectNotifyException(global, id))) {
-      void callApi('toggleChatArchived', { chat: updatedChat, folderId: 0 });
-    }
+    applyProxyMessage(global, actions, result.message);
   } catch {
-    // Reconnect reloads proxy history with a fresh access check
+    // A reconnect catches up through `sync.changes` with a fresh access check
   }
 });
+
+/** After a reconnect: what changed in the archive while the guest was offline, as the live events would bring it */
+addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
+  const userId = getPxgState().session?.user.id;
+  const generation = loadGeneration;
+  if (!userId || syncCursor?.userId !== userId) return;
+  try {
+    for (let page = 0; page < MAX_SYNC_PAGES; page++) {
+      global = getGlobal();
+      const result = await fetchProxyChanges(syncCursor.seq || '0', global.chats.byId);
+      if (generation !== loadGeneration || syncCursor?.userId !== userId) return;
+      result.messages.forEach((message) => {
+        global = getGlobal();
+        if (!global.chats.byId[message.chatId]?.pxgProxy) return;
+        const current = selectChatMessage(global, message.chatId, message.id);
+        if (current && Boolean(current.isPinned) !== Boolean(message.isPinned)) {
+          emitProxyUpdate({
+            '@type': 'updatePinnedIds', chatId: message.chatId, messageIds: [message.id],
+            isPinned: Boolean(message.isPinned),
+          });
+          global = getGlobal();
+        }
+        applyProxyMessage(global, actions, message);
+      });
+      result.removed.forEach(({ chatId, msgId }) => {
+        global = getGlobal();
+        if (selectChatMessage(global, chatId, msgId)) {
+          emitProxyUpdate({ '@type': 'deleteMessages', chatId, ids: [msgId] });
+        }
+      });
+      syncCursor = { userId, seq: result.next };
+      if (!result.hasMore) return;
+    }
+    syncCursor = undefined;
+    actions.loadProxyChats();
+  } catch {
+    // The next reconnect starts from the same cursor
+  }
+});
+
+/** A changed message: updates a loaded one or adds a newer one, as live updates do */
+function applyProxyMessage<T extends GlobalState>(global: T, actions: RequiredGlobalActions, message: ApiMessage) {
+  const { chatId, id } = message;
+  const current = selectChatMessage(global, chatId, id);
+  if (!current && id < (global.chats.lastMessageIds.all?.[chatId] || 0)) return;
+  actions.apiUpdate(current ? {
+    '@type': 'updateMessage', id, chatId, message: { ...message, isDeleting: false }, isFull: true,
+  } : { '@type': 'newMessage', id, chatId, message });
+  // As in Telegram, a new incoming message brings an unmuted chat back from the archive
+  global = getGlobal();
+  const updatedChat = global.chats.byId[chatId];
+  if (!current && !message.isOutgoing && updatedChat?.folderId === ARCHIVED_FOLDER_ID
+    && !getIsChatMuted(updatedChat, selectNotifyDefaults(global), selectNotifyException(global, chatId))) {
+    void callApi('toggleChatArchived', { chat: updatedChat, folderId: 0 });
+  }
+}
+
+function advanceSyncCursor(changeSeq?: string | null) {
+  const userId = getPxgState().session?.user.id;
+  if (!changeSeq || !userId || syncCursor?.userId !== userId) return;
+  syncCursor = { userId, seq: getMaxChangeSeq([syncCursor.seq, changeSeq]) };
+}
 
 /** The person who shared a chat, in the viewer's own Telegram: by a known dialog, otherwise by username */
 addActionHandler('openProxyChatOwner', (global, actions, payload): ActionReturnType => {

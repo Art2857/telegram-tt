@@ -12,7 +12,6 @@ import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
 import { getMessageLink } from '../../global/helpers/messages';
-import { pause } from '../../util/schedulers';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import {
@@ -48,6 +47,12 @@ import {
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
+type SyncChangesResult = {
+  messages: MessageDto[];
+  removed: { accountId: string; peerId: number; msgId: number }[];
+  next: string;
+  hasMore: boolean;
+};
 /** Chats the guest has open: a channel known only as an author must not overwrite one of them */
 let sharedChatIds = new Set<string>();
 const HISTORY_WAIT_MS = 10_000;
@@ -247,7 +252,35 @@ export async function fetchProxyChats() {
       .map((item) => item.id) : [],
     totalChatCount: chats.length,
     isFullyLoaded: true as const,
+    // Every later change has a greater sequence number: a reconnect catches up from here
+    changeSeq: getMaxChangeSeq(pages.flatMap((page) => page?.messages.map((dto) => dto.changeSeq) || [])),
   };
+}
+
+/** What changed in the open chats after the cursor, built against the chats the client has */
+export async function fetchProxyChanges(since: string, chatsById: Record<string, ApiChat>) {
+  const result = await pxgRpc.call<SyncChangesResult>('sync.changes', { since });
+  const messages = result.messages.flatMap((dto) => {
+    const chat = chatsById[getProxyPeerId(dto.accountId, dto.peerId)];
+    if (!chat?.pxgProxy) return [];
+    buildMessageUsers(dto).forEach((user) => emitProxyUpdate({ '@type': 'updateUser', id: user.id, user }));
+    emitRelated(dto);
+    return [buildProxyMessage(dto, chat)];
+  });
+  return {
+    messages,
+    removed: result.removed.map(({ accountId, peerId, msgId }) => ({
+      chatId: getProxyPeerId(accountId, peerId), msgId,
+    })),
+    next: result.next,
+    hasMore: result.hasMore,
+  };
+}
+
+export function getMaxChangeSeq(changeSeqs: (string | null | undefined)[]) {
+  return changeSeqs.reduce<string | undefined>((max, seq) => (
+    seq && (!max || BigInt(seq) > BigInt(max)) ? seq : max
+  ), undefined);
 }
 
 /** The guest's own counters, kept by the server for every device and independent of the owner's read state */
@@ -295,11 +328,8 @@ async function fetchMessages({
   const oldestId = result.messages.at(-1)?.msgId;
   if (result.messages.length < limit && (!offsetId || !oldestId || oldestId <= offsetId)) {
     // A paused account must still display its existing archive. Completion events refresh late imports
-    await Promise.race([
-      runProxyJob('messages.loadOlder', { ...peer, ...thread, beforeMsgId: oldestId || offsetId })
-        .catch(() => undefined),
-      pause(HISTORY_WAIT_MS),
-    ]);
+    await runProxyJob('messages.loadOlder', { ...peer, ...thread, beforeMsgId: oldestId || offsetId }, HISTORY_WAIT_MS)
+      .catch(() => undefined);
     result = await pxgRpc.call<WindowResult>('messages.window', {
       ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
     });
@@ -352,10 +382,7 @@ async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDisc
   const params = { ...peer, msgId: messageId };
   let discussion = await pxgRpc.call<DiscussionDto | null>('messages.discussion', params);
   if (!discussion) {
-    await Promise.race([
-      runProxyJob('messages.loadDiscussion', params).catch(() => undefined),
-      pause(HISTORY_WAIT_MS),
-    ]);
+    await runProxyJob('messages.loadDiscussion', params, HISTORY_WAIT_MS).catch(() => undefined);
     discussion = await pxgRpc.call<DiscussionDto | null>('messages.discussion', params);
   }
   if (!discussion) return undefined;

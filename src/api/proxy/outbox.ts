@@ -7,8 +7,11 @@ import { getPxgState } from '../../proxygram/server/store';
 
 const POLL_INTERVAL_MS = 3000;
 
-/** Events provide fast completion; polling recovers replies missed during a reconnect */
-export async function runProxyJob(method: string, params: unknown): Promise<unknown> {
+/**
+ * Events provide fast completion; polling recovers replies missed during a reconnect. With `timeoutMs` the caller
+ * stops waiting and the polling stops with it: a job the worker never takes would otherwise be polled forever
+ */
+export async function runProxyJob(method: string, params: unknown, timeoutMs?: number): Promise<unknown> {
   const userId = getPxgState().session?.user.id;
   let jobId: string | undefined;
   let isFinished = false;
@@ -24,7 +27,9 @@ export async function runProxyJob(method: string, params: unknown): Promise<unkn
     const queued = await pxgRpc.call<{ id?: string; status?: string }>(method, params);
     if (!queued.id) return { complete: queued.status === 'complete' };
     jobId = queued.id;
-    const result = await Promise.race([completion, pollJob(queued.id)]);
+    const result = await Promise.race([
+      completion, pollJob(queued.id), ...(timeoutMs ? [rejectAfter(timeoutMs)] : []),
+    ]);
     if (result.status === 'failed') throw new PxgError('outbox_failed', result.error || undefined);
     return result.result;
   } finally {
@@ -46,4 +51,9 @@ export async function runProxyJob(method: string, params: unknown): Promise<unkn
     // The event has already resolved the outer race
     return completion;
   }
+}
+
+async function rejectAfter(ms: number): Promise<never> {
+  await pause(ms);
+  throw new PxgError('timeout');
 }

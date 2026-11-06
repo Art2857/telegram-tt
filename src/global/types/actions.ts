@@ -142,7 +142,10 @@ export interface ActionPayloads {
   loadProxyChats: { shouldKeepUnchanged?: boolean } | undefined;
   initProxyGuest: undefined;
   resetProxyGuest: undefined;
-  refreshProxyMessage: { accountId: string; peerId: number; msgId: number; kind?: string };
+  refreshProxyMessage: {
+    accountId: string; peerId: number; msgId: number; kind?: string; changeSeq?: string | null;
+  };
+  syncProxyChanges: undefined;
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   openProxyChatOwner: { chatId: string } & WithTabId;

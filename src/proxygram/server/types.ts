@@ -677,7 +677,10 @@ export type ServerEvent =
   | { e: 'chat.typing'; d: ChatTypingDto }
   | { e: 'chat.readOutbox'; d: { accountId: string; peerId: number; maxId: number; threadId?: number } }
   | { e: 'user.status'; d: { accountId: string; userId: number; status: UserStatusDto } }
-  | { e: 'archive.change'; d: { accountId: string; peerId: number; msgId: number; kind: string } }
+  | {
+    e: 'archive.change';
+    d: { accountId: string; peerId: number; msgId: number; kind: string; changeSeq?: string | null };
+  }
   | { e: 'access.changed'; d: Record<string, never> }
   | { e: 'outbox.done'; d: OutboxDoneDto }
   | { e: 'admin.changed'; d: { topics: AdminTopic[] } }
