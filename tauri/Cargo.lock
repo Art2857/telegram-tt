@@ -3745,7 +3745,7 @@ dependencies = [
 
 [[package]]
 name = "proxygram"
-version = "2.12.2"
+version = "1.0.0"
 dependencies = [
  "ab_glyph",
  "cocoa",

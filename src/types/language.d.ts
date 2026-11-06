@@ -3400,6 +3400,7 @@ export interface LangPair {
   'PxgAuthChoiceTitle': undefined;
   'PxgAuthChoiceNote': undefined;
   'PxgAppDownloadWindows': undefined;
+  'PxgAppUpdateDownload': undefined;
   'PxgAppDownloadAndroid': undefined;
   'PxgServerChange': undefined;
   'PxgServerLocked': undefined;
@@ -6139,6 +6140,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgServerCurrent': {
     'host': V;
   };
+  'PxgAppUpdateAvailable': {
+    'version': V;
+  };
   'PxgAppDownloadHint': {
     'version': V;
   };
@@ -8706,6 +8710,7 @@ export interface LangKeyGroups {
   };
   'version': {
     keys:
+      | 'PxgAppUpdateAvailable'
       | 'PxgAppDownloadHint';
     variables: 'version';
   };

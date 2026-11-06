@@ -1,11 +1,15 @@
 {
   "identifier": "default",
-  "description": "Permissions available to Proxygram app content",
+  "description": "Permissions of the client served by the default server; another chosen server gets the same at runtime (src/server.rs)",
   "local": true,
   "remote": {
-    "urls": ["https://proxygram.azhuleev.ru/*"]
+    "urls": [
+      "https://proxygram.azhuleev.ru/*"
+    ]
   },
-  "webviews": ["*"],
+  "webviews": [
+    "*"
+  ],
   "permissions": [
     "allow-mark-title-bar-overlay",
     "allow-set-notifications-count",
@@ -13,18 +17,15 @@
     "allow-open-new-window-cmd",
     "allow-save-current-url",
     "allow-set-menu-translations",
+    "allow-set-server",
     "core:event:default",
     "core:window:allow-is-fullscreen",
     "core:window:allow-start-dragging",
     "deep-link:allow-get-current",
     "process:default",
-    "updater:default",
     "notification:allow-is-permission-granted",
     "notification:allow-notify",
     "notification:allow-request-permission",
-    "shell:default",
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled"
+    "shell:default"
   ]
 }

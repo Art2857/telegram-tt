@@ -14,13 +14,24 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["proxygram"]
+        "schemes": [
+          "proxygram"
+        ]
+      }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyMDMxQzk2REQwQjhEMDMKUldRRGpRdmRsaHdEa3BuYXNDcmxCVG9CRjdoeDkyNGVtOHdGOW82MnJwbDB0TG8zVy9NSytDazUK",
+      "endpoints": [
+        "https://proxygram.azhuleev.ru/downloads/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "category": "SocialNetworking",
     "copyright": "Proxygram",
     "externalBin": [],
@@ -55,5 +66,5 @@
   },
   "identifier": "app.proxygram.client",
   "productName": "Proxygram",
-  "version": "0.1.0"
+  "version": "1.0.0"
 }

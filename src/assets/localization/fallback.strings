@@ -4539,6 +4539,8 @@
 "PxgAuthChoiceNote" = "Choose how to sign in";
 "PxgServerCurrent" = "Server: {host}";
 "PxgAppDownloadWindows" = "Download the app for Windows";
+"PxgAppUpdateAvailable" = "Proxygram {version} is available";
+"PxgAppUpdateDownload" = "Download";
 "PxgAppDownloadAndroid" = "Download the app for Android";
 "PxgAppDownloadHint" = "Version {version}: notifications and launch with the system";
 "PxgAppDownloadHintServer" = "Version {version}. After installing, enter the server {host}";

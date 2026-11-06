@@ -9,6 +9,8 @@ use uuid::Uuid;
 mod deeplink;
 use deeplink::Deeplink;
 
+mod server;
+#[cfg(desktop)]
 mod tray;
 mod window;
 use crate::window::{WINDOW_STATES, WindowState};
@@ -62,14 +64,15 @@ pub const WINDOW_HEIGHT: f64 = 700.0;
 pub const WINDOW_MIN_WIDTH: f64 = 360.0;
 pub const WINDOW_MIN_HEIGHT: f64 = 200.0;
 
-pub static LAST_URL: LazyLock<std::sync::Mutex<String>> =
-  LazyLock::new(|| std::sync::Mutex::new(BASE_URL.to_string()));
+/// Where a window reopened from the tray continues; empty until the first window closes
+pub static LAST_URL: LazyLock<std::sync::Mutex<String>> = LazyLock::new(|| std::sync::Mutex::new(String::new()));
 
 pub const DEFAULT_WINDOW_TITLE: &str = match std::option_env!("APP_TITLE") {
   Some(title) => title,
   None => "Proxygram",
 };
 
+/// The default server: the app opens it until another one is chosen on the sign-in page
 pub const BASE_URL: &str = match std::option_env!("BASE_URL") {
   Some(url) => url,
   None if cfg!(debug_assertions) => "http://localhost:1234",
@@ -77,8 +80,10 @@ pub const BASE_URL: &str = match std::option_env!("BASE_URL") {
 };
 
 /// Passed by the system autostart entry: the app starts in the tray without a window
+#[cfg(desktop)]
 pub const AUTOSTART_ARG: &str = "--autostart";
 
+#[cfg(desktop)]
 pub const WITH_UPDATER: &str = match std::option_env!("WITH_UPDATER") {
   Some(str) => str,
   None => "false",
@@ -93,6 +98,7 @@ pub(crate) fn strip_hash_from_url(url: &str) -> String {
   }
 }
 
+#[cfg(desktop)]
 pub(crate) fn save_window_url(app: &tauri::AppHandle, window_label: &str) {
   if let Some(webview_window) = app.get_webview_window(window_label) {
     if let Ok(current_url) = webview_window.url() {
@@ -104,32 +110,40 @@ pub(crate) fn save_window_url(app: &tauri::AppHandle, window_label: &str) {
   }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  let app = tauri::Builder::default()
-    .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-      let active_windows = app.windows();
-      if active_windows.len() >= 1 {
-        let window = active_windows.values().next().unwrap();
-        window.show().unwrap_or_default();
-        window.unminimize().unwrap_or_default();
-        window.set_focus().unwrap_or_default();
-      } else {
-        open_new_window(app.clone(), BASE_URL.to_string()).unwrap();
-      }
-    }))
+  let app = tauri::Builder::default();
+
+  #[cfg(desktop)]
+  let app = app.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+    let active_windows = app.windows();
+    if let Some(window) = active_windows.values().next() {
+      window.show().unwrap_or_default();
+      window.unminimize().unwrap_or_default();
+      window.set_focus().unwrap_or_default();
+    } else if let Err(err) = open_new_window(app.clone(), String::new()) {
+      log::error!("Failed to open window for the second instance: {err}");
+    }
+  }));
+
+  let app = app
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_fs::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_log::Builder::default().build())
-    .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_deep_link::init())
+    .plugin(tauri_plugin_process::init());
+
+  #[cfg(desktop)]
+  let app = app
+    .plugin(tauri_plugin_window_state::Builder::default().build())
     .plugin(tauri_plugin_autostart::init(
       tauri_plugin_autostart::MacosLauncher::LaunchAgent,
       Some(vec![AUTOSTART_ARG]),
-    ))
-    .plugin(tauri_plugin_process::init());
+    ));
 
+  #[cfg(desktop)]
   let app = app.on_window_event(|window, event| match event {
     tauri::WindowEvent::CloseRequested { api, .. } => {
       let active_windows = window.app_handle().windows();
@@ -181,9 +195,11 @@ pub fn run() {
     // Manage app state
     app.manage(AppState::new(AppStateStruct::default()));
 
-    let main_window = open_new_window(app.handle().clone(), BASE_URL.to_string())
-      .expect("Failed to open main window");
+    let start_url = server::init(app.handle());
+    #[cfg_attr(mobile, allow(unused_variables))]
+    let main_window = open_new_window(app.handle().clone(), start_url.to_string())?;
     // Started with the system: the client keeps receiving messages in the tray until the user opens it
+    #[cfg(desktop)]
     if std::env::args().any(|arg| arg == AUTOSTART_ARG) {
       main_window.hide().unwrap_or_default();
     }
@@ -193,13 +209,15 @@ pub fn run() {
       log::error!("Failed to setup deeplink: {:?}", err);
     }
 
-    if WITH_UPDATER == "true" {
-      app
-        .handle()
-        .plugin(tauri_plugin_updater::Builder::new().build())?;
+    #[cfg(desktop)]
+    {
+      if WITH_UPDATER == "true" {
+        app
+          .handle()
+          .plugin(tauri_plugin_updater::Builder::new().build())?;
+      }
+      crate::tray::TrayManager::init(app.handle().clone())?;
     }
-
-    crate::tray::TrayManager::init(app.handle().clone())?;
 
     Ok(())
   });
@@ -210,7 +228,8 @@ pub fn run() {
     set_window_title,
     open_new_window_cmd,
     save_current_url,
-    set_menu_translations
+    set_menu_translations,
+    server::set_server
   ]);
 
   app
@@ -297,12 +316,18 @@ fn set_notifications_count(
     app_state.is_muted = is_muted;
   }
 
+  #[cfg(desktop)]
   crate::tray::set_notifications_count(&window, amount, is_muted);
+  #[cfg(mobile)]
+  let _ = (window, amount, is_muted);
 }
 
 #[tauri::command]
 fn set_menu_translations(translations: HashMap<String, String>) {
+  #[cfg(desktop)]
   crate::tray::set_menu_translations(translations);
+  #[cfg(mobile)]
+  let _ = translations;
 }
 
 #[tauri::command]
@@ -336,26 +361,22 @@ pub(crate) fn open_new_window(
   app: tauri::AppHandle,
   url: String,
 ) -> Result<tauri::WebviewWindow, String> {
-  let base_url = Url::parse(BASE_URL).map_err(|err| format!("Invalid base URL: {err}"))?;
-  let url = resolve_app_url(&url, &base_url).ok_or_else(|| format!("Disallowed app URL: {url}"))?;
+  let server = server::current();
+  // An empty URL is the chosen server itself: the window reopened before any page was remembered
+  let url = if url.is_empty() { server.to_string() } else { url };
+  let url = resolve_app_url(&url, &server).ok_or_else(|| format!("Disallowed app URL: {url}"))?;
   let window_label = Uuid::new_v4().to_string();
   let new_window_builder = tauri::WebviewWindowBuilder::new(
     &app,
     window_label.clone(),
-    tauri::WebviewUrl::App(url.to_string().into()),
+    tauri::WebviewUrl::External(url),
   )
-  .additional_browser_args("--autoplay-policy=no-user-gesture-required")
-  .fullscreen(false)
-  .resizable(true)
-  .title(DEFAULT_WINDOW_TITLE)
-  .inner_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-  .min_inner_size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
-  .disable_drag_drop_handler() // Required for Drag & Drop on Windows
   .initialization_script(&format!(
     "window.tauri = {{ version: '{}' }};",
     env!("CARGO_PKG_VERSION")
   ))
-  .on_navigation(move |url| is_allowed_app_url(url, &base_url))
+  // Only the chosen server; set_server may change it while the window is open
+  .on_navigation(|url| is_allowed_app_url(url, &server::current()))
   .on_download(|window, event| {
     match event {
       #[allow(unused_variables)]
@@ -386,6 +407,16 @@ pub(crate) fn open_new_window(
     true
   });
 
+  #[cfg(desktop)]
+  let new_window_builder = new_window_builder
+    .additional_browser_args("--autoplay-policy=no-user-gesture-required")
+    .fullscreen(false)
+    .resizable(true)
+    .title(DEFAULT_WINDOW_TITLE)
+    .inner_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    .min_inner_size(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
+    .disable_drag_drop_handler(); // Required for Drag & Drop on Windows
+
   if let Ok(mut states) = WINDOW_STATES.lock() {
     let new_state = WindowState {
       title: DEFAULT_WINDOW_TITLE.to_string(),
@@ -408,6 +439,7 @@ pub(crate) fn open_new_window(
   }
 
   // Apply stored notification count to the new window
+  #[cfg(desktop)]
   if let Some(state) = app.try_state::<AppState>() {
     if let Ok(app_state) = state.lock() {
       crate::tray::set_notifications_count(

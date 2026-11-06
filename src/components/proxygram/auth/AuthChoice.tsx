@@ -9,6 +9,7 @@ import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import UnofficialNotice from '../UnofficialNotice';
 import AppDownloadOffer from './AppDownloadOffer';
+import AuthLanguagePicker from './AuthLanguagePicker';
 import ServerPicker from './ServerPicker';
 
 import styles from './AuthChoice.module.scss';
@@ -21,6 +22,7 @@ const AuthChoice = () => {
 
   return (
     <div className={styles.root}>
+      <AuthLanguagePicker />
       {canCancel && (
         <Button
           size="smaller"

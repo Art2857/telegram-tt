@@ -1,0 +1,24 @@
+{
+  "identifier": "desktop",
+  "description": "Desktop-only permissions of the client served by the default server",
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ],
+  "local": true,
+  "remote": {
+    "urls": [
+      "https://proxygram.azhuleev.ru/*"
+    ]
+  },
+  "webviews": [
+    "*"
+  ],
+  "permissions": [
+    "updater:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
+  ]
+}

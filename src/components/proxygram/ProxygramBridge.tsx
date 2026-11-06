@@ -6,10 +6,13 @@ import type { AccountDto, GuestBurstReason, OutboxDoneDto, OutgoingChatDto } fro
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import { selectCurrentMessageList } from '../../global/selectors';
+import { IS_TAURI } from '../../util/browser/globalEnvironment';
+import { IS_ANDROID } from '../../util/browser/windowEnvironment';
 import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
 import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
 import { isProxyPeerId } from '../../api/proxy/ids';
+import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -32,6 +35,8 @@ type StateProps = {
 };
 
 const POLL_INTERVAL_MS = 1500;
+const APP_UPDATE_CHECK_INTERVAL_MS = 12 * 60 * 60_000;
+const APP_UPDATE_NOTICE_MS = 30_000;
 const POLL_TIMEOUT_MS = 60_000;
 /** Сервер недоступен — пробуем снова, не мешая пользоваться Telegram */
 const RETRY_DELAY_MS = 60_000;
@@ -77,6 +82,25 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     session && session.level === 'client' && currentUserId && String(session.user.tgUserId) === currentUserId,
   );
   const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
+
+  // The web client updates with the server; only the Android shell itself needs a new APK now and then
+  useEffect(() => {
+    if (!IS_TAURI || !IS_ANDROID) return undefined;
+    const check = () => {
+      void getAndroidAppUpdate(window.tauri.version).then((update) => {
+        if (!update) return;
+        showNotification({
+          message: { key: 'PxgAppUpdateAvailable', variables: { version: update.version } },
+          actionText: { key: 'PxgAppUpdateDownload' },
+          action: { action: 'openPxgAppDownload', payload: { url: update.url } },
+          duration: APP_UPDATE_NOTICE_MS,
+        });
+      });
+    };
+    check();
+    const timer = window.setInterval(check, APP_UPDATE_CHECK_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [showNotification]);
 
   useEffect(() => {
     if (!isGuest) return undefined;

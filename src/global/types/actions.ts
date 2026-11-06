@@ -146,6 +146,7 @@ export interface ActionPayloads {
     accountId: string; peerId: number; msgId: number; kind?: string; changeSeq?: string | null;
   };
   syncProxyChanges: undefined;
+  openPxgAppDownload: { url: string };
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   openProxyChatOwner: { chatId: string } & WithTabId;

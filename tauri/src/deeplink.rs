@@ -1,5 +1,7 @@
 use log::info;
-use tauri::{Emitter, Manager, UserAttentionType};
+#[cfg(desktop)]
+use tauri::UserAttentionType;
+use tauri::{Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
 pub struct Deeplink;
@@ -28,21 +30,24 @@ impl Deeplink {
           }
         }
 
-        // Request user attention and focus the window
-        if let Err(err) = window.request_user_attention(Some(UserAttentionType::Informational)) {
-          info!("Error requesting user attention: {:?}", err);
-        }
+        // Request user attention and focus the window; a mobile app is brought forward by the system
+        #[cfg(desktop)]
+        {
+          if let Err(err) = window.request_user_attention(Some(UserAttentionType::Informational)) {
+            info!("Error requesting user attention: {:?}", err);
+          }
 
-        if let Err(err) = window.show() {
-          info!("Error showing window: {:?}", err);
-        }
+          if let Err(err) = window.show() {
+            info!("Error showing window: {:?}", err);
+          }
 
-        if let Err(err) = window.unminimize() {
-          info!("Error unminimizing window: {:?}", err);
-        }
+          if let Err(err) = window.unminimize() {
+            info!("Error unminimizing window: {:?}", err);
+          }
 
-        if let Err(err) = window.set_focus() {
-          info!("Error setting focus: {:?}", err);
+          if let Err(err) = window.set_focus() {
+            info!("Error setting focus: {:?}", err);
+          }
         }
       }
     });

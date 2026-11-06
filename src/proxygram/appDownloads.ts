@@ -42,6 +42,21 @@ export function getAppDownload(manifest: ReleaseManifest): AppDownload | undefin
   return undefined;
 }
 
+/** Tauri mobile cannot update itself: the Android shell offers the newer APK from the manifest */
+export async function getAndroidAppUpdate(currentVersion: string) {
+  const manifest = await fetchReleaseManifest();
+  const url = manifest?.android?.url;
+  return manifest && url && isNewerVersion(manifest.version, currentVersion)
+    ? { version: manifest.version, url }
+    : undefined;
+}
+
+/** The system downloads the file and offers to install it */
+export async function openAppDownload(url: string) {
+  const { open } = await import('@tauri-apps/plugin-shell');
+  await open(url);
+}
+
 /** `1.10.0` is newer than `1.9.3`; a missing part counts as zero */
 export function isNewerVersion(candidate: string, current: string) {
   const a = candidate.split('.').map(Number);

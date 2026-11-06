@@ -11,7 +11,7 @@ use tauri::{
 #[cfg(not(target_os = "macos"))]
 mod badge;
 
-pub use crate::{AppState, BASE_URL, DEFAULT_WINDOW_TITLE, LAST_URL};
+pub use crate::{AppState, DEFAULT_WINDOW_TITLE, LAST_URL};
 
 // Platform-specific tray icon assets
 #[cfg(target_os = "macos")]
@@ -112,11 +112,8 @@ fn handle_icon_click(app: &AppHandle, only_open: bool) {
 
   if active_windows.is_empty() {
     // No open windows, restore with last URL.
-    let url = if let Ok(last_url) = LAST_URL.lock() {
-      last_url.clone()
-    } else {
-      BASE_URL.to_string()
-    };
+    // Empty means the chosen server itself
+    let url = LAST_URL.lock().map(|last_url| last_url.clone()).unwrap_or_default();
 
     if let Err(err) = crate::open_new_window(app.clone(), url) {
       log::error!("Failed to open window from tray: {:?}", err);

@@ -7,6 +7,7 @@ fn main() {
       "open_new_window_cmd",
       "save_current_url",
       "set_menu_translations",
+      "set_server",
     ]),
   ))
   .expect("Failed to build Tauri application")

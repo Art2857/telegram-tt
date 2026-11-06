@@ -1,6 +1,8 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
 "PxgServerCurrent" = "Сервер: {host}";
 "PxgAppDownloadWindows" = "Скачать приложение для Windows";
+"PxgAppUpdateAvailable" = "Доступен Proxygram {version}";
+"PxgAppUpdateDownload" = "Скачать";
 "PxgAppDownloadAndroid" = "Скачать приложение для Android";
 "PxgAppDownloadHint" = "Версия {version}: уведомления и запуск вместе с системой";
 "PxgAppDownloadHintServer" = "Версия {version}. После установки укажите сервер {host}";
