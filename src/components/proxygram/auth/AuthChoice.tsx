@@ -8,6 +8,8 @@ import useLang from '../../../hooks/useLang';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import UnofficialNotice from '../UnofficialNotice';
+import AppDownloadOffer from './AppDownloadOffer';
+import ServerPicker from './ServerPicker';
 
 import styles from './AuthChoice.module.scss';
 
@@ -51,6 +53,8 @@ const AuthChoice = () => {
           </span>
         </button>
 
+        <AppDownloadOffer />
+        <ServerPicker isLocked={canCancel} />
         <UnofficialNotice />
       </div>
     </div>

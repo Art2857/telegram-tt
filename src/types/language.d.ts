@@ -3399,6 +3399,15 @@ export interface LangPair {
   'PxgEditHistoryNotCaptured': undefined;
   'PxgAuthChoiceTitle': undefined;
   'PxgAuthChoiceNote': undefined;
+  'PxgAppDownloadWindows': undefined;
+  'PxgAppDownloadAndroid': undefined;
+  'PxgServerChange': undefined;
+  'PxgServerLocked': undefined;
+  'PxgServerAddress': undefined;
+  'PxgServerConnect': undefined;
+  'PxgServerInvalid': undefined;
+  'PxgServerInsecure': undefined;
+  'PxgServerUnreachable': undefined;
   'PxgAuthTelegram': undefined;
   'PxgAuthTelegramHint': undefined;
   'PxgAuthGuest': undefined;
@@ -6127,6 +6136,19 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgEditHistoryVersion': {
     'number': V;
   };
+  'PxgServerCurrent': {
+    'host': V;
+  };
+  'PxgAppDownloadHint': {
+    'version': V;
+  };
+  'PxgAppDownloadHintServer': {
+    'version': V;
+    'host': V;
+  };
+  'PxgServerSavedUnreachable': {
+    'host': V;
+  };
   'PxgGuestSignedInAs': {
     'name': V;
   };
@@ -8675,6 +8697,22 @@ export interface LangKeyGroups {
     keys:
       | 'PxgDeletedByAt';
     variables: 'name' | 'time';
+  };
+  'host': {
+    keys:
+      | 'PxgServerCurrent'
+      | 'PxgServerSavedUnreachable';
+    variables: 'host';
+  };
+  'version': {
+    keys:
+      | 'PxgAppDownloadHint';
+    variables: 'version';
+  };
+  'host,version': {
+    keys:
+      | 'PxgAppDownloadHintServer';
+    variables: 'host' | 'version';
   };
   'size': {
     keys:

@@ -186,6 +186,7 @@ export default defineConfig(({ mode }): UserConfig => {
     TG_TELEGRAM_API_HASH: telegramApiHash,
     TG_TEST_SESSION: env.TEST_SESSION || '',
     TG_PXG_SERVER_URL: env.PXG_SERVER_URL || '', // PXG
+    TG_PXG_RELEASES_URL: env.PXG_RELEASES_URL || '', // PXG: манифест выпусков приложений
   });
 
   return {

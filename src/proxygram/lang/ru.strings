@@ -1,4 +1,17 @@
 "PxgUnofficialNotice" = "Неофициальный клиент на Telegram API";
+"PxgServerCurrent" = "Сервер: {host}";
+"PxgAppDownloadWindows" = "Скачать приложение для Windows";
+"PxgAppDownloadAndroid" = "Скачать приложение для Android";
+"PxgAppDownloadHint" = "Версия {version}: уведомления и запуск вместе с системой";
+"PxgAppDownloadHintServer" = "Версия {version}. После установки укажите сервер {host}";
+"PxgServerChange" = "Сменить сервер";
+"PxgServerLocked" = "Чтобы перейти на другой сервер, выйдите из всех аккаунтов этого";
+"PxgServerAddress" = "Адрес сервера";
+"PxgServerConnect" = "Подключиться";
+"PxgServerInvalid" = "Введите адрес сервера, например chat.example.org";
+"PxgServerInsecure" = "Сервер должен работать по HTTPS";
+"PxgServerUnreachable" = "По этому адресу не отвечает сервер Proxygram";
+"PxgServerSavedUnreachable" = "Сервер {host} не ответил, открыт сервер по умолчанию. Попробуйте позже или выберите другой.";
 "PxgDeleted" = "удалено";
 "PxgDeletedAt" = "Удалено {time}";
 "PxgSignOutKeepServer" = "Выйти, прокси продолжит работать";

@@ -28,6 +28,11 @@ export default function initTauriApi() {
     return core.invoke<void>(isEnabled ? 'plugin:autostart|enable' : 'plugin:autostart|disable');
   }
 
+  async function setServer(url: string) {
+    const core = await corePromise;
+    return core.invoke<void>('set_server', { url });
+  }
+
   async function setWindowTitle(title: string) {
     const core = await corePromise;
     return core.invoke<void>('set_window_title', { title });
@@ -45,5 +50,6 @@ export default function initTauriApi() {
     setWindowTitle,
     isAutostartEnabled,
     setAutostart,
+    setServer,
   });
 }

@@ -12,6 +12,8 @@ type TauriApi = {
   setWindowTitle: (title: string) => Promise<void>;
   isAutostartEnabled: () => Promise<boolean>;
   setAutostart: (isEnabled: boolean) => Promise<void>;
+  /** Remembers the server for the next starts and opens its client */
+  setServer: (url: string) => Promise<void>;
 };
 
 declare global {

@@ -1,0 +1,55 @@
+.root {
+  margin-top: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  justify-content: center;
+
+  margin: 0;
+}
+
+.change {
+  cursor: var(--custom-cursor, pointer);
+
+  padding: 0;
+  border: none;
+
+  font: inherit;
+  color: var(--color-primary);
+
+  background: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    outline: none;
+  }
+}
+
+.hint {
+  width: 100%;
+}
+
+.warning {
+  margin: 0 0 0.75rem;
+  color: var(--color-error);
+}
+
+.form {
+  text-align: start;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+
+  margin-top: 1rem;
+}
