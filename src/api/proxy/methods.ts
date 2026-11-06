@@ -34,6 +34,9 @@ import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId, parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
+  buildSavedChat, fetchSavedById, fetchSavedHistory, isSavedPeer, SAVED_ACCOUNT_PREFIX, searchSaved,
+} from './saved';
+import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
   fetchFavoriteStickers,
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
@@ -165,6 +168,16 @@ const methods = {
   fetchAvailableReactions,
 } satisfies Partial<Methods>;
 
+/** The guest's Saved Messages with the newest message, if there is any */
+async function fetchSavedChatEntry() {
+  const session = getPxgState().session;
+  if (!session || !isProxyGuest()) return undefined;
+  const peer = { accountId: `${SAVED_ACCOUNT_PREFIX}${session.user.id}`, peerId: session.user.tgUserId };
+  const chat = buildSavedChat(getProxyPeerId(peer.accountId, peer.peerId), peer, session.user.firstName || '');
+  const { messages: [lastMessage] } = await fetchSavedHistory(chat, undefined, 0, 1).catch(() => ({ messages: [] }));
+  return { chat, lastMessage: lastMessage as ApiMessage | undefined };
+}
+
 function fetchEmptyChats() {
   return Promise.resolve({
     chats: [], users: [], messages: [], chatIds: [], threadInfos: [], totalChatCount: 0,
@@ -198,6 +211,8 @@ export async function fetchProxyChats() {
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
   sharedChatIds = new Set(chats.map((chat) => chat.id));
+  const savedChat = await fetchSavedChatEntry();
+  if (sessionId !== getPxgState().session?.user.id) return undefined;
   clearProxyUserPhones();
   access.forEach((chat) => {
     if (chat.peerId > 0) setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
@@ -217,6 +232,11 @@ export async function fetchProxyChats() {
   const messages = pages.flatMap((page, index) => (
     page?.messages.map((dto) => buildProxyMessage(dto, chats[index])) || []
   ));
+  // Saved Messages stand in the list once there is something in them, as in Telegram
+  if (savedChat?.lastMessage) {
+    chats.push(savedChat.chat);
+    messages.push(savedChat.lastMessage);
+  }
   pages.forEach((page) => page?.messages.forEach((dto) => emitRelated(dto)));
   // A full reload clears proxy users after this returns: whoever the last messages show has to come back with them.
   // The chat's own user goes last, it knows more than a message does
@@ -224,6 +244,8 @@ export async function fetchProxyChats() {
   const authorChats = pages.flatMap((page) => page?.messages.flatMap(buildAuthorChats) || []);
   return {
     chats,
+    // Saved Messages open even while empty: the chat is known, the list shows it once it has messages
+    savedChat: savedChat?.chat,
     authorChats,
     users: [...messageUsers, ...users],
     messages,
@@ -241,7 +263,9 @@ export async function fetchProxyChats() {
     ))),
     threadInfos: chats.map((chat, index) => ({
       chatId: chat.id, threadId: MAIN_THREAD_ID, isCommentsInfo: false as const,
-      lastMessageId: pages[index]?.messages[0]?.msgId, messagesCount: pages[index]?.count,
+      lastMessageId: pages[index]?.messages[0]?.msgId
+        ?? (chat === savedChat?.chat ? savedChat.lastMessage?.id : undefined),
+      messagesCount: pages[index]?.count,
     })),
     threadReadStatesById: withReadOutbox(buildProxyReadStates(unread), access),
     fullInfoById: Object.fromEntries(access.map((item, index) => [
@@ -324,6 +348,10 @@ async function fetchMessages({
 }: MethodArgs<'fetchMessages'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedPeer(peer)) {
+    const saved = await fetchSavedHistory(chat, offsetId, addOffset, limit);
+    return { ...saved, users: [], chats: [], topics: [] };
+  }
   const thread = { topicId: getTopicId(chat, threadId), threadId: getReplyThreadId(chat, threadId) };
   let result = await pxgRpc.call<WindowResult>('messages.window', {
     ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
@@ -350,6 +378,10 @@ async function fetchMessages({
 async function fetchMessage({ chat, messageId }: MethodArgs<'fetchMessage'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedPeer(peer)) {
+    const [message] = await fetchSavedById(chat, [messageId]);
+    return message ? { message } : undefined;
+  }
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: [messageId] });
   result.messages.forEach((dto) => emitRelated(dto));
   return result.messages[0] ? { message: buildProxyMessage(result.messages[0], chat) } : undefined;
@@ -358,6 +390,7 @@ async function fetchMessage({ chat, messageId }: MethodArgs<'fetchMessage'>[0]) 
 async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessagesById'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedPeer(peer)) return fetchSavedById(chat, messageIds);
   const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: messageIds });
   result.messages.forEach((dto) => emitRelated(dto));
   return result.messages.map((dto) => buildProxyMessage(dto, chat));
@@ -910,6 +943,11 @@ async function searchMessagesInChat({
 }: MethodArgs<'searchMessagesInChat'>[0]) {
   const peer = resolveProxyPeer(target.id);
   if (!peer || savedTag || !SEARCH_FILTERS.has(type)) return undefined;
+  if (isSavedPeer(peer)) {
+    if (type !== 'text' || !query) return undefined;
+    const messages = await searchSaved(target as ApiChat, query, limit);
+    return { messages, totalCount: messages.length, topics: [], userStatusesById: {}, nextOffsetId: undefined };
+  }
   const sender = fromPeer && resolveProxyPeer(fromPeer.id);
   if (fromPeer && (!sender || sender.accountId !== peer.accountId)) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.search', {

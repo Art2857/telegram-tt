@@ -14,6 +14,7 @@ import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders'
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
+import { syncSavedMessages } from '../../proxygram/savedSync';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
@@ -236,6 +237,9 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           threadId: event.d.threadId ?? MAIN_THREAD_ID,
           readState: { lastReadOutboxMessageId: event.d.maxId },
         });
+      }
+      if (event.e === 'saved.changed' && isGuest) {
+        void syncSavedMessages(apiUpdate, () => loadProxyChats()).catch(() => undefined);
       }
       if (event.e === 'draft.changed') {
         apiUpdate({

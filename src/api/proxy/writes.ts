@@ -19,6 +19,9 @@ import { buildProxyEntities, buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
 import { parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
+import {
+  deleteSaved, editSavedNote, isSavedPeer, pinSaved, saveToSaved, sendSavedNote,
+} from './saved';
 
 const DELETE_BATCH_SIZE = 20;
 const MAX_WAVEFORM_LENGTH = 100;
@@ -250,6 +253,15 @@ export function canRetrySendMessage(message: ApiMessage) {
 }
 
 async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: SendRequest, isRetry?: boolean) {
+  // A note in one's own Saved Messages goes to the server, not to anybody's Telegram
+  if (isSavedPeer(chat.pxgProxy)) {
+    const params = request.params as { text: string; entities?: unknown[] };
+    const note = await sendSavedNote(chat, params.text, params.entities);
+    emitProxyUpdate({
+      '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: note,
+    });
+    return;
+  }
   const result = await runProxyJob('messages.send', {
     ...request.params, clientRequestId: request.id, retry: isRetry,
   }) as { msgId: number };
@@ -376,6 +388,11 @@ export async function editMessage({
     return;
   }
   try {
+    if (isSavedPeer(peer)) {
+      const note = await editSavedNote(chat, message.id, text, entities);
+      emitProxyUpdate({ '@type': 'updateMessage', id: note.id, chatId: chat.id, message: note, isFull: true });
+      return;
+    }
     await runProxyJob('messages.edit', {
       ...peer,
       msgId: message.id,
@@ -423,6 +440,13 @@ export async function deleteMessages({ chat, messageIds }: MethodArgs<'deleteMes
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
   try {
+    if (isSavedPeer(peer)) {
+      for (let offset = 0; offset < messageIds.length; offset += DELETE_BATCH_SIZE) {
+        await deleteSaved(messageIds.slice(offset, offset + DELETE_BATCH_SIZE));
+      }
+      emitProxyUpdate({ '@type': 'deleteMessages', chatId: chat.id, ids: messageIds });
+      return;
+    }
     for (let offset = 0; offset < messageIds.length; offset += DELETE_BATCH_SIZE) {
       const ids = messageIds.slice(offset, offset + DELETE_BATCH_SIZE);
       await runProxyJob('messages.delete', { ...peer, msgIds: ids });
@@ -463,7 +487,7 @@ export async function readAllReactions({ chat, threadId }: MethodArgs<'readAllRe
 /** Web A reports messages seen on screen: of those only reactions have a mark, mentions follow the read pointer */
 export async function markMessagesRead({ chat, messageIds }: MethodArgs<'markMessagesRead'>[0]) {
   const peer = resolveProxyPeer(chat.id);
-  if (!peer) return;
+  if (!peer || isSavedPeer(peer)) return;
   await pxgRpc.call('messages.readReactions', { ...peer, msgIds: messageIds.slice(0, MAX_READ_REACTIONS) })
     .catch(() => undefined);
 }
@@ -472,7 +496,8 @@ export async function markMessageListRead({
   chat, threadId, maxId,
 }: MethodArgs<'markMessageListRead'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
-  if (!peer) return;
+  // Saved Messages have nothing unread: they are one's own
+  if (!peer || isSavedPeer(peer)) return;
   // A comment thread has a pointer of its own: reading it does not read the whole group
   if (!chat.isForum && threadId !== MAIN_THREAD_ID) {
     if (maxId) {
@@ -522,6 +547,15 @@ export async function forwardMessages({
   const target = resolveProxyPeer(toChat.id);
   try {
     if (!source || !target) throw new PxgError('unsupported');
+    // To one's own Saved Messages: a snapshot the server keeps, even after the access is revoked
+    if (isSavedPeer(target) && !isSavedPeer(source)) {
+      const saved = await saveToSaved(toChat, source, messages.map(({ id }) => id));
+      saved.forEach((message) => {
+        emitProxyUpdate({ '@type': 'newMessage', id: message.id, chatId: toChat.id, message });
+      });
+      return;
+    }
+    if (isSavedPeer(source)) throw new PxgError('unsupported');
     const topicId = toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined;
     const sendAsPeerId = getSendAsPeerId(sendAs);
     if (source.accountId !== target.accountId) {
@@ -699,6 +733,11 @@ async function readSentMessage(chat: NonNullable<MethodArgs<'sendMessage'>[0]['c
 export async function pinMessage({ chat, messageId, isUnpin, isSilent }: MethodArgs<'pinMessage'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
+  if (isSavedPeer(peer)) {
+    await pinSaved(messageId, !isUnpin);
+    emitProxyUpdate({ '@type': 'updatePinnedIds', chatId: chat.id, messageIds: [messageId], isPinned: !isUnpin });
+    return;
+  }
   await runProxyJob('messages.pin', { ...peer, msgId: messageId, unpin: isUnpin, silent: isSilent || undefined });
   emitProxyUpdate({ '@type': 'updatePinnedIds', chatId: chat.id, messageIds: [messageId], isPinned: !isUnpin });
 }

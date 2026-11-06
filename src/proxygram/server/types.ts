@@ -418,6 +418,41 @@ export interface ChatUnreadDto {
   unreadReactionsCount: number;
 }
 
+/** Where a message of Saved Messages came from: a snapshot taken when it was saved */
+export interface SavedOriginDto {
+  accountId: string;
+  peerId: number;
+  msgId: number;
+  chatTitle: string | null;
+  senderName: string | null;
+  date: string;
+}
+
+/** A message of the guest's own Saved Messages (packages/protocol SavedMessageDto) */
+export interface SavedMessageDto {
+  id: number;
+  date: string;
+  editDate: string | null;
+  text: string;
+  entities: unknown[];
+  media: MessageDto['media'];
+  isMediaPending?: boolean;
+  groupedId: string | null;
+  isPinned: boolean;
+  tags: string[];
+  origin: SavedOriginDto | null;
+  poll?: MessageDto['poll'];
+  webPage?: MessageDto['webPage'];
+  attachment?: MessageDto['attachment'];
+}
+
+export interface SavedDialogDto {
+  origin: { accountId: string; peerId: number; chatTitle: string | null } | null;
+  count: number;
+  lastId: number;
+  lastDate: string;
+}
+
 export interface DraftDto {
   accountId: string;
   peerId: number;
@@ -721,6 +756,7 @@ export type ServerEvent =
     d: { accountId: string; peerId: number; topicId: number | null; threadId?: number; maxId?: number };
   }
   | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
+  | { e: 'saved.changed'; d: Record<string, never> }
   | { e: 'share.granted'; d: { accountId: string; peerId: number | null; target: string; from: string } }
   | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }

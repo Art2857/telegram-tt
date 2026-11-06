@@ -15,6 +15,7 @@ import {
   buildProxyArchiveMediaId, buildProxyMapToken, buildProxyMediaId, parseProxyArchiveHash, parseProxyAvatarHash,
   parseProxyCatalogHash, parseProxyMapHash, parseProxyMediaHash,
 } from './mediaIds';
+import { isSavedPeer } from './saved';
 
 const DEFAULT_MEDIA_SIZE = 512;
 const ANIMATED_STICKER_MIME = 'application/x-tgsticker';
@@ -201,6 +202,8 @@ function buildMediaRequest(
   const message = parseProxyMediaHash(url);
   if (message) {
     const peer = message.userId === userId ? resolveProxyPeer(message.chatId) : undefined;
+    // A file of one's own Saved Messages: the server keeps its own copy, apart from any chat
+    if (isSavedPeer(peer)) return ['saved.mediaUrl', { id: message.msgId }];
     return peer && ['media.url', { ...peer, msgId: message.msgId, effect: message.isEffect || undefined }];
   }
   const map = parseProxyMapHash(url);

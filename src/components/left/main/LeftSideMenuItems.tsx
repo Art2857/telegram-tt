@@ -192,6 +192,15 @@ const LeftSideMenuItems = ({
           <MenuSeparator />
         </>
       )}
+      {/* PXG: a guest's Saved Messages live on the Proxygram server */}
+      {isGuest && (
+        <MenuItem
+          icon="saved-messages"
+          onClick={handleSelectSaved}
+        >
+          {lang('MenuSavedMessages')}
+        </MenuItem>
+      )}
       {!isGuest && (
         <>
           <MenuItem

@@ -20,6 +20,7 @@ import { isProxyPeerId } from '../../../api/proxy/ids';
 import {
   buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
 } from '../../../api/proxy/methods';
+import { buildSavedChat } from '../../../api/proxy/saved';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
@@ -123,6 +124,10 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     session.user.firstName || session.user.username || undefined);
   user.isSelf = true;
   global = updateUsers(global, { [id]: user });
+  // Web A's Saved Messages are the chat with the current user: for a guest they live on the Proxygram server
+  global = updateChats(global, {
+    [id]: buildSavedChat(id, { accountId, peerId: session.user.tgUserId }, user.firstName || ''),
+  });
   global = {
     ...global, currentUserId: id,
     auth: { ...global.auth, state: 'authorizationStateReady', isLoading: false },
@@ -167,7 +172,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     const result = await fetchProxyChats();
     if (!result || generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
     global = getGlobal();
-    const allowedIds = new Set(result.chatIds);
+    const allowedIds = new Set(result.savedChat ? [...result.chatIds, result.savedChat.id] : result.chatIds);
     Object.values(global.byTabId).forEach(({ id: tabId, mediaViewer }) => {
       const chatId = selectCurrentMessageList(global, tabId)?.chatId;
       if (chatId && isProxyPeerId(chatId) && !allowedIds.has(chatId)) actions.openChat({ id: undefined, tabId });
@@ -182,7 +187,9 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
     )).map((chat) => chat.id)) : undefined;
     global = clearProxyChats(global, keptChatIds);
-    global = updateChats(global, buildCollectionByKey([...result.authorChats, ...result.chats], 'id'));
+    global = updateChats(global, buildCollectionByKey(
+      [...result.authorChats, ...result.chats, ...(result.savedChat ? [result.savedChat] : [])], 'id',
+    ));
     global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
     global = addUserStatuses(global, result.userStatusesById);
     global = replaceMessages(global, result.messages);
