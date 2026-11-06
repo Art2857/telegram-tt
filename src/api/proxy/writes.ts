@@ -49,7 +49,20 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
   // Outside a forum it is a comment thread: the reply itself places the message, and the chat's draft stays
   const threadId = !chat.isForum ? messageReply?.replyToTopId : undefined;
-  const replyToMsgId = messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
+  // "Reply in another chat": the replied message lives in that chat. A chat that is not a proxy chat (the full login's
+  // own Telegram) has nothing the owner's account could quote, so such a reply is dropped rather than misread here
+  const otherChatId = messageReply?.replyToPeerId && messageReply.replyToPeerId !== chat.id
+    ? messageReply.replyToPeerId : undefined;
+  const replyToPeer = otherChatId ? resolveProxyPeer(otherChatId) : undefined;
+  const hasReply = !otherChatId || Boolean(replyToPeer);
+  const replyToMsgId = hasReply && messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
+  const quoteText = replyToMsgId ? messageReply?.quoteText : undefined;
+  const quote = quoteText?.text ? {
+    text: quoteText.text,
+    // The quote carries the source chat's custom emoji: they map back through that chat's account
+    entities: buildProxyInputEntities(quoteText.entities, (replyToPeer ?? peer).accountId, true),
+    offset: messageReply?.quoteOffset,
+  } : undefined;
   const localMessage: ApiMessage = params.localMessage || {
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
     chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
@@ -122,6 +135,8 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         },
         dice,
         replyToMsgId,
+        replyToPeer,
+        quote,
         topicId,
         threadId,
         silent: params.isSilent,
