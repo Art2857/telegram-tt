@@ -4739,6 +4739,7 @@
 "PxgAuditForward" = "forwarded messages";
 "PxgAuditCopy" = "copied a message to another owner's chat";
 "PxgAuditCrossAccountCopy" = "Copy from another owner's chat";
+"PxgForwardEmojiCopy" = "Unavailable custom emoji will be replaced with regular emoji.";
 "PxgAuditCallback" = "pressed a bot button";
 "PxgAuditVote" = "voted in a poll";
 "PxgAuditRead" = "read the chat";

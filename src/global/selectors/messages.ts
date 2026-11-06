@@ -1628,9 +1628,10 @@ export function selectProxyForwardRestriction<T extends GlobalState>(
                   : content.sticker ? 'sendStickers'
                     : content.pollId ? 'sendPolls'
                       : content.game ? 'sendGames'
-                        : content.text && (!content.contact && !content.location && !content.dice
-                          && !content.invoice && !content.storyData && !content.giveaway && !content.paidMedia
-                          && !content.todo) ? 'sendPlain' : undefined;
+                        : content.contact || content.location ? 'sendMedia'
+                          : content.text && (!content.dice
+                            && !content.invoice && !content.storyData && !content.giveaway && !content.paidMedia
+                            && !content.todo) ? 'sendPlain' : undefined;
     if (right && bans[right]) {
       return right === 'sendPolls' ? 'CHAT_SEND_POLL_FORBIDDEN'
         : `CHAT_SEND_${right.slice('send'.length).toUpperCase()}_FORBIDDEN`;

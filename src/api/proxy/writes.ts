@@ -521,10 +521,19 @@ export async function forwardMessages({
     const topicId = toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined;
     const sendAsPeerId = getSendAsPeerId(sendAs);
     if (source.accountId !== target.accountId) {
-      for (const { id } of messages) {
-        // The target's account in the source channel itself forwards natively (`msgIds`), otherwise a copy (`msgId`)
+      const groups = new Map<string, ApiMessage[]>();
+      messages.forEach((message) => {
+        const key = message.groupedId ? `album:${message.groupedId}` : `message:${message.id}`;
+        const group = groups.get(key) || [];
+        group.push(message);
+        groups.set(key, group);
+      });
+      for (const group of groups.values()) {
+        // Parts of one album share one job; the server chooses native forwarding or copying
         const sent = await runCopyJob({
-          fromAccountId: source.accountId, fromPeerId: source.peerId, msgId: id,
+          fromAccountId: source.accountId, fromPeerId: source.peerId,
+          msgId: group.length === 1 ? group[0].id : undefined,
+          msgIds: group.length > 1 ? group.map(({ id }) => id) : undefined,
           accountId: target.accountId, peerId: target.peerId,
           silent: isSilent, noCaptions, noAuthors, topicId, sendAsPeerId,
         }) as { msgId?: number; msgIds?: number[] };

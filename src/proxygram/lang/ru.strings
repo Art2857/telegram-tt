@@ -226,6 +226,7 @@
 "PxgAuditForward" = "переслал сообщения";
 "PxgAuditCopy" = "скопировал сообщение в чат другого владельца";
 "PxgAuditCrossAccountCopy" = "Копия из чата другого владельца";
+"PxgForwardEmojiCopy" = "Недоступные кастомные эмодзи будут заменены обычными.";
 "PxgAuditCallback" = "нажал кнопку бота";
 "PxgAuditVote" = "проголосовал в опросе";
 "PxgAuditRead" = "прочитал чат";

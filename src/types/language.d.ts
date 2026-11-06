@@ -3573,6 +3573,7 @@ export interface LangPair {
   'PxgAuditForward': undefined;
   'PxgAuditCopy': undefined;
   'PxgAuditCrossAccountCopy': undefined;
+  'PxgForwardEmojiCopy': undefined;
   'PxgAuditCallback': undefined;
   'PxgAuditVote': undefined;
   'PxgAuditRead': undefined;

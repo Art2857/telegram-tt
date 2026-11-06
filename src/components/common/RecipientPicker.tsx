@@ -158,10 +158,17 @@ const RecipientPicker = ({
       const translated = getProxySendError(error);
       return { isDisabled: true, subtitle: translated ? lang.with(translated) : lang('PxgForwardNativeOnly') };
     }
+    const shouldNormalizeEmoji = forwardOptions.hasCustomEmoji && (
+      !target.permissions.useOwnerStickers || (!target.isProviderPremium && forwardOptions.hasPremiumEmoji)
+    );
     return {
       isDisabled: !mode,
       subtitle: mode === 'copy'
-        ? `${lang('PxgForwardCopy')}${forwardOptions.hasPoll ? ` ${lang('PxgForwardPollCopy')}` : ''}`
+        ? [
+          lang('PxgForwardCopy'),
+          forwardOptions.hasPoll ? lang('PxgForwardPollCopy') : undefined,
+          shouldNormalizeEmoji ? lang('PxgForwardEmojiCopy') : undefined,
+        ].filter(Boolean).join(' ')
         : target.accountId !== source.accountId ? lang('PxgForwardNative') : undefined,
     };
   }, [isForwarding, source, forwardOptions, hasForwardOptionsError, lang, chatsById]);

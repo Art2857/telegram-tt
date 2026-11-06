@@ -102,6 +102,8 @@ export type ForwardOptionsDto = {
   accounts: Record<string, 'native' | 'copy'>;
   copyError?: string;
   hasPoll?: boolean;
+  hasCustomEmoji?: boolean;
+  hasPremiumEmoji?: boolean;
 };
 
 /** A chat of the owner and the people it is open to right now */
@@ -517,6 +519,7 @@ export interface CatalogDocumentDto {
   duration: number | null;
   /** A custom emoji recolored to the text color */
   textColor: boolean;
+  isFree?: boolean;
   /** A Premium sticker with a full-screen animation */
   hasEffect?: boolean;
 }
