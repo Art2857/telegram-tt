@@ -40,6 +40,7 @@ import {
   isChatAdmin,
   isChatChannel,
   isChatGroup,
+  isMessageFailed,
   isMessageLocal,
   isOwnMessage,
   isUserRightBanned,
@@ -82,6 +83,7 @@ import buildClassName from '../../../util/buildClassName';
 import { copyTextToClipboard } from '../../../util/clipboard';
 import { isUserId } from '../../../util/entities/ids';
 import { getTranslationCacheKey, parseTranslationCacheKey } from '../../../util/keys/translationKey';
+import { canRetrySendMessage, retrySendMessage } from '../../../api/proxy/writes';
 import { purgeDeletedMessage } from '../../../proxygram/archive/purgeDeleted';
 import { getOwnAccountId } from '../../../proxygram/server/ownAccount';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
@@ -479,6 +481,14 @@ const ContextMenuContainer = ({
   const handlePurgeConfirm = useLastCallback(() => {
     handlePurgeClose();
     purgeDeletedMessage(message).catch(() => showNotification({ message: { key: 'PxgPurgeFailed' } }));
+  });
+
+  const canPxgRetry = Boolean(chat?.pxgProxy) && isMessageFailed(message) && canRetrySendMessage(message);
+
+  const handlePxgRetry = useLastCallback(async () => {
+    closeMenu();
+    const error = await retrySendMessage(chat!, message);
+    if (error) showNotification({ message: error });
   });
 
   const isPxgAdmin = usePxgState((state) => state.session?.user.role === 'admin');
@@ -887,6 +897,7 @@ const ContextMenuContainer = ({
         onForward={handleForward}
         onDelete={handleDelete}
         onPxgPurge={message.pxgDeletedAt && !chat?.pxgProxy ? handlePurgeClick : undefined}
+        onPxgRetry={canPxgRetry ? handlePxgRetry : undefined}
         onPxgDebug={isPxgAdmin && archiveTarget ? handleDebugClick : undefined}
         onPxgReactionLog={archiveTarget && message.reactions?.results.length ? handleReactionLogClick : undefined}
         onReport={handleReport}

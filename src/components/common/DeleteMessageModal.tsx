@@ -33,6 +33,7 @@ import {
 import buildClassName from '../../util/buildClassName';
 import { isUserId } from '../../util/entities/ids';
 import { buildCollectionByCallback, unique } from '../../util/iteratees';
+import { isLocalMessageId } from '../../util/keys/messageKey';
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import renderText from './helpers/renderText';
 
@@ -599,7 +600,9 @@ export default memo(withGlobal<OwnProps>(
     const isOwner = chat?.isOwner;
     const isChatWithBot = chatId ? selectIsChatWithBot(global, chatId) : undefined;
     const willDeleteForCurrentUserOnly = (chat && isChatBasicGroup(chat) && !canDeleteForAll) || isChatWithBot;
-    const willDeleteForAll = chat && (Boolean(chat.pxgProxy) || isChatSuperGroup(chat) || isChannel);
+    // An unsent message exists only on this device
+    const isLocalOnly = Boolean(messageIds?.length) && messageIds.every(isLocalMessageId);
+    const willDeleteForAll = chat && !isLocalOnly && (Boolean(chat.pxgProxy) || isChatSuperGroup(chat) || isChannel);
 
     return {
       chat,

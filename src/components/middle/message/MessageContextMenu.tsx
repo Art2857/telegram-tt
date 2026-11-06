@@ -127,6 +127,7 @@ type OwnProps = {
   onForward?: NoneToVoidFunction;
   onDelete?: NoneToVoidFunction;
   onPxgPurge?: NoneToVoidFunction;
+  onPxgRetry?: NoneToVoidFunction;
   onPxgDebug?: NoneToVoidFunction;
   onPxgReactionLog?: NoneToVoidFunction;
   onFaveSticker?: NoneToVoidFunction;
@@ -237,6 +238,7 @@ const MessageContextMenu = ({
   onForward,
   onDelete,
   onPxgPurge,
+  onPxgRetry,
   onPxgDebug,
   onPxgReactionLog,
   onFaveSticker,
@@ -479,6 +481,7 @@ const MessageContextMenu = ({
             {lang('WalletSendMoney')}
           </MenuItem>
         )}
+        {onPxgRetry && <MenuItem icon="reload" onClick={onPxgRetry}>{lang('Retry')}</MenuItem>}
         {canSendNow && <MenuItem icon="send-outline" onClick={onSend}>{lang('MessageScheduleSend')}</MenuItem>}
         {canReschedule && (
           <MenuItem icon="schedule" onClick={onReschedule}>{lang('MessageScheduleEditTime')}</MenuItem>

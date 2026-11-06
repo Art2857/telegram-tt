@@ -32,7 +32,7 @@ import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import { replaceThreadLocalStateParam, updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
 import {
-  selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException,
+  selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException, selectProxyUnsentMessages,
 } from '../../selectors';
 import { selectDraft } from '../../selectors/threads';
 import { initSharedState } from '../../shared/sharedStateConnector';
@@ -160,6 +160,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     });
     global = getGlobal();
     const previousChats = global.chats.byId;
+    const unsentMessages = selectProxyUnsentMessages(global);
     const keptChatIds = payload?.shouldKeepUnchanged ? new Set(result.chats.filter((chat) => (
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
     )).map((chat) => chat.id)) : undefined;
@@ -216,6 +217,11 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     });
     global = updateProxyFolder(global);
     setGlobal(global);
+    // A reconnect reloads every access: an unsent message stays for its completion or a retry
+    unsentMessages.forEach((message) => {
+      if (!allowedIds.has(message.chatId) || keptChatIds?.has(message.chatId)) return;
+      actions.apiUpdate({ '@type': 'newMessage', id: message.id, chatId: message.chatId, message });
+    });
     setPxgState({ sharedCount: result.chats.length });
     // Telegram's reactions and message effects are read through a provider: the first shared chat brings them
     if (isProxyGuest() && result.chats.length) {

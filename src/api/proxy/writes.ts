@@ -29,13 +29,21 @@ const COPY_WAIT_MAX_INTERVAL_MS = 8000;
 const COPY_WAIT_BACKOFF = 1.5;
 let localCounter = 0;
 
-export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgress?: ApiOnProgress): Promise<void> {
+type SendParams = MethodArgs<'sendMessage'>[0];
+type SendRequest = NonNullable<ApiMessage['pxgSendRequest']>;
+
+/** Sends that failed before their request was fixed, e.g. during the upload: a retry needs the file again */
+const unsentParams = new Map<string, SendParams>();
+
+export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
   const {
     chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, effectId, sendAs,
   } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   const isScheduled = Boolean(scheduledAt);
+  // The key stays with the local message: the server sends one message per key however often it is repeated
+  const requestId = params.localMessage?.pxgSendRequest?.id || crypto.randomUUID();
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
   const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
@@ -56,6 +64,7 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
     effectId,
     senderId: sendAs?.id,
+    pxgSendRequest: { id: requestId },
   };
   if (!params.localMessage) {
     emitProxyUpdate({
@@ -64,7 +73,10 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       chatId: chat.id,
       message: localMessage,
     });
+  } else if (!params.localMessage.pxgSendRequest) {
+    updateLocalMessage(localMessage, { pxgSendRequest: { id: requestId } });
   }
+  let request: SendRequest | undefined;
   try {
     if (params.todo || params.richMessage) {
       throw new PxgError('unsupported');
@@ -88,57 +100,114 @@ export async function sendMessage(params: MethodArgs<'sendMessage'>[0], onProgre
       };
     }
     if (onProgress?.isCanceled) throw new PxgError('canceled');
-    const result = await runProxyJob('messages.send', {
-      ...peer,
-      text: text || '',
-      entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
-      file,
-      document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
-      poll: poll && {
-        question: poll.summary.question.text,
-        answers: poll.summary.answers.map(({ text: answer }) => answer.text),
-        isPublic: poll.summary.isPublic,
-        isMultipleChoice: poll.summary.isMultipleChoice,
-        canAddAnswers: poll.summary.canAddAnswers,
-        isRevoteDisabled: poll.summary.isRevoteDisabled,
-        shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
-        shouldHideResults: poll.summary.shouldHideResultsUntilClose,
-        correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
-        solution: poll.solution,
+    request = {
+      id: requestId,
+      params: {
+        ...peer,
+        text: text || '',
+        entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+        file,
+        document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
+        poll: poll && {
+          question: poll.summary.question.text,
+          answers: poll.summary.answers.map(({ text: answer }) => answer.text),
+          isPublic: poll.summary.isPublic,
+          isMultipleChoice: poll.summary.isMultipleChoice,
+          canAddAnswers: poll.summary.canAddAnswers,
+          isRevoteDisabled: poll.summary.isRevoteDisabled,
+          shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
+          shouldHideResults: poll.summary.shouldHideResultsUntilClose,
+          correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
+          solution: poll.solution,
+        },
+        dice,
+        replyToMsgId,
+        topicId,
+        threadId,
+        silent: params.isSilent,
+        scheduleDate: scheduledAt,
+        effectId,
+        sendAsPeerId: getSendAsPeerId(sendAs),
       },
-      dice,
-      replyToMsgId,
-      topicId,
-      threadId,
-      silent: params.isSilent,
-      scheduleDate: scheduledAt,
-      effectId,
-      sendAsPeerId: getSendAsPeerId(sendAs),
-    }) as { msgId: number };
-    if (isScheduled) {
-      // A scheduled message reaches the archive when Telegram sends it
-      emitProxyUpdate({
-        '@type': 'updateScheduledMessageSendSucceeded',
-        chatId: chat.id,
-        localId: localMessage.id,
-        message: { ...localMessage, id: result.msgId, sendingState: undefined },
-      });
-      return;
-    }
-    const saved = await readSentMessage(chat, result.msgId);
-    if (!saved) throw new PxgError('not_found');
-    emitProxyUpdate({
-      '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: saved,
-    });
+    };
+    unsentParams.delete(requestId);
+    // The exact request survives a reload: a retry repeats it byte for byte, so the server recognizes the key
+    updateLocalMessage(localMessage, { pxgSendRequest: request });
+    await completeSend(chat, localMessage, request);
   } catch (err) {
-    const error = err instanceof Error ? err.message : 'Send failed';
+    const isFinal = err instanceof PxgError && (err.code === 'unsupported' || err.code === 'canceled');
+    if (!request && !isFinal) unsentParams.set(requestId, params);
+    emitSendFailed(chat, localMessage, err);
+  }
+}
+
+/**
+ * Repeats a failed send with its key. A job the server already has is reused, so a message that did go out is
+ * not sent twice; the server checks the guest's rights again. Returns the error of a repeated failure.
+ */
+export async function retrySendMessage(chat: ApiChat, message: ApiMessage): Promise<string | undefined> {
+  const request = message.pxgSendRequest;
+  if (!request || !canRetrySendMessage(message)) return undefined;
+  updateLocalMessage(message, { sendingState: 'messageSendingStatePending' });
+  const pending = { ...message, sendingState: 'messageSendingStatePending' as const };
+  if (!request.params) {
+    // The upload did not finish: send the retained file again under the same key
+    await sendMessage({ ...unsentParams.get(request.id)!, localMessage: pending });
+    return undefined;
+  }
+  try {
+    await completeSend(chat, pending, request, true);
+    return undefined;
+  } catch (err) {
+    emitSendFailed(chat, pending, err);
+    return getErrorMessage(err);
+  }
+}
+
+/** Without the fixed request only a file still held by this page can be sent again */
+export function canRetrySendMessage(message: ApiMessage) {
+  const request = message.pxgSendRequest;
+  return Boolean(request && (request.params || unsentParams.has(request.id)));
+}
+
+async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: SendRequest, isRetry?: boolean) {
+  const result = await runProxyJob('messages.send', {
+    ...request.params, clientRequestId: request.id, retry: isRetry,
+  }) as { msgId: number };
+  if (localMessage.isScheduled) {
+    // A scheduled message reaches the archive when Telegram sends it
     emitProxyUpdate({
-      '@type': isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
+      '@type': 'updateScheduledMessageSendSucceeded',
       chatId: chat.id,
       localId: localMessage.id,
-      error,
+      message: { ...localMessage, id: result.msgId, sendingState: undefined, pxgSendRequest: undefined },
     });
+    return;
   }
+  const saved = await readSentMessage(chat, result.msgId);
+  if (!saved) throw new PxgError('not_found');
+  emitProxyUpdate({
+    '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: saved,
+  });
+}
+
+function updateLocalMessage(localMessage: ApiMessage, change: Partial<ApiMessage>) {
+  const { chatId, id } = localMessage;
+  if (localMessage.isScheduled) emitProxyUpdate({ '@type': 'updateScheduledMessage', chatId, id, message: change });
+  else emitProxyUpdate({ '@type': 'updateMessage', chatId, id, message: change });
+}
+
+function emitSendFailed(chat: ApiChat, localMessage: ApiMessage, err: unknown) {
+  emitProxyUpdate({
+    '@type': localMessage.isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
+    chatId: chat.id,
+    localId: localMessage.id,
+    error: getErrorMessage(err),
+  });
+}
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : 'Send failed';
 }
 
 async function uploadAttachment(chat: ApiChat, attachment: ApiAttachment, onProgress?: ApiOnProgress) {

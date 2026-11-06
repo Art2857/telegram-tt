@@ -295,6 +295,15 @@ export function selectChatMessage<T extends GlobalState>(global: T, chatId: stri
   return chatMessages ? chatMessages[messageId] : undefined;
 }
 
+/** PXG: The guest's sends still on their way or failed: they exist only on this device */
+export function selectProxyUnsentMessages<T extends GlobalState>(global: T) {
+  return Object.entries(global.messages.byChatId).flatMap(([chatId, { byId }]) => (
+    selectChat(global, chatId)?.pxgProxy
+      ? Object.values(byId).filter((message) => message.sendingState && message.pxgSendRequest)
+      : []
+  ));
+}
+
 export function selectEphemeralMessage<T extends GlobalState>(global: T, chatId: string, messageId: number) {
   const ephemeralById = selectChatEphemeralMessages(global, chatId);
   if (!ephemeralById) return undefined;
@@ -410,8 +419,11 @@ export function getSendersFromSelectedMessages<T extends GlobalState>(
   chatId: string,
   messageIds: number[],
 ) {
+  const isProxy = Boolean(selectChat(global, chatId)?.pxgProxy);
   return messageIds.map((id) => {
     const message = selectChatMessage(global, chatId, id);
+    // PXG: The owner's own account is never reported or banned from its own messages
+    if (isProxy && message?.isOutgoing) return undefined;
     return message && selectSender(global, message);
   }).filter(Boolean);
 }
@@ -618,7 +630,9 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     const canAdminEdit = permissions.admin && isChatChannel(chat) && !message.content.action
       && getHasAdminRight(chat, 'editMessages');
     const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage || canAdminEdit);
-    const canDelete = isSaved && ((isOwn && permissions.deleteOwn) || canManage || canAdminDelete);
+    // An unsent message exists only on this device: removing it never reaches Telegram
+    const isFailed = isMessageFailed(message);
+    const canDelete = isFailed || (isSaved && ((isOwn && permissions.deleteOwn) || canManage || canAdminDelete));
     // A guest pins as the owner: either side in a private chat, otherwise the owner's rights given to the guest
     const canPinProxy = isSaved && !message.content.action && (isUserId(chat.id)
       ? permissions.write
@@ -631,7 +645,7 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
       canCopyLink: isSaved && !message.content.action && isChannelId(String(chat.pxgProxy.peerId)),
       canPin: canPinProxy && !isPinnedProxy, canUnpin: canPinProxy && isPinnedProxy,
       canReply: permissions.write && isSaved,
-      canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete,
+      canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete && !isFailed,
       canDownload: permissions.download && Boolean(selectMessageDownloadableMedia(global, message)),
     };
   }

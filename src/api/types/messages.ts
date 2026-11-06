@@ -814,6 +814,8 @@ export interface ApiMessage {
   pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; size?: number; attachmentKind?: AttachmentKind };
   // PXG: прежние версии текста, от старых к новым (текущая — в content)
   pxgEditHistory?: PxgEditVersion[];
+  // PXG: ключ отправки гостя на сервере; `params` — точный запрос `messages.send`, известен после загрузки файла
+  pxgSendRequest?: { id: string; params?: Record<string, unknown> };
   previousLocalId?: number;
   viewsCount?: number;
   forwardsCount?: number;
