@@ -305,6 +305,7 @@ export interface MessageDto {
   webPage?: { url: string; displayUrl: string; siteName?: string; title?: string; description?: string };
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
   isProtected?: boolean;
+  isSilent?: boolean;
   effectId?: string;
   /** Telegram can summarize this message; the original language */
   summaryLanguage?: string;
