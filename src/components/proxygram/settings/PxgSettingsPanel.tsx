@@ -136,6 +136,7 @@ const AUDIT_KEYS: Record<string, string> = {
   share_leave: 'PxgAuditShareLeave',
   share_source_lost: 'PxgAuditSourceLost',
   share_source_restored: 'PxgAuditSourceRestored',
+  share_migrated: 'PxgAuditShareMigrated',
   delegate_send: 'PxgAuditSend',
   delegate_edit: 'PxgAuditEdit',
   delegate_delete: 'PxgAuditDelete',

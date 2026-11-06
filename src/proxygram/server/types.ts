@@ -336,7 +336,8 @@ export type ServiceActionDto =
   | { type: 'chatDeleteUser'; users: ActionUserDto[] }
   | { type: 'chatJoinedByLink'; users: ActionUserDto[] }
   | { type: 'chatJoinedByRequest' }
-  | { type: 'channelMigrateFrom'; title: string }
+  | { type: 'channelMigrateFrom'; title: string; chatId: number | null }
+  | { type: 'chatMigrateTo'; channelId: number }
   | { type: 'pinMessage' }
   | { type: 'historyClear' }
   | { type: 'setMessagesTtl'; period: number }

@@ -3530,6 +3530,7 @@ export interface LangPair {
   'PxgAuditShareLeave': undefined;
   'PxgAuditSourceLost': undefined;
   'PxgAuditSourceRestored': undefined;
+  'PxgAuditShareMigrated': undefined;
   'PxgAuditSend': undefined;
   'PxgAuditEdit': undefined;
   'PxgAuditDelete': undefined;

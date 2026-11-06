@@ -236,8 +236,11 @@ const ActionMessageText = ({
 
       case 'chatMigrateTo': {
         const { channelId } = action;
-        const channel = selectChat(global, channelId)!;
-        const channelLink = renderPeerLink(channelId, getPeerTitle(lang, channel)!, asPreview);
+        const channel = selectChat(global, channelId);
+        // Proxygram: a guest may have the old group without its supergroup
+        const channelLink = renderPeerLink(
+          channel ? channelId : undefined, channel ? getPeerTitle(lang, channel)! : chatFallbackText, asPreview,
+        );
         return lang('ActionMigratedTo', { chat: channelLink }, { withNodes: true });
       }
 

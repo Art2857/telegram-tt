@@ -4693,6 +4693,7 @@
 "PxgAuditShareLeave" = "left the access";
 "PxgAuditSourceLost" = "the chat is gone for the owner";
 "PxgAuditSourceRestored" = "the chat is available again";
+"PxgAuditShareMigrated" = "the group became a supergroup, access moved there";
 "PxgAuditSend" = "sent a message";
 "PxgAuditEdit" = "edited a message";
 "PxgAuditDelete" = "deleted messages";

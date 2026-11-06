@@ -410,8 +410,16 @@ function buildProxyAction(dto: MessageDto): ApiMessageAction | undefined {
     case 'channelCreate':
     case 'chatEditTitle':
       return { mediaType: 'action', type: action.type, title: action.title };
+    // The old group and its supergroup link to each other; the guest opens the one shared with them
     case 'channelMigrateFrom':
-      return { mediaType: 'action', type: 'channelMigrateFrom', title: action.title, chatId: '' };
+      return {
+        mediaType: 'action',
+        type: 'channelMigrateFrom',
+        title: action.title,
+        chatId: action.chatId ? getProxyPeerId(dto.accountId, action.chatId) : '',
+      };
+    case 'chatMigrateTo':
+      return { mediaType: 'action', type: 'chatMigrateTo', channelId: getProxyPeerId(dto.accountId, action.channelId) };
     case 'setMessagesTtl':
       return { mediaType: 'action', type: 'setMessagesTtl', period: action.period };
     case 'customAction':

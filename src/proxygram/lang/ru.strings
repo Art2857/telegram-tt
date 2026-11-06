@@ -180,6 +180,7 @@
 "PxgAuditShareLeave" = "вышел из доступа";
 "PxgAuditSourceLost" = "чат пропал у владельца";
 "PxgAuditSourceRestored" = "чат снова доступен";
+"PxgAuditShareMigrated" = "группа стала супергруппой, доступ перенесён в неё";
 "PxgAuditSend" = "написал сообщение";
 "PxgAuditEdit" = "изменил сообщение";
 "PxgAuditDelete" = "удалил сообщения";
