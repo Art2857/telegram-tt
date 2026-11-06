@@ -20,7 +20,7 @@ import {
   buildProxyDraft,
   buildProxyMessage, buildProxyPoll, buildProxyReaction, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser,
   buildProxyUserStatus,
-  buildProxyViaBot, buildProxyWebPage,
+  buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPhone,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -190,6 +190,10 @@ export async function fetchProxyChats() {
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   const chats = access.map(buildProxyChat);
   sharedChatIds = new Set(chats.map((chat) => chat.id));
+  clearProxyUserPhones();
+  access.forEach((chat) => {
+    if (chat.peerId > 0) setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
+  });
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
     buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
   ));
@@ -435,6 +439,7 @@ async function fetchMembers({ chat, memberFilter = 'recent', offset, query }: Me
   });
   const members = result.members.filter((member) => memberFilter !== 'admin' || member.role !== 'member');
   members.forEach((member) => {
+    setProxyUserPhone(peer.accountId, member.userId, member.phone);
     const user = buildProxyUser(peer.accountId, member.userId, member.name || member.username || undefined,
       member.photoId, member.badges);
     if (member.isBot) user.type = 'userTypeBot';

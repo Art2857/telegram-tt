@@ -216,15 +216,32 @@ function buildProxyBadges(
  * `null` means the user has no photo or no badges;
  * an omitted `photoId` or `badges` keeps what is already known from other messages
  */
+/**
+ * Phones the server revealed under `seePhones`. Any rebuild of the user keeps them, since an update replaces
+ * the whole profile; the accesses reload starts over, so a revoked permission takes them away
+ */
+const phoneByUserId = new Map<string, string>();
+
+export function setProxyUserPhone(accountId: string, userId: number, phone?: string | null) {
+  const id = getProxyPeerId(accountId, userId);
+  if (phone) phoneByUserId.set(id, phone);
+  else phoneByUserId.delete(id);
+}
+
+export function clearProxyUserPhones() {
+  phoneByUserId.clear();
+}
+
 export function buildProxyUser(
   accountId: string, userId: number, name?: string, photoId?: string | null, badges?: PeerBadgesDto | null,
 ): ApiUser {
+  const id = getProxyPeerId(accountId, userId);
   const user: ApiUser = {
-    id: getProxyPeerId(accountId, userId),
+    id,
     type: 'userTypeRegular',
     isMin: false,
     firstName: name || String(userId),
-    phoneNumber: '',
+    phoneNumber: phoneByUserId.get(id) || '',
     noStatus: true,
   };
   if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;

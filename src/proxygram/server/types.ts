@@ -64,6 +64,8 @@ export interface AccessChat {
   sendAsPeerId?: number | null;
   /** Online status of the other side of a private chat */
   userStatus?: UserStatusDto | null;
+  /** Phone of the other side of a private chat: only with `seePhones` */
+  phone?: string | null;
   permissions: Permissions;
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
@@ -152,6 +154,8 @@ export interface MemberDto {
   name: string | null;
   username: string | null;
   photoId: string | null;
+  /** Only with `seePhones` and when Telegram shows the number to the owner */
+  phone?: string | null;
   badges?: PeerBadgesDto | null;
   isBot: boolean;
   role: 'creator' | 'admin' | 'member';
