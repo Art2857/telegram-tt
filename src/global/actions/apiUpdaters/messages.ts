@@ -28,6 +28,7 @@ import { callApi } from '../../../api/gramjs';
 import { recordEditVersion } from '../../../proxygram/archive/editHistory';
 import { keepDeletedMessages } from '../../../proxygram/archive/keepDeletedMessages';
 import { archiveDeletedMessages, archiveEditVersions } from '../../../proxygram/archive/localArchive';
+import { getProxySendError } from '../../../proxygram/sendErrors';
 import {
   addPaidReaction,
   checkIfHasUnreadReactions,
@@ -1256,7 +1257,11 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      if (error.match(/CHAT_SEND_.+?FORBIDDEN/)) {
+      if (global.chats.byId[chatId]?.pxgProxy) {
+        Object.values(global.byTabId).forEach(({ id: tabId }) => {
+          actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
+        });
+      } else if (error.match(/CHAT_SEND_.+?FORBIDDEN/)) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showAllowedMessageTypesNotification({ chatId, tabId });
         });
@@ -1270,7 +1275,11 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateScheduledMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      if (error.match(/CHAT_SEND_.+?FORBIDDEN/)) {
+      if (global.chats.byId[chatId]?.pxgProxy) {
+        Object.values(global.byTabId).forEach(({ id: tabId }) => {
+          actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
+        });
+      } else if (error.match(/CHAT_SEND_.+?FORBIDDEN/)) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showAllowedMessageTypesNotification({ chatId, tabId });
         });

@@ -68,6 +68,9 @@ export type OwnProps = {
   footer?: TeactNode;
   viewportFooter?: TeactNode;
   selectedIds?: ChatSelectionKey[];
+  getPeerPresentation?: (
+    peerId: string, topicId?: number,
+  ) => { subtitle?: TeactNode; isDisabled?: boolean } | undefined;
   loadMore?: NoneToVoidFunction;
   onSearchChange: (search: string) => void;
   onSelectChatOrUser: (chatOrUserId: string, threadId?: ThreadId) => void;
@@ -110,6 +113,7 @@ const ChatOrUserPicker = ({
   viewportFooter,
   listActiveKey,
   selectedIds,
+  getPeerPresentation,
   animationLevel,
   shouldSkipHistoryAnimations,
   loadMore,
@@ -171,7 +175,8 @@ const ChatOrUserPicker = ({
     const searchTitle = topicSearch.toLowerCase();
 
     const filteredTopics = Object.values(topicsInfo.topicsById).filter((topic) => (
-      getCanPostInChat(chat, topic, undefined, chatFullInfoById[forumId!])
+      (getCanPostInChat(chat, topic, undefined, chatFullInfoById[forumId!])
+        || Boolean(getPeerPresentation?.(chat.id, topic.id)))
       && (!searchTitle || topic.title.toLowerCase().includes(searchTitle))
     ));
     const topicThreadInfos = topicThreads && mapValues(topicThreads, (topicThread) => topicThread.threadInfo);
@@ -182,7 +187,7 @@ const ChatOrUserPicker = ({
     );
 
     return [orderedTopics.map(({ id }) => id), topicsInfo.topicsById];
-  }, [forumId, topicSearch, topicsInfo, topicThreads]);
+  }, [forumId, topicSearch, topicsInfo, topicThreads, getPeerPresentation]);
 
   const handleHeaderBackClick = useLastCallback(() => {
     setForumId(undefined);
@@ -202,6 +207,7 @@ const ChatOrUserPicker = ({
       const chatsById = getGlobal().chats.byId;
 
       const chatId = viewportIds[index === -1 ? 0 : index];
+      if (getPeerPresentation?.(chatId)?.isDisabled) return;
       const chat = chatsById[chatId];
       if (chat?.isForum) {
         if (!topicsInfo || topicsInfo.isCache) loadTopics({ chatId });
@@ -218,13 +224,16 @@ const ChatOrUserPicker = ({
 
   const handleTopicKeyDown = useKeyboardListNavigation(topicContainerRef, isOpen, (index) => {
     if (topicIds?.length) {
-      onSelectChatOrUser(forumId!, topicIds[index === -1 ? 0 : index]);
+      const topicId = topicIds[index === -1 ? 0 : index];
+      if (getPeerPresentation?.(forumId!, topicId)?.isDisabled) return;
+      onSelectChatOrUser(forumId!, topicId);
     }
   }, `.${ITEM_CLASS_NAME}`, true);
 
   const isMultiSelect = Boolean(selectedIds);
 
   const handleClick = useLastCallback((chatId: string) => {
+    if (getPeerPresentation?.(chatId)?.isDisabled) return;
     const chatsById = getGlobal().chats.byId;
     const chat = chatsById?.[chatId];
     if (chat?.isForum) {
@@ -274,6 +283,7 @@ const ChatOrUserPicker = ({
     }
 
     const [subtitle, subtitleClassName] = getSubtitle() || [];
+    const presentation = getPeerPresentation?.(id);
 
     const checkboxElement = selectedIds ? (
       <div className={buildClassName('picker-checkbox', (isSelected || hasSelectedTopics) && 'selected')}>
@@ -311,7 +321,8 @@ const ChatOrUserPicker = ({
         )}
         inputElement={checkboxElement}
         inputPosition="end"
-        subtitle={subtitle}
+        subtitle={presentation?.subtitle || subtitle}
+        disabled={presentation?.isDisabled}
         subtitleClassName={subtitleClassName}
         ripple
         style={`top: ${(viewportOffset + index) * PEER_PICKER_ITEM_HEIGHT_PX}px;`}
@@ -319,7 +330,7 @@ const ChatOrUserPicker = ({
         onClick={() => handleClick(id)}
       />
     );
-  }, [currentUserId, lang, viewportOffset, selectedIds]);
+  }, [currentUserId, lang, viewportOffset, selectedIds, getPeerPresentation]);
 
   function renderTopicList() {
     return (
@@ -378,6 +389,8 @@ const ChatOrUserPicker = ({
                     </div>
                   )}
                   title={renderText(topics[topicId].title)}
+                  subtitle={getPeerPresentation?.(forumId!, topicId)?.subtitle}
+                  disabled={getPeerPresentation?.(forumId!, topicId)?.isDisabled}
                   inputElement={topicCheckboxElement}
                   inputPosition="end"
                 />

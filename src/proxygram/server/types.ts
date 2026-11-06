@@ -62,6 +62,9 @@ export interface AccessChat {
   hasLinkedChat?: boolean;
   /** "Restrict saving content" of the whole chat */
   isProtected?: boolean;
+  /** Ограничения Telegram для владельца, с учётом его роли и срока личных запретов */
+  telegramBans?: string[];
+  isOwnerAdmin?: boolean;
   /** Who the guest writes as in this chat; null — the owner */
   sendAsPeerId?: number | null;
   /** Online status of the other side of a private chat */
@@ -94,6 +97,12 @@ export interface AccessChat {
   /** В архиве списка гостя, unix-секунды */
   archivedAt: number | null;
 }
+
+export type ForwardOptionsDto = {
+  accounts: Record<string, 'native' | 'copy'>;
+  copyError?: string;
+  hasPoll?: boolean;
+};
 
 /** A chat of the owner and the people it is open to right now */
 export interface OutgoingChatDto {

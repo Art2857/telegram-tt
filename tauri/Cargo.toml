@@ -1,6 +1,6 @@
  [package]
 name = "proxygram"
-version = "1.0.1"
+version = "1.0.2"
 description = "Proxygram"
 authors = ["Alexander Zinchuk"]
 license = "GPLv3"

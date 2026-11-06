@@ -4,6 +4,7 @@ import { getActions } from '../../../global';
 import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
 
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { IS_ANDROID } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -948,7 +949,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
   return (
     <>
       <ServerAdminLine lang={lang} t={t} />
-      {IS_TAURI && <AutostartToggle lang={lang} />}
+      {IS_TAURI && !IS_ANDROID && <AutostartToggle lang={lang} />}
       <BotNotificationsToggle lang={lang} />
       <table className={styles.table}>
         <tbody>

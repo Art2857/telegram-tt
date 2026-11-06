@@ -155,7 +155,9 @@ export function getCanPostInChat(
   chat: ApiChat, topic?: ApiTopic, isMessageThread?: boolean, chatFullInfo?: ApiChatFullInfo,
 ) {
   // PXG: Proxy write rights come from the server access
-  if (chat.pxgProxy) return (topic?.pxgPermissions || chat.pxgProxy.permissions).write;
+  if (chat.pxgProxy) {
+    return (topic?.pxgPermissions || chat.pxgProxy.permissions).write && !chat.currentUserBannedRights?.sendMessages;
+  }
   if (topic) {
     if (chat.isForum) {
       if (chat.isNotJoined) {
@@ -231,10 +233,11 @@ export function getAllowedAttachmentOptions(
     };
   }
 
-  const isAdmin = isChatAdmin(chat);
+  // Права гостя уже учитывают роль владельца в Telegram и ограничения доступа
+  const isAdmin = !chat.pxgProxy && isChatAdmin(chat);
 
   return {
-    canAttachMedia: chat.pxgProxy ? chat.pxgProxy.permissions.sendMedia
+    canAttachMedia: chat.pxgProxy ? chat.pxgProxy.permissions.sendMedia && !chat.currentUserBannedRights?.sendMedia
       : isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendMedia', chatFullInfo),
     canAttachPolls: !isEphemeral && !isStoryReply && !chat.isMonoforum
       && (isAdmin || !isUserRightBanned(chat, 'sendPolls', chatFullInfo))
@@ -260,6 +263,7 @@ export function getProxySendingRestrictionReason(lang: LangFn, chat?: ApiChat, t
   if (proxy.restricted === 'source_lost') return lang('PxgRestrictedSourceLost');
   if (proxy.restricted === 'account_unavailable') return lang('PxgRestrictedAccount');
   if (proxy.restricted === 'flood') return lang('PxgRestrictedFlood');
+  if (topic?.isClosed && proxy.permissions.write) return lang('TopicClosedByAdmin');
   return lang('PxgGuestReadOnly');
 }
 

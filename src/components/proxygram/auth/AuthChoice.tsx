@@ -1,5 +1,7 @@
 import { memo, useState } from '../../../lib/teact/teact';
 
+import { IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { IS_ANDROID } from '../../../util/browser/windowEnvironment';
 import { setPxgState } from '../../../proxygram/server/store';
 import { hasOtherAccount, navigateBack } from '../../auth/helpers/backNavigation';
 
@@ -7,6 +9,7 @@ import useLang from '../../../hooks/useLang';
 
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
+import AppUpdateModal from '../AppUpdateModal';
 import UnofficialNotice from '../UnofficialNotice';
 import AppDownloadOffer from './AppDownloadOffer';
 import AuthLanguagePicker from './AuthLanguagePicker';
@@ -40,6 +43,12 @@ const AuthChoice = () => {
         <h1>{lang('PxgAuthChoiceTitle')}</h1>
         <p className="note">{lang('PxgAuthChoiceNote')}</p>
         <AppDownloadOffer />
+        {IS_TAURI && IS_ANDROID && (
+          <Button color="translucent" onClick={() => setPxgState({ isAppUpdateOpen: true })}>
+            {lang('PxgAppUpdates')}
+          </Button>
+        )}
+        {IS_TAURI && IS_ANDROID && <AppUpdateModal />}
 
         <button type="button" className={styles.option} onClick={() => setPxgState({ authChoice: 'telegram' })}>
           <Icon name="key" className={styles.icon} />

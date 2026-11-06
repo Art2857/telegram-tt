@@ -3,6 +3,8 @@ import { getActions, getGlobal } from '../../global';
 
 import { PROXY_FOLDER_ID } from '../../api/proxy/types';
 
+import { IS_TAURI } from '../../util/browser/globalEnvironment';
+import { IS_ANDROID } from '../../util/browser/windowEnvironment';
 import { signOutPxg } from '../../proxygram/server/session';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
 
@@ -49,6 +51,11 @@ const PxgMenuItems = () => {
       <MenuItem icon="settings" onClick={() => setPxgState({ isSettingsOpen: true })}>
         {lang('PxgSettingsTitle')}
       </MenuItem>
+      {IS_TAURI && IS_ANDROID && (
+        <MenuItem icon="download" onClick={() => setPxgState({ isAppUpdateOpen: true })}>
+          {lang('PxgAppUpdates')}
+        </MenuItem>
+      )}
       {session.user.role === 'admin' && (
         <MenuItem icon="admin" onClick={() => setPxgState({ isAdminOpen: true })}>
           {lang('PxgAdminTitle')}

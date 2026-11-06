@@ -5,7 +5,8 @@ import {
 import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type { ApiChatFolder, ApiChatType } from '../../api/types';
-import type { GlobalState } from '../../global/types';
+import type { GlobalState, TabState } from '../../global/types';
+import type { ForwardOptionsDto } from '../../proxygram/server/types';
 import type { ThreadId } from '../../types';
 
 import { ALL_FOLDER_ID, API_CHAT_TYPES } from '../../config';
@@ -20,7 +21,8 @@ import {
 import { filterPeersByQuery } from '../../global/helpers/peers';
 import {
   filterChatIdsByType, selectCanInviteToChat, selectChat, selectChatFullInfo,
-  selectIsMonoforumAdmin, selectTabState, selectTopic, selectUser,
+  selectIsMonoforumAdmin, selectProxyForwardRestriction,
+  selectTabState, selectTopic, selectUser,
 } from '../../global/selectors';
 import { selectCurrentLimit } from '../../global/selectors/limits';
 import { unique } from '../../util/iteratees';
@@ -31,6 +33,8 @@ import {
   getChatSelectionKeyHash,
   includesChatSelectionKey,
 } from '../../util/keys/chatSelectionKey';
+import { getProxySendError } from '../../proxygram/sendErrors';
+import { pxgRpc } from '../../proxygram/server/rpc';
 import sortChatIds from './helpers/sortChatIds';
 
 import useCurrentOrPrev from '../../hooks/useCurrentOrPrev';
@@ -78,6 +82,8 @@ type StateProps = {
   chatFoldersById: Record<number, ApiChatFolder>;
   orderedFolderIds?: number[];
   maxFolders: number;
+  forwardMessages: TabState['forwardMessages'];
+  chatsById: GlobalState['chats']['byId'];
 };
 
 const RECENT_CONTACTS_LIMIT = 15;
@@ -102,6 +108,8 @@ const RecipientPicker = ({
   shouldFilterInviteable,
   isMultiSelect,
   maxFolders,
+  forwardMessages,
+  chatsById,
   withFolders,
   footer,
   viewportFooter,
@@ -113,6 +121,50 @@ const RecipientPicker = ({
 }: OwnProps & StateProps) => {
   const { openLimitReachedModal, loadTopPeers } = getActions();
   const lang = useLang();
+  const [forwardOptions, setForwardOptions] = useState<ForwardOptionsDto>();
+  const [hasForwardOptionsError, setHasForwardOptionsError] = useState(false);
+  const { fromChatId, messageIds } = forwardMessages;
+  const source = fromChatId ? chatsById[fromChatId]?.pxgProxy : undefined;
+
+  useEffect(() => {
+    setForwardOptions(undefined);
+    setHasForwardOptionsError(false);
+    if (!isOpen || !isForwarding || !source || !messageIds?.length) return undefined;
+    let isActive = true;
+    void pxgRpc.call<ForwardOptionsDto>('messages.forwardOptions', {
+      accountId: source.accountId, peerId: source.peerId, msgIds: messageIds,
+    }).then((result) => {
+      if (isActive) setForwardOptions(result);
+    }).catch(() => {
+      if (isActive) setHasForwardOptionsError(true);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, isForwarding, source, messageIds]);
+
+  const getPeerPresentation = useCallback((peerId: string, topicId?: number) => {
+    if (!isForwarding || !source) return undefined;
+    if (!forwardOptions) {
+      return { isDisabled: true, subtitle: lang(hasForwardOptionsError ? 'PxgForwardCheckFailed' : 'Loading') };
+    }
+    const global = getGlobal();
+    const target = chatsById[peerId]?.pxgProxy;
+    if (!target) return undefined;
+    const mode = forwardOptions.accounts[target.accountId];
+    const error = selectProxyForwardRestriction(global, peerId, topicId)
+      || (mode === 'copy' && forwardOptions.copyError);
+    if (error) {
+      const translated = getProxySendError(error);
+      return { isDisabled: true, subtitle: translated ? lang.with(translated) : lang('PxgForwardNativeOnly') };
+    }
+    return {
+      isDisabled: !mode,
+      subtitle: mode === 'copy'
+        ? `${lang('PxgForwardCopy')}${forwardOptions.hasPoll ? ` ${lang('PxgForwardPollCopy')}` : ''}`
+        : target.accountId !== source.accountId ? lang('PxgForwardNative') : undefined,
+    };
+  }, [isForwarding, source, forwardOptions, hasForwardOptionsError, lang, chatsById]);
 
   useEffect(() => {
     if (isOpen) {
@@ -178,6 +230,7 @@ const RecipientPicker = ({
   });
 
   const handleSelect = useLastCallback((peerId: string, threadId?: ThreadId) => {
+    if (getPeerPresentation(peerId, threadId ? Number(threadId) : undefined)?.isDisabled) return;
     if (isMultiSelect) {
       handleToggleSelection(peerId, threadId);
     } else {
@@ -201,7 +254,11 @@ const RecipientPicker = ({
       ...((search && archivedListIds) || []),
     ];
 
-    const peerIds = allIds.filter((id) => getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable));
+    const peerIds = allIds.filter((id) => {
+      const chat = chatsById[id];
+      return isForwarding && chat?.pxgProxy ? getCanPostInChat(chat)
+        : getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable);
+    });
 
     const idsWithAdditions = shouldRenderFolders ? peerIds : unique([
       ...(currentUserId ? [currentUserId] : []),
@@ -235,14 +292,17 @@ const RecipientPicker = ({
     shouldFilterInviteable,
     orderedChatIds,
     shouldRenderFolders,
+    chatsById,
   ]);
 
   const renderingIds = useCurrentOrPrev(ids, true);
 
   const recentContactIds = useMemo(() => {
     const global = getGlobal();
-    const source = topPeerIds?.length ? topPeerIds : (contactIds || []);
-    const allowed = source.filter((id) => getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable));
+    const recentSource = topPeerIds?.length ? topPeerIds : (contactIds || []);
+    const allowed = recentSource.filter((id) => (
+      getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable)
+    ));
     return filterChatIdsByType(global, allowed, filter)
       .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id)) // PXG
       .slice(0, RECENT_CONTACTS_LIMIT);
@@ -291,7 +351,7 @@ const RecipientPicker = ({
   const selectedPeerIds = useMemo(() => selectedIds.map((key) => key.peerId), [selectedIds]);
 
   const subheaderContent = useMemo(() => {
-    const hasRecentContacts = recentContactIds.length > 0 && !search;
+    const hasRecentContacts = recentContactIds.length > 0 && !search && !(isForwarding && source);
     const hasFolderTabs = shouldRenderFolders;
 
     if (!hasRecentContacts && !hasFolderTabs) return undefined;
@@ -328,6 +388,8 @@ const RecipientPicker = ({
     folderTabs,
     activeFolderIndex,
     handleSwitchFolderIndex,
+    isForwarding,
+    source,
   ]);
 
   return (
@@ -345,6 +407,7 @@ const RecipientPicker = ({
       viewportFooter={viewportFooter}
       listActiveKey={activeFolderIndex}
       selectedIds={isMultiSelect ? selectedIds : undefined}
+      getPeerPresentation={getPeerPresentation}
       onSearchChange={setSearch}
       loadMore={loadMore}
       onSelectChatOrUser={handleSelect}
@@ -365,6 +428,7 @@ function getIsRecipientAllowed(
   if (isSystemBot(id)) return false;
 
   const chat = selectChat(global, id);
+  if (isForwarding && chat?.pxgProxy) return getCanPostInChat(chat);
   const user = selectUser(global, id);
   const hasAdminRights = chat && getHasAdminRight(chat, 'postMessages');
   const isChannel = chat && isChatChannel(chat);
@@ -392,7 +456,7 @@ function getIsProxyForwardAllowed(global: GlobalState, id: string) {
   const source = fromChatId ? selectChat(global, fromChatId)?.pxgProxy : undefined;
   const target = selectChat(global, id)?.pxgProxy;
   if (!source || !target) return !source && !target;
-  return target.permissions.write;
+  return target.permissions.write && !selectChat(global, id)?.currentUserBannedRights?.sendMessages;
 }
 
 export default memo(withGlobal<OwnProps>(
@@ -419,6 +483,8 @@ export default memo(withGlobal<OwnProps>(
       chatFoldersById,
       orderedFolderIds,
       maxFolders: selectCurrentLimit(global, 'dialogFilters'),
+      forwardMessages: selectTabState(global).forwardMessages,
+      chatsById: global.chats.byId,
     };
   },
 )(RecipientPicker));

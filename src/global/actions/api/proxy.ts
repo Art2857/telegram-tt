@@ -21,7 +21,6 @@ import {
   buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
 } from '../../../api/proxy/methods';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
-import { openAppDownload } from '../../../proxygram/appDownloads';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { getIsChatMuted } from '../../helpers/notifications';
@@ -51,8 +50,8 @@ let syncCursor: { userId: string; seq?: string } | undefined;
 /** Pages of `sync.changes` replayed after a reconnect; beyond that reading everything again is cheaper */
 const MAX_SYNC_PAGES = 10;
 
-addActionHandler('openPxgAppDownload', (global, actions, { url }): ActionReturnType => {
-  void openAppDownload(url);
+addActionHandler('openPxgAppDownload', (): ActionReturnType => {
+  setPxgState({ isAppUpdateOpen: true });
 });
 
 /** Упоминание открывает только доступный чат, в первую очередь — у владельца исходного сообщения */

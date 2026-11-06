@@ -19,6 +19,7 @@ import { setServerTimeOffset } from '../../../util/serverTime';
 import { updateSessionUserId } from '../../../util/sessions';
 import { finishWebLogin, rejectWebLogin } from '../../../util/webLogin';
 import { forceWebsync } from '../../../util/websync';
+import { getProxySendError } from '../../../proxygram/sendErrors';
 import {
   addActionHandler, getActions, getGlobal, setGlobal,
 } from '../../index';
@@ -99,9 +100,12 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       break;
 
     case 'error': {
+      const proxySendError = getProxySendError(update.error.message);
       Object.values(global.byTabId).forEach(({ id: tabId }) => {
         const paymentShippingError = getShippingError(update.error);
-        if (paymentShippingError) {
+        if (proxySendError) {
+          actions.showNotification({ message: proxySendError, tabId });
+        } else if (paymentShippingError) {
           actions.addPaymentError({ error: paymentShippingError, tabId });
         } else if (shouldClosePaymentModal(update.error)) {
           actions.closePaymentModal({ tabId });

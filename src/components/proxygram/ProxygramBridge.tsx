@@ -21,6 +21,7 @@ import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/st
 import { formatDateTime } from './helpers';
 
 import AdminPanel from './admin/AdminPanel';
+import AppUpdateModal from './AppUpdateModal';
 import ConnectServerModal from './ConnectServerModal';
 import DevMessageModal from './DevMessageModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
@@ -285,6 +286,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isSettingsOpen && <PxgSettingsPanel />}
       {isAdmin && <DevMessageModal />}
       <ReactionLogModal />
+      <AppUpdateModal />
     </>
   );
 };

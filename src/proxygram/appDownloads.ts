@@ -54,14 +54,35 @@ export async function getAndroidAppUpdate(currentVersion: string) {
   const manifest = await fetchReleaseManifest();
   const url = manifest?.android?.url;
   return manifest && url && isNewerVersion(manifest.version, currentVersion)
-    ? { version: manifest.version, url }
+    ? { version: manifest.version, url, sha256: manifest.android?.sha256 }
     : undefined;
 }
 
-/** The system downloads the file and offers to install it */
+/** Open the external browser; downloading and installation are handled there */
 export async function openAppDownload(url: string) {
+  if (new URL(url).protocol !== 'https:') throw new Error('Invalid download URL');
   const { open } = await import('@tauri-apps/plugin-shell');
   await open(url);
+}
+
+export type AndroidDownloadState = {
+  status: 'idle' | 'pending' | 'running' | 'paused' | 'verifying' | 'ready' | 'failed' | 'storage';
+  downloaded?: number;
+  total?: number;
+  filename?: string;
+  version?: string;
+  error?: string;
+};
+
+type AndroidUpdateBridge = {
+  start: (url: string, sha256: string, version: string) => string;
+  getState: () => string;
+  cancel: () => void;
+  install: () => string;
+};
+
+export function getAndroidUpdateBridge() {
+  return (window as { PxgAppUpdater?: AndroidUpdateBridge }).PxgAppUpdater;
 }
 
 /** `1.10.0` is newer than `1.9.3`; a missing part counts as zero */

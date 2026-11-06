@@ -3401,6 +3401,41 @@ export interface LangPair {
   'PxgAuthChoiceNote': undefined;
   'PxgAppDownloadWindows': undefined;
   'PxgAppUpdateDownload': undefined;
+  'PxgAppUpdates': undefined;
+  'PxgAppUpdateHint': undefined;
+  'PxgAppUpdateBrowserHint': undefined;
+  'PxgAppUpdatePending': undefined;
+  'PxgAppUpdateRunning': undefined;
+  'PxgAppUpdatePaused': undefined;
+  'PxgAppUpdateVerifying': undefined;
+  'PxgAppUpdateReady': undefined;
+  'PxgAppUpdateFailed': undefined;
+  'PxgAppUpdateStorage': undefined;
+  'PxgAppUpdatePermission': undefined;
+  'PxgAppUpdateInstall': undefined;
+  'PxgAppUpdateBrowser': undefined;
+  'PxgAppUpdateBrowserOpened': undefined;
+  'PxgAppUpdateActionFailed': undefined;
+  'PxgAppUpdateCheckFailed': undefined;
+  'PxgAppUpdateCheck': undefined;
+  'PxgAppUpdateInvalidFile': undefined;
+  'PxgSendErrorWrite': undefined;
+  'PxgSendErrorText': undefined;
+  'PxgSendErrorPhotos': undefined;
+  'PxgSendErrorVideos': undefined;
+  'PxgSendErrorAudio': undefined;
+  'PxgSendErrorVoice': undefined;
+  'PxgSendErrorRound': undefined;
+  'PxgSendErrorFiles': undefined;
+  'PxgSendErrorInline': undefined;
+  'PxgSendErrorPremium': undefined;
+  'PxgSendErrorPaid': undefined;
+  'PxgSendErrorUnknown': undefined;
+  'PxgForwardCopy': undefined;
+  'PxgForwardNative': undefined;
+  'PxgForwardPollCopy': undefined;
+  'PxgForwardNativeOnly': undefined;
+  'PxgForwardCheckFailed': undefined;
   'PxgAppDownloadAndroid': undefined;
   'PxgAppDownloadAlso': undefined;
   'PxgTelegramViaServer': undefined;
@@ -6157,6 +6192,15 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAppUpdateAvailable': {
     'version': V;
   };
+  'PxgAppUpdateInstalled': {
+    'version': V;
+  };
+  'PxgAppUpdateLatest': {
+    'version': V;
+  };
+  'PxgSendErrorWait': {
+    'seconds': V;
+  };
   'PxgAppDownloadHint': {
     'version': V;
   };
@@ -8595,6 +8639,7 @@ export interface LangKeyGroups {
   'seconds': {
     keys:
       | 'WalletConnectRemaining'
+      | 'PxgSendErrorWait'
       | 'PxgGuestResendIn'
       | 'PxgFloodDelay';
     variables: 'seconds';
@@ -8736,6 +8781,8 @@ export interface LangKeyGroups {
   'version': {
     keys:
       | 'PxgAppUpdateAvailable'
+      | 'PxgAppUpdateInstalled'
+      | 'PxgAppUpdateLatest'
       | 'PxgAppDownloadHint'
       | 'PxgAppDownloadApps';
     variables: 'version';

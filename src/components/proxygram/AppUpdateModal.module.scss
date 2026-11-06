@@ -1,0 +1,38 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.secondary {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.version {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+}
+
+.status,
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+.link {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}

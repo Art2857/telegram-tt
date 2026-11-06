@@ -19,6 +19,7 @@ export interface PxgState {
   isAdminOpen: boolean;
   /** «Настройки Proxygram»: сервер, доступы, архив, журнал, устройства */
   isSettingsOpen: boolean;
+  isAppUpdateOpen?: boolean;
   isConnectOpen: boolean;
   /** Сколько чатов открыли этому человеку другие */
   sharedCount?: number;

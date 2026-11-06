@@ -1587,6 +1587,7 @@ export function selectForwardsCanBeSentToChat<T extends GlobalState>(
   const { messageIds, storyId, fromChatId } = selectTabState(global, tabId).forwardMessages;
   const chat = selectChat(global, toChatId);
   if ((!messageIds && !storyId) || !chat) return false;
+  if (chat.pxgProxy && selectProxyForwardRestriction(global, toChatId, undefined, tabId)) return false;
 
   if (storyId) {
     return true;
@@ -1600,6 +1601,42 @@ export function selectForwardsCanBeSentToChat<T extends GlobalState>(
     const message = selectChatMessageOrEphemeral(global, fromChatId!, messageId);
     return !message || сheckMessageSendingDenied(message, options);
   });
+}
+
+/** Причина отказа для выбранных сообщений до отправки запроса на сервер */
+export function selectProxyForwardRestriction<T extends GlobalState>(
+  global: T, toChatId: string, topicId?: number, ...[tabId = getCurrentTabId()]: TabArgs<T>
+): string | undefined {
+  const chat = selectChat(global, toChatId);
+  if (!chat?.pxgProxy) return undefined;
+  const topic = topicId ? global.chats.topicsInfoById[toChatId]?.topicsById[topicId] : undefined;
+  if (!getCanPostInChat(chat, topic)) return topic?.isClosed ? 'TOPIC_CLOSED' : 'CHAT_WRITE_FORBIDDEN';
+  const { messageIds, fromChatId } = selectTabState(global, tabId).forwardMessages;
+  if (!messageIds || !fromChatId) return undefined;
+  const bans = chat.currentUserBannedRights || {};
+  for (const id of messageIds) {
+    const message = selectChatMessage(global, fromChatId, id);
+    if (!message || message.pxgDeletedAt) return 'COPY_UNSUPPORTED';
+    const content = message.content;
+    const right = content.photo ? 'sendPhotos'
+      : content.voice ? 'sendVoices'
+        : content.video?.isRound ? 'sendRoundvideos'
+          : content.video?.isGif ? 'sendGifs'
+            : content.video ? 'sendVideos'
+              : content.audio ? 'sendAudios'
+                : content.document ? 'sendDocs'
+                  : content.sticker ? 'sendStickers'
+                    : content.pollId ? 'sendPolls'
+                      : content.game ? 'sendGames'
+                        : content.text && (!content.contact && !content.location && !content.dice
+                          && !content.invoice && !content.storyData && !content.giveaway && !content.paidMedia
+                          && !content.todo) ? 'sendPlain' : undefined;
+    if (right && bans[right]) {
+      return right === 'sendPolls' ? 'CHAT_SEND_POLL_FORBIDDEN'
+        : `CHAT_SEND_${right.slice('send'.length).toUpperCase()}_FORBIDDEN`;
+    }
+  }
+  return undefined;
 }
 function сheckMessageSendingDenied(message: ApiMessage, options: IAllowedAttachmentOptions) {
   const isVoice = message.content.voice;

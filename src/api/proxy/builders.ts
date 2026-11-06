@@ -42,6 +42,8 @@ export function buildProxyAuthorChat(
 
 export function buildProxyChat(chat: AccessChat): ApiChat {
   const usernames = chat.info?.usernames?.length ? chat.info.usernames : chat.username ? [chat.username] : undefined;
+  const bans = new Set(chat.telegramBans);
+  const hasMediaBan = !chat.permissions.sendMedia || bans.has('sendMedia');
   return {
     id: getProxyPeerId(chat.accountId, chat.peerId),
     type: chat.peerId > 0 ? 'chatTypePrivate'
@@ -61,19 +63,23 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     hasUsername: Boolean(usernames?.length) || undefined,
     ...buildProxyAdminRights(chat),
     currentUserBannedRights: {
+      sendMessages: bans.has('sendMessages') ? true : undefined,
+      sendPlain: bans.has('sendPlain') ? true : undefined,
+      embedLinks: bans.has('embedLinks') ? true : undefined,
       sendReactions: chat.permissions.react ? undefined : true,
-      sendMedia: chat.permissions.sendMedia ? undefined : true,
-      sendPhotos: chat.permissions.sendMedia ? undefined : true,
-      sendVideos: chat.permissions.sendMedia ? undefined : true,
-      sendAudios: chat.permissions.sendMedia ? undefined : true,
-      sendDocs: chat.permissions.sendMedia ? undefined : true,
-      sendStickers: chat.permissions.useOwnerStickers ? undefined : true,
-      sendGifs: chat.permissions.useOwnerStickers ? undefined : true,
-      sendVoices: chat.permissions.sendMedia ? undefined : true,
-      sendRoundvideos: chat.permissions.sendMedia ? undefined : true,
-      sendPolls: chat.permissions.write ? undefined : true,
+      sendMedia: hasMediaBan ? true : undefined,
+      sendPhotos: hasMediaBan || bans.has('sendPhotos') ? true : undefined,
+      sendVideos: hasMediaBan || bans.has('sendVideos') ? true : undefined,
+      sendAudios: hasMediaBan || bans.has('sendAudios') ? true : undefined,
+      sendDocs: hasMediaBan || bans.has('sendDocs') ? true : undefined,
+      sendStickers: hasMediaBan || !chat.permissions.useOwnerStickers || bans.has('sendStickers') ? true : undefined,
+      sendGifs: hasMediaBan || !chat.permissions.useOwnerStickers || bans.has('sendGifs') ? true : undefined,
+      sendVoices: hasMediaBan || bans.has('sendVoices') ? true : undefined,
+      sendRoundvideos: hasMediaBan || bans.has('sendRoundvideos') ? true : undefined,
+      sendPolls: !chat.permissions.write || hasMediaBan || bans.has('sendPolls') ? true : undefined,
+      sendGames: hasMediaBan || bans.has('sendGames') ? true : undefined,
       // A bot's result is often a file, and the bot decides which
-      sendInline: chat.permissions.sendMedia ? undefined : true,
+      sendInline: hasMediaBan || bans.has('sendInline') ? true : undefined,
       // Topics are created as the owner: only with the admin permission
       manageTopics: chat.permissions.admin ? undefined : true,
       // Inviting people into the owner's chat is not a guest action
@@ -126,7 +132,7 @@ export function buildProxyChatInfo(
     // Members of a group are visible as to the owner; subscribers of a channel — to its admins only
     canViewMembers: (chat.peerId < 0 && (chat.type !== 'channel' || chat.permissions.admin)) || undefined,
     about: info?.about,
-    slowMode: info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
+    slowMode: !chat.isOwnerAdmin && info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
     // The server sends the owner's invite link only to a guest with the admin permission
     inviteLink: info?.inviteLink,
     // The server names the discussion group only when it is shared too: then posts show their comments
