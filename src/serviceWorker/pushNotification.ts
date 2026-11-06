@@ -46,7 +46,17 @@ type FocusMessageData = {
 // PXG: The Proxygram server pushes new messages of shared chats to guests, and new accesses:
 // those have no message, and a folder has no chat either
 type PxgPushTarget = { accountId: string; peerId?: number; msgId?: number };
-type PxgPushData = { pxg: PxgPushTarget; title: string; body: string; isSilent?: boolean };
+type PxgPushData = {
+  pxg: PxgPushTarget;
+  title: string;
+  body: string;
+  isSilent?: boolean;
+  // One notification per tag: a new message of the chat replaces the previous one. Older servers send none
+  tag?: string;
+};
+// PXG: The chat was read on another device: its notifications go away here too, nothing is shown.
+// Older service workers skip this push as a muted Telegram one
+type PxgReadData = { pxgRead: { accountId: string; peerId: number; maxId: number } };
 
 type CloseNotificationData = {
   lastReadInboxMessageId?: number;
@@ -155,14 +165,29 @@ function showNotification({
   ]);
 }
 
-function showPxgNotification({ pxg, title, body, isSilent }: PxgPushData) {
+function showPxgNotification({
+  pxg, title, body, isSilent, tag,
+}: PxgPushData) {
   return self.registration.showNotification(title || APP_NAME, {
     body,
     data: { pxg },
     icon: 'icon-192x192.png',
     badge: 'icon-192x192.png',
-    tag: `pxg:${pxg.accountId}:${pxg.peerId ?? 'folder'}`,
+    tag: tag || `pxg:${pxg.accountId}:${pxg.peerId ?? 'folder'}`,
     silent: isSilent,
+    // Replacing a notification is quiet by default; Telegram sounds on every message.
+    // Browsers reject `renotify` together with `silent`
+    // @ts-ignore
+    renotify: !isSilent,
+  });
+}
+
+async function closePxgNotifications({ pxgRead: { accountId, peerId, maxId } }: PxgReadData) {
+  const notifications = await self.registration.getNotifications({ tag: `pxg:${accountId}:${peerId}` });
+  notifications.forEach((notification) => {
+    const msgId = notification.data?.pxg?.msgId;
+    // A message newer than what was read stays
+    if (!msgId || msgId <= maxId) notification.close();
   });
 }
 
@@ -193,6 +218,11 @@ export function handlePush(e: PushEvent) {
   }
 
   const data = getPushData(e);
+
+  if (data && 'pxgRead' in data) {
+    e.waitUntil(closePxgNotifications(data as unknown as PxgReadData));
+    return;
+  }
 
   // PXG: A shared chat has no Telegram ID here; the client resolves it on click
   if (data && 'pxg' in data) {
