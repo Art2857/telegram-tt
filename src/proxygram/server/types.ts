@@ -60,6 +60,8 @@ export interface AccessChat {
   readOutboxMaxId?: number | null;
   /** The group has a channel, or the channel a discussion group, which may stay closed to the guest */
   hasLinkedChat?: boolean;
+  /** "Restrict saving content" of the whole chat */
+  isProtected?: boolean;
   /** Who the guest writes as in this chat; null — the owner */
   sendAsPeerId?: number | null;
   /** Online status of the other side of a private chat */
@@ -196,10 +198,16 @@ export type ChatStateDto = Pick<
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
 export type GuestBurstReason = 'burst' | 'rate_limited' | 'account_limit';
 
-export type InlineButtonDto =
+export type InlineButtonDto = (
   | { kind: 'callback'; text: string; data: string }
   | { kind: 'url'; text: string; url: string }
-  | { kind: 'unsupported'; text: string };
+  | { kind: 'copy'; text: string; copyText: string }
+  | { kind: 'switchInline'; text: string; query: string }
+  | { kind: 'unsupported'; text: string }
+) & {
+  /** The button's color and custom emoji icon */
+  style?: { type?: 'primary' | 'success' | 'destructive'; iconId?: string };
+};
 
 export interface PollDto {
   id: string;
@@ -287,6 +295,10 @@ export interface MessageDto {
   /** Telegram's own content protection: the message cannot be forwarded, copied or saved */
   isProtected?: boolean;
   effectId?: string;
+  /** Telegram can summarize this message; the original language */
+  summaryLanguage?: string;
+  /** The author's label in a group */
+  senderRank?: string;
   /** Sent through an inline bot */
   viaBot?: { peerId: number; username: string };
   /** The owner was mentioned, and the guest has not read it yet */
@@ -304,6 +316,8 @@ export interface ScheduledMessageDto {
   fileName: string | null;
   replyToMsgId: number | null;
   topicId: number | null;
+  /** Repeats with this period, seconds */
+  repeatPeriod: number | null;
 }
 
 /** An attachment without a file; the ones a guest cannot open come with their kind only */
@@ -338,6 +352,7 @@ export type ServiceActionDto =
   | { type: 'chatJoinedByRequest' }
   | { type: 'channelMigrateFrom'; title: string; chatId: number | null }
   | { type: 'chatMigrateTo'; channelId: number }
+  | { type: 'noForwardsToggle'; prevValue: boolean; newValue: boolean }
   | { type: 'pinMessage' }
   | { type: 'historyClear' }
   | { type: 'setMessagesTtl'; period: number }

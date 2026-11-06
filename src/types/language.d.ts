@@ -3575,6 +3575,7 @@ export interface LangPair {
   'PxgAuditScheduled': undefined;
   'PxgAuditTranscribe': undefined;
   'PxgAuditTranslate': undefined;
+  'PxgAuditSummarize': undefined;
   'PxgAuditSeenBy': undefined;
   'PxgAuditSendAs': undefined;
   'PxgAuditSponsored': undefined;

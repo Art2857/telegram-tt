@@ -4741,6 +4741,7 @@
 "PxgAuditScheduled" = "managed scheduled messages";
 "PxgAuditTranscribe" = "transcribed a voice message";
 "PxgAuditTranslate" = "translated messages";
+"PxgAuditSummarize" = "asked for a summary of a post";
 "PxgAuditSeenBy" = "checked who read a message";
 "PxgAuditSendAs" = "checked who to send as";
 "PxgAuditSponsored" = "loaded or viewed a Telegram ad";

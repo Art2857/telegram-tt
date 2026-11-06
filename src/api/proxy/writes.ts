@@ -37,7 +37,8 @@ const unsentParams = new Map<string, SendParams>();
 
 export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
   const {
-    chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, effectId, sendAs,
+    chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, scheduleRepeatPeriod, effectId,
+    sendAs,
   } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
@@ -67,6 +68,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
     chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
     isScheduled: isScheduled || undefined,
+    scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
@@ -141,6 +143,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         threadId,
         silent: params.isSilent,
         scheduleDate: scheduledAt,
+        scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
         effectId,
         sendAsPeerId: getSendAsPeerId(sendAs),
       },
@@ -250,6 +253,7 @@ export async function fetchScheduledHistory({ chat }: MethodArgs<'fetchScheduled
       },
       pxgMediaFallback: item.mediaKind ? { fileName: item.fileName || undefined } : undefined,
       replyInfo: item.replyToMsgId ? { type: 'message', replyToMsgId: item.replyToMsgId } : undefined,
+      scheduleRepeatPeriod: item.repeatPeriod || undefined,
     })),
   };
 }
@@ -273,13 +277,20 @@ export function deleteScheduledMessages({ chat, messageIds }: MethodArgs<'delete
     .catch(emitProxyError);
 }
 
-export async function rescheduleMessage({ chat, message, scheduledAt }: MethodArgs<'rescheduleMessage'>[0]) {
+export async function rescheduleMessage({
+  chat, message, scheduledAt, scheduleRepeatPeriod,
+}: MethodArgs<'rescheduleMessage'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
   try {
-    await runProxyJob('scheduled.reschedule', { ...peer, msgId: message.id, date: scheduledAt });
+    await runProxyJob('scheduled.reschedule', {
+      ...peer, msgId: message.id, date: scheduledAt, repeatPeriod: scheduleRepeatPeriod,
+    });
     emitProxyUpdate({
-      '@type': 'updateScheduledMessage', chatId: chat.id, id: message.id, message: { date: scheduledAt },
+      '@type': 'updateScheduledMessage',
+      chatId: chat.id,
+      id: message.id,
+      message: { date: scheduledAt, scheduleRepeatPeriod },
     });
   } catch (err) {
     emitProxyError(err);
@@ -322,6 +333,8 @@ async function editScheduledMessage(
       ...peer,
       msgId: message.id,
       date: message.date,
+      // Telegram drops the repeat of a scheduled message edited without it
+      repeatPeriod: message.scheduleRepeatPeriod,
       text,
       entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
     });

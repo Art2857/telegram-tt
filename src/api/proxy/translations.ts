@@ -33,6 +33,20 @@ export async function translateText(params: MethodArgs<'translateText'>[0]) {
   return undefined;
 }
 
+/** «Summary» of a long post: Telegram summarizes it on behalf of the owner; no result hides the summary */
+export async function fetchMessageSummary({ chat, id, toLanguageCode, tone }: MethodArgs<'fetchMessageSummary'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  try {
+    const { text, entities } = await pxgRpc.call<{ text: string; entities: unknown[] }>('messages.summarize', {
+      ...peer, msgId: id, toLang: toLanguageCode, tone,
+    });
+    return { text, entities: buildProxyEntities(entities, peer.accountId) };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Rich messages are not translated through the server yet: the request ends instead of spinning */
 export function translateRichMessage(params: MethodArgs<'translateRichMessage'>[0]) {
   emitFailure(params);

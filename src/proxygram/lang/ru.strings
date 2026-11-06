@@ -228,6 +228,7 @@
 "PxgAuditScheduled" = "работал с отложенными";
 "PxgAuditTranscribe" = "расшифровал голосовое";
 "PxgAuditTranslate" = "перевёл сообщения";
+"PxgAuditSummarize" = "попросил краткое содержание поста";
 "PxgAuditSeenBy" = "посмотрел, кто прочитал";
 "PxgAuditSendAs" = "узнал, от чьего имени можно писать";
 "PxgAuditSponsored" = "получил или посмотрел рекламу Telegram";

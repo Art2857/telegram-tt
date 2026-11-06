@@ -1,5 +1,6 @@
 import type {
-  AccessChat, DraftDto, MessageDto, PeerBadgesDto, ReactionCountDto, SponsoredMessageDto, TopicDto, UserStatusDto,
+  AccessChat, DraftDto, InlineButtonDto, MessageDto, PeerBadgesDto, ReactionCountDto, SponsoredMessageDto, TopicDto,
+  UserStatusDto,
 } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
@@ -52,6 +53,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     isForum: chat.type === 'forum' || undefined,
     isListed: true,
     isLinkedInDiscussion: chat.hasLinkedChat || undefined,
+    // Telegram's "Restrict saving content" of the whole chat: nothing in it is forwarded, copied or saved
+    isProtected: chat.isProtected || undefined,
     ...buildProxyBadges(chat.accountId, chat.badges),
     membersCount: chat.info?.participantsCount,
     usernames: usernames?.map((username) => ({ username, isActive: true })),
@@ -322,8 +325,10 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     // Without `forwardOut` a guest still copies and saves what they read; only Telegram's own protection forbids it
     isProtected: dto.isProtected || undefined,
     effectId: dto.effectId,
+    summaryLanguageCode: dto.summaryLanguage,
+    fromRank: dto.senderRank,
     viaBotId: dto.viaBot ? getProxyPeerId(dto.accountId, dto.viaBot.peerId) : undefined,
-    isForwardingAllowed: (permissions.forwardOut && !dto.isProtected) || undefined,
+    isForwardingAllowed: (permissions.forwardOut && !dto.isProtected && !chat.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),
     reactions: reactions?.length ? {
@@ -420,6 +425,8 @@ function buildProxyAction(dto: MessageDto): ApiMessageAction | undefined {
       };
     case 'chatMigrateTo':
       return { mediaType: 'action', type: 'chatMigrateTo', channelId: getProxyPeerId(dto.accountId, action.channelId) };
+    case 'noForwardsToggle':
+      return { mediaType: 'action', type: 'noForwardsToggle', prevValue: action.prevValue, newValue: action.newValue };
     case 'setMessagesTtl':
       return { mediaType: 'action', type: 'setMessagesTtl', period: action.period };
     case 'customAction':
@@ -499,14 +506,31 @@ export function buildProxyViaBot(
 /** Bot callbacks act on behalf of the owner and need `interact`; links open like any other link */
 function buildInlineButtons(dto: MessageDto, chat: ApiChat): ApiKeyboardButtons | undefined {
   if (!dto.buttons?.length) return undefined;
-  const canInteract = (dto.permissions || chat.pxgProxy?.permissions)?.interact;
+  const permissions = dto.permissions || chat.pxgProxy?.permissions;
   return dto.buttons.map((row) => row.map((button): ApiKeyboardButton => {
-    if (button.kind === 'url') return { text: button.text, action: { type: 'url', url: button.url } };
-    if (button.kind === 'callback' && canInteract) {
-      return { text: button.text, action: { type: 'callback', data: button.data } };
-    }
-    return { text: button.text, action: { type: 'unsupported' } };
+    const { text, style } = button;
+    return { text, style, action: buildInlineButtonAction(button, permissions) };
   }));
+}
+
+function buildInlineButtonAction(
+  button: InlineButtonDto, permissions: Partial<Record<string, boolean>> | undefined,
+): ApiKeyboardButton['action'] {
+  switch (button.kind) {
+    case 'url':
+      return { type: 'url', url: button.url };
+    case 'copy':
+      return { type: 'copy', copyText: button.copyText };
+    case 'callback':
+      return permissions?.interact ? { type: 'callback', data: button.data } : { type: 'unsupported' };
+    // The bot's inline query goes into this chat's composer, as any inline bot the guest uses here
+    case 'switchInline':
+      return permissions?.write
+        ? { type: 'switchBotInline', query: button.query, isSamePeer: true }
+        : { type: 'unsupported' };
+    default:
+      return { type: 'unsupported' };
+  }
 }
 
 export function buildProxyPoll(dto: MessageDto): ApiMessagePoll | undefined {

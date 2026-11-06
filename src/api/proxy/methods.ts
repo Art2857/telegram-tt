@@ -36,7 +36,7 @@ import {
   fetchFavoriteStickers,
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
 } from './stickers';
-import { translateRichMessage, translateText } from './translations';
+import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
   editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, getSendAsPeerId,
@@ -87,6 +87,7 @@ const methods = {
   transcribeAudio,
   translateText,
   translateRichMessage,
+  fetchMessageSummary,
   updateTopicMutedState,
   fetchChats,
   fetchChat,

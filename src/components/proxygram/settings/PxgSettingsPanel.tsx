@@ -152,6 +152,7 @@ const AUDIT_KEYS: Record<string, string> = {
   delegate_scheduled: 'PxgAuditScheduled',
   delegate_transcribe: 'PxgAuditTranscribe',
   delegate_translate: 'PxgAuditTranslate',
+  delegate_summarize: 'PxgAuditSummarize',
   delegate_seenBy: 'PxgAuditSeenBy',
   delegate_reactors: 'PxgAuditReactors',
   delegate_sendAs: 'PxgAuditSendAs',
