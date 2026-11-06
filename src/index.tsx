@@ -18,6 +18,7 @@ import { selectChat, selectCurrentMessageList, selectPeerFullInfo, selectTabStat
 import { selectSharedSettings } from './global/selectors/sharedState';
 import { betterView } from './util/betterView';
 import { IS_TAURI } from './util/browser/globalEnvironment';
+import { IS_ANDROID } from './util/browser/windowEnvironment';
 import listenOtherClients from './util/browser/listenOtherClients';
 import { requestGlobal, subscribeToMultitabBroadcastChannel } from './util/browser/multitab';
 import { establishMultitabRole, subscribeToMasterChange } from './util/establishMultitabRole';
@@ -34,6 +35,7 @@ import { onBeforeUnload } from './util/schedulers';
 import initTauriApi from './util/tauri/initTauriApi';
 import setupTauriListeners from './util/tauri/setupTauriListeners';
 import updateWebmanifest from './util/updateWebmanifest';
+import { syncAndroidSystemBars } from './proxygram/androidSystemBars';
 
 import App from './components/App';
 
@@ -47,6 +49,8 @@ if (STRICTERDOM_ENABLED) {
 if (IS_TAURI) {
   initTauriApi();
   setupTauriListeners();
+  // PXG: The Android app paints the system bars in the theme color
+  if (IS_ANDROID) syncAndroidSystemBars();
 }
 
 const initializationPromise = init();
