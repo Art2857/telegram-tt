@@ -225,6 +225,7 @@
 "PxgAuditReact" = "поставил реакцию";
 "PxgAuditForward" = "переслал сообщения";
 "PxgAuditCopy" = "скопировал сообщение в чат другого владельца";
+"PxgAuditCrossAccountCopy" = "Копия из чата другого владельца";
 "PxgAuditCallback" = "нажал кнопку бота";
 "PxgAuditVote" = "проголосовал в опросе";
 "PxgAuditRead" = "прочитал чат";
@@ -617,6 +618,8 @@
 "PxgNotifyViaBot" = "Уведомления через бота";
 "PxgNotifyViaBotHint" = "Если на ваших устройствах нет push-уведомлений, о новых сообщениях в открытых вам чатах напишет бот Proxygram — не чаще раза в 5 минут на чат";
 "PxgNotifyViaBotHasPush" = "Push-уведомления уже приходят на ваши устройства: бот пишет, только когда их нет";
+"PxgNotifyPushUnavailable" = "Уведомления в закрытом браузере на этом сервере недоступны. Ниже можно включить уведомления через бота.";
+"PxgNotifyIosInstall" = "На iPhone и iPad для веб-уведомлений нужна iOS или iPadOS 16.4 и новее. Добавьте Proxygram на экран «Домой», откройте его с иконки и разрешите уведомления.";
 "PxgShareExpiring" = "Доступ к «{target}» закончится {time}";
 "PxgShareGranted" = "Вам открыли доступ к «{target}», от: {name}";
 "PxgShareBotWillInvite" = "Бот пришлёт приглашение.";

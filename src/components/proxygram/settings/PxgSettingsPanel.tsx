@@ -4,7 +4,7 @@ import { getActions } from '../../../global';
 import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
 
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
-import { IS_ANDROID } from '../../../util/browser/windowEnvironment';
+import { IS_ANDROID, IS_IOS, IS_PWA } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -56,6 +56,7 @@ type AuditRow = {
   msgIds: number[] | null;
   /** Messages affected when the entry keeps only some of their IDs (a mass deletion) */
   count: number | null;
+  isCrossAccountCopy?: boolean;
   actor: Person;
 };
 
@@ -927,6 +928,9 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
                       ? <span className={styles.secondary}>{` · ${row.msgIds.join(', ')}`}</span> : ''}
                   </>
                 )}
+                {row.isCrossAccountCopy && (
+                  <div className={styles.secondary}>{lang('PxgAuditCrossAccountCopy')}</div>
+                )}
               </td>
               <td className={styles.secondary}>{row.peerTitle ?? ''}</td>
             </tr>
@@ -1013,18 +1017,30 @@ function ServerAdminLine({ lang, t }: { lang: Lang; t: Translate }) {
 
 /** The fallback channel: the bot writes about new messages when no device of this person gets Web Push (PLAN.md 7.14) */
 function BotNotificationsToggle({ lang }: { lang: Lang }) {
-  const { data, reload } = usePxgData<{ viaBot: boolean; pushDevices: number }>('notifications.get', {}, []);
+  const { data, reload } = usePxgData<{
+    viaBot: boolean;
+    pushDevices: number;
+    isWebPushEnabled?: boolean;
+  }>('notifications.get', {}, []);
   if (!data) return undefined;
 
   return (
-    <Checkbox
-      label={lang('PxgNotifyViaBot')}
-      subLabel={lang(data.pushDevices ? 'PxgNotifyViaBotHasPush' : 'PxgNotifyViaBotHint')}
-      checked={data.viaBot}
-      onCheck={(isChecked) => {
-        pxgRpc.call('notifications.setViaBot', { enabled: isChecked }).then(reload).catch(() => undefined);
-      }}
-    />
+    <>
+      {!IS_TAURI && data.isWebPushEnabled === false && (
+        <p className={styles.secondary}>{lang('PxgNotifyPushUnavailable')}</p>
+      )}
+      {!IS_TAURI && data.isWebPushEnabled && IS_IOS && !IS_PWA && (
+        <p className={styles.secondary}>{lang('PxgNotifyIosInstall')}</p>
+      )}
+      <Checkbox
+        label={lang('PxgNotifyViaBot')}
+        subLabel={lang(data.pushDevices ? 'PxgNotifyViaBotHasPush' : 'PxgNotifyViaBotHint')}
+        checked={data.viaBot}
+        onCheck={(isChecked) => {
+          pxgRpc.call('notifications.setViaBot', { enabled: isChecked }).then(reload).catch(() => undefined);
+        }}
+      />
+    </>
   );
 }
 

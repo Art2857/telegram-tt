@@ -4738,6 +4738,7 @@
 "PxgAuditReact" = "reacted";
 "PxgAuditForward" = "forwarded messages";
 "PxgAuditCopy" = "copied a message to another owner's chat";
+"PxgAuditCrossAccountCopy" = "Copy from another owner's chat";
 "PxgAuditCallback" = "pressed a bot button";
 "PxgAuditVote" = "voted in a poll";
 "PxgAuditRead" = "read the chat";
@@ -5130,6 +5131,8 @@
 "PxgNotifyViaBot" = "Notifications via the bot";
 "PxgNotifyViaBotHint" = "When your devices get no push notifications, the Proxygram bot tells you about new messages in chats shared with you, at most once in 5 minutes per chat";
 "PxgNotifyViaBotHasPush" = "Push notifications already reach your devices: the bot writes only when there are none";
+"PxgNotifyPushUnavailable" = "Notifications when the browser is closed are unavailable on this server. You can enable notifications via the bot below.";
+"PxgNotifyIosInstall" = "On iPhone and iPad, web notifications require iOS or iPadOS 16.4 or later. Add Proxygram to your Home Screen, open it from the icon and allow notifications.";
 "PxgShareExpiring" = "Access to {target} ends {time}";
 "PxgShareGranted" = "You now have access to {target}, from {name}";
 "PxgShareBotWillInvite" = "The bot will send them an invitation.";

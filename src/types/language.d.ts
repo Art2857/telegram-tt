@@ -3572,6 +3572,7 @@ export interface LangPair {
   'PxgAuditReact': undefined;
   'PxgAuditForward': undefined;
   'PxgAuditCopy': undefined;
+  'PxgAuditCrossAccountCopy': undefined;
   'PxgAuditCallback': undefined;
   'PxgAuditVote': undefined;
   'PxgAuditRead': undefined;
@@ -3914,6 +3915,8 @@ export interface LangPair {
   'PxgNotifyViaBot': undefined;
   'PxgNotifyViaBotHint': undefined;
   'PxgNotifyViaBotHasPush': undefined;
+  'PxgNotifyPushUnavailable': undefined;
+  'PxgNotifyIosInstall': undefined;
   'PxgShareBotWillInvite': undefined;
   'PxgShareBotCannotInvite': undefined;
   'PxgAlsoMember': undefined;
