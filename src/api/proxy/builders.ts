@@ -328,6 +328,9 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     summaryLanguageCode: dto.summaryLanguage,
     fromRank: dto.senderRank,
     viaBotId: dto.viaBot ? getProxyPeerId(dto.accountId, dto.viaBot.peerId) : undefined,
+    // Parts of an album show together, photos and videos as one grid, as Telegram groups them
+    groupedId: dto.groupedId || undefined,
+    isInAlbum: (dto.groupedId && (media?.photo || media?.video)) ? true : undefined,
     isForwardingAllowed: (permissions.forwardOut && !dto.isProtected && !chat.isProtected) || undefined,
     forwardInfo: buildForwardInfo(dto),
     replyInfo: buildReplyInfo(dto),

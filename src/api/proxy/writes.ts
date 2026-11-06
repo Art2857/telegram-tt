@@ -35,6 +35,10 @@ type SendRequest = NonNullable<ApiMessage['pxgSendRequest']>;
 /** Sends that failed before their request was fixed, e.g. during the upload: a retry needs the file again */
 const unsentParams = new Map<string, SendParams>();
 
+type AlbumPart = { localMessage: ApiMessage; request: SendRequest };
+/** Albums being uploaded: how many parts Web A has started and which of them are ready */
+const albums = new Map<string, { expected: number; parts: Map<number, AlbumPart> }>();
+
 export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
   const {
     chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, scheduleRepeatPeriod, effectId,
@@ -42,6 +46,9 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
+  // Web A starts every part of an album at once; the slot is taken before any of them uploads
+  const albumSlot = params.groupedId && attachment && !params.localMessage
+    ? reserveAlbumSlot(params.groupedId) : undefined;
   const isScheduled = Boolean(scheduledAt);
   // The key stays with the local message: the server sends one message per key however often it is repeated
   const requestId = params.localMessage?.pxgSendRequest?.id || crypto.randomUUID();
@@ -149,13 +156,65 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
       },
     };
     unsentParams.delete(requestId);
+    if (albumSlot !== undefined) {
+      await joinAlbum(chat, params.groupedId!, albumSlot, { localMessage, request });
+      return;
+    }
     // The exact request survives a reload: a retry repeats it byte for byte, so the server recognizes the key
     updateLocalMessage(localMessage, { pxgSendRequest: request });
     await completeSend(chat, localMessage, request);
   } catch (err) {
+    // A part that did not upload leaves the album; the rest still go together
+    if (albumSlot !== undefined && !request) void joinAlbum(chat, params.groupedId!, albumSlot);
     const isFinal = err instanceof PxgError && (err.code === 'unsupported' || err.code === 'canceled');
     if (!request && !isFinal) unsentParams.set(requestId, params);
     emitSendFailed(chat, localMessage, err);
+  }
+}
+
+function reserveAlbumSlot(groupedId: string) {
+  const album = albums.get(groupedId) || { expected: 0, parts: new Map<number, AlbumPart>() };
+  albums.set(groupedId, album);
+  return album.expected++;
+}
+
+/**
+ * The last part of an album to finish its upload sends all of them as one Telegram message, as GramJS does.
+ * A failed album fails every part; a single part left goes as an ordinary message
+ */
+async function joinAlbum(chat: ApiChat, groupedId: string, slot: number, part?: AlbumPart) {
+  const album = albums.get(groupedId);
+  if (!album) return;
+  if (part) album.parts.set(slot, part);
+  else album.expected--;
+  if (album.parts.size < album.expected) return;
+  albums.delete(groupedId);
+  const parts = [...album.parts].sort(([a], [b]) => a - b).map(([, ready]) => ready);
+  if (parts.length === 1) {
+    const [{ localMessage, request }] = parts;
+    updateLocalMessage(localMessage, { pxgSendRequest: request });
+    await completeSend(chat, localMessage, request).catch((err) => emitSendFailed(chat, localMessage, err));
+    return;
+  }
+  if (!parts.length) return;
+  const {
+    text: firstText, entities: firstEntities, file: firstFile, ...common
+  } = parts[0].request.params!;
+  try {
+    const { msgIds } = await runProxyJob('messages.send', {
+      ...common,
+      text: '',
+      album: parts.map(({ request }) => {
+        const { text, entities, file } = request.params!;
+        return { file, text, entities };
+      }),
+      clientRequestId: parts[0].request.id,
+    }) as { msgIds: number[] };
+    for (const [index, { localMessage }] of parts.entries()) {
+      await emitSent(chat, localMessage, msgIds[index]);
+    }
+  } catch (err) {
+    parts.forEach(({ localMessage }) => emitSendFailed(chat, localMessage, err));
   }
 }
 
@@ -192,17 +251,23 @@ async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: Se
   const result = await runProxyJob('messages.send', {
     ...request.params, clientRequestId: request.id, retry: isRetry,
   }) as { msgId: number };
+  await emitSent(chat, localMessage, result.msgId);
+}
+
+/** The local message gives way to the one Telegram has */
+async function emitSent(chat: ApiChat, localMessage: ApiMessage, msgId: number | undefined) {
+  if (msgId === undefined) throw new PxgError('not_found');
   if (localMessage.isScheduled) {
     // A scheduled message reaches the archive when Telegram sends it
     emitProxyUpdate({
       '@type': 'updateScheduledMessageSendSucceeded',
       chatId: chat.id,
       localId: localMessage.id,
-      message: { ...localMessage, id: result.msgId, sendingState: undefined, pxgSendRequest: undefined },
+      message: { ...localMessage, id: msgId, sendingState: undefined, pxgSendRequest: undefined },
     });
     return;
   }
-  const saved = await readSentMessage(chat, result.msgId);
+  const saved = await readSentMessage(chat, msgId);
   if (!saved) throw new PxgError('not_found');
   emitProxyUpdate({
     '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: saved,
