@@ -522,13 +522,16 @@ export async function forwardMessages({
     const sendAsPeerId = getSendAsPeerId(sendAs);
     if (source.accountId !== target.accountId) {
       for (const { id } of messages) {
-        const copied = await runCopyJob({
+        // The target's account in the source channel itself forwards natively (`msgIds`), otherwise a copy (`msgId`)
+        const sent = await runCopyJob({
           fromAccountId: source.accountId, fromPeerId: source.peerId, msgId: id,
           accountId: target.accountId, peerId: target.peerId,
-          silent: isSilent, noCaptions, topicId, sendAsPeerId,
-        }) as { msgId: number };
-        const saved = await readSentMessage(toChat, copied.msgId);
-        if (saved) emitProxyUpdate({ '@type': 'newMessage', id: saved.id, chatId: toChat.id, message: saved });
+          silent: isSilent, noCaptions, noAuthors, topicId, sendAsPeerId,
+        }) as { msgId?: number; msgIds?: number[] };
+        for (const msgId of sent.msgIds || (sent.msgId ? [sent.msgId] : [])) {
+          const saved = await readSentMessage(toChat, msgId);
+          if (saved) emitProxyUpdate({ '@type': 'newMessage', id: saved.id, chatId: toChat.id, message: saved });
+        }
       }
       return;
     }
