@@ -4612,6 +4612,7 @@
 "PxgErrorForbidden" = "Not allowed";
 "PxgErrorRateLimited" = "Too often — wait a little";
 "PxgErrorAlreadyExists" = "Already exists";
+"PxgErrorBusy" = "This is already in progress on another device. Finish it there or try again in a few minutes.";
 "PxgErrorNotRegistered" = "This person has not signed in to Proxygram yet";
 "PxgErrorGeneric" = "Something went wrong";
 "PxgErrorUsername" = "Enter a username (5–32 letters, digits or underscores) or a phone number with the country code";

@@ -13,6 +13,7 @@ const ERROR_KEYS: Record<string, string> = {
   forbidden: 'PxgErrorForbidden',
   rate_limited: 'PxgErrorRateLimited',
   already_exists: 'PxgErrorAlreadyExists',
+  busy: 'PxgErrorBusy',
   grantee_not_registered: 'PxgErrorNotRegistered',
   too_large: 'PxgGuestFileTooLarge',
   no_space: 'PxgGuestNoServerSpace',

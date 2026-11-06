@@ -99,6 +99,7 @@
 "PxgErrorForbidden" = "Нет доступа";
 "PxgErrorRateLimited" = "Слишком часто — подождите немного";
 "PxgErrorAlreadyExists" = "Уже есть";
+"PxgErrorBusy" = "Это уже выполняется на другом устройстве. Закончите там или повторите через несколько минут.";
 "PxgErrorNotRegistered" = "Этот человек ещё не входил в Proxygram";
 "PxgErrorGeneric" = "Что-то пошло не так";
 "PxgErrorUsername" = "Введите ник (5–32 латинские буквы, цифры или _) или номер с кодом страны";

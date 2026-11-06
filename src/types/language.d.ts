@@ -3464,6 +3464,7 @@ export interface LangPair {
   'PxgErrorForbidden': undefined;
   'PxgErrorRateLimited': undefined;
   'PxgErrorAlreadyExists': undefined;
+  'PxgErrorBusy': undefined;
   'PxgErrorNotRegistered': undefined;
   'PxgErrorGeneric': undefined;
   'PxgErrorUsername': undefined;
