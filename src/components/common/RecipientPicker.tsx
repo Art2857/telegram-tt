@@ -33,6 +33,7 @@ import {
   getChatSelectionKeyHash,
   includesChatSelectionKey,
 } from '../../util/keys/chatSelectionKey';
+import { isSavedPeer } from '../../api/proxy/saved';
 import { getProxySendError } from '../../proxygram/sendErrors';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import sortChatIds from './helpers/sortChatIds';
@@ -131,9 +132,11 @@ const RecipientPicker = ({
     setHasForwardOptionsError(false);
     if (!isOpen || !isForwarding || !source || !messageIds?.length) return undefined;
     let isActive = true;
-    void pxgRpc.call<ForwardOptionsDto>('messages.forwardOptions', {
+    const method = isSavedPeer(source) ? 'saved.forwardOptions' : 'messages.forwardOptions';
+    const params = isSavedPeer(source) ? { ids: messageIds } : {
       accountId: source.accountId, peerId: source.peerId, msgIds: messageIds,
-    }).then((result) => {
+    };
+    void pxgRpc.call<ForwardOptionsDto>(method, params).then((result) => {
       if (isActive) setForwardOptions(result);
     }).catch(() => {
       if (isActive) setHasForwardOptionsError(true);

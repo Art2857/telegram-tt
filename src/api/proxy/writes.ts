@@ -572,7 +572,6 @@ export async function forwardMessages({
       });
       return;
     }
-    if (isSavedPeer(source)) throw new PxgError('unsupported');
     const topicId = toChat.isForum && toThreadId && toThreadId !== MAIN_THREAD_ID ? Number(toThreadId) : undefined;
     const sendAsPeerId = getSendAsPeerId(sendAs);
     if (source.accountId !== target.accountId) {
@@ -585,13 +584,16 @@ export async function forwardMessages({
       });
       for (const group of groups.values()) {
         // Parts of one album share one job; the server chooses native forwarding or copying
-        const sent = await runCopyJob({
+        const sourceParams = isSavedPeer(source) ? { ids: group.map(({ id }) => id) } : {
           fromAccountId: source.accountId, fromPeerId: source.peerId,
           msgId: group.length === 1 ? group[0].id : undefined,
           msgIds: group.length > 1 ? group.map(({ id }) => id) : undefined,
+        };
+        const sent = await runCopyJob({
+          ...sourceParams,
           accountId: target.accountId, peerId: target.peerId,
           silent: isSilent, noCaptions, noAuthors, topicId, sendAsPeerId,
-        }) as { msgId?: number; msgIds?: number[] };
+        }, isSavedPeer(source) ? 'saved.forward' : undefined) as { msgId?: number; msgIds?: number[] };
         for (const msgId of sent.msgIds || (sent.msgId ? [sent.msgId] : [])) {
           const saved = await readSentMessage(toChat, msgId);
           if (saved) emitProxyUpdate({ '@type': 'newMessage', id: saved.id, chatId: toChat.id, message: saved });
@@ -617,12 +619,12 @@ export async function forwardMessages({
 }
 
 /** A file outside the source's archive is downloaded for the copy first: it takes as long as the file is big */
-async function runCopyJob(params: unknown) {
+async function runCopyJob(params: unknown, method = 'messages.copy') {
   const deadline = Date.now() + COPY_WAIT_MS;
   let interval = COPY_WAIT_INTERVAL_MS;
   while (true) {
     try {
-      return await runProxyJob('messages.copy', params);
+      return await runProxyJob(method, params);
     } catch (err) {
       if (!(err instanceof PxgError) || err.code !== 'media_pending' || Date.now() + interval > deadline) throw err;
       await pause(interval);
