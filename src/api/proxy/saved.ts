@@ -19,10 +19,15 @@ export const SAVED_ACCOUNT_PREFIX = 'self:';
 
 /** One's own notes: write, edit and delete them, save files and forward from them */
 export const SAVED_PERMISSIONS = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, [
-  'read', 'write', 'download', 'editOwn', 'deleteOwn', 'forwardOut', 'markRead',
+  'read', 'write', 'sendMedia', 'download', 'editOwn', 'deleteOwn', 'forwardOut', 'markRead',
 ].includes(key)])) as Permissions;
 
 const MAX_LIST = 100;
+const DEFAULT_UPLOAD_BYTES = 2048 * 1024 * 1024;
+
+export type SavedNoteInput = {
+  text: string; entities?: unknown[]; file?: Record<string, unknown>; groupedId?: string; clientRequestId?: string;
+};
 
 export function isSavedPeer(peer?: ProxyPeer): boolean {
   return Boolean(peer?.accountId.startsWith(SAVED_ACCOUNT_PREFIX));
@@ -33,12 +38,14 @@ export function isSavedChatId(chatId?: string) {
 }
 
 /** The chat Web A knows as Saved Messages: the one with the current user */
-export function buildSavedChat(id: string, peer: ProxyPeer, title: string): ApiChat {
+export function buildSavedChat(
+  id: string, peer: ProxyPeer, title: string, maxUploadBytes = DEFAULT_UPLOAD_BYTES,
+): ApiChat {
   return {
     id,
     type: 'chatTypePrivate',
     title,
-    pxgProxy: { ...peer, permissions: SAVED_PERMISSIONS, shareIds: [], isOwn: true },
+    pxgProxy: { ...peer, permissions: SAVED_PERMISSIONS, shareIds: [], isOwn: true, maxUploadBytes },
   };
 }
 
@@ -126,8 +133,8 @@ export async function searchSaved(chat: ApiChat, params: {
   return list.map((dto) => buildSavedMessage(dto, chat));
 }
 
-export async function sendSavedNote(chat: ApiChat, text: string, entities: unknown[] | undefined) {
-  const dto = await pxgRpc.call<SavedMessageDto>('saved.note', { text, entities });
+export async function sendSavedNote(chat: ApiChat, params: SavedNoteInput) {
+  const dto = await pxgRpc.call<SavedMessageDto>('saved.note', params);
   return buildSavedMessage(dto, chat);
 }
 

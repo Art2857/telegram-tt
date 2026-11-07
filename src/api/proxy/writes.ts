@@ -3,6 +3,7 @@ import type { MethodArgs } from '../gramjs/methods/types';
 import type {
   ApiAttachment, ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer,
 } from '../types';
+import type { SavedNoteInput } from './saved';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
@@ -13,7 +14,7 @@ import { getServerTime } from '../../util/serverTime';
 import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
-import { uploadFile } from '../../proxygram/server/upload';
+import { uploadFile, uploadSavedFile } from '../../proxygram/server/upload';
 import { buildProxyMessage, buildProxyPoll } from './builders';
 import { buildProxyEntities, buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
@@ -52,7 +53,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
   // Web A starts every part of an album at once; the slot is taken before any of them uploads
-  const albumSlot = params.groupedId && attachment && !params.localMessage
+  const albumSlot = !isSavedPeer(peer) && params.groupedId && attachment && !params.localMessage
     ? reserveAlbumSlot(params.groupedId) : undefined;
   const isScheduled = Boolean(scheduledAt);
   // The key stays with the local message: the server sends one message per key however often it is repeated
@@ -105,7 +106,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   }
   let request: SendRequest | undefined;
   try {
-    if (params.todo || params.richMessage) {
+    if (params.todo || params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice || sticker || gif))) {
       throw new PxgError('unsupported');
     }
     // The owner's sticker or GIF must come from the catalog of the chat's provider account
@@ -119,11 +120,11 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
       const { voice, quick, isRoundVideo } = attachment;
       file = {
         uploadId: uploaded.uploadId,
-        kind: voice ? 'voice' : isRoundVideo ? 'round' : undefined,
-        duration: voice?.duration ?? (isRoundVideo ? quick?.duration : undefined),
+        kind: isSavedPeer(peer) ? getSavedFileKind(attachment) : voice ? 'voice' : isRoundVideo ? 'round' : undefined,
+        duration: voice?.duration ?? attachment.audio?.duration ?? quick?.duration,
         waveform: voice?.waveform.slice(0, MAX_WAVEFORM_LENGTH),
-        width: isRoundVideo ? quick?.width : undefined,
-        height: isRoundVideo ? quick?.height : undefined,
+        width: isRoundVideo || isSavedPeer(peer) ? quick?.width : undefined,
+        height: isRoundVideo || isSavedPeer(peer) ? quick?.height : undefined,
       };
     }
     if (onProgress?.isCanceled) throw new PxgError('canceled');
@@ -134,6 +135,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         text: text || '',
         entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
         file,
+        groupedId: isSavedPeer(peer) ? params.groupedId : undefined,
         document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
         poll: poll && {
           question: poll.summary.question.text,
@@ -255,8 +257,11 @@ export function canRetrySendMessage(message: ApiMessage) {
 async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: SendRequest, isRetry?: boolean) {
   // A note in one's own Saved Messages goes to the server, not to anybody's Telegram
   if (isSavedPeer(chat.pxgProxy)) {
-    const params = request.params as { text: string; entities?: unknown[] };
-    const note = await sendSavedNote(chat, params.text, params.entities);
+    const params = request.params as SavedNoteInput;
+    const note = await sendSavedNote(chat, {
+      text: params.text, entities: params.entities, file: params.file,
+      groupedId: params.groupedId, clientRequestId: request.id,
+    });
     emitProxyUpdate({
       '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: note,
     });
@@ -313,7 +318,19 @@ async function uploadAttachment(chat: ApiChat, attachment: ApiAttachment, onProg
   const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
   const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
   const maxBytes = chat.pxgProxy?.maxUploadBytes ?? 0;
+  if (isSavedPeer(chat.pxgProxy)) return uploadSavedFile(upload, maxBytes, (fraction) => onProgress?.(fraction));
   return uploadFile(upload, resolveProxyPeer(chat.id)!, maxBytes, (fraction) => onProgress?.(fraction));
+}
+
+function getSavedFileKind(attachment: ApiAttachment) {
+  if (attachment.voice) return 'voice';
+  if (attachment.isRoundVideo) return 'round';
+  if (attachment.shouldSendAsFile) return 'document';
+  if (attachment.audio) return 'audio';
+  if (attachment.mimeType === 'image/gif' || attachment.gif) return 'gif';
+  if (attachment.quick && attachment.mimeType.startsWith('image/')) return 'photo';
+  if (attachment.quick && attachment.mimeType.startsWith('video/')) return 'video';
+  return 'document';
 }
 
 /** The guest's own scheduled messages; the owner's other ones stay private unless they may manage them */

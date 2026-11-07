@@ -173,7 +173,10 @@ async function fetchSavedChatEntry() {
   const session = getPxgState().session;
   if (!session || !isProxyGuest()) return undefined;
   const peer = { accountId: `${SAVED_ACCOUNT_PREFIX}${session.user.id}`, peerId: session.user.tgUserId };
-  const chat = buildSavedChat(getProxyPeerId(peer.accountId, peer.peerId), peer, session.user.firstName || '');
+  const info = await pxgRpc.call<{ maxUploadBytes: number }>('saved.info');
+  const chat = buildSavedChat(
+    getProxyPeerId(peer.accountId, peer.peerId), peer, session.user.firstName || '', info.maxUploadBytes,
+  );
   const { messages: [lastMessage] } = await fetchSavedHistory(chat, undefined, 0, 1).catch(() => ({ messages: [] }));
   return { chat, lastMessage: lastMessage as ApiMessage | undefined };
 }
