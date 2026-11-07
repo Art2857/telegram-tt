@@ -98,6 +98,7 @@ import useSchedule from '../../../hooks/useSchedule';
 import useShowTransition from '../../../hooks/useShowTransition';
 
 import PinMessageModal from '../../common/PinMessageModal.async';
+import { openHideFromGuests } from '../../proxygram/HiddenMark';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import MessageContextMenu from './MessageContextMenu';
 
@@ -507,6 +508,16 @@ const ContextMenuContainer = ({
     setPxgState({ debugMessage: archiveTarget });
   });
 
+  // The owner of a shared chat hides a message from its guests; the server checks that the account is theirs
+  const isSharedByOwner = usePxgState((state) => Boolean(state.sharedChats?.[message.chatId]?.length));
+  const canPxgHide = !chat?.pxgProxy && Boolean(getOwnAccountId()) && !isLocalMessage
+    && !message.isScheduled && (isSharedByOwner || Boolean(message.pxgHiddenFrom));
+
+  const handlePxgHide = useLastCallback(() => {
+    closeMenu();
+    openHideFromGuests(getOwnAccountId()!, message);
+  });
+
   const handleReactionLogClick = useLastCallback(() => {
     closeMenu();
     if (archiveTarget) setPxgState({ reactionLogMessage: { ...archiveTarget, isProxy: Boolean(chat?.pxgProxy) } });
@@ -903,6 +914,7 @@ const ContextMenuContainer = ({
         onPxgRetry={canPxgRetry ? handlePxgRetry : undefined}
         onPxgDebug={isPxgAdmin && archiveTarget ? handleDebugClick : undefined}
         onPxgReactionLog={archiveTarget && message.reactions?.results.length ? handleReactionLogClick : undefined}
+        onPxgHide={canPxgHide ? handlePxgHide : undefined}
         onReport={handleReport}
         onFaveSticker={handleFaveSticker}
         onUnfaveSticker={handleUnfaveSticker}

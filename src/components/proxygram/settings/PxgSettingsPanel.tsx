@@ -146,6 +146,8 @@ const AUDIT_KEYS: Record<string, string> = {
   delegate_forward: 'PxgAuditForward',
   message_copy: 'PxgAuditCopy',
   save_to_favorites: 'PxgAuditSaveToFavorites',
+  messages_hidden: 'PxgAuditMessagesHidden',
+  messages_shown: 'PxgAuditMessagesShown',
   delegate_callback: 'PxgAuditCallback',
   delegate_vote: 'PxgAuditVote',
   delegate_read: 'PxgAuditRead',

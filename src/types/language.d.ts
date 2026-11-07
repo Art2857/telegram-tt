@@ -3730,6 +3730,19 @@ export interface LangPair {
   'PxgArchiveExportRun': undefined;
   'PxgAuditArchiveExport': undefined;
   'PxgReactionLog': undefined;
+  'PxgHideFromGuestsMenu': undefined;
+  'PxgHiddenFromGuestsMenu': undefined;
+  'PxgHideFromGuests': undefined;
+  'PxgHideFromGuestsAbout': undefined;
+  'PxgHideAllGuests': undefined;
+  'PxgHideAllGuestsHint': undefined;
+  'PxgHideNobody': undefined;
+  'PxgHideUnnamed': undefined;
+  'PxgHideSave': undefined;
+  'PxgHideShowAll': undefined;
+  'PxgHiddenFromAll': undefined;
+  'PxgAuditMessagesHidden': undefined;
+  'PxgAuditMessagesShown': undefined;
   'PxgReactionLogEmpty': undefined;
   'PxgReactionLogUnknown': undefined;
   'PxgReactionLogRemoved': undefined;
@@ -6426,6 +6439,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgArchiveExportChatHint': {
     'title': V;
   };
+  'PxgHiddenFrom': {
+    'names': V;
+  };
   'PxgReactionLogGuest': {
     'name': V;
   };
@@ -8937,6 +8953,12 @@ export interface LangKeyGroups {
       | 'PxgConnectFailed';
     variables: 'reason';
   };
+  'names': {
+    keys:
+      | 'PxgHiddenFrom'
+      | 'PxgSharedForHint';
+    variables: 'names';
+  };
   'answering,total': {
     keys:
       | 'PxgAdminVpnNodes';
@@ -8956,11 +8978,6 @@ export interface LangKeyGroups {
     keys:
       | 'PxgSharedForMany';
     variables: 'count' | 'name';
-  };
-  'names': {
-    keys:
-      | 'PxgSharedForHint';
-    variables: 'names';
   };
   'target,time': {
     keys:

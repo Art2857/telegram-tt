@@ -809,6 +809,8 @@ export interface ApiMessage {
   // PXG: имя гостя, отправившего исходящее владельца через прокси (оверлей полного клиента)
   pxgSentByName?: string;
   pxgSentByTgUserId?: string;
+  // PXG: от кого владелец скрыл сообщение своего чата («Скрыть от гостей»; оверлей полного клиента)
+  pxgHiddenFrom?: { isAll?: boolean; names: string[] };
   pxgIsOwn?: boolean;
   pxgPermissions?: Permissions;
   pxgMediaFallback?: { fileName?: string; isUnavailable?: boolean; size?: number; attachmentKind?: AttachmentKind };

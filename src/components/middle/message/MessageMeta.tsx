@@ -29,6 +29,7 @@ import MessageOutgoingStatus from '../../common/MessageOutgoingStatus';
 import DelegatedMark from '../../proxygram/DelegatedMark';
 import DeletedMark from '../../proxygram/DeletedMark';
 import EditHistoryModal from '../../proxygram/EditHistoryModal';
+import HiddenMark from '../../proxygram/HiddenMark';
 
 import './MessageMeta.scss';
 import editHistoryStyles from '../../proxygram/EditHistoryModal.module.scss';
@@ -189,6 +190,7 @@ const MessageMeta = ({
         data-ignore-on-paste
       >
         {message.pxgSentByUserId && <DelegatedMark message={message} />}
+        {message.pxgHiddenFrom && <HiddenMark message={message} />}
         {effectEmoji && (
           <span className="message-effect-icon" onClick={onEffectClick}>
             {renderText(effectEmoji)}

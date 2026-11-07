@@ -448,6 +448,13 @@ export interface SavedMessageDto {
   attachment?: MessageDto['attachment'];
 }
 
+/** A message of the owner's chat hidden from guests: from all of them or from these people */
+export interface HiddenMessageDto {
+  msgId: number;
+  all: boolean;
+  users: { id: string; name: string }[];
+}
+
 export interface SavedTagDto {
   tag: string;
   title: string | null;
@@ -770,6 +777,7 @@ export type ServerEvent =
   }
   | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
   | { e: 'saved.changed'; d: Record<string, never> }
+  | { e: 'hidden.changed'; d: { accountId: string; peerId: number } }
   | { e: 'share.granted'; d: { accountId: string; peerId: number | null; target: string; from: string } }
   | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }

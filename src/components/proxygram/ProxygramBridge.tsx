@@ -26,6 +26,8 @@ import AdminPanel from './admin/AdminPanel';
 import AppUpdateModal from './AppUpdateModal';
 import ConnectServerModal from './ConnectServerModal';
 import DevMessageModal from './DevMessageModal';
+import HiddenMarksLoader from './HiddenMarksLoader';
+import HideFromGuestsModal from './HideFromGuestsModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
 import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
@@ -279,6 +281,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   return (
     <>
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
+      {hasOwnSession && ownAccountId && connection === 'online' && <HiddenMarksLoader accountId={ownAccountId} />}
       {currentUserId && !isProxyPeerId(currentUserId) && <LocalArchiveLoader ownerId={currentUserId} />}
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && (
@@ -293,6 +296,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isSettingsOpen && <PxgSettingsPanel />}
       {isAdmin && <DevMessageModal />}
       <ReactionLogModal />
+      <HideFromGuestsModal />
       <AppUpdateModal />
     </>
   );

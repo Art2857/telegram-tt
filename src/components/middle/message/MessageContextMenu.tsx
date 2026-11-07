@@ -130,6 +130,7 @@ type OwnProps = {
   onPxgRetry?: NoneToVoidFunction;
   onPxgDebug?: NoneToVoidFunction;
   onPxgReactionLog?: NoneToVoidFunction;
+  onPxgHide?: NoneToVoidFunction;
   onFaveSticker?: NoneToVoidFunction;
   onReport?: NoneToVoidFunction;
   onUnfaveSticker?: NoneToVoidFunction;
@@ -241,6 +242,7 @@ const MessageContextMenu = ({
   onPxgRetry,
   onPxgDebug,
   onPxgReactionLog,
+  onPxgHide,
   onFaveSticker,
   onReport,
   onUnfaveSticker,
@@ -609,6 +611,11 @@ const MessageContextMenu = ({
         {canSelect && <MenuItem icon="select" onClick={onSelect}>{lang('CommonSelect')}</MenuItem>}
         {canReport && <MenuItem icon="flag" onClick={onReport}>{lang('ReportPeerReport')}</MenuItem>}
         {onPxgPurge && <MenuItem destructive icon="delete" onClick={onPxgPurge}>{lang('PxgPurgeDeleted')}</MenuItem>}
+        {onPxgHide && (
+          <MenuItem icon="eye-crossed-outline" onClick={onPxgHide}>
+            {lang(message.pxgHiddenFrom ? 'PxgHiddenFromGuestsMenu' : 'PxgHideFromGuestsMenu')}
+          </MenuItem>
+        )}
         {onPxgReactionLog && (
           <MenuItem icon="heart-outline" onClick={onPxgReactionLog}>{lang('PxgReactionLog')}</MenuItem>
         )}
