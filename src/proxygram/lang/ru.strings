@@ -767,6 +767,10 @@
 "PxgErrRetryFailedOnly" = "Повторить можно только действие с ошибкой";
 "PxgErrCancelPendingOnly" = "Отменить можно только ожидающее действие";
 "PxgErrSavedQuota" = "«Избранное» заполнено: не больше {mb} МБ на человека";
+"PxgErrRequestsLimit" = "Открытых запросов доступа не больше {max}: дождитесь ответа или отмените старые";
+"PxgErrRequestRejectedRecently" = "Этот запрос недавно отклонили: повторить можно через сутки";
+"PxgErrRequestNotFound" = "Такого запроса нет или на него уже ответили";
+"PxgErrRequestOwnerUnknown" = "Просить можно только у того, кто уже открыл вам доступ";
 "PxgErrSavedNotFound" = "Такого сообщения в «Избранном» нет";
 "PxgErrSavedNotEditable" = "Сохранённое из чата не правится — только свои заметки";
 "PxgAuditSaveToFavorites" = "сохранил сообщение себе в «Избранное»";

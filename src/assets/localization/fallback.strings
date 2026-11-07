@@ -5280,6 +5280,10 @@
 "PxgErrRetryFailedOnly" = "Only a failed action can be retried";
 "PxgErrCancelPendingOnly" = "Only a pending action can be cancelled";
 "PxgErrSavedQuota" = "Saved Messages are full: no more than {mb} MB per person";
+"PxgErrRequestsLimit" = "No more than {max} open access requests: wait for an answer or cancel older ones";
+"PxgErrRequestRejectedRecently" = "This request was declined recently: you can ask again in a day";
+"PxgErrRequestNotFound" = "There is no such request, or it has been answered";
+"PxgErrRequestOwnerUnknown" = "You can only ask someone who has already shared something with you";
 "PxgErrSavedNotFound" = "There is no such message in Saved Messages";
 "PxgErrSavedNotEditable" = "A message saved from a chat cannot be edited — only your own notes";
 "PxgAuditSaveToFavorites" = "saved a message to their Saved Messages";
