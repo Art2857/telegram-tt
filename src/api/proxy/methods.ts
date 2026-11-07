@@ -540,6 +540,7 @@ async function fetchProfilePhotos({ peer }: MethodArgs<'fetchProfilePhotos'>[0])
 async function fetchPinnedMessages({ chat, threadId }: MethodArgs<'fetchPinnedMessages'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedPeer(peer)) return { messages: await searchSaved(chat, { filter: 'pinned', limit: MAX_PINNED }) };
   if (getReplyThreadId(chat, threadId)) return { messages: [] };
   const result = await pxgRpc.call<WindowResult>('messages.search', {
     ...peer, query: '', filter: 'pinned', limit: MAX_PINNED, topicId: getTopicId(chat, threadId),
@@ -944,9 +945,11 @@ async function searchMessagesInChat({
   const peer = resolveProxyPeer(target.id);
   if (!peer || savedTag || !SEARCH_FILTERS.has(type)) return undefined;
   if (isSavedPeer(peer)) {
-    if (type !== 'text' || !query) return undefined;
-    const messages = await searchSaved(target as ApiChat, query, limit);
-    return { messages, totalCount: messages.length, topics: [], userStatusesById: {}, nextOffsetId: undefined };
+    const messages = await searchSaved(target as ApiChat, { query, filter: type, limit, offsetId, minDate, maxDate });
+    return {
+      messages, totalCount: messages.length, topics: [], userStatusesById: {},
+      nextOffsetId: messages.length === limit ? messages.at(-1)?.id : undefined,
+    };
   }
   const sender = fromPeer && resolveProxyPeer(fromPeer.id);
   if (fromPeer && (!sender || sender.accountId !== peer.accountId)) return undefined;

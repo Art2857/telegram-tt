@@ -97,27 +97,32 @@ export function buildSavedMessage(dto: SavedMessageDto, chat: ApiChat): ApiMessa
 }
 
 /**
- * History of Saved Messages, newest first as the server keeps it. Web A asks around a message with a negative
- * offset only when jumping to it; the server pages backwards, so newer messages come from the start of the list
+ * History of Saved Messages, newest first. The server builds the window around any message, including old ones
  */
 export async function fetchSavedHistory(chat: ApiChat, offsetId: number | undefined, addOffset: number, limit: number) {
-  const page = offsetId && addOffset < 0
-    ? (await pxgRpc.call<SavedMessageDto[]>('saved.list', { limit: MAX_LIST })).filter((dto) => dto.id >= offsetId)
-    : await pxgRpc.call<SavedMessageDto[]>('saved.list', { offsetId, limit: Math.min(limit, MAX_LIST) });
+  const page = await pxgRpc.call<SavedMessageDto[]>('saved.list', {
+    offsetId, addOffset: Math.max(-MAX_LIST, Math.min(addOffset, MAX_LIST)), limit: Math.min(limit, MAX_LIST),
+  });
   // Web A shows the count in the header of Saved Messages
-  const count = offsetId ? page.length
-    : (await fetchSavedDialogs()).reduce((sum, dialog) => sum + dialog.count, 0);
+  const count = (await fetchSavedDialogs()).reduce((sum, dialog) => sum + dialog.count, 0);
   return { messages: page.map((dto) => buildSavedMessage(dto, chat)), count };
 }
 
 export async function fetchSavedById(chat: ApiChat, ids: number[]) {
-  // Saved Messages are few; the newest page has what a reply or a pinned message points to
-  const list = await pxgRpc.call<SavedMessageDto[]>('saved.list', { limit: MAX_LIST });
-  return list.filter((dto) => ids.includes(dto.id)).map((dto) => buildSavedMessage(dto, chat));
+  const messages: ApiMessage[] = [];
+  for (let offset = 0; offset < ids.length; offset += MAX_LIST) {
+    const list = await pxgRpc.call<SavedMessageDto[]>('saved.get', { ids: ids.slice(offset, offset + MAX_LIST) });
+    messages.push(...list.map((dto) => buildSavedMessage(dto, chat)));
+  }
+  return messages;
 }
 
-export async function searchSaved(chat: ApiChat, query: string, limit: number) {
-  const list = await pxgRpc.call<SavedMessageDto[]>('saved.search', { query, limit: Math.min(limit, MAX_LIST) });
+export async function searchSaved(chat: ApiChat, params: {
+  query?: string; filter?: string; limit: number; offsetId?: number; minDate?: number; maxDate?: number;
+}) {
+  const list = await pxgRpc.call<SavedMessageDto[]>('saved.search', {
+    ...params, limit: Math.min(params.limit, MAX_LIST),
+  });
   return list.map((dto) => buildSavedMessage(dto, chat));
 }
 
