@@ -66,6 +66,7 @@ import captureEscKeyListener from '../../util/captureEscKeyListener';
 import { waitForTransitionEnd } from '../../util/cssAnimationEndListeners';
 import { isUserId } from '../../util/entities/ids';
 import { resolveTransitionName } from '../../util/resolveTransitionName';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import getHasMiddleFooter, { getHasFooterActionBar } from './helpers/getHasMiddleFooter';
 import { measureFooterContentHeight, syncMessageListBottomReserve } from './helpers/messageListReserves';
 
@@ -824,7 +825,9 @@ export default memo(withGlobal<OwnProps>(
     const isSavedDialog = getIsSavedDialog(chatId, threadId, global.currentUserId);
     const canShowOpenChatButton = isSavedDialog
       && threadId !== ANONYMOUS_USER_ID
-      && threadId !== global.currentUserId;
+      && threadId !== global.currentUserId
+      // PXG: a section of a guest's Saved Messages opens its source only while the chat is still shared
+      && (!isProxyPeerId(String(threadId)) || Boolean(selectChat(global, String(threadId))?.pxgProxy));
 
     const canUnpin = chat && (
       isPrivate || (

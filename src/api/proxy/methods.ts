@@ -34,7 +34,7 @@ import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId, parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
-  buildSavedChat, fetchSavedById, fetchSavedHistory, isSavedPeer, SAVED_ACCOUNT_PREFIX, searchSaved,
+  buildGuestSavedChat, fetchSavedById, fetchSavedChats, fetchSavedHistory, getSavedOrigin, isSavedPeer, searchSaved,
 } from './saved';
 import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
@@ -99,7 +99,7 @@ const methods = {
   searchChats,
   searchMessagesInChat,
   searchMessagesGlobal,
-  fetchSavedChats: fetchEmptyChats,
+  fetchSavedChats: fetchSavedSections,
   fetchMessages,
   fetchMessage,
   fetchDiscussionMessage,
@@ -170,15 +170,17 @@ const methods = {
 
 /** The guest's Saved Messages with the newest message, if there is any */
 async function fetchSavedChatEntry() {
-  const session = getPxgState().session;
-  if (!session || !isProxyGuest()) return undefined;
-  const peer = { accountId: `${SAVED_ACCOUNT_PREFIX}${session.user.id}`, peerId: session.user.tgUserId };
+  if (!buildGuestSavedChat()) return undefined;
   const info = await pxgRpc.call<{ maxUploadBytes: number }>('saved.info');
-  const chat = buildSavedChat(
-    getProxyPeerId(peer.accountId, peer.peerId), peer, session.user.firstName || '', info.maxUploadBytes,
-  );
+  const chat = buildGuestSavedChat(info.maxUploadBytes)!;
   const { messages: [lastMessage] } = await fetchSavedHistory(chat, undefined, 0, 1).catch(() => ({ messages: [] }));
   return { chat, lastMessage: lastMessage as ApiMessage | undefined };
+}
+
+/** A full login keeps its saved chats in Telegram; a guest's sections of Saved Messages are on the server */
+function fetchSavedSections({ withPinned }: MethodArgs<'fetchSavedChats'>[0]) {
+  const savedChat = buildGuestSavedChat();
+  return savedChat ? fetchSavedChats(savedChat, withPinned) : fetchEmptyChats();
 }
 
 function fetchEmptyChats() {
@@ -347,10 +349,18 @@ async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {
 }
 
 async function fetchMessages({
-  chat, threadId, offsetId, addOffset = 0, limit,
+  chat, threadId, offsetId, addOffset = 0, limit, isSavedDialog,
 }: MethodArgs<'fetchMessages'>[0]) {
-  const peer = resolveProxyPeer(chat.id);
+  const peer = chat && resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedDialog) {
+    // A section of Saved Messages comes with its source chat; the messages belong to Saved Messages
+    const savedChat = buildGuestSavedChat();
+    const origin = savedChat && getSavedOrigin(savedChat, chat.id);
+    if (origin === undefined) return undefined;
+    const saved = await fetchSavedHistory(savedChat!, offsetId, addOffset, limit, origin);
+    return { ...saved, users: [], chats: [], topics: [] };
+  }
   if (isSavedPeer(peer)) {
     const saved = await fetchSavedHistory(chat, offsetId, addOffset, limit);
     return { ...saved, users: [], chats: [], topics: [] };
@@ -943,12 +953,18 @@ async function searchChats({ query }: MethodArgs<'searchChats'>[0]) {
 
 async function searchMessagesInChat({
   peer: target, fromPeer, type = 'text', query = '', threadId, limit, offsetId, addOffset, minDate, maxDate,
-  savedTag,
+  savedTag, isSavedDialog,
 }: MethodArgs<'searchMessagesInChat'>[0]) {
   const peer = resolveProxyPeer(target.id);
   if (!peer || savedTag || !SEARCH_FILTERS.has(type)) return undefined;
-  if (isSavedPeer(peer)) {
-    const messages = await searchSaved(target as ApiChat, { query, filter: type, limit, offsetId, minDate, maxDate });
+  if (isSavedDialog || isSavedPeer(peer)) {
+    // Search in a section of Saved Messages comes with its source chat
+    const savedChat = isSavedDialog ? buildGuestSavedChat() : target as ApiChat;
+    const origin = isSavedDialog && savedChat ? getSavedOrigin(savedChat, target.id) : undefined;
+    if (!savedChat || (isSavedDialog && origin === undefined)) return undefined;
+    const messages = await searchSaved(savedChat, {
+      query, filter: type, limit, offsetId, minDate, maxDate, origin,
+    });
     return {
       messages, totalCount: messages.length, topics: [], userStatusesById: {},
       nextOffsetId: messages.length === limit ? messages.at(-1)?.id : undefined,

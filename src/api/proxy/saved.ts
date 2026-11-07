@@ -1,13 +1,16 @@
 import type {
   MessageDto, Permissions, SavedDialogDto, SavedMessageDto,
 } from '../../proxygram/server/types';
-import type { ApiChat, ApiMessage } from '../types';
+import type { ApiChat, ApiMessage, ApiThreadInfo, ApiUser } from '../types';
 import type { ProxyPeer } from './ids';
 
 import { PERMISSION_KEYS } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
-import { buildProxyMessage } from './builders';
-import { getProxyPeerId, resolveProxyPeer } from './index';
+import { getPxgState } from '../../proxygram/server/store';
+import { buildProxyMessage, buildProxyUser } from './builders';
+import {
+  emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer,
+} from './index';
 
 /**
  * The guest's own Saved Messages (docs/spec/05-guest-saved.md). A guest has no Telegram of their own, so Web A's
@@ -25,6 +28,9 @@ export const SAVED_PERMISSIONS = Object.fromEntries(PERMISSION_KEYS.map((key) =>
 const MAX_LIST = 100;
 const DEFAULT_UPLOAD_BYTES = 2048 * 1024 * 1024;
 
+/** A section of Saved Messages: `null` is one's own notes, otherwise messages saved from that chat */
+export type SavedOrigin = { accountId: string; peerId: number } | null;
+
 export type SavedNoteInput = {
   text: string; entities?: unknown[]; file?: Record<string, unknown>; groupedId?: string; clientRequestId?: string;
 };
@@ -35,6 +41,26 @@ export function isSavedPeer(peer?: ProxyPeer): boolean {
 
 export function isSavedChatId(chatId?: string) {
   return Boolean(chatId) && isSavedPeer(resolveProxyPeer(chatId));
+}
+
+/** Saved Messages of the signed-in guest, the chat with the current user */
+export function buildGuestSavedChat(maxUploadBytes?: number) {
+  const session = getPxgState().session;
+  if (!session || !isProxyGuest()) return undefined;
+  const peer = { accountId: `${SAVED_ACCOUNT_PREFIX}${session.user.id}`, peerId: session.user.tgUserId };
+  return buildSavedChat(
+    getProxyPeerId(peer.accountId, peer.peerId), peer, session.user.firstName || '', maxUploadBytes,
+  );
+}
+
+/**
+ * Web A asks for a section of Saved Messages with the source chat itself; the guest's own chat is the notes
+ */
+export function getSavedOrigin(savedChat: ApiChat, sourceChatId: string): SavedOrigin | undefined {
+  // eslint-disable-next-line no-null/no-null -- the server's filter for one's own notes
+  if (sourceChatId === savedChat.id) return null;
+  const peer = resolveProxyPeer(sourceChatId);
+  return peer && !isSavedPeer(peer) ? { accountId: peer.accountId, peerId: peer.peerId } : undefined;
 }
 
 /** The chat Web A knows as Saved Messages: the one with the current user */
@@ -110,13 +136,74 @@ export function buildSavedMessage(dto: SavedMessageDto, chat: ApiChat): ApiMessa
 /**
  * History of Saved Messages, newest first. The server builds the window around any message, including old ones
  */
-export async function fetchSavedHistory(chat: ApiChat, offsetId: number | undefined, addOffset: number, limit: number) {
+export async function fetchSavedHistory(
+  chat: ApiChat, offsetId: number | undefined, addOffset: number, limit: number, origin?: SavedOrigin,
+) {
   const page = await pxgRpc.call<SavedMessageDto[]>('saved.list', {
-    offsetId, addOffset: Math.max(-MAX_LIST, Math.min(addOffset, MAX_LIST)), limit: Math.min(limit, MAX_LIST),
+    offsetId, addOffset: Math.max(-MAX_LIST, Math.min(addOffset, MAX_LIST)), limit: Math.min(limit, MAX_LIST), origin,
   });
-  // Web A shows the count in the header of Saved Messages
-  const count = (await fetchSavedDialogs()).reduce((sum, dialog) => sum + dialog.count, 0);
+  // Web A shows the count in the header of Saved Messages and of each of its sections
+  const dialogs = await fetchSavedDialogs();
+  const count = dialogs.filter((dialog) => origin === undefined || isSameOrigin(dialog.origin, origin))
+    .reduce((sum, dialog) => sum + dialog.count, 0);
   return { messages: page.map((dto) => buildSavedMessage(dto, chat)), count };
+}
+
+/**
+ * Sections of Saved Messages by source, as Telegram's saved chats: one's own notes are the chat with oneself, a
+ * source chat keeps its name even after the access ends
+ */
+export async function fetchSavedChats(savedChat: ApiChat, withPinned?: boolean) {
+  const dialogs = await fetchSavedDialogs();
+  const chats: ApiChat[] = [];
+  const users: ApiUser[] = [];
+  const lastMessageByChatId: Record<string, number> = {};
+  const threadInfos: ApiThreadInfo[] = [];
+  const chatIds = dialogs.map(({ origin, lastId, count }) => {
+    const id = origin ? getProxyPeerId(origin.accountId, origin.peerId) : savedChat.id;
+    if (origin) {
+      // A minimal chat never replaces a shared one: Web A ignores `isMin` updates of a full chat
+      chats.push({ id, type: getSavedSourceType(origin), title: origin.chatTitle || '', isMin: true });
+      if (origin.peerId > 0) {
+        users.push({ ...buildProxyUser(origin.accountId, origin.peerId, origin.chatTitle || undefined), isMin: true });
+      }
+    }
+    lastMessageByChatId[id] = lastId;
+    const threadInfo = {
+      isCommentsInfo: false as const, chatId: savedChat.id, threadId: id, lastMessageId: lastId, messagesCount: count,
+    };
+    threadInfos.push(threadInfo);
+    // As in Telegram, nothing in Saved Messages is unread: no "Unread Messages" line above saved messages
+    emitProxyUpdate({ '@type': 'updateThreadInfo', threadInfo });
+    emitProxyUpdate({
+      '@type': 'updateThreadReadState', chatId: savedChat.id, threadId: id, readState: buildSavedReadState(lastId),
+    });
+    return id;
+  });
+  const messages = await fetchSavedById(savedChat, dialogs.map(({ lastId }) => lastId));
+  return {
+    chatIds, chats, users, messages, lastMessageByChatId, threadInfos,
+    userStatusesById: {}, draftsById: {}, notifyExceptionById: {},
+    threadReadStatesById: { [savedChat.id]: buildSavedReadState(dialogs[0]?.lastId ?? 0) },
+    orderedPinnedIds: withPinned ? [] : undefined,
+    totalChatCount: chatIds.length,
+    isFullyLoaded: true as const,
+  };
+}
+
+/** Web A counts unread from the last read message; with nothing unread it takes the newest message instead */
+function buildSavedReadState(lastId: number) {
+  return { lastReadInboxMessageId: Math.max(1, lastId), unreadCount: 0 };
+}
+
+function getSavedSourceType({ peerId, peerType }: NonNullable<SavedDialogDto['origin']>): ApiChat['type'] {
+  if (peerId > 0) return 'chatTypePrivate';
+  if (peerType === 'channel') return 'chatTypeChannel';
+  return peerType === 'chat' ? 'chatTypeBasicGroup' : 'chatTypeSuperGroup';
+}
+
+function isSameOrigin(a: SavedDialogDto['origin'], b: SavedOrigin) {
+  return a === b || Boolean(a && b && a.accountId === b.accountId && a.peerId === b.peerId);
 }
 
 export async function fetchSavedById(chat: ApiChat, ids: number[]) {
@@ -130,6 +217,7 @@ export async function fetchSavedById(chat: ApiChat, ids: number[]) {
 
 export async function searchSaved(chat: ApiChat, params: {
   query?: string; filter?: string; limit: number; offsetId?: number; minDate?: number; maxDate?: number;
+  origin?: SavedOrigin;
 }) {
   const list = await pxgRpc.call<SavedMessageDto[]>('saved.search', {
     ...params, limit: Math.min(params.limit, MAX_LIST),

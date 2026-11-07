@@ -252,6 +252,15 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       syncCursor = { userId, seq: result.changeSeq };
     }
     setPxgState({ sharedCount: result.chats.length });
+    if (isProxyGuest()) {
+      // Sections of Saved Messages name their sources even after the accesses end, so they reload with the chats
+      global = getGlobal();
+      global = {
+        ...global, chats: { ...global.chats, isFullyLoaded: { ...global.chats.isFullyLoaded, saved: false } },
+      };
+      setGlobal(global);
+      actions.loadAllChats({ listType: 'saved' });
+    }
     // Telegram's reactions and message effects are read through a provider: the first shared chat brings them
     if (isProxyGuest() && result.chats.length) {
       if (!global.reactions.availableReactions?.some((reaction) => reaction.staticIcon)) {

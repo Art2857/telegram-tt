@@ -449,7 +449,12 @@ export interface SavedMessageDto {
 }
 
 export interface SavedDialogDto {
-  origin: { accountId: string; peerId: number; chatTitle: string | null } | null;
+  origin: {
+    accountId: string;
+    peerId: number;
+    chatTitle: string | null;
+    peerType: 'user' | 'bot' | 'chat' | 'channel' | 'megagroup' | 'forum' | null;
+  } | null;
   count: number;
   lastId: number;
   lastDate: string;
