@@ -16,6 +16,7 @@ import {
   MIN_SCREEN_WIDTH_FOR_STATIC_LEFT_COLUMN,
 } from '../../config';
 import {
+  getChatTitle,
   getIsSavedDialog,
 } from '../../global/helpers';
 import {
@@ -313,6 +314,7 @@ const MiddleHeader = ({
           {isUserId(displayChatId) ? (
             <PrivateChatInfo
               key={displayChatId}
+              title={chat?.pxgProxy?.isSavedMessages ? getChatTitle(lang, chat) : undefined}
               userId={displayChatId}
               threadId={!isSavedDialog ? threadId : undefined}
               typingStatusByPeerId={typingStatusByPeerId}

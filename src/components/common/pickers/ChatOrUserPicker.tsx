@@ -9,7 +9,7 @@ import type { AnimationLevel, ThreadId } from '../../../types';
 
 import { PEER_PICKER_ITEM_HEIGHT_PX } from '../../../config';
 import {
-  getCanPostInChat, getGroupStatus, getOrderedTopics, getUserStatus, isUserOnline,
+  getCanPostInChat, getChatTitle, getGroupStatus, getOrderedTopics, getUserStatus, isUserOnline,
 } from '../../../global/helpers';
 import { isApiPeerChat } from '../../../global/helpers/peers';
 import {
@@ -302,6 +302,7 @@ const ChatOrUserPicker = ({
           <div className="title-wrapper">
             <FullNameTitle
               className="item-title"
+              title={chat?.pxgProxy?.isSavedMessages ? getChatTitle(lang, chat) : undefined}
               peer={peer}
               isMonoforum={Boolean(monoforumChannel)}
               isSavedMessages={isSelf}

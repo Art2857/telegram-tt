@@ -99,6 +99,10 @@ export function getChatTitle(lang: LangFn, chat: ApiChat, isSelf = false) {
   if (isSelf) {
     return lang('SavedMessages');
   }
+  if (chat.pxgProxy?.isSavedMessages) {
+    return [lang('SavedMessages'), chat.pxgProxy.isOwn ? undefined : chat.pxgProxy.providerName || chat.title]
+      .filter(Boolean).join(' · ');
+  }
   return chat.title || lang('HiddenName');
 }
 

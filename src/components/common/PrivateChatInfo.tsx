@@ -40,6 +40,7 @@ import TypingStatus from './TypingStatus';
 const TOPIC_ICON_SIZE = 2.5 * REM;
 
 type BaseOwnProps = {
+  title?: string;
   typingStatusByPeerId?: Record<string, ApiTypingStatus>;
   avatarSize?: 'tiny' | 'small' | 'medium' | 'large' | 'jumbo';
   forceShowSelf?: boolean;
@@ -97,6 +98,7 @@ type StateProps = {
 const UPDATE_INTERVAL = 1000 * 60; // 1 min
 
 const PrivateChatInfo = ({
+  title,
   userId,
   customPeer,
   typingStatusByPeerId,
@@ -256,6 +258,7 @@ const PrivateChatInfo = ({
       return (
         <div className="info-name-title">
           <FullNameTitle
+            title={title}
             peer={customPeer || user!}
             noFake={noFake}
             noVerified={noVerified}
@@ -279,6 +282,7 @@ const PrivateChatInfo = ({
 
     return (
       <FullNameTitle
+        title={title}
         peer={customPeer || user!}
         noFake={noFake}
         noVerified={noVerified}

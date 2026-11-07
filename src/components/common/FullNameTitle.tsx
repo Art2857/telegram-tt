@@ -39,6 +39,7 @@ import styles from './FullNameTitle.module.scss';
 
 type OwnProps = {
   peer: ApiPeer | CustomPeer;
+  title?: string;
   className?: string;
   style?: string;
   isScrolling?: boolean;
@@ -65,6 +66,7 @@ const FullNameTitle = ({
   isScrolling,
   isScrollingPaused,
   peer,
+  title: ownTitle,
   noVerified,
   noFake,
   withEmojiStatus,
@@ -87,7 +89,7 @@ const FullNameTitle = ({
   const realPeer = 'id' in peer ? peer : undefined;
   const customPeer = 'isCustomPeer' in peer ? peer : undefined;
   const isUser = realPeer && isApiPeerUser(realPeer);
-  const title = realPeer && (isUser ? getUserFullName(lang, realPeer) : getChatTitle(lang, realPeer));
+  const title = ownTitle || (realPeer && (isUser ? getUserFullName(lang, realPeer) : getChatTitle(lang, realPeer)));
   const isPremium = (isUser && realPeer.isPremium) || customPeer?.isPremium;
   const canShowEmojiStatus = withEmojiStatus && !isSavedMessages;
   const emojiStatus = realPeer?.emojiStatus

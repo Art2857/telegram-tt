@@ -90,6 +90,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       restricted: chat.restricted || undefined,
       label: chat.label || undefined,
       isOwn: chat.isOwn || undefined,
+      isSavedMessages: chat.isSavedMessages || undefined,
       providerName: (!chat.isOwn && chat.providerName) || undefined,
       providerUserId: chat.providerUserId || undefined,
       providerUsername: chat.providerUsername || undefined,

@@ -130,7 +130,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const loadRequestRef = useRef(0);
 
   const currentUserId = getGlobal().currentUserId;
-  const peerTitle = chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
+  const peerTitle = chatId && chatId === currentUserId ? lang('SavedMessages')
+    : chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const account = accounts?.find((item) => String(item.tgUserId) === currentUserId && item.status !== 'revoked');
   const peerId = chatId ? Number(chatId) : undefined;

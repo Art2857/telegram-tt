@@ -20,6 +20,7 @@ import { StoryViewerOrigin, type TopicsInfo } from '../../../types';
 
 import { ALL_FOLDER_ID, UNMUTE_TIMESTAMP } from '../../../config';
 import {
+  getChatTitle,
   getPeerColorKey,
   groupStatefulContent,
   isChatCommunity,
@@ -539,6 +540,7 @@ const Chat = ({
         <div className="info-row">
           <FullNameTitle
             peer={avatarPeer!}
+            title={chat?.pxgProxy?.isSavedMessages ? getChatTitle(lang, chat) : undefined}
             isMonoforum={isMonoforum}
             monoforumBadgeClassName="monoforum-badge"
             withEmojiStatus
