@@ -132,6 +132,7 @@
 "PxgGuestResend" = "Новый код";
 "PxgGuestResendIn" = "Новый код через {seconds} с";
 "PxgErrorResendLater" = "Новый код можно запросить через минуту";
+"PxgErrorBotOffline" = "Бот входа сейчас не отвечает этому серверу. Войдите по коду или попробуйте позже";
 "PxgErrorTooMany" = "Слишком много попыток — начните заново";
 "PxgErrorDenied" = "Вход отклонён";
 "PxgErrorForbidden" = "Нет доступа";

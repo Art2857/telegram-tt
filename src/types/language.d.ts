@@ -3494,6 +3494,7 @@ export interface LangPair {
   'PxgErrorExpired': undefined;
   'PxgGuestResend': undefined;
   'PxgErrorResendLater': undefined;
+  'PxgErrorBotOffline': undefined;
   'PxgErrorTooMany': undefined;
   'PxgErrorDenied': undefined;
   'PxgErrorForbidden': undefined;

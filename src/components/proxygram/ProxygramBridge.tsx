@@ -16,6 +16,7 @@ import { isSavedPeer } from '../../api/proxy/saved';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { syncSavedMessages } from '../../proxygram/savedSync';
+import { canSendBotStart, clearBotStarts, noteUnconfirmedBotStart } from '../../proxygram/server/botStarts';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
@@ -130,8 +131,12 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     const attempt = async () => {
       try {
         await obtainSession(() => isActive);
-      } catch {
-        if (isActive) retryTimer = window.setTimeout(() => void attempt(), RETRY_DELAY_MS);
+      } catch (err) {
+        if (!isActive) return;
+        // The server was unreachable: nothing reached the bot, so trying again is harmless. A Start that the bot did
+        // not confirm is a message from the person's account: those wait longer and stop for the day
+        const delay = err instanceof UnconfirmedStartError ? err.retryInMs : RETRY_DELAY_MS;
+        if (delay !== undefined) retryTimer = window.setTimeout(() => void attempt(), delay);
       }
     };
     void attempt();
@@ -302,7 +307,15 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   );
 };
 
+/** Start went to the bot, but the device was not signed in */
+class UnconfirmedStartError extends Error {
+  constructor(readonly retryInMs: number | undefined) {
+    super('unconfirmed start');
+  }
+}
+
 async function obtainSession(isActive: () => boolean) {
+  if (!canSendBotStart()) throw new UnconfirmedStartError(undefined);
   const started = await startLogin({ level: 'client' });
   if (started.delivery !== 'deeplink') throw new Error('unexpected delivery');
   const link = new URL(started.deeplink);
@@ -312,18 +325,24 @@ async function obtainSession(isActive: () => boolean) {
 
   await callApi('pxgStartBot', botUsername, startParam);
 
+  // From here on the bot has a message from the person: any failure counts as an unconfirmed Start
   const deadline = Date.now() + POLL_TIMEOUT_MS;
-  while (isActive() && Date.now() < deadline) {
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, POLL_INTERVAL_MS);
-    });
-    const result = await pollLogin(started);
-    if ('accessToken' in result) {
-      if (isActive()) setPxgSession(result);
-      return;
+  try {
+    while (isActive() && Date.now() < deadline) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, POLL_INTERVAL_MS);
+      });
+      const result = await pollLogin(started);
+      if ('accessToken' in result) {
+        clearBotStarts();
+        if (isActive()) setPxgSession(result);
+        return;
+      }
     }
+  } catch {
+    // Falls through to the limit below
   }
-  throw new Error('timeout');
+  throw new UnconfirmedStartError(noteUnconfirmedBotStart());
 }
 
 export default memo(withGlobal(

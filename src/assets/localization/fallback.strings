@@ -4645,6 +4645,7 @@
 "PxgGuestResend" = "Send a new code";
 "PxgGuestResendIn" = "New code in {seconds} s";
 "PxgErrorResendLater" = "A new code can be requested in a minute";
+"PxgErrorBotOffline" = "The sign-in bot does not answer this server now. Sign in with a code or try again later";
 "PxgErrorTooMany" = "Too many attempts — start again";
 "PxgErrorDenied" = "Sign-in was declined";
 "PxgErrorForbidden" = "Not allowed";

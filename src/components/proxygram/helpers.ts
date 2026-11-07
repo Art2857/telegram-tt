@@ -11,6 +11,7 @@ const ERROR_KEYS: Record<string, string> = {
   expired: 'PxgErrorExpired',
   too_many_attempts: 'PxgErrorTooMany',
   resend_later: 'PxgErrorResendLater',
+  bot_offline: 'PxgErrorBotOffline',
   denied: 'PxgErrorDenied',
   not_found: 'PxgErrorExpired',
   forbidden: 'PxgErrorForbidden',
