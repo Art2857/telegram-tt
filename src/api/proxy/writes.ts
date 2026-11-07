@@ -106,12 +106,15 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   }
   let request: SendRequest | undefined;
   try {
-    if (params.todo || params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice || sticker || gif))) {
+    if (params.todo || params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice))) {
       throw new PxgError('unsupported');
     }
-    // The owner's sticker or GIF must come from the catalog of the chat's provider account
+    // The owner's sticker or GIF must come from the catalog of the chat's provider account; Saved Messages take one
+    // from the catalog of any owner who lets the guest use stickers, and the server checks that right
     const catalogItem = sticker || gif ? parseProxyCatalogId((sticker || gif)!.id) : undefined;
-    if ((sticker || gif) && catalogItem?.accountId !== peer.accountId) throw new PxgError('unsupported');
+    if ((sticker || gif) && (!catalogItem || (!isSavedPeer(peer) && catalogItem.accountId !== peer.accountId))) {
+      throw new PxgError('unsupported');
+    }
     let file: Record<string, unknown> | undefined;
     if (attachment) {
       // Self-destructing media is never sent through the server: the archive could not honor the timer
@@ -136,7 +139,9 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
         file,
         groupedId: isSavedPeer(peer) ? params.groupedId : undefined,
-        document: catalogItem ? { documentId: catalogItem.documentId } : undefined,
+        document: catalogItem && !isSavedPeer(peer) ? { documentId: catalogItem.documentId } : undefined,
+        sticker: catalogItem && isSavedPeer(peer)
+          ? { accountId: catalogItem.accountId, documentId: catalogItem.documentId } : undefined,
         poll: poll && {
           question: poll.summary.question.text,
           answers: poll.summary.answers.map(({ text: answer }) => answer.text),
@@ -259,7 +264,7 @@ async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: Se
   if (isSavedPeer(chat.pxgProxy)) {
     const params = request.params as SavedNoteInput;
     const note = await sendSavedNote(chat, {
-      text: params.text, entities: params.entities, file: params.file,
+      text: params.text, entities: params.entities, file: params.file, sticker: params.sticker,
       groupedId: params.groupedId, clientRequestId: request.id,
     });
     emitProxyUpdate({

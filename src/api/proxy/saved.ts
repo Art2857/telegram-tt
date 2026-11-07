@@ -33,6 +33,8 @@ export type SavedOrigin = { accountId: string; peerId: number } | null;
 
 export type SavedNoteInput = {
   text: string; entities?: unknown[]; file?: Record<string, unknown>; groupedId?: string; clientRequestId?: string;
+  /** A sticker or a GIF from an owner's catalog */
+  sticker?: { accountId: string; documentId: string };
 };
 
 export function isSavedPeer(peer?: ProxyPeer): boolean {
