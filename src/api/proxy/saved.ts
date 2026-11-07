@@ -56,7 +56,7 @@ export function buildSavedDto(dto: SavedMessageDto, peer: ProxyPeer): MessageDto
   const source = origin && (!origin.senderName || origin.senderName === origin.chatTitle
     ? origin.chatTitle : [origin.chatTitle, origin.senderName].filter(Boolean).join(' · '));
   return {
-    permissions: SAVED_PERMISSIONS,
+    permissions: { ...SAVED_PERMISSIONS, editOwn: !origin },
     accountId: peer.accountId,
     peerId: peer.peerId,
     msgId: dto.id,
@@ -77,7 +77,7 @@ export function buildSavedDto(dto: SavedMessageDto, peer: ProxyPeer): MessageDto
     isPost: false,
     isService: false,
     ttlExpiresAt: null,
-    version: 1,
+    version: dto.editDate ? 2 : 1,
     changeSeq: '0',
     deleted: null,
     sentByUserId: null,
@@ -90,7 +90,11 @@ export function buildSavedDto(dto: SavedMessageDto, peer: ProxyPeer): MessageDto
 /* eslint-enable no-null/no-null */
 
 export function buildSavedMessage(dto: SavedMessageDto, chat: ApiChat): ApiMessage {
-  const message = buildProxyMessage(buildSavedDto(dto, chat.pxgProxy!), chat);
+  const message = {
+    ...buildProxyMessage(buildSavedDto(dto, chat.pxgProxy!), chat),
+    // All entries belong to this user's Saved Messages; snapshots carry no permission to edit their content
+    pxgIsOwn: true,
+  };
   if (!dto.origin || !message.forwardInfo) return message;
   // The original message opens from here while the guest still has the chat
   return {

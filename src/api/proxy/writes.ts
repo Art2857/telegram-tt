@@ -406,6 +406,7 @@ export async function editMessage({
   }
   try {
     if (isSavedPeer(peer)) {
+      if (attachment) throw new PxgError('unsupported');
       const note = await editSavedNote(chat, message.id, text, entities);
       emitProxyUpdate({ '@type': 'updateMessage', id: note.id, chatId: chat.id, message: note, isFull: true });
       return;
