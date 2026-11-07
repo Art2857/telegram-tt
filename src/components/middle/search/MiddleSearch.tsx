@@ -23,6 +23,7 @@ import {
   selectCurrentMessageList,
   selectCurrentMiddleSearch,
   selectForwardedSender,
+  selectHasFreeSavedTags,
   selectIsChatWithSelf,
   selectIsCurrentUserPremium,
   selectMonoforumChannel,
@@ -78,6 +79,7 @@ type StateProps = {
   foundIds?: SearchResultKey[];
   isHistoryCalendarOpen?: boolean;
   isCurrentUserPremium?: boolean;
+  hasFreeSavedTags?: boolean;
   isSavedMessages?: boolean;
   fetchingQuery?: string;
   isHashtagQuery?: boolean;
@@ -113,6 +115,7 @@ const MiddleSearch = ({
   foundIds,
   isHistoryCalendarOpen,
   isCurrentUserPremium,
+  hasFreeSavedTags,
   isSavedMessages,
   fetchingQuery,
   isHashtagQuery,
@@ -320,7 +323,7 @@ const MiddleSearch = ({
   }, [savedTags]);
 
   const hasSavedTags = Boolean(savedTagsArray?.length);
-  const areSavedTagsDisabled = hasSavedTags && !isCurrentUserPremium;
+  const areSavedTagsDisabled = hasSavedTags && !isCurrentUserPremium && !hasFreeSavedTags;
 
   useEffect(() => {
     if (isSavedMessages && isActive) loadSavedReactionTags();
@@ -951,6 +954,7 @@ export default memo(withGlobal<OwnProps>(
       savedTags,
       savedTag,
       isCurrentUserPremium: selectIsCurrentUserPremium(global),
+      hasFreeSavedTags: selectHasFreeSavedTags(global),
       isSavedMessages,
       fetchingQuery,
       isHashtagQuery: isHashtag,

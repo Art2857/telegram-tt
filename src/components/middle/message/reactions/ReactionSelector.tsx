@@ -14,8 +14,10 @@ import type { IAnchorPosition } from '../../../../types';
 import {
   canSendReaction, getReactionKey, isSameReaction, sortReactions,
 } from '../../../../global/helpers';
+import { selectHasFreeSavedTags } from '../../../../global/selectors';
 import buildClassName, { createClassNameBuilder } from '../../../../util/buildClassName';
 
+import useSelector from '../../../../hooks/data/useSelector';
 import useLang from '../../../../hooks/useLang';
 import useLastCallback from '../../../../hooks/useLastCallback';
 
@@ -84,7 +86,8 @@ const ReactionSelector = ({
   const ref = useRef<HTMLDivElement>();
   const lang = useLang();
 
-  const areReactionsLocked = isInSavedMessages && !isCurrentUserPremium && !isInStoryViewer;
+  const canUseSavedTags = useSelector(selectHasFreeSavedTags) || isCurrentUserPremium;
+  const areReactionsLocked = isInSavedMessages && !canUseSavedTags && !isInStoryViewer;
 
   const shouldUseCurrentReactions = Boolean(reactionsLimit
     && currentReactions && currentReactions.length >= reactionsLimit);
@@ -156,7 +159,7 @@ const ReactionSelector = ({
 
   const hintText = useMemo(() => {
     if (isInSavedMessages) {
-      if (!isCurrentUserPremium) {
+      if (!canUseSavedTags) {
         return lang('SubscribeTagAbout', {
           link: (
             <Link isPrimary onClick={handleOpenPremiumModal}>
@@ -178,7 +181,7 @@ const ReactionSelector = ({
     }
 
     return undefined;
-  }, [isCurrentUserPremium, isInSavedMessages, isInStoryViewer, lang, isForEffects]);
+  }, [canUseSavedTags, isInSavedMessages, isInStoryViewer, lang, isForEffects]);
 
   if (!reactionsToRender.length) return undefined;
 

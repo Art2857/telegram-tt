@@ -138,6 +138,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
       availableReactions: buildFallbackReactions(),
       // Telegram's reactions come in their own order; these go first, as the usual top reactions of an account
       topReactions: PROXY_REACTION_EMOJIS.map((emoticon) => ({ type: 'emoji' as const, emoticon })),
+      // Tags of the guest's own Saved Messages are free: the same emoji are offered
+      defaultTags: PROXY_REACTION_EMOJIS.map((emoticon) => ({ type: 'emoji' as const, emoticon })),
     },
   };
   setGlobal(global);
@@ -146,6 +148,7 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
   if (!global.peerColors) updatePeerColors({});
   actions.loadProxyChats();
   actions.loadChatFolders();
+  actions.loadSavedReactionTags();
 });
 
 addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {

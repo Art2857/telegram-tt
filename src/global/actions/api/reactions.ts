@@ -238,9 +238,10 @@ addActionHandler('toggleReaction', async (global, actions, payload): Promise<voi
   const newUserReactions = hasReaction
     ? userReactions.filter((userReaction) => !isSameReaction(userReaction, reaction)) : [...userReactions, reaction];
 
-  // PXG: a guest reacts as the owner, so the owner's Premium sets the limit
+  // PXG: a guest reacts as the owner, so the owner's Premium sets the limit; tags of the guest's own Saved Messages
+  // are free, with as many per message as Telegram gives Premium
   const limit = chat.pxgProxy
-    ? (chat.pxgProxy.isProviderPremium ? PROXY_MAX_REACTIONS_PREMIUM : PROXY_MAX_REACTIONS)
+    ? (chat.pxgProxy.isProviderPremium || isInSaved ? PROXY_MAX_REACTIONS_PREMIUM : PROXY_MAX_REACTIONS)
     : selectMaxUserReactions(global);
   const [paidReactions, regularReactions] = partition(newUserReactions, (r) => r.type === 'paid');
   const trimmedRegularReactions = regularReactions.slice(-limit) as ApiReaction[];

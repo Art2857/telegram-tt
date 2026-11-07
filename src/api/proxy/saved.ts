@@ -1,8 +1,11 @@
 import type {
-  MessageDto, Permissions, SavedDialogDto, SavedMessageDto,
+  MessageDto, Permissions, SavedDialogDto, SavedMessageDto, SavedTagDto,
 } from '../../proxygram/server/types';
-import type { ApiChat, ApiMessage, ApiThreadInfo, ApiUser } from '../types';
+import type {
+  ApiChat, ApiMessage, ApiReaction, ApiSavedReactionTag, ApiThreadInfo, ApiUser,
+} from '../types';
 import type { ProxyPeer } from './ids';
+import { PxgError } from '../../proxygram/server/types';
 
 import { PERMISSION_KEYS } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -122,6 +125,13 @@ export function buildSavedMessage(dto: SavedMessageDto, chat: ApiChat): ApiMessa
     ...buildProxyMessage(buildSavedDto(dto, chat.pxgProxy!), chat),
     // All entries belong to this user's Saved Messages; snapshots carry no permission to edit their content
     pxgIsOwn: true,
+    // As in Telegram, the reactions of Saved Messages are the guest's tags, in the order they were chosen
+    reactions: dto.tags.length ? {
+      areTags: true,
+      results: dto.tags.map((emoticon, index) => ({
+        reaction: { type: 'emoji' as const, emoticon }, count: 1, chosenOrder: index,
+      })),
+    } : undefined,
   };
   if (!dto.origin || !message.forwardInfo) return message;
   // The original message opens from here while the guest still has the chat
@@ -219,7 +229,7 @@ export async function fetchSavedById(chat: ApiChat, ids: number[]) {
 
 export async function searchSaved(chat: ApiChat, params: {
   query?: string; filter?: string; limit: number; offsetId?: number; minDate?: number; maxDate?: number;
-  origin?: SavedOrigin;
+  origin?: SavedOrigin; tag?: string;
 }) {
   const list = await pxgRpc.call<SavedMessageDto[]>('saved.search', {
     ...params, limit: Math.min(params.limit, MAX_LIST),
@@ -249,6 +259,30 @@ export function pinSaved(id: number, pinned: boolean) {
 export async function saveToSaved(chat: ApiChat, source: ProxyPeer, msgIds: number[]) {
   const list = await pxgRpc.call<SavedMessageDto[]>('saved.save', { ...source, msgIds });
   return list.map((dto) => buildSavedMessage(dto, chat));
+}
+
+/** Tags of one's Saved Messages are emoji reactions; Telegram's custom emoji tags need Telegram's Premium */
+export function tagSaved(id: number, reactions: ApiReaction[] | undefined) {
+  const tags = (reactions || []).map((reaction) => {
+    if (reaction.type !== 'emoji') throw new PxgError('unsupported');
+    return reaction.emoticon;
+  });
+  return pxgRpc.call('saved.tag', { id, tags });
+}
+
+export async function fetchSavedTags() {
+  const list = await pxgRpc.call<SavedTagDto[]>('saved.tags');
+  return {
+    hash: '',
+    tags: list.map(({ tag, title, count }): ApiSavedReactionTag => ({
+      reaction: { type: 'emoji', emoticon: tag }, title: title || undefined, count,
+    })),
+  };
+}
+
+export function renameSavedTag(reaction: ApiReaction, title: string | undefined) {
+  if (reaction.type !== 'emoji') throw new PxgError('unsupported');
+  return pxgRpc.call('saved.tagTitle', { tag: reaction.emoticon, title: title || '' });
 }
 
 export function fetchSavedDialogs() {

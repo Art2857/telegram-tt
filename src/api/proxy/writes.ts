@@ -21,7 +21,7 @@ import { emitProxyUpdate, resolveProxyPeer } from './index';
 import { parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
-  deleteSaved, editSavedNote, isSavedPeer, pinSaved, saveToSaved, sendSavedNote,
+  deleteSaved, editSavedNote, isSavedPeer, pinSaved, saveToSaved, sendSavedNote, tagSaved,
 } from './saved';
 
 const DELETE_BATCH_SIZE = 20;
@@ -487,6 +487,10 @@ export async function deleteMessages({ chat, messageIds }: MethodArgs<'deleteMes
 export async function sendReaction({ chat, messageId, reactions }: MethodArgs<'sendReaction'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  if (isSavedPeer(peer)) {
+    await tagSaved(messageId, reactions);
+    return true as const;
+  }
   // The whole set of the owner's reactions: several and custom ones are allowed by the owner's Premium
   const items = (reactions || []).flatMap((reaction): ({ emoji: string } | { documentId: string })[] => {
     if (reaction.type === 'emoji') return [{ emoji: reaction.emoticon }];

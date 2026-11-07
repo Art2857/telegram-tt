@@ -9,6 +9,7 @@ import type {
   ApiUser,
 } from '../types';
 import { MAIN_THREAD_ID } from '../types';
+import { PROXY_REACTION_EMOJIS } from './types';
 
 import { ARCHIVED_FOLDER_ID, TOPICS_SLICE } from '../../config';
 import { getMessageLink } from '../../global/helpers/messages';
@@ -34,7 +35,8 @@ import { downloadMedia } from './media';
 import { buildProxyProfilePhotoId, parseProxyCatalogId } from './mediaIds';
 import { runProxyJob } from './outbox';
 import {
-  buildGuestSavedChat, fetchSavedById, fetchSavedChats, fetchSavedHistory, getSavedOrigin, isSavedPeer, searchSaved,
+  buildGuestSavedChat, fetchSavedById, fetchSavedChats, fetchSavedHistory, fetchSavedTags, getSavedOrigin, isSavedPeer,
+  renameSavedTag, searchSaved,
 } from './saved';
 import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
@@ -100,6 +102,13 @@ const methods = {
   searchMessagesInChat,
   searchMessagesGlobal,
   fetchSavedChats: fetchSavedSections,
+  fetchSavedReactionTags: fetchSavedTags,
+  updateSavedReactionTag: ({ reaction, title }: MethodArgs<'updateSavedReactionTag'>[0]) => (
+    renameSavedTag(reaction, title).then(() => true as const)
+  ),
+  fetchDefaultTagReactions: () => Promise.resolve({
+    hash: '', reactions: PROXY_REACTION_EMOJIS.map((emoticon) => ({ type: 'emoji' as const, emoticon })),
+  }),
   fetchMessages,
   fetchMessage,
   fetchDiscussionMessage,
@@ -956,20 +965,23 @@ async function searchMessagesInChat({
   savedTag, isSavedDialog,
 }: MethodArgs<'searchMessagesInChat'>[0]) {
   const peer = resolveProxyPeer(target.id);
-  if (!peer || savedTag || !SEARCH_FILTERS.has(type)) return undefined;
+  if (!peer || !SEARCH_FILTERS.has(type)) return undefined;
   if (isSavedDialog || isSavedPeer(peer)) {
+    // Tags of Saved Messages are emoji: Telegram's custom emoji tags are not on the server
+    if (savedTag && savedTag.type !== 'emoji') return undefined;
     // Search in a section of Saved Messages comes with its source chat
     const savedChat = isSavedDialog ? buildGuestSavedChat() : target as ApiChat;
     const origin = isSavedDialog && savedChat ? getSavedOrigin(savedChat, target.id) : undefined;
     if (!savedChat || (isSavedDialog && origin === undefined)) return undefined;
     const messages = await searchSaved(savedChat, {
-      query, filter: type, limit, offsetId, minDate, maxDate, origin,
+      query, filter: type, limit, offsetId, minDate, maxDate, origin, tag: savedTag?.emoticon,
     });
     return {
       messages, totalCount: messages.length, topics: [], userStatusesById: {},
       nextOffsetId: messages.length === limit ? messages.at(-1)?.id : undefined,
     };
   }
+  if (savedTag) return undefined;
   const sender = fromPeer && resolveProxyPeer(fromPeer.id);
   if (fromPeer && (!sender || sender.accountId !== peer.accountId)) return undefined;
   const result = await pxgRpc.call<WindowResult>('messages.search', {

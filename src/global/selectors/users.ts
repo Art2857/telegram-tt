@@ -5,6 +5,7 @@ import type {
 import type { BotAppPermissions } from '../../types';
 import type { GlobalState } from '../types';
 
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { isUserBot } from '../helpers';
 
 export function selectUser<T extends GlobalState>(global: T, userId: string): ApiUser | undefined {
@@ -46,6 +47,11 @@ export function selectIsCurrentUserPremium<T extends GlobalState>(global: T) {
   if (!global.currentUserId) return false;
 
   return Boolean(global.users.byId[global.currentUserId].isPremium);
+}
+
+/** PXG: tags of Saved Messages need Premium in Telegram; a guest's Saved Messages are on the server, tags are free */
+export function selectHasFreeSavedTags<T extends GlobalState>(global: T) {
+  return isProxyPeerId(global.currentUserId);
 }
 
 export function selectIsCurrentUserFrozen<T extends GlobalState>(global: T) {

@@ -65,7 +65,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
     loadProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
     applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
-    loadChatFolders, setSharedSettingOption,
+    loadChatFolders, setSharedSettingOption, loadSavedReactionTags,
   } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -241,6 +241,8 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       }
       if (event.e === 'saved.changed' && isGuest) {
         void syncSavedMessages(apiUpdate, () => loadProxyChats()).catch(() => undefined);
+        // Tags and their titles are the same on every device of the guest
+        loadSavedReactionTags();
       }
       if (event.e === 'draft.changed') {
         apiUpdate({

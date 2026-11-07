@@ -448,6 +448,12 @@ export interface SavedMessageDto {
   attachment?: MessageDto['attachment'];
 }
 
+export interface SavedTagDto {
+  tag: string;
+  title: string | null;
+  count: number;
+}
+
 export interface SavedDialogDto {
   origin: {
     accountId: string;

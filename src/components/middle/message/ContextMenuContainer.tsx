@@ -57,6 +57,7 @@ import {
   selectCanTranslateMessage,
   selectChat,
   selectChatFullInfo,
+  selectHasFreeSavedTags,
   selectIsChatWithSelf,
   selectIsCurrentUserPremium,
   selectIsMessageProtected,
@@ -152,6 +153,7 @@ type StateProps = {
   translationRequestLanguage?: string;
   isPrivate?: boolean;
   isCurrentUserPremium?: boolean;
+  hasFreeSavedTags?: boolean;
   hasFullInfo?: boolean;
   canCopyLink?: boolean;
   canSelect?: boolean;
@@ -222,6 +224,7 @@ const ContextMenuContainer = ({
   reactionsLimit,
   isPrivate,
   isCurrentUserPremium,
+  hasFreeSavedTags,
   canForward,
   canBuyPremium,
   canFaveSticker,
@@ -736,7 +739,7 @@ const ContextMenuContainer = ({
   });
 
   const handleToggleReaction = useLastCallback((reaction: ApiReaction) => {
-    if (isInSavedMessages && !isCurrentUserPremium) {
+    if (isInSavedMessages && !isCurrentUserPremium && !hasFreeSavedTags) {
       openPremiumModal({
         initialSection: 'saved_tags',
       });
@@ -1126,6 +1129,7 @@ export default memo(withGlobal<OwnProps>(
       reactionsLimit,
       isPrivate,
       isCurrentUserPremium,
+      hasFreeSavedTags: selectHasFreeSavedTags(global),
       hasFullInfo: Boolean(chatFullInfo),
       canShowReactionsCount: !message.isEphemeral && canShowReactionsCount,
       canShowReactionList: !message.isEphemeral && !isLocal && !isAction && !isScheduled && !hasTtl
