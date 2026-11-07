@@ -399,6 +399,10 @@
 "PxgArchiveExportRun" = "Скачать архив";
 "PxgAuditArchiveExport" = "скачал архив";
 "PxgReactionLog" = "История реакций";
+"PxgAdminSignInAs" = "Войти под пользователем";
+"PxgAdminSignInAsConfirm" = "Открыть Proxygram пользователя {name} в новой вкладке? Это полноценный вход: всё, что вы там сделаете, будет от имени этого человека. Вход будет виден в списке устройств этого человека и в журнале.";
+"PxgAdminSignInSession" = "Вход администратора";
+"PxgAuditAdminSignIn" = "администратор сервера вошёл под вами";
 "PxgHideFromGuestsMenu" = "Скрыть от гостей…";
 "PxgHiddenFromGuestsMenu" = "Скрыто от гостей…";
 "PxgHideFromGuests" = "Скрыть от гостей";

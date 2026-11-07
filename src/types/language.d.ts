@@ -3731,6 +3731,9 @@ export interface LangPair {
   'PxgArchiveExportRun': undefined;
   'PxgAuditArchiveExport': undefined;
   'PxgReactionLog': undefined;
+  'PxgAdminSignInAs': undefined;
+  'PxgAdminSignInSession': undefined;
+  'PxgAuditAdminSignIn': undefined;
   'PxgHideFromGuestsMenu': undefined;
   'PxgHiddenFromGuestsMenu': undefined;
   'PxgHideFromGuests': undefined;
@@ -6440,6 +6443,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgArchiveExportChatHint': {
     'title': V;
   };
+  'PxgAdminSignInAsConfirm': {
+    'name': V;
+  };
   'PxgHiddenFrom': {
     'names': V;
   };
@@ -7601,6 +7607,7 @@ export interface LangKeyGroups {
       | 'PxgConnectActive'
       | 'PxgShareFound'
       | 'PxgShareEditing'
+      | 'PxgAdminSignInAsConfirm'
       | 'PxgReactionLogGuest'
       | 'PxgAdminOwner'
       | 'PxgAdminFromAccount'

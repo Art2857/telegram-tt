@@ -1,15 +1,18 @@
 import type { TeactNode } from '../../../lib/teact/teact';
 import { memo, useEffect, useState } from '../../../lib/teact/teact';
 
-import type { AdminTopic, ImportStateDto } from '../../../proxygram/server/types';
+import type { AdminTopic, ImportStateDto, SessionTokensResponse } from '../../../proxygram/server/types';
 import type { AdminShare as ShareRow } from './types';
 
 import buildClassName from '../../../util/buildClassName';
 import { formatTimeDuration } from '../../../util/dates/duration';
+import { getAccountSlotUrl } from '../../../util/multiaccount';
 import { formatFileSize } from '../../../util/textFormat';
 import { getPxgReasonText } from '../../../proxygram/errorReasons';
 import { pxgRpc } from '../../../proxygram/server/rpc';
-import { setPxgState, usePxgState } from '../../../proxygram/server/store';
+import { sessionFromTokens } from '../../../proxygram/server/session';
+import { findFreeSlot } from '../../../proxygram/server/slots';
+import { setPxgState, usePxgState, writeSlotSession } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
 
 import useLang from '../../../hooks/useLang';
@@ -100,6 +103,7 @@ type UserDetails = {
 type SessionRow = {
   id: string;
   level: 'guest' | 'client';
+  isAdminSignIn: boolean;
   deviceName: string | null;
   platform: string | null;
   ip: string | null;
@@ -517,6 +521,18 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       )}
       {user.id !== selfId && (
         <>
+          {/* docs/spec/08-admin.md §2: a plain session of this person in a new slot, seen in the person's devices */}
+          {!user.blockedAt && (
+            <Button
+              size="tiny"
+              color="translucent"
+              isText
+              onClick={() => ask(t(lang, 'PxgAdminSignInAsConfirm', { name: displayName(user) }),
+                lang('PxgAdminSignInAs'), signInAs(user.id))}
+            >
+              {lang('PxgAdminSignInAs')}
+            </Button>
+          )}
           {/* The server has exactly one administrator: rights move to another user, never get added */}
           {user.role !== 'admin' && !user.blockedAt && (
             <Button
@@ -553,6 +569,16 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       )}
     </>
   );
+}
+
+/** Opens the person's own session in a free account slot of this browser: from there it is just this person */
+function signInAs(userId: string) {
+  return async () => {
+    const tokens = await pxgRpc.call<SessionTokensResponse>('admin.users.signInAs', { userId });
+    const slot = findFreeSlot();
+    writeSlotSession(slot, sessionFromTokens(tokens));
+    window.open(getAccountSlotUrl(slot), '_blank', 'noopener');
+  };
 }
 
 /** Карточка не читает переписку: только устройства, аккаунты, доступы и журнал действий */
@@ -783,7 +809,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
                 </td>
                 <td><LevelBadge level={row.level} lang={lang} /></td>
                 <td>
-                  {row.deviceName ?? row.platform ?? '—'}
+                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? '—'}
                   <div className={styles.secondary}>{row.ip ?? ''}</div>
                 </td>
                 <td>

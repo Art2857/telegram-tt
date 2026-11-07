@@ -77,6 +77,8 @@ const AUDIT_CATEGORIES = [
 type SessionRow = {
   id: string;
   level: 'guest' | 'client';
+  /** The server's administrator signed in as this person */
+  isAdminSignIn: boolean;
   deviceName: string | null;
   platform: string | null;
   ip: string | null;
@@ -147,6 +149,7 @@ const AUDIT_KEYS: Record<string, string> = {
   message_copy: 'PxgAuditCopy',
   save_to_favorites: 'PxgAuditSaveToFavorites',
   messages_hidden: 'PxgAuditMessagesHidden',
+  'admin.sign_in_as': 'PxgAuditAdminSignIn',
   messages_shown: 'PxgAuditMessagesShown',
   delegate_callback: 'PxgAuditCallback',
   delegate_vote: 'PxgAuditVote',
@@ -965,7 +968,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
               <td>
                 <div className={styles.name}>
                   {row.online && <span className={styles.onlineDot} />}
-                  {row.deviceName ?? row.platform ?? '—'}
+                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? '—'}
                 </div>
                 <div className={styles.secondary}>
                   {row.isCurrent ? lang('PxgSettingsThisDevice') : row.ip ?? ''}

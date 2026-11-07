@@ -4912,6 +4912,10 @@
 "PxgArchiveExportRun" = "Download archive";
 "PxgAuditArchiveExport" = "downloaded the archive";
 "PxgReactionLog" = "Reaction history";
+"PxgAdminSignInAs" = "Sign in as this user";
+"PxgAdminSignInAsConfirm" = "Open {name}'s Proxygram in a new tab? It is a full session of this person: what you do there is done as them. They see it in their devices and journal.";
+"PxgAdminSignInSession" = "Sign-in by the administrator";
+"PxgAuditAdminSignIn" = "the server administrator signed in as you";
 "PxgHideFromGuestsMenu" = "Hide from guests…";
 "PxgHiddenFromGuestsMenu" = "Hidden from guests…";
 "PxgHideFromGuests" = "Hide from guests";
