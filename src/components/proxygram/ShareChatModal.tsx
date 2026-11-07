@@ -102,6 +102,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const accounts = usePxgState((state) => state.accounts);
   const connection = usePxgState((state) => state.connection);
   const shareEditId = usePxgState((state) => state.shareEditId);
+  const shareRequest = usePxgState((state) => state.shareRequest);
   const contactIds = useSelector((global) => global.contactList?.userIds);
   const [shares, setShares] = useState<OutgoingShare[]>();
   const [grantees, setGrantees] = useState<OutgoingShare['grantee'][]>();
@@ -183,6 +184,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
   const close = () => setPxgState({
     shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+    shareRequest: undefined,
   });
 
   const resetForm = () => {
@@ -231,6 +233,21 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       if (request === lookupRequestRef.current) setIsFinding(false);
     }
   };
+
+  // Opened from an access request: the person who asked is already chosen
+  useEffect(() => {
+    if (!shareRequest) return;
+    const { grantee } = shareRequest;
+    setUsername(grantee.username ? `@${grantee.username}` : grantee.name);
+    setGuest({
+      registered: true,
+      knownToBot: true,
+      user: {
+        id: grantee.id, tgUserId: grantee.tgUserId, username: grantee.username, firstName: grantee.name,
+        isPending: false,
+      },
+    });
+  }, [shareRequest]);
 
   const pickSuggestion = ({ lookup, username: nick, name }: GuestSuggestion) => {
     lookupRequestRef.current++;
@@ -381,6 +398,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           ...common,
           ...target,
           accountId: account.id,
+          // The access answers the guest's request: it becomes "approved" with a link to this access
+          requestId: shareRequest && guest?.user?.id === shareRequest.grantee.id ? shareRequest.id : undefined,
           // Someone who has never signed in gets the account in advance and finds the chat at the first sign-in
           ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
         });

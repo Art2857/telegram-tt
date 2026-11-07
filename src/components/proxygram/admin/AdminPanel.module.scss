@@ -142,6 +142,36 @@
   }
 }
 
+/* На телефоне строка списка — столбиком: текст не сжимается в узкую колонку, кнопки — под ним */
+.stacked {
+  @media (max-width: 600px) {
+    tbody,
+    tr,
+    td {
+      display: block;
+    }
+
+    tr {
+      padding: 0.375rem 0;
+      border-bottom: 1px solid var(--color-borders);
+    }
+
+    td {
+      padding: 0.25rem 0.5rem;
+      border-bottom: 0;
+    }
+
+    td:empty {
+      display: none;
+    }
+
+    .actions {
+      text-align: start;
+      white-space: normal;
+    }
+  }
+}
+
 .muted td {
   opacity: 0.55;
 }

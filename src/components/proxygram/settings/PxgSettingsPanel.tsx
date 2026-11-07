@@ -448,7 +448,23 @@ function renderImport(t: Translate, state: ImportStateDto | null) {
   );
 }
 
-type OutgoingView = 'guest' | 'chat' | 'expiring';
+type OutgoingView = 'guest' | 'chat' | 'requests' | 'expiring';
+
+/** An access request from the guest's side or the owner's (docs/RELEASE.md) */
+type AccessRequestRow = {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';
+  requester: { id: string; tgUserId: number; name: string; username: string | null };
+  ownerName: string;
+  accountId: string | null;
+  peerId: number | null;
+  peerTitle: string | null;
+  query: string | null;
+  originTitle: string | null;
+  reason: string | null;
+  createdAt: string;
+  context: { commonGroups: number; hasChat: boolean } | null;
+};
 
 /** A chat of the owner as the guests see it, with the accesses that open it */
 type OutgoingChatRow = {
@@ -471,6 +487,7 @@ type OutgoingGroup = { key: string; title?: string; items: ShareRow[] };
 const OUTGOING_VIEWS: { view: OutgoingView; key: string }[] = [
   { view: 'guest', key: 'PxgSharesByGuest' },
   { view: 'chat', key: 'PxgSharesByChat' },
+  { view: 'requests', key: 'PxgRequestsIncoming' },
   { view: 'expiring', key: 'PxgSharesExpiring' },
 ];
 
@@ -531,13 +548,22 @@ const OutgoingTab = memo(({
     );
   }
 
+  if (view === 'requests') {
+    return (
+      <>
+        {renderViews()}
+        <IncomingRequests lang={lang} t={t} run={run} />
+      </>
+    );
+  }
+
   if (view === 'chat') {
     const sorted = chats ? [...chats].sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '')) : undefined;
     return (
       <>
         {renderViews()}
         {!sorted ? <Loading error={undefined} lang={lang} /> : (
-          <table className={styles.table}>
+          <table className={buildClassName(styles.table, styles.stacked)}>
             <tbody>
               {sorted.map((chat) => chat.viewers.map((viewer, index) => (
                 <tr key={`${chat.accountId}:${chat.peerId}:${viewer.userId}`}>
@@ -579,7 +605,7 @@ const OutgoingTab = memo(({
         />
       )}
       {!groups[0]?.items.length ? <p className={styles.empty}>{lang('PxgSharesNoExpiring')}</p> : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <tbody>
             {groups.map((group) => group.items.map((share, index) => (
               <tr key={share.id}>
@@ -646,6 +672,93 @@ const OutgoingTab = memo(({
   );
 });
 
+/**
+ * «Запросы ко мне» (docs/RELEASE.md): кто просит, какой чат, откуда и где человек уже встречается. «Одобрить»
+ * открывает окно выдачи с выбранным человеком — выдача и есть ответ; «Отклонить» — без выдачи
+ */
+function IncomingRequests({ lang, t, run }: Pick<TabProps, 'lang' | 't' | 'run'>) {
+  const { data, error, reload } = usePxgData<AccessRequestRow[]>('requests.incoming', {}, ['requests.changed']);
+  if (!data) return <Loading error={error} lang={lang} />;
+  if (data.length === 0) return <p className={styles.empty}>{lang('PxgRequestsEmpty')}</p>;
+
+  const approve = (request: AccessRequestRow) => setPxgState({
+    shareChatId: String(request.peerId),
+    shareFolder: undefined,
+    shareTopic: undefined,
+    shareEditId: undefined,
+    shareRequest: {
+      id: request.id,
+      grantee: {
+        id: request.requester.id,
+        tgUserId: request.requester.tgUserId,
+        username: request.requester.username,
+        name: request.requester.name,
+      },
+    },
+  });
+  const reject = (request: AccessRequestRow) => run(async () => {
+    await pxgRpc.call('requests.reject', { id: request.id });
+    reload();
+  });
+
+  return (
+    <table className={buildClassName(styles.table, styles.stacked)}>
+      <tbody>
+        {data.map((request) => (
+          <tr key={request.id}>
+            <td>
+              <div className={styles.name}>{request.requester.name}</div>
+              <div className={styles.secondary}>{formatDateTime(request.createdAt)}</div>
+            </td>
+            <td>
+              {request.peerTitle ?? request.query ?? '—'}
+              {request.originTitle && (
+                <div className={styles.secondary}>{t('PxgRequestsFromGroup', { title: request.originTitle })}</div>
+              )}
+              {request.context && (
+                <div className={styles.secondary}>
+                  {[
+                    request.context.hasChat ? t('PxgRequestsHasChat') : t('PxgRequestsNoChat'),
+                    t('PxgRequestsCommonGroups', { count: request.context.commonGroups }),
+                  ].join(' · ')}
+                </div>
+              )}
+              {request.query && !request.accountId && (
+                <div className={styles.secondary}>{lang('PxgRequestsNotFound')}</div>
+              )}
+              {request.status !== 'pending' && (
+                <div className={styles.secondary}>{t(REQUEST_STATUS_KEYS[request.status])}</div>
+              )}
+            </td>
+            <td className={styles.actions}>
+              {request.status === 'pending' && (
+                <>
+                  {Boolean(request.accountId) && (
+                    <Button size="tiny" color="translucent" isText onClick={() => approve(request)}>
+                      {lang('PxgRequestsApprove')}
+                    </Button>
+                  )}
+                  <Button size="tiny" color="danger" isText onClick={() => void reject(request)}>
+                    {lang('PxgRequestsReject')}
+                  </Button>
+                </>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const REQUEST_STATUS_KEYS: Record<AccessRequestRow['status'], string> = {
+  pending: 'PxgRequestPending',
+  approved: 'PxgRequestApproved',
+  rejected: 'PxgRequestRejected',
+  cancelled: 'PxgRequestCancelled',
+  expired: 'PxgRequestExpired',
+};
+
 /** «Что видит гость»: итоговые чаты человека в моих аккаунтах с правами и доступами, которые их дали */
 function EffectiveModal({
   lang, t, person, shareById, onClose,
@@ -662,7 +775,7 @@ function EffectiveModal({
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgSharesEffectiveEmpty')}</p>
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <tbody>
             {data.map((chat) => (
               <tr key={`${chat.accountId}:${chat.peerId}`}>

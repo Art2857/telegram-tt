@@ -3512,6 +3512,18 @@ export interface LangPair {
   'PxgSharesWhatGuestSees': undefined;
   'PxgSharesEffectiveEmpty': undefined;
   'PxgSharesViaDirect': undefined;
+  'PxgRequestsIncoming': undefined;
+  'PxgRequestsEmpty': undefined;
+  'PxgRequestsHasChat': undefined;
+  'PxgRequestsNoChat': undefined;
+  'PxgRequestsNotFound': undefined;
+  'PxgRequestsApprove': undefined;
+  'PxgRequestsReject': undefined;
+  'PxgRequestPending': undefined;
+  'PxgRequestApproved': undefined;
+  'PxgRequestRejected': undefined;
+  'PxgRequestCancelled': undefined;
+  'PxgRequestExpired': undefined;
   'PxgSettingsIncoming': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
@@ -6363,6 +6375,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgSharesViaTopic': {
     'title': V;
   };
+  'PxgRequestsFromGroup': {
+    'title': V;
+  };
+  'PxgRequestsCommonGroups': {
+    'count': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -7854,6 +7872,7 @@ export interface LangKeyGroups {
       | 'ConnectedAccountsLimitSubtitle'
       | 'GiveawayStarsPrepaidTitle'
       | 'SimilarChannelsLimitSubtitle'
+      | 'PxgRequestsCommonGroups'
       | 'PxgSettingsChats'
       | 'PxgSettingsGuests'
       | 'PxgArchiveCleared'
@@ -8244,6 +8263,7 @@ export interface LangKeyGroups {
       | 'AiToneCreated'
       | 'PxgSharesViaFolder'
       | 'PxgSharesViaTopic'
+      | 'PxgRequestsFromGroup'
       | 'PxgSettingsLeaveConfirm'
       | 'PxgArchiveClearChatHint'
       | 'PxgArchiveClearChatConfirm'

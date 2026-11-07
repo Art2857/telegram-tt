@@ -37,6 +37,8 @@ export interface PxgState {
   debugMessage?: { accountId: string; peerId: number; msgId: number };
   /** Журнал реакций сообщения: прокси-чата или своего */
   reactionLogMessage?: { accountId: string; peerId: number; msgId: number; isProxy: boolean };
+  /** Окно «Поделиться» открыто из запроса доступа: получатель уже выбран, ответ запросу — сама выдача */
+  shareRequest?: { id: string; grantee: { id: string; tgUserId: number; username: string | null; name: string } };
   /** Окно «Скрыть от гостей»: сообщения своего чата (альбом — целиком) */
   hideMessages?: { accountId: string; peerId: number; chatId: string; msgIds: number[] };
 }
@@ -74,7 +76,7 @@ export function setPxgState(patch: Partial<PxgState>) {
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
-      debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined,
+      debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }
