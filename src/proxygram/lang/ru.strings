@@ -146,7 +146,13 @@
 "PxgMenuSharingOn" = "вкл";
 "PxgSettingsTitle" = "Настройки Proxygram";
 "PxgSettingsServer" = "Мой сервер";
-"PxgSettingsOutgoing" = "Я поделился";
+"PxgSettingsOutgoing" = "Доступы";
+"PxgSharesWhatGuestSees" = "Что видит";
+"PxgSharesEffectiveTitle" = "Что видит {name}";
+"PxgSharesEffectiveEmpty" = "Сейчас этому человеку ничего из ваших чатов не открыто";
+"PxgSharesViaDirect" = "напрямую";
+"PxgSharesViaFolder" = "через папку «{title}»";
+"PxgSharesViaTopic" = "тема «{title}»";
 "PxgSettingsIncoming" = "Со мной поделились";
 "PxgSettingsArchive" = "Архив";
 "PxgSettingsAudit" = "Журнал";

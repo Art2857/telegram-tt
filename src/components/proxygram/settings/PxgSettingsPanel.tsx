@@ -18,6 +18,7 @@ import Button from '../../ui/Button';
 import Checkbox from '../../ui/Checkbox';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import InputText from '../../ui/InputText';
+import Modal from '../../ui/Modal';
 import TabList from '../../ui/TabList';
 import ArchiveTools from './ArchiveTools';
 
@@ -448,6 +449,23 @@ function renderImport(t: Translate, state: ImportStateDto | null) {
 }
 
 type OutgoingView = 'guest' | 'chat' | 'expiring';
+
+/** A chat of the owner as the guests see it, with the accesses that open it */
+type OutgoingChatRow = {
+  accountId: string;
+  peerId: number;
+  title: string | null;
+  viewers: { userId: string; name: string; shareIds: string[] }[];
+};
+
+/** What one guest sees in the owner's chats: the effective rights and where they come from */
+type EffectiveChatRow = {
+  accountId: string;
+  peerId: number;
+  title: string | null;
+  permissions: Record<string, boolean>;
+  sources: { shareId: string }[];
+};
 type OutgoingGroup = { key: string; title?: string; items: ShareRow[] };
 
 const OUTGOING_VIEWS: { view: OutgoingView; key: string }[] = [
@@ -456,29 +474,46 @@ const OUTGOING_VIEWS: { view: OutgoingView; key: string }[] = [
   { view: 'expiring', key: 'PxgSharesExpiring' },
 ];
 
-/** «Я поделился» (PLAN.md 7.12): по гостям или по чатам с отзывом всей группы, отдельно — доступы со сроком */
-const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
+/**
+ * Центр доступов (docs/spec/03-permissions.md §10): по гостям — с проверкой, что видит гость; по чатам — кто видит и
+ * через какой доступ; отдельно — доступы со сроком. Правка, пауза и отзыв — прямо в строке
+ */
+const OutgoingTab = memo(({
+  lang, t, ask, run,
+}: TabProps) => {
   const { data, error, reload } = usePxgData<ShareRow[]>('shares.outgoing', {}, ['shares.changed', 'access.changed']);
+  const { data: chats } = usePxgData<OutgoingChatRow[]>(
+    'shares.outgoingChats', {}, ['shares.changed', 'access.changed'],
+  );
   const [view, setView] = useState<OutgoingView>('guest');
+  const [inspected, setInspected] = useState<{ userId: string; name: string }>();
   if (!data) return <Loading error={error} lang={lang} />;
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
+  const shareById = new Map(data.map((share) => [share.id, share]));
 
   const revoke = (items: ShareRow[], text: string) => ask(text, lang('PxgShareRevoke'), async () => {
     await pxgRpc.call('shares.revokeMany', { shareIds: items.map((share) => share.id) });
     reload();
   });
-  const groups: OutgoingGroup[] = view === 'guest'
-    ? groupBy(data, (share) => share.grantee?.id ?? '')
-      .map(([key, items]) => ({ key, title: displayName(items[0].grantee), items }))
-    : view === 'chat'
-      ? groupBy(data, targetKey).map(([key, items]) => ({ key, title: describeTarget(t, items[0]), items }))
-      : [{ key: 'expiring', items: data.filter((share) => share.expiresAt).sort(byExpiry) }];
-  const rowTitle = (share: ShareRow) => (view === 'guest' ? describeTarget(t, share)
-    : view === 'chat' ? displayName(share.grantee)
-      : `${displayName(share.grantee)} · ${describeTarget(t, share)}`);
-
-  return (
+  const togglePause = (share: ShareRow) => run(async () => {
+    await pxgRpc.call('shares.update', { shareId: share.id, status: share.status === 'paused' ? 'active' : 'paused' });
+    reload();
+  });
+  const renderActions = (share: ShareRow) => (
     <>
+      <Button size="tiny" color="translucent" isText onClick={() => openShareEditor(share)}>
+        {lang('PxgShareEdit')}
+      </Button>
+      {share.status !== 'source_lost' && (
+        <Button size="tiny" color="translucent" isText onClick={() => void togglePause(share)}>
+          {lang(share.status === 'paused' ? 'PxgShareResume' : 'PxgSharePause')}
+        </Button>
+      )}
+    </>
+  );
+
+  function renderViews() {
+    return (
       <div className={styles.filters}>
         {OUTGOING_VIEWS.map((item) => (
           <Button
@@ -493,6 +528,56 @@ const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
           </Button>
         ))}
       </div>
+    );
+  }
+
+  if (view === 'chat') {
+    const sorted = chats ? [...chats].sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '')) : undefined;
+    return (
+      <>
+        {renderViews()}
+        {!sorted ? <Loading error={undefined} lang={lang} /> : (
+          <table className={styles.table}>
+            <tbody>
+              {sorted.map((chat) => chat.viewers.map((viewer, index) => (
+                <tr key={`${chat.accountId}:${chat.peerId}:${viewer.userId}`}>
+                  <td>{index === 0 && <div className={styles.name}>{chat.title ?? '—'}</div>}</td>
+                  <td>
+                    {viewer.name}
+                    {viewer.shareIds.map((id) => shareById.get(id)).filter(Boolean).map((share) => (
+                      <div key={share.id} className={styles.secondary}>
+                        {`${describeSource(t, share)} · ${describeShare(t, share)}`}
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              )))}
+            </tbody>
+          </table>
+        )}
+      </>
+    );
+  }
+
+  const groups: OutgoingGroup[] = view === 'guest'
+    ? groupBy(data, (share) => share.grantee?.id ?? '')
+      .map(([key, items]) => ({ key, title: displayName(items[0].grantee), items }))
+    : [{ key: 'expiring', items: data.filter((share) => share.expiresAt).sort(byExpiry) }];
+  const rowTitle = (share: ShareRow) => (view === 'guest' ? describeTarget(t, share)
+    : `${displayName(share.grantee)} · ${describeTarget(t, share)}`);
+
+  return (
+    <>
+      {renderViews()}
+      {inspected && (
+        <EffectiveModal
+          lang={lang}
+          t={t}
+          person={inspected}
+          shareById={shareById}
+          onClose={() => setInspected(undefined)}
+        />
+      )}
       {!groups[0]?.items.length ? <p className={styles.empty}>{lang('PxgSharesNoExpiring')}</p> : (
         <table className={styles.table}>
           <tbody>
@@ -501,6 +586,17 @@ const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
                 {group.title !== undefined && (
                   <td>
                     {index === 0 && <div className={styles.name}>{group.title}</div>}
+                    {index === 0 && view === 'guest' && share.grantee && (
+                      <Button
+                        size="tiny"
+                        color="translucent"
+                        isText
+                        fluid
+                        onClick={() => setInspected({ userId: share.grantee!.id, name: group.title ?? '' })}
+                      >
+                        {lang('PxgSharesWhatGuestSees')}
+                      </Button>
+                    )}
                     {index === 0 && group.items.length > 1 && (
                       <>
                         <div className={styles.secondary}>
@@ -529,6 +625,7 @@ const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
                   <div className={styles.secondary}>{describeShare(t, share)}</div>
                 </td>
                 <td className={styles.actions}>
+                  {renderActions(share)}
                   <Button
                     size="tiny"
                     color="danger"
@@ -549,9 +646,76 @@ const OutgoingTab = memo(({ lang, t, ask }: TabProps) => {
   );
 });
 
-/** Одна цель доступа: чат, тема или папка своего аккаунта */
-function targetKey(share: ShareRow) {
-  return [share.accountId, share.scope, share.peerId, share.topicId, share.folderId].join(':');
+/** «Что видит гость»: итоговые чаты человека в моих аккаунтах с правами и доступами, которые их дали */
+function EffectiveModal({
+  lang, t, person, shareById, onClose,
+}: {
+  lang: Lang;
+  t: Translate;
+  person: { userId: string; name: string };
+  shareById: Map<string, ShareRow>;
+  onClose: NoneToVoidFunction;
+}) {
+  const { data, error } = usePxgData<EffectiveChatRow[]>('shares.effective', { granteeUserId: person.userId }, []);
+  return (
+    <Modal isOpen title={t('PxgSharesEffectiveTitle', { name: person.name })} hasCloseButton onClose={onClose}>
+      {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
+        <p className={styles.empty}>{lang('PxgSharesEffectiveEmpty')}</p>
+      ) : (
+        <table className={styles.table}>
+          <tbody>
+            {data.map((chat) => (
+              <tr key={`${chat.accountId}:${chat.peerId}`}>
+                <td>
+                  <div className={styles.name}>{chat.title ?? '—'}</div>
+                  <div className={styles.secondary}>
+                    {chat.sources.map(({ shareId }) => shareById.get(shareId)).filter(Boolean)
+                      .map((share) => describeSource(t, share)).join(' · ')}
+                  </div>
+                  <div className={styles.secondary}>
+                    {/* Reading comes with any access, so the list names only what goes beyond it */}
+                    {Object.entries(chat.permissions).filter(([key, isAllowed]) => isAllowed && key !== 'read')
+                      .map(([key]) => t(`PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)).join(', ')}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Modal>
+  );
+}
+
+/** Откуда у гостя чат: прямой доступ, тема или папка */
+function describeSource(t: Translate, share: ShareRow) {
+  if (share.scope === 'folder') {
+    return t('PxgSharesViaFolder', {
+      title: share.folderTitle || t('PxgSettingsFolder', { id: share.folderId ?? 0 }),
+    });
+  }
+  if (share.scope === 'topic') return t('PxgSharesViaTopic', { title: share.topicTitle ?? '—' });
+  return t('PxgSharesViaDirect');
+}
+
+/** Правка доступа — то же окно «Поделиться», что и из профиля чата */
+function openShareEditor(share: ShareRow) {
+  if (share.scope === 'folder') {
+    setPxgState({
+      shareChatId: undefined,
+      shareFolder: { id: share.folderId!, title: share.folderTitle ?? '' },
+      shareTopic: undefined,
+      shareEditId: share.id,
+    });
+    return;
+  }
+  setPxgState({
+    shareChatId: String(share.peerId),
+    shareFolder: undefined,
+    shareTopic: share.scope === 'topic' && share.topicId
+      ? { id: share.topicId, title: share.topicTitle ?? '' } : undefined,
+    shareEditId: share.id,
+  });
 }
 
 function byExpiry(a: ShareRow, b: ShareRow) {

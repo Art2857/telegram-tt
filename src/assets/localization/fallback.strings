@@ -4659,7 +4659,13 @@
 "PxgMenuSharingOn" = "on";
 "PxgSettingsTitle" = "Proxygram settings";
 "PxgSettingsServer" = "My server";
-"PxgSettingsOutgoing" = "I shared";
+"PxgSettingsOutgoing" = "Access";
+"PxgSharesWhatGuestSees" = "What they see";
+"PxgSharesEffectiveTitle" = "What {name} sees";
+"PxgSharesEffectiveEmpty" = "Nothing in your chats is shared with this person now";
+"PxgSharesViaDirect" = "directly";
+"PxgSharesViaFolder" = "via folder «{title}»";
+"PxgSharesViaTopic" = "topic «{title}»";
 "PxgSettingsIncoming" = "Shared with me";
 "PxgSettingsArchive" = "Archive";
 "PxgSettingsAudit" = "Activity log";

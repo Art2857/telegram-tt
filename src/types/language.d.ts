@@ -3509,6 +3509,9 @@ export interface LangPair {
   'PxgSettingsTitle': undefined;
   'PxgSettingsServer': undefined;
   'PxgSettingsOutgoing': undefined;
+  'PxgSharesWhatGuestSees': undefined;
+  'PxgSharesEffectiveEmpty': undefined;
+  'PxgSharesViaDirect': undefined;
   'PxgSettingsIncoming': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
@@ -6348,6 +6351,15 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestResendIn': {
     'seconds': V;
   };
+  'PxgSharesEffectiveTitle': {
+    'name': V;
+  };
+  'PxgSharesViaFolder': {
+    'title': V;
+  };
+  'PxgSharesViaTopic': {
+    'title': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -7599,6 +7611,7 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppExpired'
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
+      | 'PxgSharesEffectiveTitle'
       | 'PxgSettingsFrom'
       | 'PxgServerAdmin'
       | 'PxgArchiveClearConfirm'
@@ -8223,6 +8236,8 @@ export interface LangKeyGroups {
       | 'ActionChangedTitleChannel'
       | 'ActionCreatedChatYou'
       | 'AiToneCreated'
+      | 'PxgSharesViaFolder'
+      | 'PxgSharesViaTopic'
       | 'PxgSettingsLeaveConfirm'
       | 'PxgArchiveClearChatHint'
       | 'PxgArchiveClearChatConfirm'
