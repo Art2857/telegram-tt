@@ -81,6 +81,7 @@ import { isUserId } from '../../util/entities/ids';
 import { getGridCornerClassName } from '../../util/gridCorners';
 import { buildCollectionByKey } from '../../util/iteratees.ts';
 import { resolveTransitionName } from '../../util/resolveTransitionName.ts';
+import { canRequestMemberAccess, requestMemberAccess } from '../../proxygram/accessRequests';
 import { LOCAL_TGS_URLS } from '../common/helpers/animatedAssets';
 import renderText from '../common/helpers/renderText';
 import { getSenderName } from '../left/search/helpers/getSenderName';
@@ -858,6 +859,15 @@ const Profile = ({
             rank: member?.rank,
           });
         },
+      });
+    }
+
+    // PXG: a guest asks the owner for the private chat with a member of the shared group
+    if (canRequestMemberAccess(chatId, memberId)) {
+      actions.push({
+        title: lang('PxgRequestAccess'),
+        icon: 'add-user',
+        handler: () => void requestMemberAccess(chatId, memberId),
       });
     }
 

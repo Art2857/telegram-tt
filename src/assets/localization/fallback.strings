@@ -4680,6 +4680,14 @@
 "PxgRequestRejected" = "declined";
 "PxgRequestCancelled" = "cancelled";
 "PxgRequestExpired" = "expired";
+"PxgSettingsMyRequests" = "My requests";
+"PxgRequestAskLabel" = "Username, phone or ID";
+"PxgRequestAskWhom" = "Ask {name} to open a chat";
+"PxgRequestSend" = "Ask";
+"PxgRequestsMineEmpty" = "You have not asked for access yet";
+"PxgRequestCancel" = "Cancel";
+"PxgRequestSent" = "Request sent: the owner will answer";
+"PxgRequestAccess" = "Request access";
 "PxgSettingsIncoming" = "Shared with me";
 "PxgSettingsArchive" = "Archive";
 "PxgSettingsAudit" = "Activity log";

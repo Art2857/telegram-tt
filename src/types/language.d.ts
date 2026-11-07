@@ -3524,6 +3524,13 @@ export interface LangPair {
   'PxgRequestRejected': undefined;
   'PxgRequestCancelled': undefined;
   'PxgRequestExpired': undefined;
+  'PxgSettingsMyRequests': undefined;
+  'PxgRequestAskLabel': undefined;
+  'PxgRequestSend': undefined;
+  'PxgRequestsMineEmpty': undefined;
+  'PxgRequestCancel': undefined;
+  'PxgRequestSent': undefined;
+  'PxgRequestAccess': undefined;
   'PxgSettingsIncoming': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
@@ -6381,6 +6388,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgRequestsCommonGroups': {
     'count': V;
   };
+  'PxgRequestAskWhom': {
+    'name': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -7636,6 +7646,7 @@ export interface LangKeyGroups {
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
       | 'PxgSharesEffectiveTitle'
+      | 'PxgRequestAskWhom'
       | 'PxgSettingsFrom'
       | 'PxgServerAdmin'
       | 'PxgArchiveClearConfirm'

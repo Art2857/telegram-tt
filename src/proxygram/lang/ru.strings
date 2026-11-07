@@ -167,6 +167,14 @@
 "PxgRequestRejected" = "отклонён";
 "PxgRequestCancelled" = "отменён";
 "PxgRequestExpired" = "истёк";
+"PxgSettingsMyRequests" = "Мои запросы";
+"PxgRequestAskLabel" = "Ник, номер или ID";
+"PxgRequestAskWhom" = "Попросить {name} открыть чат";
+"PxgRequestSend" = "Попросить";
+"PxgRequestsMineEmpty" = "Вы ещё не просили доступа";
+"PxgRequestCancel" = "Отменить";
+"PxgRequestSent" = "Запрос отправлен: владелец ответит";
+"PxgRequestAccess" = "Запросить доступ";
 "PxgSettingsIncoming" = "Со мной поделились";
 "PxgSettingsArchive" = "Архив";
 "PxgSettingsAudit" = "Журнал";
