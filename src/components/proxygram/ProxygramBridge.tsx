@@ -12,6 +12,7 @@ import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
 import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
 import { isProxyPeerId } from '../../api/proxy/ids';
+import { isSavedPeer } from '../../api/proxy/saved';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import { syncSavedMessages } from '../../proxygram/savedSync';
@@ -264,7 +265,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
     const report = () => {
-      const params = document.visibilityState === 'visible' && proxyPeer
+      const params = document.visibilityState === 'visible' && proxyPeer && !isSavedPeer(proxyPeer)
         ? { accountId: proxyPeer.accountId, peerId: proxyPeer.peerId } : {};
       void pxgRpc.call('presence.set', params).catch(() => undefined);
     };

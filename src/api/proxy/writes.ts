@@ -723,6 +723,8 @@ export async function toggleDialogUnread({ chat, hasUnreadMark }: MethodArgs<'to
 export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
+  // Saved Messages have no provider account: their draft stays on this device
+  if (isSavedPeer(peer)) return true;
   const replyInfo = draft?.replyInfo?.type === 'message' ? draft.replyInfo : undefined;
   // A comment thread's draft stays on this device: the server keeps drafts of chats and forum topics only
   if (!chat.isForum && replyInfo?.replyToTopId) return true;

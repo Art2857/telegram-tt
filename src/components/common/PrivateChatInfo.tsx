@@ -240,7 +240,7 @@ const PrivateChatInfo = ({
     const mainUserNameClassName = buildClassName('handle', translatedStatus && 'withStatus');
     return (
       <span className={buildClassName('status', !noUserStatus && isUserOnline(user, userStatus, true) && 'online')}>
-        {statusPrefix && `${statusPrefix} · `}
+        {statusPrefix && `${statusPrefix}${mainUsername || translatedStatus ? ' · ' : ''}`}
         {mainUsername && <span className={mainUserNameClassName}>{mainUsername}</span>}
         {translatedStatus && <span className="user-status" dir="auto">{translatedStatus}</span>}
       </span>
