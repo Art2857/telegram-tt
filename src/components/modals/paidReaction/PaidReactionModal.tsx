@@ -300,9 +300,12 @@ const PaidReactionModal = ({
       <div className={styles.sendAsPeersMenuContainer}>
         {sendAsPeersMenu}
       </div>
-      <div className={styles.headerControlPanel}>
-        <BalanceBlock balance={starBalance} className={styles.modalBalance} withAddButton />
-      </div>
+      {/* The guest spends the owner's Stars: the balance is neither known here nor topped up from this window */}
+      {!chat?.pxgProxy && (
+        <div className={styles.headerControlPanel}>
+          <BalanceBlock balance={starBalance} className={styles.modalBalance} withAddButton />
+        </div>
+      )}
 
       <StarSlider
         className={styles.slider}
@@ -314,6 +317,9 @@ const PaidReactionModal = ({
       <div className={styles.description}>
         {renderText(lang('StarsReactionText', { chat: chatTitle }), ['simple_markdown', 'emoji'])}
       </div>
+      {chat?.pxgProxy && (
+        <p className={styles.limit}>{lang('PxgPaidStarsLimit', { stars: chat.pxgProxy.starsPerDay || 0 })}</p>
+      )}
       <Separator>
         {topReactors && <div className={styles.topLabel}>{lang('StarsReactionTopSenders')}</div>}
       </Separator>
@@ -378,12 +384,14 @@ export default memo(withGlobal<OwnProps>(
     const sendPaidReactionsAsPeerIds = chat?.sendPaidReactionsAsPeerIds;
     const currentUserId = global.currentUserId!;
     const currentUser = selectUser(global, currentUserId)!;
+    // The owner's Stars of a guest have a daily limit: a single reaction never goes above it
+    const proxyLimit = chat?.pxgProxy?.starsPerDay;
 
     return {
       chat,
       message,
       starBalance,
-      maxAmount,
+      maxAmount: proxyLimit ? Math.min(maxAmount, proxyLimit) : maxAmount,
       defaultPrivacy,
       sendPaidReactionsAsPeerIds,
       currentUserId,

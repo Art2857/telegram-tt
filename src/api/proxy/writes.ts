@@ -553,6 +553,18 @@ export async function sendReaction({ chat, messageId, reactions }: MethodArgs<'s
   return true as const;
 }
 
+/**
+ * A paid Star reaction: the guest picks how many of the owner's Stars to send, and the server keeps that number
+ * within the daily limit of the access. The message's new reactions come back through the archive
+ */
+export async function sendPaidReaction({ chat, messageId, count, isPrivate }: MethodArgs<'sendPaidReaction'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  if (isSavedPeer(peer)) throw new PxgError('unsupported');
+  await runProxyJob('messages.sendPaidReaction', { ...peer, msgId: messageId, count, isPrivate });
+  return true as const;
+}
+
 /** The guest's own mark: for the owner reactions stay unread until the owner sees them in Telegram */
 export async function readAllReactions({ chat, threadId }: MethodArgs<'readAllReactions'>[0]) {
   const peer = resolveProxyPeer(chat.id);

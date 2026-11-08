@@ -4766,6 +4766,7 @@
 "PxgAuditEdit" = "edited a message";
 "PxgAuditDelete" = "deleted messages";
 "PxgAuditReact" = "reacted";
+"PxgAuditPaidReaction" = "sent a paid Star reaction";
 "PxgAuditForward" = "forwarded messages";
 "PxgAuditCopy" = "copied a message to another owner's chat";
 "PxgAuditStarsSpent" = "spent {stars} ⭐ of your Stars";

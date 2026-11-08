@@ -197,6 +197,8 @@ export interface ChatInfoDto {
   defaultBannedRights?: string[];
   /** The group or the other side of a private chat charges the owner this many Stars a message */
   paidMessagesStars?: number;
+  /** The channel or supergroup accepts paid Star reactions */
+  paidReactionsAvailable?: boolean;
 }
 
 /** What the other side of a private chat requires from the owner's account */
@@ -531,7 +533,7 @@ export interface MediaSummaryDto {
 }
 
 export interface ReactionCountDto {
-  reaction: { _: string; emoticon?: string; documentId?: string };
+  reaction: { _: string; emoticon?: string; documentId?: string; paid?: boolean };
   count: number;
   /** Есть — значит, эту реакцию поставил владелец аккаунта */
   chosenOrder?: number;

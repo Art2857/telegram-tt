@@ -3593,6 +3593,7 @@ export interface LangPair {
   'PxgAuditEdit': undefined;
   'PxgAuditDelete': undefined;
   'PxgAuditReact': undefined;
+  'PxgAuditPaidReaction': undefined;
   'PxgAuditForward': undefined;
   'PxgAuditCopy': undefined;
   'PxgAuditCrossAccountCopy': undefined;

@@ -253,6 +253,7 @@
 "PxgAuditEdit" = "изменил сообщение";
 "PxgAuditDelete" = "удалил сообщения";
 "PxgAuditReact" = "поставил реакцию";
+"PxgAuditPaidReaction" = "поставил платную реакцию звёздами";
 "PxgAuditForward" = "переслал сообщения";
 "PxgAuditCopy" = "скопировал сообщение в чат другого владельца";
 "PxgAuditStarsSpent" = "потратил {stars} ⭐ ваших звёзд";

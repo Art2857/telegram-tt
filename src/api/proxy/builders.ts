@@ -5,7 +5,7 @@ import type {
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
   ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount,
-  ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
+  ApiReactionWithPaid, ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 import type { ProxyPeer } from './ids';
@@ -127,9 +127,14 @@ function buildProxyAdminRights(chat: AccessChat): Pick<ApiChat, 'adminRights' | 
 /** Profile of a group or channel: its description and slow mode, as members see them */
 export function buildProxyChatInfo(
   chat: AccessChat,
-): Pick<ApiChatFullInfo, 'about' | 'slowMode' | 'inviteLink' | 'canViewMembers' | 'linkedChatId' | 'sendAsId'> {
+): Pick<
+  ApiChatFullInfo,
+  'about' | 'slowMode' | 'inviteLink' | 'canViewMembers' | 'linkedChatId' | 'sendAsId' | 'isPaidReactionAvailable'
+> {
   const { info } = chat;
   const sendAsPeerId = chat.sendAsPeerId || chat.providerUserId;
+  // The owner spends their own Stars; a guest needs both the right to react and a daily Stars limit
+  const canSpendStars = chat.isOwn || (chat.permissions.spendStars && (chat.starsPerDay ?? 0) > 0);
   return {
     // A guest writes as the owner unless they chose one of the owner's channels
     sendAsId: sendAsPeerId ? getProxyPeerId(chat.accountId, sendAsPeerId) : undefined,
@@ -141,6 +146,8 @@ export function buildProxyChatInfo(
     inviteLink: info?.inviteLink,
     // The server names the discussion group only when it is shared too: then posts show their comments
     linkedChatId: info?.linkedChatId ? getProxyPeerId(chat.accountId, info.linkedChatId) : undefined,
+    // Paid Star reactions: Telegram allows them in this channel, and the guest may spend the owner's Stars
+    isPaidReactionAvailable: (info?.paidReactionsAvailable && chat.permissions.react && canSpendStars) || undefined,
   };
 }
 
@@ -278,8 +285,11 @@ export function buildProxyUser(
 
 /** A custom emoji reaction is read through the provider's account, like custom emoji in text */
 export function buildProxyReaction(
-  accountId: string, { emoticon, documentId }: Pick<ReactionCountDto['reaction'], 'emoticon' | 'documentId'>,
-): ApiReaction | undefined {
+  accountId: string,
+  { emoticon, documentId, _: kind }: Pick<ReactionCountDto['reaction'], 'emoticon' | 'documentId'> & { _?: string },
+): ApiReactionWithPaid | undefined {
+  // A paid reaction is a Star: as many people sent Stars as it says, and the stars are the owner's
+  if (kind === 'reactionPaid') return { type: 'paid' };
   if (emoticon) return { type: 'emoji', emoticon };
   const userId = getPxgState().session?.user.id;
   if (!documentId || !userId) return undefined;
@@ -296,7 +306,8 @@ function buildProxyRecentReactions(dto: MessageDto, chat: ApiChat): ApiPeerReact
   const unreadIndex = dto.hasUnreadReaction ? recent?.findIndex(({ peerId }) => peerId.userId !== providerUserId) : -1;
   return recent?.flatMap(({ peerId, reaction: raw, date, big }, index): ApiPeerReaction[] => {
     const reaction = buildProxyReaction(dto.accountId, raw);
-    if (!reaction) return [];
+    // Paid reactions live in the top senders, not among the people who reacted last
+    if (!reaction || reaction.type === 'paid') return [];
     return [{
       peerId: getProxyPeerId(dto.accountId, peerId.userId!),
       reaction,

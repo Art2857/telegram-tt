@@ -20,6 +20,16 @@
   margin-bottom: 1.5rem;
 }
 
+// PXG: the daily limit of the owner's Stars under the description
+.limit {
+  margin: -1rem 0 1.5rem;
+
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .title, .description {
   text-align: center;
 }

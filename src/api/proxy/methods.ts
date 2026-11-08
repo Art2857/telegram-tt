@@ -48,7 +48,8 @@ import {
   answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
   editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, forwardMessagesLocal, getSendAsPeerId,
   markMessageListRead, markMessagesRead, pinMessage,
-  readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendMessageLocal, sendPollVote,
+  readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendMessageLocal, sendPaidReaction,
+  sendPollVote,
   sendReaction,
   sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
@@ -81,7 +82,7 @@ const MAX_PINNED = 100;
 /** Admin actions of a guest and speech-to-text: Telegram may refuse them, and Web A waits for their result */
 const ERROR_DIALOG_METHODS = new Set<keyof Methods>([
   'pinMessage', 'updateChatTitle', 'updateChatAbout', 'editChatPhoto', 'createTopic', 'editTopic',
-  'togglePinnedTopic', 'deleteTopic', 'transcribeAudio', 'updateChatMemberBannedRights',
+  'togglePinnedTopic', 'deleteTopic', 'transcribeAudio', 'updateChatMemberBannedRights', 'sendPaidReaction',
 ]);
 
 const methods = {
@@ -158,6 +159,7 @@ const methods = {
   updateNotificationSettings,
   exportMessageLink,
   sendReaction,
+  sendPaidReaction,
   pinMessage,
   fetchPinnedMessages,
   fetchProfilePhotos,
@@ -852,7 +854,7 @@ async function fetchMessageReactionsList({
       peerId, reaction: raw, date, isBig, isOwn,
     }): ApiPeerReaction[] => {
       const built = buildProxyReaction(peer.accountId, raw);
-      return built ? [{
+      return built && built.type !== 'paid' ? [{
         peerId: getProxyPeerId(peer.accountId, peerId),
         reaction: built,
         addedDate: date,
