@@ -29,7 +29,7 @@ import Button from '../ui/Button';
 import InputText from '../ui/InputText';
 import ListItem from '../ui/ListItem';
 import Modal from '../ui/Modal';
-import ShareSettingsFields from './ShareSettingsFields';
+import ShareSettingsFields, { parseStarsLimit } from './ShareSettingsFields';
 
 import styles from './ConnectServerModal.module.scss';
 
@@ -51,7 +51,7 @@ type OutgoingShare = {
   grantee: { id: string; username: string | null; firstName: string | null; tgUserId: number };
 };
 
-type ShareLimits = { sendPerMinute?: number; deletePerMinute?: number };
+type ShareLimits = { sendPerMinute?: number; deletePerMinute?: number; starsPerDay?: number };
 
 type ShareTargetFields = { scope: string; peerId: number | null; topicId: number | null; folderId: number | null };
 
@@ -120,6 +120,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [label, setLabel] = useState('');
   const [sendLimit, setSendLimit] = useState('');
   const [deleteLimit, setDeleteLimit] = useState('');
+  const [starsLimit, setStarsLimit] = useState('');
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string>();
@@ -203,6 +204,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setLabel('');
     setSendLimit('');
     setDeleteLimit('');
+    setStarsLimit('');
     setExcludedIds([]);
     setIsInviting(false);
   };
@@ -333,6 +335,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setLabel(share.label || '');
     setSendLimit(share.limits.sendPerMinute ? String(share.limits.sendPerMinute) : '');
     setDeleteLimit(share.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '');
+    setStarsLimit(share.limits.starsPerDay ? String(share.limits.starsPerDay) : '');
     setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
   };
@@ -348,6 +351,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const buildLimits = (): ShareLimits => ({
     sendPerMinute: parseLimit(sendLimit),
     deletePerMinute: parseLimit(deleteLimit),
+    starsPerDay: parseStarsLimit(starsLimit, permissions),
   });
 
   const expiresAt = () => {
@@ -470,9 +474,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   }, [folderChatIds]);
   const settings = useMemo<ShareSettings>(() => ({
     preset, permissions, isCustomizing, historyMode, historyLimit, historySince, expiry, label,
-    sendLimit, deleteLimit, excludePeerIds: excludedIds,
+    sendLimit, deleteLimit, starsLimit, excludePeerIds: excludedIds,
   }), [preset, permissions, isCustomizing, historyMode, historyLimit, historySince, expiry, label,
-    sendLimit, deleteLimit, excludedIds]);
+    sendLimit, deleteLimit, starsLimit, excludedIds]);
   const changeSettings = useLastCallback((patch: Partial<ShareSettings>) => {
     if (patch.preset !== undefined) setPreset(patch.preset);
     if (patch.permissions !== undefined) setPermissions(patch.permissions);
@@ -484,6 +488,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     if (patch.label !== undefined) setLabel(patch.label);
     if (patch.sendLimit !== undefined) setSendLimit(patch.sendLimit);
     if (patch.deleteLimit !== undefined) setDeleteLimit(patch.deleteLimit);
+    if (patch.starsLimit !== undefined) setStarsLimit(patch.starsLimit);
     if (patch.excludePeerIds !== undefined) setExcludedIds(patch.excludePeerIds);
   });
   const suggestions = buildSuggestions();

@@ -3,3 +3,11 @@
   margin-inline: -1.125rem;
   padding-inline-start: 3.5rem;
 }
+
+// PXG: The daily limit of the owner's Stars under the price
+.limit {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}

@@ -6,7 +6,7 @@ import type { PermissionKey, Permissions, PresetKey } from './server/types';
 export const PERMISSION_KEYS: PermissionKey[] = [
   'read', 'write', 'sendMedia', 'useOwnerStickers', 'react', 'editOwn', 'deleteOwn', 'manageOwnerOutgoing',
   'interact', 'download', 'forwardOut', 'seeArchive', 'seeAttribution', 'markRead', 'typing', 'seePhones', 'admin',
-  'signMessages',
+  'signMessages', 'spendStars',
 ];
 
 const NONE = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, false])) as Permissions;
@@ -33,6 +33,8 @@ export const PRESETS: Record<PresetKey, Permissions> = {
     seePhones: false,
     admin: false,
     signMessages: false,
+    // The owner's money is never part of a preset: only an explicit right with a daily limit
+    spendStars: false,
   },
 };
 

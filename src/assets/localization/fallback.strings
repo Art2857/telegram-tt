@@ -4571,7 +4571,8 @@
 "PxgSendErrorFiles" = "Files are not allowed in this chat.";
 "PxgSendErrorInline" = "Inline bot results and games are not allowed in this chat.";
 "PxgSendErrorPremium" = "This action requires the owner's Telegram Premium.";
-"PxgSendErrorPaid" = "This chat requires payment in Stars. Paid messages are not available through this access.";
+"PxgSendErrorPaid" = "Messages to this chat are paid. Send it again and confirm the price.";
+"PxgSendErrorPaidPrice" = "A message to this chat now costs {stars} ⭐. Send it again at the new price.";
 "PxgSendErrorWait" = "Telegram asks you to wait {seconds} seconds before sending again.";
 "PxgSendErrorUnknown" = "Could not send the message. Check your connection and access to this chat, then try again.";
 "PxgForwardCopy" = "Sent as a copy, without the original author.";
@@ -4767,6 +4768,7 @@
 "PxgAuditReact" = "reacted";
 "PxgAuditForward" = "forwarded messages";
 "PxgAuditCopy" = "copied a message to another owner's chat";
+"PxgAuditStarsSpent" = "spent {stars} ⭐ of your Stars";
 "PxgAuditCrossAccountCopy" = "Copy from another owner's chat";
 "PxgForwardEmojiCopy" = "Unavailable custom emoji will be replaced with regular emoji.";
 "PxgAuditCallback" = "pressed a bot button";
@@ -5303,6 +5305,13 @@
 "PxgErrCancelPendingOnly" = "Only a pending action can be cancelled";
 "PxgErrSavedQuota" = "Saved Messages are full: no more than {mb} MB per person";
 "PxgErrRequestsLimit" = "No more than {max} open access requests: wait for an answer or cancel older ones";
+"PxgErrNoSpendStars" = "This message is paid, and you have no right to spend the owner's Stars";
+"PxgErrStarsLimit" = "The owner's Stars for today are used up: no more than {max} a day with this access";
+"PxgPermSpendStars" = "Spend your Stars: paid messages";
+"PxgShareLimitStars" = "Your Stars a day";
+"PxgShareLimitStarsHint" = "The guest confirms every paid message. Without a limit they spend no Stars at all.";
+"PxgPaidNoSpendStars" = "A message to this chat costs {stars} ⭐, and you have no right to spend the owner's Stars";
+"PxgPaidStarsLimit" = "The owner pays: no more than {stars} ⭐ a day with your access.";
 "PxgErrRequestRejectedRecently" = "This request was declined recently: you can ask again in a day";
 "PxgErrRequestNotFound" = "There is no such request, or it has been answered";
 "PxgErrRequestOwnerUnknown" = "You can only ask someone who has already shared something with you";

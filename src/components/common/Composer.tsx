@@ -823,7 +823,9 @@ const Composer = ({
     shouldAutoApprove: shouldPaidMessageAutoApprove,
     setAutoApprove: setShouldPaidMessageAutoApprove,
     handleWithConfirmation: handleActionWithPaymentConfirmation,
-  } = usePaidMessageConfirmation(paymentDialogKey, starsForAllMessages, isStarsBalanceModalOpen, starsBalance);
+  } = usePaidMessageConfirmation(
+    paymentDialogKey, starsForAllMessages, isStarsBalanceModalOpen, starsBalance, undefined, Boolean(chat?.pxgProxy),
+  );
 
   const isPaidSendDeferred = starsForAllMessages > 0 && !shouldPaidMessageAutoApprove;
 
@@ -3342,6 +3344,8 @@ const Composer = ({
         shouldAutoApprove={shouldPaidMessageAutoApprove}
         setAutoApprove={setShouldPaidMessageAutoApprove}
         confirmHandler={paymentMessageConfirmDialogHandler}
+        isProxyChat={Boolean(chat?.pxgProxy)}
+        starsPerDay={chat?.pxgProxy?.starsPerDay}
       />
       {isInMessageList && (
         <RemoveFormattingModal

@@ -20,6 +20,8 @@ export type ProxyChatInfo = {
   /** Premium of the owner's account: several reactions and custom emoji */
   isProviderPremium?: boolean;
   maxUploadBytes?: number;
+  /** The owner's Stars a day the guest may spend here: paid messages need the guest's confirmation every time */
+  starsPerDay?: number;
 };
 
 /** Reactions per message: one, or as many as Telegram gives a Premium owner */

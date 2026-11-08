@@ -4064,6 +4064,10 @@ export interface LangPair {
   'PxgErrAccountNoOwner': undefined;
   'PxgErrRetryFailedOnly': undefined;
   'PxgErrCancelPendingOnly': undefined;
+  'PxgErrNoSpendStars': undefined;
+  'PxgPermSpendStars': undefined;
+  'PxgShareLimitStars': undefined;
+  'PxgShareLimitStarsHint': undefined;
   'PxgErrRequestRejectedRecently': undefined;
   'PxgErrRequestNotFound': undefined;
   'PxgErrRequestOwnerUnknown': undefined;
@@ -6345,6 +6349,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAppUpdateLatest': {
     'version': V;
   };
+  'PxgSendErrorPaidPrice': {
+    'stars': V;
+  };
   'PxgSendErrorWait': {
     'seconds': V;
   };
@@ -6439,6 +6446,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   };
   'PxgArchiveCleared': {
     'count': V;
+  };
+  'PxgAuditStarsSpent': {
+    'stars': V;
   };
   'PxgAuditMassDelete': {
     'count': V;
@@ -6648,6 +6658,15 @@ export interface LangPairWithVariables<V = LangVariable> {
   };
   'PxgErrRequestsLimit': {
     'max': V;
+  };
+  'PxgErrStarsLimit': {
+    'max': V;
+  };
+  'PxgPaidNoSpendStars': {
+    'stars': V;
+  };
+  'PxgPaidStarsLimit': {
+    'stars': V;
   };
 }
 
@@ -8215,7 +8234,11 @@ export interface LangKeyGroups {
       | 'ModalStarsBalanceBarDescription'
       | 'GiftBuyEqualsTo'
       | 'PublicPostsSearchForStars'
-      | 'NotificationPaidExtraSearch';
+      | 'NotificationPaidExtraSearch'
+      | 'PxgSendErrorPaidPrice'
+      | 'PxgAuditStarsSpent'
+      | 'PxgPaidNoSpendStars'
+      | 'PxgPaidStarsLimit';
     variables: 'stars';
   };
   'link,peer': {
@@ -9058,7 +9081,8 @@ export interface LangKeyGroups {
   'max': {
     keys:
       | 'PxgErrFoldersLimit'
-      | 'PxgErrRequestsLimit';
+      | 'PxgErrRequestsLimit'
+      | 'PxgErrStarsLimit';
     variables: 'max';
   };
 }

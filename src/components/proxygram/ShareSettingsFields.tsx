@@ -26,6 +26,8 @@ export type ShareSettings = {
   label: string;
   sendLimit: string;
   deleteLimit: string;
+  /** The owner's Stars a day for paid messages; only with `spendStars` */
+  starsLimit: string;
   excludePeerIds: number[];
 };
 
@@ -43,6 +45,8 @@ const HISTORY_MODES: HistoryMode[] = ['all', 'new_only', 'last_n', 'since_date']
 const EXPIRIES: Expiry[] = ['never', 'day', 'week', 'month'];
 const EDIT_EXPIRIES: Expiry[] = ['keep', ...EXPIRIES];
 const LABEL_MAX_LENGTH = 64;
+/** As the server's limit: a guest never gets more of the owner's Stars a day */
+const MAX_STARS_PER_DAY = 100_000;
 export const HISTORY_KEYS = {
   all: 'PxgHistoryAll', new_only: 'PxgHistoryNew', last_n: 'PxgHistoryLastN', since_date: 'PxgHistorySince',
 } as const;
@@ -57,7 +61,7 @@ const ShareSettingsFields = ({ value, isFolder, editingHistory, expiresAt, folde
   const t = lang as unknown as (key: string) => string;
   const {
     preset, permissions, isCustomizing, historyMode, historyLimit, historySince, expiry, label,
-    sendLimit, deleteLimit, excludePeerIds,
+    sendLimit, deleteLimit, starsLimit, excludePeerIds,
   } = value;
 
   function renderOptions<T extends string>(
@@ -165,7 +169,7 @@ const ShareSettingsFields = ({ value, isFolder, editingHistory, expiresAt, folde
       />
       <div className={styles.sectionTitle}>{lang('PxgShareLimits')}</div>
       <p className={styles.secondary}>{lang('PxgShareLimitsHint')}</p>
-      <div className={styles.find}>
+      <div className={styles.limits}>
         <InputText
           label={lang('PxgShareLimitSend')}
           inputMode="numeric"
@@ -179,8 +183,25 @@ const ShareSettingsFields = ({ value, isFolder, editingHistory, expiresAt, folde
           onChange={(e) => onChange({ deleteLimit: e.target.value.replace(/\D/g, '') })}
         />
       </div>
+      {permissions.spendStars && (
+        <>
+          <InputText
+            label={lang('PxgShareLimitStars')}
+            inputMode="numeric"
+            value={starsLimit}
+            onChange={(e) => onChange({ starsLimit: e.target.value.replace(/\D/g, '') })}
+          />
+          <p className={styles.secondary}>{lang('PxgShareLimitStarsHint')}</p>
+        </>
+      )}
     </>
   );
 };
+
+/** Without a limit the guest spends nothing: the right alone gives no Stars */
+export function parseStarsLimit(value: string, permissions: Permissions) {
+  const limit = Number(value);
+  return permissions.spendStars && limit > 0 ? Math.min(limit, MAX_STARS_PER_DAY) : undefined;
+}
 
 export default memo(ShareSettingsFields);

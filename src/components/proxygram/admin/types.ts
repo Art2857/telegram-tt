@@ -13,7 +13,7 @@ export type AdminShare = {
   historyLimit: number | null;
   visibleFromDate: string | null;
   excludePeerIds: number[];
-  limits: { sendPerMinute?: number; deletePerMinute?: number };
+  limits: { sendPerMinute?: number; deletePerMinute?: number; starsPerDay?: number };
   label: string | null;
   status: 'active' | 'paused' | 'revoked' | 'source_lost';
   createdAt: string;

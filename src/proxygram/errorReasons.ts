@@ -97,6 +97,8 @@ export const PXG_ERROR_REASON_KEYS = {
   folders_limit: 'PxgErrFoldersLimit',
   saved_quota: 'PxgErrSavedQuota',
   requests_limit: 'PxgErrRequestsLimit',
+  no_spend_stars: 'PxgErrNoSpendStars',
+  stars_limit: 'PxgErrStarsLimit',
   request_rejected_recently: 'PxgErrRequestRejectedRecently',
   request_not_found: 'PxgErrRequestNotFound',
   request_owner_unknown: 'PxgErrRequestOwnerUnknown',

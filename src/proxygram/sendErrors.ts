@@ -36,6 +36,8 @@ const SEND_ERROR_KEYS: Record<string, RegularLangKey> = {
 export function getProxySendError(error: string): AdvancedLangFnParameters | undefined {
   const wait = error.match(/^(SLOWMODE_WAIT|FLOOD_WAIT)_(\d+)$/);
   if (wait) return { key: 'PxgSendErrorWait', variables: { seconds: Number(wait[2]) } };
+  const price = error.match(/^ALLOW_PAYMENT_REQUIRED_(\d+)$/);
+  if (price) return { key: 'PxgSendErrorPaidPrice', variables: { stars: Number(price[1]) } };
   const key = SEND_ERROR_KEYS[error];
   if (key) return { key };
   // The server's own refusal, kept by the queue as a reason

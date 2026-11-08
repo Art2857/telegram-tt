@@ -39,7 +39,7 @@ export interface SessionTokensResponse {
 export type PermissionKey =
   | 'read' | 'write' | 'sendMedia' | 'useOwnerStickers' | 'react' | 'editOwn' | 'deleteOwn'
   | 'manageOwnerOutgoing' | 'interact' | 'download' | 'forwardOut' | 'seeArchive' | 'seeAttribution'
-  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages';
+  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages' | 'spendStars';
 
 export type Permissions = Record<PermissionKey, boolean>;
 
@@ -74,6 +74,8 @@ export interface AccessChat {
   /** Phone of the other side of a private chat: only with `seePhones` */
   phone?: string | null;
   permissions: Permissions;
+  /** The owner's Stars a day for paid messages; only for a guest with `spendStars` */
+  starsPerDay?: number;
   shareIds: string[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
   restricted: AccessRestriction | null;
@@ -193,6 +195,14 @@ export interface ChatInfoDto {
   adminRights?: string[];
   /** Rights banned for members by default, by flag name */
   defaultBannedRights?: string[];
+  /** The group or the other side of a private chat charges the owner this many Stars a message */
+  paidMessagesStars?: number;
+}
+
+/** What the other side of a private chat requires from the owner's account */
+export interface ContactRequirementsDto {
+  paidStars: number | null;
+  premiumRequired: boolean;
 }
 
 /** As Telegram's ChatReactions: `limit` is how many different reactions a message may have */

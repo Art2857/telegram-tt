@@ -88,6 +88,17 @@
 
 // кнопки Web A по умолчанию во всю ширину — в рядах выбора им нужна своя
 .options :global(.Button),
+// Limits of an access: side by side on a computer, one under another on a phone
+.limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 0.5rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .find :global(.Button),
 .rowActions :global(.Button) {
   display: inline-flex;

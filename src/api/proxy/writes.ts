@@ -1,5 +1,5 @@
 import type { MessageDto, ScheduledMessageDto } from '../../proxygram/server/types';
-import type { MethodArgs } from '../gramjs/methods/types';
+import type { MethodArgs, Methods } from '../gramjs/methods/types';
 import type {
   ApiAttachment, ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer,
 } from '../types';
@@ -15,7 +15,7 @@ import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { uploadFile, uploadSavedFile } from '../../proxygram/server/upload';
-import { buildProxyMessage, buildProxyPoll } from './builders';
+import { buildProxyMessage, buildProxyPoll, setProxyUserPaidStars } from './builders';
 import { buildProxyEntities, buildProxyInputEntities } from './entities';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
 import { parseProxyCatalogId } from './mediaIds';
@@ -44,6 +44,52 @@ const unsentParams = new Map<string, SendParams>();
 type AlbumPart = { localMessage: ApiMessage; request: SendRequest };
 /** Albums being uploaded: how many parts Web A has started and which of them are ready */
 const albums = new Map<string, { expected: number; parts: Map<number, AlbumPart> }>();
+
+/** The message the guest sees until the server confirms it; the same one waits for a paid send to start */
+function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string): ApiMessage {
+  const {
+    attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, scheduleRepeatPeriod, effectId,
+    sendAs,
+  } = params;
+  const isScheduled = Boolean(scheduledAt);
+  const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
+  const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
+  return {
+    id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
+    chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
+    isScheduled: isScheduled || undefined,
+    scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
+    pxgSentByUserId: getPxgState().session?.user.id,
+    pxgIsOwn: true,
+    content: sticker ? { sticker } : gif ? { video: gif } : {
+      // A poll and a dice appear as they are once Telegram has them; until then their text stands in
+      text: { text: poll?.summary.question.text || dice || text || attachment?.filename || '', entities },
+    },
+    sendingState: 'messageSendingStatePending',
+    replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
+    effectId,
+    senderId: sendAs?.id,
+    pxgSendRequest: { id: requestId },
+  };
+}
+
+/**
+ * A paid message is shown first and sent once the guest has confirmed the price: Web A sends it with this local
+ * message right after, and the key stays with it
+ */
+export function sendMessageLocal(params: SendParams) {
+  const { chat } = params;
+  if (!chat || !resolveProxyPeer(chat.id)) return undefined;
+  const localMessage = buildLocalMessage(params, chat, crypto.randomUUID());
+  emitProxyUpdate({
+    '@type': localMessage.isScheduled ? 'newScheduledMessage' : 'newMessage',
+    id: localMessage.id,
+    chatId: chat.id,
+    message: localMessage,
+  });
+  // GramJS types the local message narrower than ApiMessage; the shape is the same
+  return Promise.resolve(localMessage) as ReturnType<Methods['sendMessageLocal']>;
+}
 
 export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
   const {
@@ -77,23 +123,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
     entities: buildProxyInputEntities(quoteText.entities, (replyToPeer ?? peer).accountId, true),
     offset: messageReply?.quoteOffset,
   } : undefined;
-  const localMessage: ApiMessage = params.localMessage || {
-    id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
-    chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
-    isScheduled: isScheduled || undefined,
-    scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
-    pxgSentByUserId: getPxgState().session?.user.id,
-    pxgIsOwn: true,
-    content: sticker ? { sticker } : gif ? { video: gif } : {
-      // A poll and a dice appear as they are once Telegram has them; until then their text stands in
-      text: { text: poll?.summary.question.text || dice || text || attachment?.filename || '', entities },
-    },
-    sendingState: 'messageSendingStatePending',
-    replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
-    effectId,
-    senderId: sendAs?.id,
-    pxgSendRequest: { id: requestId },
-  };
+  const localMessage: ApiMessage = params.localMessage || buildLocalMessage(params, chat, requestId);
   if (!params.localMessage) {
     emitProxyUpdate({
       '@type': isScheduled ? 'newScheduledMessage' : 'newMessage',
@@ -165,6 +195,8 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
         effectId,
         sendAsPeerId: getSendAsPeerId(sendAs),
+        // The price the guest confirmed: the server spends no more of the owner's Stars than this
+        paidStars: isSavedPeer(peer) ? undefined : params.messagePriceInStars,
       },
     };
     unsentParams.delete(requestId);
@@ -210,11 +242,14 @@ async function joinAlbum(chat: ApiChat, groupedId: string, slot: number, part?: 
   }
   if (!parts.length) return;
   const {
-    text: firstText, entities: firstEntities, file: firstFile, ...common
+    text: firstText, entities: firstEntities, file: firstFile, paidStars: firstPaidStars, ...common
   } = parts[0].request.params!;
+  // Telegram charges every part of a paid album
+  const paidStars = parts.reduce((sum, { request }) => sum + (Number(request.params!.paidStars) || 0), 0);
   try {
     const { msgIds } = await runProxyJob('messages.send', {
       ...common,
+      paidStars: paidStars || undefined,
       text: '',
       album: parts.map(({ request }) => {
         const { text, entities, file } = request.params!;
@@ -305,12 +340,27 @@ function updateLocalMessage(localMessage: ApiMessage, change: Partial<ApiMessage
 }
 
 function emitSendFailed(chat: ApiChat, localMessage: ApiMessage, err: unknown) {
+  const error = getErrorMessage(err);
   emitProxyUpdate({
     '@type': localMessage.isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
     chatId: chat.id,
     localId: localMessage.id,
-    error: getErrorMessage(err),
+    error,
   });
+  // Telegram named a higher price: the next send asks the guest to confirm that one
+  const price = Number(error.match(/^ALLOW_PAYMENT_REQUIRED_(\d+)$/)?.[1]);
+  if (price) updateProxyPaidStars(chat.id, price);
+}
+
+/** A new price of a message in the chat: on the chat, and for a person also on the user and the profile */
+export function updateProxyPaidStars(chatId: string, stars?: number) {
+  const peer = resolveProxyPeer(chatId);
+  if (!peer) return;
+  emitProxyUpdate({ '@type': 'updateChat', id: chatId, chat: { paidMessagesStars: stars } });
+  if (peer.peerId < 0) return;
+  setProxyUserPaidStars(peer.accountId, peer.peerId, stars);
+  emitProxyUpdate({ '@type': 'updateUser', id: chatId, user: { paidMessagesStars: stars } });
+  emitProxyUpdate({ '@type': 'updateUserFullInfo', id: chatId, fullInfo: { paidMessagesStars: stars } });
 }
 
 /** A refusal of the server travels as its reason: the failed message shows it in the interface language */
@@ -567,8 +617,17 @@ export function getSendAsPeerId(sendAs?: ApiPeer) {
 }
 
 /** Between chats of one provider account Telegram forwards natively, another owner's chat gets copies */
+/**
+ * Web A shows paid forwards before sending them and lets the toast take them back. A guest's forward goes to the
+ * owner's queue at once, after the price was confirmed in the composer: nothing local is left to show
+ */
+export async function forwardMessagesLocal(params: MethodArgs<'forwardMessages'>[0]) {
+  await forwardMessages(params);
+  return { messageIds: params.messages.map(({ id }) => id), localMessages: [] };
+}
+
 export async function forwardMessages({
-  fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions, sendAs,
+  fromChat, toChat, toThreadId, messages, isSilent, noAuthors, noCaptions, sendAs, messagePriceInStars,
 }: MethodArgs<'forwardMessages'>[0]): Promise<void> {
   const source = resolveProxyPeer(fromChat.id);
   const target = resolveProxyPeer(toChat.id);
@@ -614,6 +673,7 @@ export async function forwardMessages({
     const result = await runProxyJob('messages.forward', {
       accountId: target.accountId, fromPeerId: source.peerId, peerId: target.peerId,
       msgIds: messages.map(({ id }) => id), silent: isSilent, noAuthors, noCaptions, topicId, sendAsPeerId,
+      paidStars: messagePriceInStars ? messagePriceInStars * messages.length : undefined,
     }) as { msgIds: number[] };
     const forwarded = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
       ...target, msgIds: result.msgIds,

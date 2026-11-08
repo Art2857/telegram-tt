@@ -160,7 +160,8 @@ export function getCanPostInChat(
 ) {
   // PXG: Proxy write rights come from the server access
   if (chat.pxgProxy) {
-    return (topic?.pxgPermissions || chat.pxgProxy.permissions).write && !chat.currentUserBannedRights?.sendMessages;
+    return (topic?.pxgPermissions || chat.pxgProxy.permissions).write && !chat.currentUserBannedRights?.sendMessages
+      && !getProxyUnpaidPrice(chat, topic);
   }
   if (topic) {
     if (chat.isForum) {
@@ -261,8 +262,18 @@ export function getAllowedAttachmentOptions(
 }
 
 // PXG: Why a guest cannot write to a proxy chat; read-only access needs no explanation beyond the bar
+/** PXG: A paid chat the guest may write in but may not pay for: the owner's Stars need their own right */
+function getProxyUnpaidPrice(chat: ApiChat, topic?: ApiTopic) {
+  const proxy = chat.pxgProxy;
+  const permissions = topic?.pxgPermissions || proxy?.permissions;
+  if (!proxy || proxy.isOwn || !permissions?.write || permissions.spendStars) return undefined;
+  return chat.paidMessagesStars;
+}
+
 export function getProxySendingRestrictionReason(lang: LangFn, chat?: ApiChat, topic?: ApiTopic) {
   const proxy = chat?.pxgProxy;
+  const unpaidPrice = chat && getProxyUnpaidPrice(chat, topic);
+  if (unpaidPrice) return lang('PxgPaidNoSpendStars', { stars: unpaidPrice });
   if (!proxy || (topic?.pxgPermissions || proxy.permissions).write) return undefined;
   if (proxy.restricted === 'source_lost') return lang('PxgRestrictedSourceLost');
   if (proxy.restricted === 'account_unavailable') return lang('PxgRestrictedAccount');

@@ -14,7 +14,7 @@ import useLastCallback from '../../../hooks/useLastCallback';
 
 import Button from '../../ui/Button';
 import InputText from '../../ui/InputText';
-import ShareSettingsFields from '../ShareSettingsFields';
+import ShareSettingsFields, { parseStarsLimit } from '../ShareSettingsFields';
 
 import styles from './AdminPanel.module.scss';
 
@@ -59,6 +59,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
     label: share?.label ?? '',
     sendLimit: share?.limits.sendPerMinute ? String(share.limits.sendPerMinute) : '',
     deleteLimit: share?.limits.deletePerMinute ? String(share.limits.deletePerMinute) : '',
+    starsLimit: share?.limits.starsPerDay ? String(share.limits.starsPerDay) : '',
     excludePeerIds: share?.excludePeerIds ?? [],
   }));
   const [targetResult, setTargetResult] = useState<{ key: string; data: Targets }>();
@@ -159,7 +160,11 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
         preset: settings.preset,
         permissions: diffPermissions(settings.preset, settings.permissions),
         label: settings.label.trim(),
-        limits: { sendPerMinute: parseLimit(settings.sendLimit), deletePerMinute: parseLimit(settings.deleteLimit) },
+        limits: {
+          sendPerMinute: parseLimit(settings.sendLimit),
+          deletePerMinute: parseLimit(settings.deleteLimit),
+          starsPerDay: parseStarsLimit(settings.starsLimit, settings.permissions),
+        },
         excludePeerIds: scope === 'folder' ? settings.excludePeerIds : undefined,
       };
       if (share) {

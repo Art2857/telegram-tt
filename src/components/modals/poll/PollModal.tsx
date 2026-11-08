@@ -221,6 +221,7 @@ const PollModal = ({
     isStarsBalanceModalOpen,
     starsBalance,
     true,
+    Boolean(chat?.pxgProxy),
   );
 
   useEffect(() => {
@@ -949,6 +950,8 @@ const PollModal = ({
         shouldAutoApprove={shouldAutoApprove}
         setAutoApprove={setAutoApprove}
         confirmHandler={dialogHandler}
+        isProxyChat={Boolean(chat?.pxgProxy)}
+        starsPerDay={chat?.pxgProxy?.starsPerDay}
       />
     </>
   );

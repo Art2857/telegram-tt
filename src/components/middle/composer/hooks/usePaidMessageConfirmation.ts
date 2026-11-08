@@ -12,10 +12,11 @@ export default function usePaidMessageConfirmation(
   isStarsBalanceModeOpen: boolean,
   starsBalance: number,
   shouldDelayConfirmHandler?: boolean,
+  // PXG: A guest pays with the owner's Stars: every paid message is confirmed, the server keeps the daily limit,
+  // and the owner's balance is neither known here nor topped up
+  isProxyChat?: boolean,
 ) {
-  const {
-    shouldPaidMessageAutoApprove,
-  } = getGlobal().settings.byKey;
+  const shouldPaidMessageAutoApprove = !isProxyChat && getGlobal().settings.byKey.shouldPaidMessageAutoApprove;
 
   const [shouldAutoApprove, setShouldAutoApprove] = useState(Boolean(shouldPaidMessageAutoApprove));
   const [isWaitingStarsTopup, setIsWaitingStarsTopup] = useState(false);
@@ -55,7 +56,7 @@ export default function usePaidMessageConfirmation(
   });
 
   const dialogHandler = useLastCallback(() => {
-    if (starsForAllMessages > starsBalance) {
+    if (!isProxyChat && starsForAllMessages > starsBalance) {
       handleStarsTopup();
     } else if (shouldDelayConfirmHandler) {
       setTimeout(() => {
@@ -66,7 +67,7 @@ export default function usePaidMessageConfirmation(
     }
 
     getActions().closePaymentMessageConfirmDialogOpen();
-    if (shouldAutoApprove) getActions().setPaidMessageAutoApprove();
+    if (shouldAutoApprove && !isProxyChat) getActions().setPaidMessageAutoApprove();
   });
 
   const handleWithConfirmation = useLastCallback(<T extends (...args: any[]) => void>(

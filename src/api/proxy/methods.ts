@@ -1,6 +1,6 @@
 import type {
-  AccessChat, ChatUnreadDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto, MemberDto, MessageDto,
-  PeerBriefDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
+  AccessChat, ChatUnreadDto, ContactRequirementsDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto,
+  MemberDto, MessageDto, PeerBriefDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -22,7 +22,7 @@ import {
   buildProxyDraft,
   buildProxyMessage, buildProxyPoll, buildProxyReaction, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser,
   buildProxyUserStatus,
-  buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPhone,
+  buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPaidStars, setProxyUserPhone,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -46,11 +46,13 @@ import {
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
-  editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, getSendAsPeerId,
+  editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, forwardMessagesLocal, getSendAsPeerId,
   markMessageListRead, markMessagesRead, pinMessage,
-  readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendPollVote, sendReaction,
+  readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendMessageLocal, sendPollVote,
+  sendReaction,
   sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
+  updateProxyPaidStars,
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
@@ -66,6 +68,8 @@ const HISTORY_WAIT_MS = 10_000;
 const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls']);
 /** The server returns at most this many topics per page */
 const MAX_TOPICS = 100;
+/** Private chats whose message price this tab has already asked Telegram for */
+const paidPriceAsked = new Set<string>();
 /** As many members as Web A loads at once */
 const MEMBERS_SLICE = 50;
 /** Telegram's big profile photo is 640 px */
@@ -117,11 +121,14 @@ const methods = {
   fetchTopicById,
   fetchFullChat,
   fetchFullUser,
+  fetchPaidMessagesStarsAmount,
   fetchMessagesById,
   sendMessage,
+  sendMessageLocal,
   editMessage,
   deleteMessages,
   forwardMessages,
+  forwardMessagesLocal,
   answerCallbackButton,
   sendPollVote,
   updateChatNotifySettings,
@@ -229,7 +236,9 @@ export async function fetchProxyChats() {
   if (sessionId !== getPxgState().session?.user.id) return undefined;
   clearProxyUserPhones();
   access.forEach((chat) => {
-    if (chat.peerId > 0) setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
+    if (chat.peerId <= 0) return;
+    setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
+    setProxyUserPaidStars(chat.accountId, chat.peerId, chat.info?.paidMessagesStars);
   });
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
     buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
@@ -357,6 +366,21 @@ async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {
   };
 }
 
+/**
+ * Web A puts the price of a message on the send button: a private chat asks Telegram for it once per tab.
+ * The server keeps the answer for a day, so the first open of a chat costs one request through the owner's queue
+ */
+function prefetchProxyPaidPrice(accountId: string, peerId: number) {
+  if (peerId <= 0) return;
+  const key = `${accountId}:${peerId}`;
+  if (paidPriceAsked.has(key)) return;
+  paidPriceAsked.add(key);
+  void pxgRpc.call<ContactRequirementsDto>('users.requirements', { accountId, peerId }).then(({ paidStars }) => {
+    if (!paidStars) return;
+    updateProxyPaidStars(getProxyPeerId(accountId, peerId), paidStars);
+  }, () => undefined);
+}
+
 async function fetchMessages({
   chat, threadId, offsetId, addOffset = 0, limit, isSavedDialog,
 }: MethodArgs<'fetchMessages'>[0]) {
@@ -374,6 +398,8 @@ async function fetchMessages({
     const saved = await fetchSavedHistory(chat, offsetId, addOffset, limit);
     return { ...saved, users: [], chats: [], topics: [] };
   }
+  // Only a guest who may write pays, and only to a person: a group's price comes with the chat
+  if (chat.pxgProxy?.permissions.write) prefetchProxyPaidPrice(peer.accountId, peer.peerId);
   const thread = { topicId: getTopicId(chat, threadId), threadId: getReplyThreadId(chat, threadId) };
   let result = await pxgRpc.call<WindowResult>('messages.window', {
     ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
@@ -932,10 +958,29 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
   const access = await pxgRpc.call<AccessChat[]>('access.chats');
   const chat = access.find((item) => getProxyPeerId(item.accountId, item.peerId) === id);
   if (!chat) return undefined;
+  const paidStars = chat.info?.paidMessagesStars;
+  setProxyUserPaidStars(peer.accountId, peer.peerId, paidStars);
   const user = buildProxyUser(
     peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges,
   );
-  return { user, fullInfo: {}, users: [user], chats: [], userStatusesById: {} };
+  // What a message to this person costs the owner: Telegram is asked through the owner's queue, once a day.
+  // The profile does not wait for it; the price comes as an update
+  if (chat.permissions.write && chat.type === 'user' && !chat.isSavedMessages) {
+    void pxgRpc.call<ContactRequirementsDto>('users.requirements', peer).then(({ paidStars: fresh }) => {
+      if ((fresh ?? undefined) !== paidStars) updateProxyPaidStars(id, fresh ?? undefined);
+    }, () => undefined);
+  }
+  return { user, fullInfo: { paidMessagesStars: paidStars }, users: [user], chats: [], userStatusesById: {} };
+}
+
+/** Before a send to a person whose profile is not loaded Web A asks the price on its own */
+async function fetchPaidMessagesStarsAmount(user: ApiUser) {
+  const peer = resolveProxyPeer(user.id);
+  if (!peer || peer.peerId <= 0) return undefined;
+  const result = await pxgRpc.call<ContactRequirementsDto>('users.requirements', peer).catch(() => undefined);
+  if (!result) return undefined;
+  setProxyUserPaidStars(peer.accountId, peer.peerId, result.paidStars);
+  return result.paidStars ?? undefined;
 }
 
 async function fetchChat({ user, type }: MethodArgs<'fetchChat'>[0]) {

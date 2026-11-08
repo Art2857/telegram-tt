@@ -57,6 +57,8 @@ type AuditRow = {
   msgIds: number[] | null;
   /** Messages affected when the entry keeps only some of their IDs (a mass deletion) */
   count: number | null;
+  /** The owner's Stars the guest spent: paid messages and paid reactions */
+  stars?: number | null;
   isCrossAccountCopy?: boolean;
   actor: Person;
 };
@@ -1291,7 +1293,7 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
               <td>
                 {row.action === MASS_DELETE ? t('PxgAuditMassDelete', { count: row.count ?? 0 }) : (
                   <>
-                    {describeAction(t, row.action)}
+                    {describeAction(t, row)}
                     {row.msgIds?.length
                       ? <span className={styles.secondary}>{` · ${row.msgIds.join(', ')}`}</span> : ''}
                   </>
@@ -1452,9 +1454,11 @@ function describeShare(t: Translate, share: ShareRow) {
   return parts.join(' · ');
 }
 
-function describeAction(t: Translate, action: string) {
-  const isFailed = action.endsWith(FAILED_SUFFIX);
-  const base = isFailed ? action.slice(0, -FAILED_SUFFIX.length) : action;
+function describeAction(t: Translate, row: AuditRow) {
+  const isFailed = row.action.endsWith(FAILED_SUFFIX);
+  const base = isFailed ? row.action.slice(0, -FAILED_SUFFIX.length) : row.action;
+  // A paid action and its spend are two entries: the amount is the only thing this one adds
+  if (base === 'stars_spent' && row.stars) return t('PxgAuditStarsSpent', { stars: row.stars });
   const key = AUDIT_KEYS[base];
   const text = key ? t(key) : base;
   return isFailed ? `${text} · ${t('PxgAuditFailed')}` : text;

@@ -59,6 +59,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     isProtected: chat.isProtected || undefined,
     ...buildProxyBadges(chat.accountId, chat.badges),
     membersCount: chat.info?.participantsCount,
+    // Telegram charges the owner for every message; the guest confirms the price and spends only with `spendStars`
+    paidMessagesStars: chat.info?.paidMessagesStars,
     usernames: usernames?.map((username) => ({ username, isActive: true })),
     hasUsername: Boolean(usernames?.length) || undefined,
     ...buildProxyAdminRights(chat),
@@ -96,6 +98,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       providerUsername: chat.providerUsername || undefined,
       isProviderPremium: chat.providerPremium || undefined,
       maxUploadBytes: chat.maxUploadBytes,
+      starsPerDay: chat.starsPerDay,
     },
   };
 }
@@ -238,8 +241,21 @@ export function setProxyUserPhone(accountId: string, userId: number, phone?: str
   else phoneByUserId.delete(id);
 }
 
+/**
+ * What the other side of a private chat charges the owner a message. Web A asks the user for it before every send,
+ * so any rebuild of the user keeps it, like the phone
+ */
+const paidStarsByUserId = new Map<string, number>();
+
+export function setProxyUserPaidStars(accountId: string, userId: number, stars?: number | null) {
+  const id = getProxyPeerId(accountId, userId);
+  if (stars) paidStarsByUserId.set(id, stars);
+  else paidStarsByUserId.delete(id);
+}
+
 export function clearProxyUserPhones() {
   phoneByUserId.clear();
+  paidStarsByUserId.clear();
 }
 
 export function buildProxyUser(
@@ -253,6 +269,7 @@ export function buildProxyUser(
     firstName: name || String(userId),
     phoneNumber: phoneByUserId.get(id) || '',
     noStatus: true,
+    paidMessagesStars: paidStarsByUserId.get(id),
   };
   if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;
   if (badges !== undefined) Object.assign(user, buildProxyBadges(accountId, badges), { isPremium: badges?.premium });

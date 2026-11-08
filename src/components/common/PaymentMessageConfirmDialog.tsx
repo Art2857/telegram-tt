@@ -19,6 +19,9 @@ type OwnProps = {
   shouldAutoApprove: boolean;
   setAutoApprove: StateHookSetter<boolean>;
   confirmHandler: NoneToVoidFunction;
+  // PXG: The guest spends the owner's Stars: asked every time, within the daily limit of the access
+  isProxyChat?: boolean;
+  starsPerDay?: number;
 };
 
 const PaymentMessageConfirmDialog: FC<OwnProps> = ({
@@ -30,6 +33,8 @@ const PaymentMessageConfirmDialog: FC<OwnProps> = ({
   shouldAutoApprove: shouldPaidMessageAutoApprove,
   setAutoApprove: setShouldPaidMessageAutoApprove,
   confirmHandler,
+  isProxyChat,
+  starsPerDay,
 }) => {
   const lang = useLang();
 
@@ -58,12 +63,16 @@ const PaymentMessageConfirmDialog: FC<OwnProps> = ({
       confirmHandler={confirmHandler}
     >
       {confirmPaymentMessage}
-      <Checkbox
-        className={styles.checkBox}
-        label={lang('DoNotAskAgain')}
-        checked={shouldPaidMessageAutoApprove}
-        onCheck={setShouldPaidMessageAutoApprove}
-      />
+      {isProxyChat ? (
+        Boolean(starsPerDay) && <p className={styles.limit}>{lang('PxgPaidStarsLimit', { stars: starsPerDay })}</p>
+      ) : (
+        <Checkbox
+          className={styles.checkBox}
+          label={lang('DoNotAskAgain')}
+          checked={shouldPaidMessageAutoApprove}
+          onCheck={setShouldPaidMessageAutoApprove}
+        />
+      )}
     </ConfirmDialog>
   );
 };
