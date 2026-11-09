@@ -2263,7 +2263,7 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
     albums.set(copy.groupedId, group);
   }
 
-  const sendCopy = (copy: typeof copies[number]) => callApi('sendMessage', {
+  const sendCopy = (copy: typeof copies[number], onProgress?: ApiOnProgress) => callApi('sendMessage', {
     chat: params.toChat,
     messageList: {
       chatId: params.toChat.id,
@@ -2274,18 +2274,31 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
     isSilent: params.isSilent,
     scheduledAt: params.scheduledAt,
     scheduleRepeatPeriod: params.scheduleRepeatPeriod,
-  });
+  }, onProgress);
+
+  let sentFiles = 0;
+  const sendCopyWithProgress = async (copy: typeof copies[number]) => {
+    if (!copy.attachment || !filesToCopy) {
+      await sendCopy(copy);
+      return;
+    }
+    await sendCopy(copy, (progress) => {
+      showCopyProgress(90 + ((sentFiles + progress) / filesToCopy) * 9);
+    });
+    sentFiles++;
+    showCopyProgress(90 + (sentFiles / filesToCopy) * 9);
+  };
 
   try {
-    for (const copy of standalone) await sendCopy(copy);
+    for (const copy of standalone) await sendCopyWithProgress(copy);
     // Одна группа — один альбом: части должны стартовать вместе, иначе прокси отправит первую отдельно
     for (const group of albums.values()) {
       if (group.length === 1) {
         const [{ groupedId: _groupedId, ...single }] = group;
-        await sendCopy(single);
+        await sendCopyWithProgress(single);
         continue;
       }
-      await Promise.all(group.map(sendCopy));
+      await Promise.all(group.map(sendCopyWithProgress));
     }
   } finally {
     if (filesToCopy) getActions().dismissNotification({ localId: copyNotificationId, tabId });
