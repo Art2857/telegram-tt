@@ -2189,7 +2189,7 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
   scheduledAt?: number;
   scheduleRepeatPeriod?: number;
 }, tabId: number) {
-  const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage' | 'attachment'>[] = [];
+  const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage' | 'attachment' | 'groupedId'>[] = [];
   let skipped = params.skipped;
   for (const message of params.messages) {
     const content = message.content;
@@ -2223,25 +2223,43 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
       }
       const blob = typeof data === 'string' ? await (await fetch(data)).blob() : data;
       const attachment = await buildAttachment(getMediaFilename(media), blob);
-      copies.push({ attachment, text: caption?.text, entities: caption?.entities });
+      copies.push({ attachment, text: caption?.text, entities: caption?.entities, groupedId: message.groupedId });
     } catch {
       skipped++;
     }
   }
 
+  const standalone = copies.filter((copy) => !copy.groupedId);
+  const albums = new Map<string, typeof copies>();
   for (const copy of copies) {
-    await callApi('sendMessage', {
-      chat: params.toChat,
-      messageList: {
-        chatId: params.toChat.id,
-        threadId: params.toThreadId,
-        type: params.scheduledAt ? 'scheduled' : 'thread',
-      },
-      ...copy,
-      isSilent: params.isSilent,
-      scheduledAt: params.scheduledAt,
-      scheduleRepeatPeriod: params.scheduleRepeatPeriod,
-    });
+    if (!copy.groupedId) continue;
+    const group = albums.get(copy.groupedId) || [];
+    group.push(copy);
+    albums.set(copy.groupedId, group);
+  }
+
+  const sendCopy = (copy: typeof copies[number]) => callApi('sendMessage', {
+    chat: params.toChat,
+    messageList: {
+      chatId: params.toChat.id,
+      threadId: params.toThreadId,
+      type: params.scheduledAt ? 'scheduled' : 'thread',
+    },
+    ...copy,
+    isSilent: params.isSilent,
+    scheduledAt: params.scheduledAt,
+    scheduleRepeatPeriod: params.scheduleRepeatPeriod,
+  });
+
+  for (const copy of standalone) await sendCopy(copy);
+  // Одна группа — один альбом: части должны стартовать вместе, иначе прокси отправит первую отдельно
+  for (const group of albums.values()) {
+    if (group.length === 1) {
+      const [{ groupedId: _groupedId, ...single }] = group;
+      await sendCopy(single);
+      continue;
+    }
+    await Promise.all(group.map(sendCopy));
   }
 
   if (skipped) {
