@@ -89,8 +89,35 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
         blobUrl: media.url,
         supportsStreaming: true,
       };
+    } else if (media?.kind === 'voice') {
+      content.voice = {
+        mediaType: 'voice',
+        id: `pxg-downloaded-${message.id}`,
+        duration: media.duration ?? 0,
+        size: media.size ?? 0,
+        blobUrl: media.url,
+      };
+    } else if (media?.mimeType.startsWith('audio/')) {
+      content.audio = {
+        mediaType: 'audio',
+        id: `pxg-downloaded-${message.id}`,
+        mimeType: media.mimeType,
+        fileName: media.fileName ?? 'audio',
+        duration: media.duration ?? 0,
+        size: media.size ?? 0,
+        blobUrl: media.url,
+      };
+    } else if (media) {
+      content.document = {
+        mediaType: 'document',
+        id: `pxg-downloaded-${message.id}`,
+        fileName: media.fileName ?? 'file',
+        size: media.size ?? 0,
+        mimeType: media.mimeType,
+        blobUrl: media.url,
+      };
     }
-    if (!content.text && !content.photo && !content.video) {
+    if (!content.text && !content.photo && !content.video && !content.voice && !content.audio && !content.document) {
       content.text = { text: body, entities: [] };
     }
     messages.push({

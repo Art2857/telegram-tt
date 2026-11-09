@@ -362,11 +362,11 @@ export function getMediaHash(media: DownloadableMedia, target: SizeTarget) {
     case 'video':
       return getVideoMediaHash(media, target);
     case 'document':
-      return getDocumentMediaHash(media, target);
+      return media.blobUrl ?? getDocumentMediaHash(media, target);
     case 'audio':
-      return getAudioMediaHash(media, target);
+      return media.blobUrl ?? getAudioMediaHash(media, target);
     case 'voice':
-      return getVoiceMediaHash(media, target);
+      return media.blobUrl ?? getVoiceMediaHash(media, target);
     case 'sticker':
       return getStickerMediaHash(media, target);
     case 'webDocument':

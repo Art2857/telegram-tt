@@ -153,6 +153,8 @@ export interface ApiAudio {
   performer?: string;
   title?: string;
   thumbnailSizes?: ApiPhotoSize[];
+  /** Локальный файл (скачанный .pxgchat): играется прямо из Blob URL */
+  blobUrl?: string;
 }
 
 export interface ApiVoice {
@@ -161,6 +163,8 @@ export interface ApiVoice {
   duration: number;
   waveform?: number[];
   size: number;
+  /** Локальный файл (скачанный .pxgchat): играется прямо из Blob URL */
+  blobUrl?: string;
 }
 
 export interface ApiDocument {
@@ -175,6 +179,8 @@ export interface ApiDocument {
   previewBlobUrl?: string;
   innerMediaType?: 'photo' | 'video';
   mediaSize?: ApiDimensions & { fromDocumentAttribute?: boolean; fromPreload?: true };
+  /** Локальный файл (скачанный .pxgchat): открывается прямо из Blob URL */
+  blobUrl?: string;
 }
 
 export interface ApiContact {
