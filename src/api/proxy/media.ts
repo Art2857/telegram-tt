@@ -139,6 +139,21 @@ export async function downloadMedia(
       fullSize: buffer.byteLength,
     };
   }
+  // Медиа истории: подписанная ссылка сервера, качать через RPC нечего
+  if (url.startsWith('/pxg/stories/') || url.startsWith('/stories/')) {
+    const response = await fetch(`${PXG_SERVER_URL}${url}`, {
+      headers: start !== undefined || end !== undefined ? { Range: `bytes=${start || 0}-${end ?? ''}` } : {},
+    });
+    if (!response.ok) throw new PxgError(`http_${response.status}`);
+    const buffer = await response.arrayBuffer();
+    const mimeType = response.headers.get('content-type') || 'application/octet-stream';
+    return {
+      dataBlob: new Blob([buffer], { type: mimeType }),
+      arrayBuffer: undefined,
+      mimeType,
+      fullSize: buffer.byteLength,
+    };
+  }
   const catalog = parseProxyCatalogHash(url);
   const request = userId && buildMediaRequest(url, userId, catalog);
   if (!request) return undefined;

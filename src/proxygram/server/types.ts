@@ -953,7 +953,7 @@ export type StoryDto = {
   expireDate: string;
   caption: string | null;
   isPinned: boolean;
-  mediaDataUrl: string;
+  mediaUrl?: string;
   mimeType: string;
   width?: number;
   height?: number;

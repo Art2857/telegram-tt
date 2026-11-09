@@ -19,6 +19,7 @@ export async function fetchAllStories(): Promise<{
     const byId: Record<number, ApiTypeStory> = {};
     const orderedIds: number[] = [];
     for (const dto of peer.stories) {
+      if (!dto.mediaUrl) continue;
       const story = buildStory(dto, chatId);
       byId[story.id] = story;
       orderedIds.push(story.id);
@@ -84,6 +85,6 @@ function buildStory(dto: StoryDto, peerId: string): ApiStory {
     expireDate,
     content,
     isInProfile: dto.isPinned || undefined,
-    mediaUrl: dto.mediaDataUrl,
+    mediaUrl: dto.mediaUrl,
   };
 }
