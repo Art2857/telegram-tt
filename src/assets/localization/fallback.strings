@@ -4688,7 +4688,7 @@
 "PxgDownloadedOpen" = "Open a file…";
 "PxgDownloadedBadFile" = "This is not a version 1 .pxgchat file";
 "PxgDownloadedTooLarge" = "The file is too large: we currently read up to 512 MB";
-"PxgDownloadedMeta" = "{count} messages · exported {date}";
+"PxgDownloadedMeta" = "Messages: {count} · exported {date}";
 "PxgDownloadedReadOnly" = "Read-only · local file";
 "PxgDownloadedReadOnlyChat" = "Downloaded chat: read-only, messages cannot be sent";
 "PxgDownloadedSearch" = "Search messages";

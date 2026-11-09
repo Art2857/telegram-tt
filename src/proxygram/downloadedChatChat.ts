@@ -23,11 +23,12 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
   messages: ApiMessage[];
 } {
   const hash = fnv(`${downloaded.title}:${downloaded.exportedAt}:${downloaded.peerId}`);
-  const chatId = String(BASE_ID + (hash % 1_000_000_000));
-  const isPrivate = downloaded.peerId > 0;
+  // Отрицательный ID вне диапазона каналов: заголовок берётся из чата, а не из несуществующего собеседника
+  const chatId = String(-(9_000_000_000 + (hash % 1_000_000_000)));
   const chat: ApiChat = {
     id: chatId,
-    type: isPrivate ? 'chatTypePrivate' : 'chatTypeSuperGroup',
+    // Локальный чат всегда группа: заголовок берётся из чата, а не из несуществующего собеседника
+    type: 'chatTypeSuperGroup',
     title: downloaded.title,
     isListed: true,
     isMin: false,

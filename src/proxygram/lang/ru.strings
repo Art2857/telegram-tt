@@ -175,7 +175,7 @@
 "PxgDownloadedOpen" = "Открыть файл…";
 "PxgDownloadedBadFile" = "Это не файл .pxgchat версии 1";
 "PxgDownloadedTooLarge" = "Файл слишком большой: пока читаем до 512 МБ";
-"PxgDownloadedMeta" = "{count} сообщений · выгружено {date}";
+"PxgDownloadedMeta" = "Сообщений: {count} · выгружено {date}";
 "PxgDownloadedReadOnly" = "Только чтение · локальный файл";
 "PxgDownloadedReadOnlyChat" = "Скачанный чат: только чтение, отправлять сообщения нельзя";
 "PxgDownloadedSearch" = "Поиск по сообщениям";

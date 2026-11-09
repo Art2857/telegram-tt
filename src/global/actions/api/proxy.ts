@@ -35,7 +35,9 @@ import {
 } from '../../reducers';
 import { replaceChatMessages, replaceMessages, updateListedIds } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
-import { replaceThreadLocalStateParam, updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
+import {
+  replaceThreadLocalStateParam, updateMainThreadReadStates, updateThreadInfo, updateThreadReadState,
+} from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
 import {
   selectChatMessage, selectCurrentMessageList, selectNotifyDefaults, selectNotifyException, selectProxyUnsentMessages,
@@ -399,12 +401,31 @@ addActionHandler('openDownloadedChatAsChat', (global, actions, payload): ActionR
   global = updateChats(global, { [built.chatId]: built.chat });
   global = addChatListIds(global, 'active', [built.chatId]);
   global = replaceChatMessages(global, built.chatId, buildCollectionByKey(built.messages, 'id'));
+  // Ветка без `threadInfo` не создаётся: `updateListedIds` молча пропускает чат
+  global = updateThreadInfo(global, {
+    chatId: built.chatId,
+    threadId: MAIN_THREAD_ID,
+    messagesCount: built.messages.length,
+    lastMessageId: built.messages.at(-1)?.id,
+  });
+  global = updateThreadReadState(global, built.chatId, MAIN_THREAD_ID, {
+    unreadCount: 0,
+    lastReadInboxMessageId: built.messages.at(-1)?.id,
+  });
   global = updateListedIds(global, built.chatId, MAIN_THREAD_ID, built.messages.map((message) => message.id));
   const lastMessageId = built.messages.at(-1)?.id;
   if (lastMessageId) global = updateChatsLastMessageId(global, { [built.chatId]: lastMessageId }, 'active');
   setGlobal(global);
-  setPxgState({ downloadedChat: undefined });
   actions.openChat({ id: built.chatId, tabId });
+  setPxgState({ downloadedChat: undefined });
+  // `openChat` обрабатывается после этого обработчика: список сообщений кладём в ветку следующим тиком
+  window.setTimeout(() => {
+    global = getGlobal();
+    global = updateListedIds(
+      global, built.chatId, MAIN_THREAD_ID, built.messages.map((message) => message.id),
+    );
+    setGlobal(global);
+  }, 0);
 });
 
 /** A changed message: updates a loaded one or adds a newer one, as live updates do */

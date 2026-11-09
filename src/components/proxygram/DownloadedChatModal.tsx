@@ -82,8 +82,8 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
         ))}
       </div>
       <div className={styles.buttons}>
-        <Button onClick={openAsChat}>{lang('PxgDownloadedOpenAsChat')}</Button>
-        <Button color="translucent" onClick={close}>{lang('PxgDownloadedClose')}</Button>
+        <Button fluid={false} onClick={openAsChat}>{lang('PxgDownloadedOpenAsChat')}</Button>
+        <Button fluid={false} color="translucent" onClick={close}>{lang('PxgDownloadedClose')}</Button>
       </div>
     </Modal>
   );
