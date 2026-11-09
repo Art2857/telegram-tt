@@ -37,6 +37,7 @@ export const PXG_ERROR_REASON_KEYS = {
   no_download: 'PxgErrNoDownload',
   no_topic_access: 'PxgErrNoTopicAccess',
   no_write: 'PxgErrNoWrite',
+  no_read: 'PxgErrNoRead',
   no_send_files: 'PxgErrNoSendFiles',
   no_send_attachments: 'PxgErrNoSendAttachments',
   no_owner_emoji: 'PxgErrNoOwnerEmoji',

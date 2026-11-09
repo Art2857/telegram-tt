@@ -34,6 +34,8 @@ export interface ApiStory {
   forwardInfo?: ApiStoryForwardInfo;
   fromId?: string;
   music?: ApiAudio;
+  /** Локальная ссылка на файл истории из прокси-сервера */
+  mediaUrl?: string;
 }
 
 export interface ApiStoryViews {

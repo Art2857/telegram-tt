@@ -4064,6 +4064,7 @@ export interface LangPair {
   'PxgErrNoDownload': undefined;
   'PxgErrNoTopicAccess': undefined;
   'PxgErrNoWrite': undefined;
+  'PxgErrNoRead': undefined;
   'PxgErrNoSendFiles': undefined;
   'PxgErrNoSendAttachments': undefined;
   'PxgErrNoOwnerEmoji': undefined;

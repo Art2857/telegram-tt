@@ -46,6 +46,7 @@ import {
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
   rememberSearchChat, searchGifs, searchStickersGlobal,
 } from './stickers';
+import { fetchAllStories, markStoryRead, viewStory } from './stories';
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, appendPollAnswer, appendTodoList, createTopic, deleteMessages, deleteScheduledMessages,
@@ -199,6 +200,9 @@ const methods = {
   searchGifs,
   fetchAvailableEffects,
   fetchAvailableReactions,
+  fetchAllStories,
+  markStoryRead,
+  viewStory,
 } satisfies Partial<Methods>;
 
 /** The guest's Saved Messages with the newest message, if there is any */

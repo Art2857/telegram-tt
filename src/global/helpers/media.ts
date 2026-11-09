@@ -13,6 +13,7 @@ export function getStoryMediaHash(story: ApiStory, size: StorySize): string;
 export function getStoryMediaHash(
   story: ApiStory, size: StorySize = 'preview', isAlt?: boolean,
 ) {
+  if (story.mediaUrl) return story.mediaUrl;
   const video = story.content.video;
   const photo = story.content.photo;
 

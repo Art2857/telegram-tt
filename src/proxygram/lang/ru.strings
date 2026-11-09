@@ -795,6 +795,7 @@
 "PxgErrNoDownload" = "Нет права скачивать файлы";
 "PxgErrNoTopicAccess" = "Нет доступа к этой теме";
 "PxgErrNoWrite" = "Нет права писать в этот чат";
+"PxgErrNoRead" = "Нет права читать этот чат";
 "PxgErrNoSendFiles" = "Нет права отправлять файлы";
 "PxgErrNoSendAttachments" = "Нет права отправлять вложения";
 "PxgErrNoOwnerEmoji" = "Нет права отправлять эмодзи владельца";

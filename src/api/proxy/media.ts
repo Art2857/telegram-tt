@@ -128,6 +128,17 @@ export async function downloadMedia(
   onProgress?: MethodArgs<'downloadMedia'>[1],
 ) {
   const userId = getPxgState().session?.user.id;
+  // История приходит с сервера готовой data: URL — качать через RPC нечего
+  if (url.startsWith('data:')) {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    return {
+      dataBlob: new Blob([buffer], { type: response.headers.get('content-type') || 'application/octet-stream' }),
+      arrayBuffer: undefined,
+      mimeType: response.headers.get('content-type') || 'application/octet-stream',
+      fullSize: buffer.byteLength,
+    };
+  }
   const catalog = parseProxyCatalogHash(url);
   const request = userId && buildMediaRequest(url, userId, catalog);
   if (!request) return undefined;

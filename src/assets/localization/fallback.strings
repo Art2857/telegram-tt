@@ -5308,6 +5308,7 @@
 "PxgErrNoDownload" = "You are not allowed to download files";
 "PxgErrNoTopicAccess" = "You have no access to this topic";
 "PxgErrNoWrite" = "You are not allowed to write in this chat";
+"PxgErrNoRead" = "You are not allowed to read this chat";
 "PxgErrNoSendFiles" = "You are not allowed to send files";
 "PxgErrNoSendAttachments" = "You are not allowed to send attachments";
 "PxgErrNoOwnerEmoji" = "You are not allowed to send the owner's emoji";

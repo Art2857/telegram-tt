@@ -947,6 +947,26 @@ export type ReachablePage = {
   total: number;
 };
 
+export type StoryDto = {
+  id: number;
+  date: string;
+  expireDate: string;
+  caption: string | null;
+  isPinned: boolean;
+  mediaDataUrl: string;
+  mimeType: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+};
+
+export type PeerStoriesDto = {
+  accountId: string;
+  peerId: number;
+  lastReadId: number;
+  stories: StoryDto[];
+};
+
 export class PxgError extends Error {
   readonly code: string;
 
