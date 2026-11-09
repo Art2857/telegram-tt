@@ -226,5 +226,9 @@ subscribePxg(syncConnection);
 syncConnection();
 
 pxgRpc.on((event) => {
-  if (event.e === 'session.revoked') setPxgState({ session: undefined, accounts: undefined, isAdminOpen: false });
+  if (event.e === 'session.revoked') {
+    setPxgState({
+      session: undefined, accounts: undefined, isAdminOpen: false, isSessionRevoked: true,
+    });
+  }
 });

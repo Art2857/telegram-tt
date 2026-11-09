@@ -34,6 +34,8 @@ export type ShareSettings = {
 type OwnProps = {
   value: ShareSettings;
   isFolder?: boolean;
+  /** Охват участников: сервер не сочетает его с «последними N» */
+  isMemberCoverage?: boolean;
   editingHistory?: HistoryMode;
   expiresAt?: string;
   folderChats?: { peerId: number; title: string }[];
@@ -56,7 +58,9 @@ const EXPIRY_KEYS = {
 } as const;
 
 /** Общие параметры выдачи и правки доступа владельцем и администратором */
-const ShareSettingsFields = ({ value, isFolder, editingHistory, expiresAt, folderChats, onChange }: OwnProps) => {
+const ShareSettingsFields = ({
+  value, isFolder, isMemberCoverage, editingHistory, expiresAt, folderChats, onChange,
+}: OwnProps) => {
   const lang = useLang();
   const t = lang as unknown as (key: string) => string;
   const {
@@ -132,8 +136,12 @@ const ShareSettingsFields = ({ value, isFolder, editingHistory, expiresAt, folde
         </p>
       ) : (
         <>
-          {renderOptions(HISTORY_MODES.filter((mode) => !isFolder || mode !== 'last_n'), historyMode,
-            (mode) => lang(HISTORY_KEYS[mode]), (mode) => onChange({ historyMode: mode }))}
+          {renderOptions(
+            HISTORY_MODES.filter((mode) => (!isFolder && !isMemberCoverage) || mode !== 'last_n'),
+            historyMode,
+            (mode) => lang(HISTORY_KEYS[mode]),
+            (mode) => onChange({ historyMode: mode }),
+          )}
           {historyMode === 'last_n' && (
             <InputText
               label={lang('PxgHistoryCount')}

@@ -563,6 +563,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         <ShareSettingsFields
           value={settings}
           isFolder={Boolean(folder)}
+          isMemberCoverage={coverMembers}
           editingHistory={editing?.historyMode}
           expiresAt={editing?.expiresAt ?? undefined}
           folderChats={folderChats}
@@ -576,6 +577,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               onCheck={(isChecked) => {
                 setCoverMembers(isChecked);
                 if (!isChecked) setSelectedMembers([]);
+                if (isChecked && historyMode === 'last_n') {
+                  setHistoryMode('all');
+                  setHistoryLimit(String(DEFAULT_HISTORY_LIMIT));
+                }
               }}
               label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
               subLabel={lang('PxgShareMembersHint')}

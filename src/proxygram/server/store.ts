@@ -22,6 +22,8 @@ export interface PxgState {
   isSettingsOpen: boolean;
   isAppUpdateOpen?: boolean;
   isConnectOpen: boolean;
+  /** Сервер завершил сессию: не входим заново без явного действия человека */
+  isSessionRevoked?: boolean;
   /** Сколько чатов открыли этому человеку другие */
   sharedCount?: number;
   /** Свои чаты, открытые другим: ID чата Web A → имена тех, кому открыт */
@@ -84,7 +86,7 @@ export function setPxgState(patch: Partial<PxgState>) {
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }
-  state = { ...state, ...patch };
+  state = { ...state, ...(patch.session ? { ...patch, isSessionRevoked: false } : patch) };
   if ('session' in patch) writeStoredSession(patch.session);
   listeners.forEach((listener) => listener());
 }

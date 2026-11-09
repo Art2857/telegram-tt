@@ -4640,6 +4640,8 @@
 "PxgGuestMediaNotArchived" = "The file is not saved in the archive";
 "PxgGuestNoDownload" = "Downloading files is not allowed";
 "PxgSignOut" = "Sign out";
+"PxgSessionRevoked" = "The Proxygram session on this device was ended. Sign in again to continue.";
+"PxgSessionSignInAgain" = "Sign in again";
 "PxgErrorNetwork" = "The Proxygram server is unavailable. Check the connection and try again.";
 "PxgErrorInvalidCode" = "Wrong code";
 "PxgErrorExpired" = "The request has expired — start again";

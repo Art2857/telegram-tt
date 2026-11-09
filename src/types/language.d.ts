@@ -3489,6 +3489,8 @@ export interface LangPair {
   'PxgGuestMediaNotArchived': undefined;
   'PxgGuestNoDownload': undefined;
   'PxgSignOut': undefined;
+  'PxgSessionRevoked': undefined;
+  'PxgSessionSignInAgain': undefined;
   'PxgErrorNetwork': undefined;
   'PxgErrorInvalidCode': undefined;
   'PxgErrorExpired': undefined;

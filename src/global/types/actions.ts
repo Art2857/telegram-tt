@@ -152,6 +152,7 @@ export interface ActionPayloads {
   };
   syncProxyChanges: undefined;
   openPxgAppDownload: { url: string };
+  retryPxgSession: undefined;
   refreshProxyHistory: { accountId: string; peerId: number };
   refreshProxyTopics: { accountId: string; peerId: number };
   openProxyChatOwner: { chatId: string } & WithTabId;

@@ -60,6 +60,10 @@ addActionHandler('openPxgAppDownload', (): ActionReturnType => {
   setPxgState({ isAppUpdateOpen: true });
 });
 
+addActionHandler('retryPxgSession', (): ActionReturnType => {
+  setPxgState({ isSessionRevoked: false });
+});
+
 /** Упоминание открывает только доступный чат, в первую очередь — у владельца исходного сообщения */
 addActionHandler('openProxyMention', async (global, actions, payload): Promise<void> => {
   const { chatId, userId, username, tabId = getCurrentTabId() } = payload;

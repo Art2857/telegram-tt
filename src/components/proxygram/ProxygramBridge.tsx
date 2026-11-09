@@ -76,6 +76,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
+  const isSessionRevoked = usePxgState((state) => state.isSessionRevoked);
   const downloadedChat = usePxgState((state) => state.downloadedChat);
   const isAdmin = usePxgState((state) => state.session?.user.role === 'admin');
   const shareChatId = usePxgState((state) => state.shareChatId);
@@ -124,7 +125,17 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   }, [isGuest, connection, apiUpdate]);
 
   useEffect(() => {
-    if (!currentUserId || hasOwnSession || isGuest) return undefined;
+    if (!isSessionRevoked) return;
+    showNotification({
+      message: { key: 'PxgSessionRevoked' },
+      actionText: { key: 'PxgSessionSignInAgain' },
+      action: { action: 'retryPxgSession', payload: undefined },
+      duration: 60_000,
+    });
+  }, [isSessionRevoked, showNotification]);
+
+  useEffect(() => {
+    if (!currentUserId || hasOwnSession || isGuest || isSessionRevoked) return undefined;
     // сессия гостя или чужого аккаунта (сменили аккаунт Telegram) здесь не подходит
     if (getPxgState().session) signOutPxg();
 
@@ -146,7 +157,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       isActive = false;
       window.clearTimeout(retryTimer);
     };
-  }, [currentUserId, hasOwnSession, isGuest]);
+  }, [currentUserId, hasOwnSession, isGuest, isSessionRevoked]);
 
   // Свои аккаунты на сервере; если раздача не включена — один раз предлагаем
   useEffect(() => {

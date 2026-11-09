@@ -127,6 +127,8 @@
 "PxgGuestMediaNotArchived" = "Файл не сохранён в архиве";
 "PxgGuestNoDownload" = "Скачивать файлы не разрешено";
 "PxgSignOut" = "Выйти";
+"PxgSessionRevoked" = "Сессия Proxygram на этом устройстве завершена. Войдите снова, чтобы продолжить.";
+"PxgSessionSignInAgain" = "Войти снова";
 "PxgErrorNetwork" = "Сервер Proxygram недоступен. Проверьте связь и попробуйте ещё раз.";
 "PxgErrorInvalidCode" = "Неверный код";
 "PxgErrorExpired" = "Запрос устарел — начните заново";
