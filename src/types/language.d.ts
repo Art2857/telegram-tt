@@ -4008,6 +4008,10 @@ export interface LangPair {
   'PxgErrNoSpace': undefined;
   'PxgErrTooManyFiles': undefined;
   'PxgErrUploadMissing': undefined;
+  'PxgErrUploadNotReady': undefined;
+  'PxgErrUploadMismatch': undefined;
+  'PxgErrUploadInterrupted': undefined;
+  'PxgErrUploadNoResume': undefined;
   'PxgErrNoForwardOut': undefined;
   'PxgErrNoEditHistory': undefined;
   'PxgErrNoDownload': undefined;

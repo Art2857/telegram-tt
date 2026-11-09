@@ -5246,6 +5246,10 @@
 "PxgErrNoSpace" = "The server does not have enough space for this file";
 "PxgErrTooManyFiles" = "Too many files, please wait";
 "PxgErrUploadMissing" = "The file was not found — upload it again";
+"PxgErrUploadNotReady" = "The file is still uploading — wait until it finishes";
+"PxgErrUploadMismatch" = "The upload resumed from the wrong place — start the file again";
+"PxgErrUploadInterrupted" = "The upload was interrupted — retry and it will continue from where it stopped";
+"PxgErrUploadNoResume" = "Resumable uploads are not available on this server";
 "PxgErrNoForwardOut" = "You are not allowed to forward from this chat";
 "PxgErrNoEditHistory" = "You are not allowed to see the edit history";
 "PxgErrNoDownload" = "You are not allowed to download files";
