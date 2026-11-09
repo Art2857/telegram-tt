@@ -60,16 +60,47 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
     const sender = message.senderId ? userByTgId.get(message.senderId) : undefined;
     const body = message.text
       || (message.mediaKind ? `[${message.mediaKind}]` : '');
+    const date = Math.floor(Date.parse(message.date) / 1000);
+    const media = message.mediaKey ? downloaded.media[message.mediaKey] : undefined;
+    const content: ApiMessage['content'] = {};
+    if (message.text) content.text = { text: message.text, entities: [] };
+    if (media?.mimeType.startsWith('image/')) {
+      content.photo = {
+        mediaType: 'photo',
+        id: `pxg-downloaded-${message.id}`,
+        date,
+        sizes: [{
+          type: 'x',
+          width: media.width ?? 1000,
+          height: media.height ?? 1000,
+        }],
+        blobUrl: media.url,
+      };
+    } else if (media?.mimeType.startsWith('video/')) {
+      content.video = {
+        mediaType: 'video',
+        id: `pxg-downloaded-${message.id}`,
+        mimeType: media.mimeType,
+        duration: media.duration ?? 0,
+        fileName: media.fileName ?? 'video.mp4',
+        width: media.width,
+        height: media.height,
+        size: media.size ?? 0,
+        blobUrl: media.url,
+        supportsStreaming: true,
+      };
+    }
+    if (!content.text && !content.photo && !content.video) {
+      content.text = { text: body, entities: [] };
+    }
     messages.push({
       id: message.id,
       chatId,
-      date: Math.floor(Date.parse(message.date) / 1000),
+      date,
       ...(message.isOutgoing ? {} : { senderId: sender?.id }),
       isOutgoing: message.isOutgoing,
-      ...(message.isDeleted ? { pxgDeletedAt: Math.floor(Date.parse(message.date) / 1000) } : {}),
-      content: {
-        text: { text: body, entities: [] },
-      },
+      ...(message.isDeleted ? { pxgDeletedAt: date } : {}),
+      content,
     });
   }
 

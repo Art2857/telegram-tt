@@ -19,13 +19,24 @@ export type DownloadedMessage = {
   mediaMime?: string;
 };
 
+export type DownloadedMediaFile = {
+  url: string;
+  mimeType: string;
+  kind?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  fileName?: string;
+  size?: number;
+};
+
 export type DownloadedChat = {
   title: string;
   peerId: number;
   exportedAt: string;
   messageCount: number;
   messages: DownloadedMessage[];
-  media: Record<string, { url: string; mimeType: string }>;
+  media: Record<string, DownloadedMediaFile>;
   users: { userId: number; name: string }[];
 };
 
@@ -60,7 +71,17 @@ type PxgMessageRow = {
 };
 
 type PxgMediaMap = {
-  files: { mediaKey: string; path: string; mimeType: string | null }[];
+  files: {
+    mediaKey: string;
+    path: string;
+    mimeType: string | null;
+    kind?: string;
+    width?: number;
+    height?: number;
+    duration?: number;
+    fileName?: string;
+    size?: number;
+  }[];
 };
 
 function decode(files: Record<string, Uint8Array>, name: string): string {
@@ -114,7 +135,7 @@ export async function parsePxgChatFile(file: File): Promise<DownloadedChat> {
   }
   messages.sort((left, right) => left.id - right.id);
 
-  const media: Record<string, { url: string; mimeType: string }> = {};
+  const media: Record<string, DownloadedMediaFile> = {};
   if (files['pxg/media.json']) {
     const map = parseJson<PxgMediaMap>(files, 'pxg/media.json');
     for (const mediaFile of map.files) {
@@ -124,6 +145,12 @@ export async function parsePxgChatFile(file: File): Promise<DownloadedChat> {
       media[mediaFile.mediaKey] = {
         url: URL.createObjectURL(new Blob([data], { type: mimeType })),
         mimeType,
+        kind: mediaFile.kind,
+        width: mediaFile.width,
+        height: mediaFile.height,
+        duration: mediaFile.duration,
+        fileName: mediaFile.fileName,
+        size: mediaFile.size ?? data.length,
       };
     }
     for (const message of messages) {

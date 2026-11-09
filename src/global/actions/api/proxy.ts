@@ -22,7 +22,6 @@ import {
 } from '../../../api/proxy/methods';
 import { buildSavedChat } from '../../../api/proxy/saved';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
-import { releaseDownloadedChat } from '../../../proxygram/downloadedChat';
 import { buildDownloadedChatState } from '../../../proxygram/downloadedChatChat';
 import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -395,7 +394,6 @@ addActionHandler('startProxyChat', (global, actions, payload): ActionReturnType 
 /** Скачанный .pxgchat становится обычным чатом только для чтения: сообщения уже в памяти */
 addActionHandler('openDownloadedChatAsChat', (global, actions, payload): ActionReturnType => {
   const { chat: downloaded, tabId = getCurrentTabId() } = payload;
-  releaseDownloadedChat(downloaded);
   const built = buildDownloadedChatState(downloaded);
   global = updateUsers(global, buildCollectionByKey(built.users, 'id'));
   global = updateChats(global, { [built.chatId]: built.chat });
