@@ -1,6 +1,6 @@
 import type { ActionReturnType, GlobalState } from './types';
 
-import { IS_MULTIACCOUNT_SUPPORTED } from '../util/browser/globalEnvironment';
+import { IS_SHARED_WORKER_SUPPORTED } from '../util/browser/globalEnvironment';
 import { isCacheApiSupported } from '../util/cacheApi';
 import { getCurrentTabId, reestablishMasterToSelf } from '../util/establishMultitabRole';
 import { initGlobal } from '../util/init';
@@ -55,7 +55,7 @@ addActionHandler('init', (global, actions, payload): ActionReturnType => {
     initialTabState.isMasterTab = true;
   }
 
-  if (IS_MULTIACCOUNT_SUPPORTED && initialTabState.isMasterTab) {
+  if (IS_SHARED_WORKER_SUPPORTED && initialTabState.isMasterTab) {
     initSharedState(global.sharedState);
   }
 

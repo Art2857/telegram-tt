@@ -27,6 +27,10 @@ async function claimWebLogin() {
 }
 
 export async function handoffWebLogin(url: string) {
+  if (!('SharedWorker' in globalThis)) {
+    window.location.replace(url);
+    return true;
+  }
   const request = getPendingWebLogin();
   if (!request) {
     window.location.replace(url);

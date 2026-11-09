@@ -4,7 +4,9 @@ import type { ApiNotification } from '../../../api/types';
 import type { ActionReturnType, GlobalState } from '../../types';
 
 import { requestMutation } from '../../../lib/fasterdom/fasterdom';
-import { IS_ELECTRON, IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
+import {
+  IS_ELECTRON, IS_SHARED_WORKER_SUPPORTED, IS_TAURI,
+} from '../../../util/browser/globalEnvironment';
 import {
   IS_ANDROID, IS_IOS, IS_LINUX,
   IS_MAC_OS, IS_SAFARI, IS_TOUCH_ENV, IS_WINDOWS, setScrollbarWidthProperty,
@@ -83,7 +85,7 @@ addActionHandler('switchMultitabRole', (global, actions, payload): ActionReturnT
     }
 
     startWebsync();
-    if (IS_MULTIACCOUNT_SUPPORTED) {
+    if (IS_SHARED_WORKER_SUPPORTED) {
       initSharedState(global.sharedState);
     }
   }
