@@ -1,6 +1,6 @@
- [package]
+﻿ [package]
 name = "proxygram"
-version = "1.0.3"
+version = "1.0.4"
 description = "Proxygram"
 authors = ["Alexander Zinchuk"]
 license = "GPLv3"
@@ -57,3 +57,4 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+

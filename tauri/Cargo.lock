@@ -3745,7 +3745,7 @@ dependencies = [
 
 [[package]]
 name = "proxygram"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "ab_glyph",
  "cocoa",
@@ -6981,3 +6981,4 @@ dependencies = [
  "syn 3.0.9",
  "winnow 1.0.4",
 ]
+

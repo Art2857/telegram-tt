@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "app": {
     "security": {
@@ -42,7 +42,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "longDescription": "Неофициальный клиент на Telegram API: архив сообщений и общий доступ к чатам",
+    "longDescription": "РќРµРѕС„РёС†РёР°Р»СЊРЅС‹Р№ РєР»РёРµРЅС‚ РЅР° Telegram API: Р°СЂС…РёРІ СЃРѕРѕР±С‰РµРЅРёР№ Рё РѕР±С‰РёР№ РґРѕСЃС‚СѓРї Рє С‡Р°С‚Р°Рј",
     "macOS": {
       "entitlements": "entitlements.mac.plist",
       "exceptionDomain": "",
@@ -51,7 +51,7 @@
       "signingIdentity": null
     },
     "resources": [],
-    "shortDescription": "Неофициальный клиент на Telegram API: архив сообщений и общий доступ к чатам",
+    "shortDescription": "РќРµРѕС„РёС†РёР°Р»СЊРЅС‹Р№ РєР»РёРµРЅС‚ РЅР° Telegram API: Р°СЂС…РёРІ СЃРѕРѕР±С‰РµРЅРёР№ Рё РѕР±С‰РёР№ РґРѕСЃС‚СѓРї Рє С‡Р°С‚Р°Рј",
     "targets": [
       "app",
       "nsis",
@@ -66,5 +66,6 @@
   },
   "identifier": "app.proxygram.client",
   "productName": "Proxygram",
-  "version": "1.0.3"
+  "version": "1.0.4"
 }
+
