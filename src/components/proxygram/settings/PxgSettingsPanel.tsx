@@ -345,7 +345,7 @@ const ServerTab = memo(({
     <>
       {accounts.length === 0 && <p className={styles.empty}>{lang('PxgSettingsNoAccounts')}</p>}
       {accounts.length > 0 && (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <tbody>
             {accounts.map((account) => {
               const status = ACCOUNT_STATUS[account.status] ?? { key: account.status, tone: 'gray' as const };
@@ -1133,7 +1133,7 @@ const ArchiveTab = memo(({
         {policy.exceptions.length > 0 && (
           <>
             <p className={styles.secondary}>{lang('PxgPolicyExceptions')}</p>
-            <table className={styles.table}>
+            <table className={buildClassName(styles.table, styles.stacked)}>
               <tbody>
                 {policy.exceptions.map((exception) => (
                   <tr key={exception.peerId}>
@@ -1291,7 +1291,7 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
         </select>
       </div>
       {rows.length === 0 && <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>}
-      <table className={styles.table}>
+      <table className={buildClassName(styles.table, styles.stacked)}>
         <tbody>
           {rows.map((row) => (
             <tr key={row.id}>
