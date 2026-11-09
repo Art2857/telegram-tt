@@ -37,6 +37,21 @@ export async function fetchAllStories(): Promise<{
   return { peerStories, hasMore: false, state: 'pxg', stealthMode: {} };
 }
 
+/** Истории одного собеседника: Web A просит их при открытии истории */
+export async function fetchPeerStories({ peer }: { peer: { id: string } }) {
+  const { peerStories } = await fetchAllStories();
+  const stories = peerStories[peer.id];
+  return stories ? { stories: stories.byId, lastReadStoryId: stories.lastReadId } : { stories: {}, lastReadStoryId: 0 };
+}
+
+/** Точечное обновление историй: истории прокси не удаляются, поэтому просто отдаём известные */
+export async function fetchPeerStoriesByIds({ peer, ids }: { peer: { id: string }; ids: number[] }) {
+  const { stories } = await fetchPeerStories({ peer });
+  return {
+    stories: Object.fromEntries(ids.flatMap((id) => (stories[id] ? [[id, stories[id]]] : []))),
+  };
+}
+
 /** Отметить историю прочитанной: просмотр остаётся у владельца */
 export async function markStoryRead({ peer, storyId }: { peer: { id: string }; storyId: number }) {
   const proxyPeer = resolveProxyPeer(peer.id);
