@@ -1,4 +1,5 @@
 import type { PeerStoriesDto, StoryDto } from '../../proxygram/server/types';
+import type { MethodArgs } from '../gramjs/methods/types';
 import type { ApiPeerStories, ApiStory, ApiTypeStory, MediaContent } from '../types';
 
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -58,6 +59,19 @@ export async function markStoryRead({ peer, storyId }: { peer: { id: string }; s
   if (!proxyPeer) return undefined;
   await pxgRpc.call('stories.read', { ...proxyPeer, maxId: storyId });
   return [storyId];
+}
+
+/** Реакция на историю: обычный эмодзи; кастомные эмодзи пока не переносим */
+export async function sendStoryReaction({ peer, storyId, reaction }: MethodArgs<'sendStoryReaction'>[0]) {
+  const proxyPeer = resolveProxyPeer(peer.id);
+  if (!proxyPeer) return undefined;
+  if (reaction && reaction.type !== 'emoji') return undefined;
+  await pxgRpc.call('stories.react', {
+    ...proxyPeer,
+    storyId,
+    emoji: reaction?.emoticon,
+  });
+  return true;
 }
 
 /** Просмотр засчитывается владельцу: stories.incrementStoryViews от его имени */

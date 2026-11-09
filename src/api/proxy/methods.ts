@@ -46,7 +46,9 @@ import {
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
   rememberSearchChat, searchGifs, searchStickersGlobal,
 } from './stickers';
-import { fetchAllStories, fetchPeerStories, fetchPeerStoriesByIds, markStoryRead, viewStory } from './stories';
+import {
+  fetchAllStories, fetchPeerStories, fetchPeerStoriesByIds, markStoryRead, sendStoryReaction, viewStory,
+} from './stories';
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
   answerCallbackButton, appendPollAnswer, appendTodoList, createTopic, deleteMessages, deleteScheduledMessages,
@@ -204,6 +206,7 @@ const methods = {
   fetchPeerStories,
   fetchPeerStoriesByIds,
   markStoryRead,
+  sendStoryReaction,
   viewStory,
 } satisfies Partial<Methods>;
 
