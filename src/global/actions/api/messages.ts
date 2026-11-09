@@ -31,7 +31,7 @@ import type { RequiredGlobalActions } from '../../index';
 import type {
   ActionReturnType, GlobalState, ReportSection, TabArgs,
 } from '../../types';
-import { MAIN_THREAD_ID, MESSAGE_DELETED } from '../../../api/types';
+import { ApiMediaFormat, MAIN_THREAD_ID, MESSAGE_DELETED } from '../../../api/types';
 import { LoadMoreDirection } from '../../../types';
 
 import {
@@ -69,10 +69,12 @@ import { formatStarsAsText } from '../../../util/localization/format';
 import { debounce, onTickEnd, rafPromise } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi, cancelApiProgress } from '../../../api/gramjs';
+import buildAttachment from '../../../components/middle/composer/helpers/buildAttachment';
 import { getIsSavedDialog, getUserFullName, groupMessageIdsByThreadId, isChatChannel, isChatSuperGroup,
   isDeletedUser, isEphemeralSendSupported, isMessageLocal, isServiceNotificationMessage, isUserBot,
   isUserRightBanned, resolveEphemeralCommand, runForFocusedTabs, splitMessagesForForwarding } from '../../helpers';
 import { isChatAdmin } from '../../helpers/chats';
+import { getMediaFilename, getMediaHash } from '../../helpers/messageMedia';
 import { isApiPeerChat, isApiPeerUser } from '../../helpers/peers';
 import { stripCustomEmoji } from '../../helpers/symbols';
 import {
@@ -170,6 +172,7 @@ import {
   selectWebPage,
 } from '../../selectors';
 import { makeTrackKeyFromItem, selectPlaybackMedia } from '../../selectors/audioPlayer';
+import { selectMessageDownloadableMedia } from '../../selectors/media';
 import {
   selectDraft,
   selectEditingId,
@@ -2083,12 +2086,12 @@ async function executeForwardMessages(global: GlobalState, sendParams: SendMessa
     return undefined;
   }
 
-  // R7: свой Telegram и прокси-чат — разные провайдеры; пока пересылаются только текст и rich-сообщения
+  // R7: свой Telegram и прокси-чат — разные провайдеры; текст копируется сразу, файлы — через скачивание
   if (Boolean(fromChat.pxgProxy) !== Boolean(toChat.pxgProxy)) {
     const forwardable = messages.filter((message) => (
       !isServiceNotificationMessage(message) && selectCanForwardMessage(global, message)
     ));
-    await copyAcrossProviders({
+    await copyAcrossProviders(global, {
       toChat, messages: forwardable, skipped: messages.length - forwardable.length,
       toThreadId, isSilent, scheduledAt, scheduleRepeatPeriod,
     }, tabId);
@@ -2175,8 +2178,8 @@ async function executeForwardMessages(global: GlobalState, sendParams: SendMessa
   return localMessages;
 }
 
-/** Своя сессия Telegram и прокси-чат — разные провайдеры: копия без автора, пока только текст и rich */
-async function copyAcrossProviders(params: {
+/** Своя сессия Telegram и прокси-чат — разные провайдеры: копия без автора, текст и файлы */
+async function copyAcrossProviders(globalState: GlobalState, params: {
   toChat: ApiChat;
   messages: ApiMessage[];
   /** Сколько сообщений отсеяно ещё до копии: служебные и запрещённые к пересылке */
@@ -2186,24 +2189,44 @@ async function copyAcrossProviders(params: {
   scheduledAt?: number;
   scheduleRepeatPeriod?: number;
 }, tabId: number) {
-  const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage'>[] = [];
+  const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage' | 'attachment'>[] = [];
   let skipped = params.skipped;
   for (const message of params.messages) {
-    if (hasNonTextContent(message.content)) {
+    const content = message.content;
+    if (content.richMessage) {
+      copies.push({ richMessage: content.richMessage });
+      continue;
+    }
+    const caption = content.text ? stripCustomEmoji(content.text) : undefined;
+    if (!hasNonTextContent(content)) {
+      if (!caption?.text) {
+        skipped++;
+        continue;
+      }
+      copies.push({ text: caption.text, entities: caption.entities });
+      continue;
+    }
+
+    // Файл скачиваем через провайдера источника и отправляем вложением в целевом чате
+    const media = selectMessageDownloadableMedia(globalState, message);
+    const url = media && getMediaHash(media, 'download');
+    if (!media || !url) {
       skipped++;
       continue;
     }
-    if (message.content.richMessage) {
-      copies.push({ richMessage: message.content.richMessage });
-      continue;
-    }
-    const text = message.content.text;
-    const formatted = text?.text ? stripCustomEmoji(text) : undefined;
-    if (!formatted?.text) {
+    try {
+      const downloaded = await callApi('downloadMedia', { url, mediaFormat: ApiMediaFormat.BlobUrl });
+      const data = downloaded?.dataBlob;
+      if (!data) {
+        skipped++;
+        continue;
+      }
+      const blob = typeof data === 'string' ? await (await fetch(data)).blob() : data;
+      const attachment = await buildAttachment(getMediaFilename(media), blob);
+      copies.push({ attachment, text: caption?.text, entities: caption?.entities });
+    } catch {
       skipped++;
-      continue;
     }
-    copies.push({ text: formatted.text, entities: formatted.entities });
   }
 
   for (const copy of copies) {
@@ -2223,7 +2246,7 @@ async function copyAcrossProviders(params: {
 
   if (skipped) {
     getActions().showNotification({
-      message: { key: 'PxgCrossForwardOnlyText', variables: { count: skipped } },
+      message: { key: 'PxgCrossForwardSkipped', variables: { count: skipped } },
       tabId,
     });
   }

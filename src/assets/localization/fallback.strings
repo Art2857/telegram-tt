@@ -5250,7 +5250,7 @@
 "PxgErrUploadMismatch" = "The upload resumed from the wrong place — start the file again";
 "PxgErrUploadInterrupted" = "The upload was interrupted — retry and it will continue from where it stopped";
 "PxgErrUploadNoResume" = "Resumable uploads are not available on this server";
-"PxgCrossForwardOnlyText" = "Only text and rich messages can be forwarded between your Telegram and a proxy chat for now, skipped: {count}";
+"PxgCrossForwardSkipped" = "Could not copy {count} messages — try forwarding them one by one";
 "PxgErrNoForwardOut" = "You are not allowed to forward from this chat";
 "PxgErrNoEditHistory" = "You are not allowed to see the edit history";
 "PxgErrNoDownload" = "You are not allowed to download files";
