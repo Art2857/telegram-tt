@@ -169,7 +169,7 @@ const TABS = [
   { key: 'system', title: 'PxgAdminSystem' },
 ] as const;
 
-/** РљР°РєРёРµ СЃРѕР±С‹С‚РёСЏ РїРµСЂРµСЂРёСЃРѕРІС‹РІР°СЋС‚ РєР°РєСѓСЋ РІРєР»Р°РґРєСѓ */
+/** Какие события перерисовывают какую вкладку */
 const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   overview: ['presence', 'sessions', 'users', 'accounts', 'shares', 'outbox'],
   users: ['users', 'sessions', 'presence'],
@@ -183,7 +183,7 @@ const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   system: ['accounts'],
 };
 
-/** Р’С‹РґР°С‡Р° РґРѕСЃС‚СѓРїР° РёР· Р·Р°РїСЂРѕСЃР°: РїСЂР°РІР° Рё РёСЃС‚РѕСЂРёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ вЂ” РєР°Рє Сѓ РІР»Р°РґРµР»СЊС†Р° РІ С„РѕСЂРјРµ В«РџРѕРґРµР»РёС‚СЊСЃСЏВ» */
+/** Выдача доступа из запроса: права и история по умолчанию — как у владельца в форме «Поделиться» */
 const REQUEST_PRESETS = [
   { key: 'readOnly', title: 'PxgPresetReadOnly' },
   { key: 'assistant', title: 'PxgPresetAssistant' },
@@ -194,7 +194,7 @@ const REQUEST_HISTORIES = [
   { key: 'new_only', title: 'PxgHistoryNew' },
 ] as const;
 
-/** РЎРѕСЃС‚РѕСЏРЅРёСЏ РѕС‡РµСЂРµРґРё РїРѕ-С‡РµР»РѕРІРµС‡РµСЃРєРё, Р° РЅРµ Р·РЅР°С‡РµРЅРёСЏРјРё РёР· Р±Р°Р·С‹ */
+/** Состояния очереди по-человечески, а не значениями из базы */
 const OUTBOX_STATUS_KEYS = {
   pending: 'PxgAdminOutboxPending',
   running: 'PxgAdminOutboxRunning',
@@ -202,7 +202,7 @@ const OUTBOX_STATUS_KEYS = {
   failed: 'PxgAdminOutboxFailed',
 } as const;
 
-/** Р—Р°РіСЂСѓР·РєР° СЂР°Р·РґРµР»Р° Р°РґРјРёРЅРєРё СЃ Р¶РёРІС‹Рј РѕР±РЅРѕРІР»РµРЅРёРµРј РїРѕ СЃРѕР±С‹С‚РёСЋ admin.changed */
+/** Загрузка раздела админки с живым обновлением по событию admin.changed */
 function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
   const [loaded, setLoaded] = useState<{ key: string; value: T }>();
   const [error, setError] = useState<unknown>();
@@ -242,7 +242,7 @@ function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], 
   return { data: loaded?.key === paramsKey ? loaded.value : undefined, error };
 }
 
-/** РђРґРјРёРЅРєР° (PLAN.md, 7.15): С‚РѕР»СЊРєРѕ РјРµС‚Р°РґР°РЅРЅС‹Рµ вЂ” РєС‚Рѕ, РєР°РєРѕР№ С‡Р°С‚, РєРѕРіРґР°; РЅРµ РїРµСЂРµРїРёСЃРєР° */
+/** Админка (PLAN.md, 7.15): только метаданные — кто, какой чат, когда; не переписка */
 const AdminPanel = () => {
   const lang = useLang();
   const { isMobile } = useAppLayout();
@@ -365,7 +365,7 @@ function Badge({ children, tone }: { children: TeactNode; tone?: 'green' | 'red'
   return <span className={buildClassName(styles.badge, tone && styles[tone])}>{children}</span>;
 }
 
-/** РљСЂСѓР¶РѕРє СЃ РёРЅРёС†РёР°Р»Р°РјРё: Сѓ Р»СЋРґРµР№ Р°РґРјРёРЅРєРё РЅРµС‚ С„РѕС‚РѕРіСЂР°С„РёР№ Telegram, С†РІРµС‚ СЃС‚Р°Р±РёР»РµРЅ РґР»СЏ РѕРґРЅРѕРіРѕ Рё С‚РѕРіРѕ Р¶Рµ id */
+/** Кружок с инициалами: у людей админки нет фотографий Telegram, цвет стабилен для одного и того же id */
 function AdminAvatar({ name, id }: { name: string; id: string }) {
   const initials = name
     .split(' ')
@@ -411,7 +411,7 @@ const t = (lang: TabProps['lang'], key: string, vars?: Record<string, string | n
   (lang as unknown as (k: string, v?: Record<string, string | number>) => string)(key, vars)
 );
 
-// в”Ђв”Ђв”Ђ РћР±Р·РѕСЂ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Обзор ──────────────────────────────────────────────────────────────────
 
 const OverviewTab = memo(({ lang, topics }: TabProps) => {
   const { data, error } = useAdminData<Overview>('admin.overview', {}, topics, SYSTEM_REFRESH_MS);
@@ -435,7 +435,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
     [lang('PxgAdminStatArchive'), data.archive.messagesLastDay],
     [lang('PxgAdminStatQueue'), (data.outbox.pending ?? 0) + (data.outbox.running ?? 0)],
     [lang('PxgAdminStatMedia'), formatFileSize(lang, data.storage.mediaBytes)],
-    [lang('PxgAdminStatDisk'), diskPercent !== undefined ? `${diskPercent}%` : 'вЂ”'],
+    [lang('PxgAdminStatDisk'), diskPercent !== undefined ? `${diskPercent}%` : '—'],
   ];
 
   return (
@@ -490,8 +490,8 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
                   <LevelBadge level={row.level} lang={lang} />
                 </td>
                 <td>{row.chat?.title ?? row.chat?.peerId}</td>
-                <td>{row.chat?.accountName ?? 'вЂ”'}</td>
-                <td>{[row.device, row.platform].filter(Boolean).join(' В· ') || 'вЂ”'}</td>
+                <td>{row.chat?.accountName ?? '—'}</td>
+                <td>{[row.device, row.platform].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{formatDateTime(row.chat?.since)}</td>
               </tr>
             ))}
@@ -502,7 +502,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
   );
 });
 
-// в”Ђв”Ђв”Ђ РџРѕР»СЊР·РѕРІР°С‚РµР»Рё в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Пользователи ───────────────────────────────────────────────────────────
 
 const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
   const [query, setQuery] = useState('');
@@ -562,7 +562,7 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
                     {user.blockedAt && <Badge tone="red">{lang('PxgAdminBlocked')}</Badge>}
                   </div>
                   <div className={styles.secondary}>
-                    {user.username ? `@${user.username} В· ` : ''}
+                    {user.username ? `@${user.username} · ` : ''}
                     {user.tgUserId}
                   </div>
                 </td>
@@ -612,7 +612,7 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       )}
       {user.id !== selfId && (
         <>
-          {/* docs/spec/08-admin.md В§2: a plain session of this person in a new slot, seen in the person's devices */}
+          {/* docs/spec/08-admin.md §2: a plain session of this person in a new slot, seen in the person's devices */}
           {!user.blockedAt && (
             <Button
               size="tiny"
@@ -672,7 +672,7 @@ function signInAs(userId: string) {
   };
 }
 
-/** РљР°СЂС‚РѕС‡РєР° РЅРµ С‡РёС‚Р°РµС‚ РїРµСЂРµРїРёСЃРєСѓ: С‚РѕР»СЊРєРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР°, Р°РєРєР°СѓРЅС‚С‹, РґРѕСЃС‚СѓРїС‹ Рё Р¶СѓСЂРЅР°Р» РґРµР№СЃС‚РІРёР№ */
+/** Карточка не читает переписку: только устройства, аккаунты, доступы и журнал действий */
 const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
   userId: string;
   onClose: () => void;
@@ -700,7 +700,7 @@ const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
           <div className={buildClassName(styles.secondary, styles.details)}>{data.user.id}</div>
           <p className={styles.secondary}>
             {t(lang, 'PxgAdminRegistered', { time: formatDateTime(data.user.createdAt) })}
-            {' В· '}
+            {' · '}
             {t(lang, 'PxgAdminLastSeen', { time: formatDateTime(data.user.lastSeenAt) })}
           </p>
           <div className={styles.filters}>
@@ -721,15 +721,15 @@ const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
                 <div className={styles.stat} key={session.id}>
                   <div className={styles.name}>
                     {session.online && <span className={styles.onlineDot} />}
-                    {session.deviceName || session.platform || 'вЂ”'}
+                    {session.deviceName || session.platform || '—'}
                   </div>
                   <LevelBadge level={session.level} lang={lang} />
                   <div className={styles.secondary}>
                     {session.platform}
                     {' '}
-                    В·
+                    ·
                     {' '}
-                    {session.ip ?? 'вЂ”'}
+                    {session.ip ?? '—'}
                   </div>
                   <div className={styles.secondary}>
                     {t(lang, 'PxgAdminSince', { time: formatDateTime(session.createdAt) })}
@@ -810,7 +810,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
             {shares.map((share) => (
               <tr key={share.id}>
                 <td>
-                  {share.peerTitle ?? share.peerId ?? t(lang, 'PxgSettingsFolder', { id: share.folderId ?? 'вЂ”' })}
+                  {share.peerTitle ?? share.peerId ?? t(lang, 'PxgSettingsFolder', { id: share.folderId ?? '—' })}
                   <div className={styles.secondary}>{share.account.displayName}</div>
                   {Boolean(share.topicId) && (
                     <div className={styles.secondary}>
@@ -824,7 +824,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
                 <td>
                   {displayName(share.grantor)}
                   {' '}
-                  в†’
+                  →
                   {' '}
                   {displayName(share.grantee)}
                 </td>
@@ -842,7 +842,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
   );
 }
 
-// в”Ђв”Ђв”Ђ РЎРµСЃСЃРёРё в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Сессии ─────────────────────────────────────────────────────────────────
 
 const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -901,7 +901,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
                 </td>
                 <td><LevelBadge level={row.level} lang={lang} /></td>
                 <td>
-                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? 'вЂ”'}
+                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? '—'}
                   <div className={styles.secondary}>{row.ip ?? ''}</div>
                 </td>
                 <td>
@@ -930,7 +930,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
   );
 });
 
-// в”Ђв”Ђв”Ђ РђРєРєР°СѓРЅС‚С‹ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Аккаунты ───────────────────────────────────────────────────────────────
 
 const AccountsTab = memo(({ lang, run, topics }: TabProps) => {
   const [selectedId, setSelectedId] = useState<string>();
@@ -973,11 +973,11 @@ const AccountsTab = memo(({ lang, run, topics }: TabProps) => {
                 <tr key={account.id}>
                   <td>
                     <Button size="tiny" color="translucent" isText onClick={() => setSelectedId(account.id)}>
-                      {account.displayName ?? 'вЂ”'}
+                      {account.displayName ?? '—'}
                     </Button>
                     <div className={styles.secondary}>
                       {t(lang, 'PxgAdminOwner', { name: displayName(account.owner) })}
-                      {account.tgUserId ? ` В· ${account.tgUserId}` : ''}
+                      {account.tgUserId ? ` · ${account.tgUserId}` : ''}
                     </div>
                   </td>
                   <td>
@@ -1077,7 +1077,7 @@ function AccountCard({ account, lang, run, onClose, onDisconnect }: {
 } & Pick<TabProps, 'lang' | 'run'>) {
   const status = ACCOUNT_STATUS[account.status] ?? { key: account.status, tone: 'gray' as const };
   const facts = [
-    [lang('PxgAdminWorker'), account.workerId ?? 'вЂ”'],
+    [lang('PxgAdminWorker'), account.workerId ?? '—'],
     [lang('PxgAdminLease'), formatDateTime(account.leaseUntil)],
     [lang('PxgAdminConnected'), formatDateTime(account.connectedAt)],
     [lang('PxgAdminLastEvent'), formatDateTime(account.lastMessageAt)],
@@ -1120,7 +1120,7 @@ function AccountCard({ account, lang, run, onClose, onDisconnect }: {
   );
 }
 
-// в”Ђв”Ђв”Ђ Р”РѕСЃС‚СѓРїС‹ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Доступы ────────────────────────────────────────────────────────────────
 
 const SHARES_PAGE_SIZE = 200;
 type ShareFilters = {
@@ -1278,7 +1278,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                         {share.scope === 'topic' && <div>{share.topicTitle ?? share.topicId}</div>}
                         {share.label && <div>{share.label}</div>}
                         <div className={styles.secondary}>
-                          {t(lang, 'PxgAdminFromAccount', { name: share.account.displayName ?? 'вЂ”' })}
+                          {t(lang, 'PxgAdminFromAccount', { name: share.account.displayName ?? '—' })}
                         </div>
                       </td>
                       <td>
@@ -1291,7 +1291,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                         {t(lang, `PxgPreset${share.preset[0].toUpperCase()}${share.preset.slice(1)}`)}
                         {Object.entries(share.permissions).map(([key, value]) => (
                           <div key={key} className={styles.secondary}>
-                            {`${value ? 'вњ“' : 'вњ—'} ${t(lang, `PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}`}
+                            {`${value ? '✓' : '✗'} ${t(lang, `PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}`}
                           </div>
                         ))}
                         <div className={styles.secondary}>{lang(HISTORY_KEYS[share.historyMode])}</div>
@@ -1366,7 +1366,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
   );
 });
 
-// в”Ђв”Ђв”Ђ Р–СѓСЂРЅР°Р» Рё РѕС‡РµСЂРµРґСЊ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Журнал и очередь ───────────────────────────────────────────────────────
 
 const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
   const { data, error } = useAdminData<AdminAccessRequestDto[]>(
@@ -1579,7 +1579,7 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
   );
 });
 
-// в”Ђв”Ђв”Ђ РЎРёСЃС‚РµРјР° в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Система ────────────────────────────────────────────────────────────────
 
 function parseAuditDate(value: string, isEndOfDay?: boolean) {
   if (!value) return undefined;
@@ -1598,12 +1598,12 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
     <>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? 'вЂ”'}</span>
+          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? '—'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminVersion')}</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.statValue}>
-            {formatTimeDuration(lang, data.uptimeSeconds) ?? 'вЂ”'}
+            {formatTimeDuration(lang, data.uptimeSeconds) ?? '—'}
           </span>
           <span className={styles.statLabel}>{lang('PxgAdminUptime')}</span>
         </div>
@@ -1612,7 +1612,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
           <span className={styles.statLabel}>Node.js</span>
         </div>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{data.migrations ?? 'вЂ”'}</span>
+          <span className={styles.statValue}>{data.migrations ?? '—'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminMigrations')}</span>
         </div>
         <div className={styles.stat}>
@@ -1651,7 +1651,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
           <tbody>
             {data.workers.map((worker) => (
               <tr key={worker.workerId ?? 'none'}>
-                <td><code>{worker.workerId ?? 'вЂ”'}</code></td>
+                <td><code>{worker.workerId ?? '—'}</code></td>
                 <td>{worker.accounts}</td>
                 <td>
                   {formatDateTime(worker.leaseUntil ?? undefined)}
@@ -1674,9 +1674,9 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
                   {lang(vpn.isHealthy ? 'PxgAdminVpnHealthy' : 'PxgAdminVpnDown')}
                 </Badge>
                 {' '}
-                {vpn.active ?? 'вЂ”'}
-                {vpn.activeRttMs ? ` В· ${vpn.activeRttMs} ms` : ''}
-                {` В· ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
+                {vpn.active ?? '—'}
+                {vpn.activeRttMs ? ` · ${vpn.activeRttMs} ms` : ''}
+                {` · ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
               </p>
               {Boolean(vpn.switches?.length) && (
                 <table className={buildClassName(styles.table, styles.stacked)}>
@@ -1691,7 +1691,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
                     {vpn.switches.map((item) => (
                       <tr key={item.at}>
                         <td className={styles.nowrap}>{formatDateTime(item.at)}</td>
-                        <td>{[item.from, item.to].filter(Boolean).join(' в†’ ')}</td>
+                        <td>{[item.from, item.to].filter(Boolean).join(' → ')}</td>
                         <td className={styles.details}>{item.reason}</td>
                       </tr>
                     ))}
@@ -1777,7 +1777,7 @@ const EXPORT_STATUS: Record<AdminExportJob['status'], string> = {
 
 type ExportPeer = { peerId: number; title: string | null; username: string | null; type: string | null };
 
-/** РЎРєР°С‡РёРІР°РЅРёРµ С‡Р°С‚Р° Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРј: РІС‹Р±СЂР°С‚СЊ Р°РєРєР°СѓРЅС‚ Рё С‡Р°С‚, РїРѕСЃС‚Р°РІРёС‚СЊ Р·Р°РґР°РЅРёРµ, Р·Р°Р±СЂР°С‚СЊ С„Р°Р№Р» */
+/** Скачивание чата администратором: выбрать аккаунт и чат, поставить задание, забрать файл */
 const ExportsTab = memo(({ lang, run }: TabProps) => {
   const { data: accounts, error: accountsError } = useAdminData<AccountRow[]>('admin.accounts', {}, ['accounts']);
   const { data: jobs, error } = useAdminData<AdminExportJob[]>('admin.exports', {}, ['exports'], 5000);
@@ -1847,7 +1847,7 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
               <tr key={peer.peerId}>
                 <td>
                   <div className={styles.name}>{peer.title ?? peer.username ?? String(peer.peerId)}</div>
-                  <div className={styles.secondary}>{peer.type ?? 'вЂ”'}</div>
+                  <div className={styles.secondary}>{peer.type ?? '—'}</div>
                 </td>
                 <td>
                   <Button size="tiny" isText fluid={false} onClick={() => start(peer)}>
@@ -1871,14 +1871,14 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
                 <td>
                   <div className={styles.name}>{job.peerTitle ?? String(job.peerId)}</div>
                   <div className={styles.secondary}>
-                    {`${job.accountName ?? job.accountId} В· ${t(lang, EXPORT_STATUS[job.status])}`}
+                    {`${job.accountName ?? job.accountId} · ${t(lang, EXPORT_STATUS[job.status])}`}
                   </div>
                   {job.error && <div className={styles.errorText}>{job.error}</div>}
                 </td>
                 <td>
                   <div>{t(lang, 'PxgAdminExportsCounts', { messages: job.messageCount, files: job.fileCount })}</div>
                   <div className={styles.secondary}>
-                    {job.sizeBytes ? formatFileSize(lang, job.sizeBytes) : 'вЂ”'}
+                    {job.sizeBytes ? formatFileSize(lang, job.sizeBytes) : '—'}
                   </div>
                 </td>
                 <td>
