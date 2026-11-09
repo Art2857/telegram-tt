@@ -5022,6 +5022,17 @@
 "PxgAdminQueue" = "Queue";
 "PxgAdminLoading" = "Loading…";
 "PxgAdminEmpty" = "Nothing here yet";
+"PxgAdminRequests" = "Requests";
+"PxgAdminRequestsHint" = "Guests ask for access to owners' chats — reply on the owner's behalf";
+"PxgAdminRequestsEmpty" = "No open requests";
+"PxgAdminRequestApproveTitle" = "Grant access by request";
+"PxgAdminRequestReject" = "Reject";
+"PxgAdminRequestRejectText" = "Reject the request? The guest will see the refusal.";
+"PxgAdminRequestTarget" = "Chat";
+"PxgAdminRequestOwner" = "Owner";
+"PxgAdminRequestNoChat" = "Chat not found — grant access manually in the “Access” tab";
+"PxgAdminRequestPreset" = "Rights";
+"PxgAdminRequestHistory" = "History";
 "PxgAdminConfirm" = "Are you sure?";
 "PxgAdminReadingNow" = "Reading now";
 "PxgAdminNobodyReading" = "Nobody has a shared chat open right now";

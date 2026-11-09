@@ -824,7 +824,27 @@ export interface GuestCandidate {
   lastName?: string | null;
 }
 
-export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox';
+export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox' | 'requests';
+
+/** Запрос доступа в админке: владелец, аккаунт и контекст видны только администратору */
+export interface AdminAccessRequestDto {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';
+  requester: { id: string; tgUserId: number; name: string; username: string | null };
+  ownerName: string;
+  ownerUserId: string;
+  accountName: string | null;
+  accountId: string | null;
+  peerId: number | null;
+  peerTitle: string | null;
+  query: string | null;
+  originTitle: string | null;
+  reason: string | null;
+  shareId: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  context: { commonGroups: number; hasChat: boolean } | null;
+}
 
 /** Named as Web A names its typing statuses */
 export type TypingActionDto = Exclude<ApiTypingStatus['type'], 'watchingAnimations'> | 'cancel';

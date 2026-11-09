@@ -3826,6 +3826,17 @@ export interface LangPair {
   'PxgAdminQueue': undefined;
   'PxgAdminLoading': undefined;
   'PxgAdminEmpty': undefined;
+  'PxgAdminRequests': undefined;
+  'PxgAdminRequestsHint': undefined;
+  'PxgAdminRequestsEmpty': undefined;
+  'PxgAdminRequestApproveTitle': undefined;
+  'PxgAdminRequestReject': undefined;
+  'PxgAdminRequestRejectText': undefined;
+  'PxgAdminRequestTarget': undefined;
+  'PxgAdminRequestOwner': undefined;
+  'PxgAdminRequestNoChat': undefined;
+  'PxgAdminRequestPreset': undefined;
+  'PxgAdminRequestHistory': undefined;
   'PxgAdminConfirm': undefined;
   'PxgAdminReadingNow': undefined;
   'PxgAdminNobodyReading': undefined;

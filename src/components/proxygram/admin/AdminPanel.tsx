@@ -1,7 +1,9 @@
 import type { TeactNode } from '../../../lib/teact/teact';
 import { memo, useEffect, useState } from '../../../lib/teact/teact';
 
-import type { AdminTopic, ImportStateDto, SessionTokensResponse } from '../../../proxygram/server/types';
+import type {
+  AdminAccessRequestDto, AdminTopic, ImportStateDto, SessionTokensResponse,
+} from '../../../proxygram/server/types';
 import type { AdminShare as ShareRow } from './types';
 
 import buildClassName from '../../../util/buildClassName';
@@ -157,6 +159,7 @@ const TABS = [
   { key: 'sessions', title: 'PxgAdminSessions' },
   { key: 'accounts', title: 'PxgAdminAccounts' },
   { key: 'shares', title: 'PxgAdminShares' },
+  { key: 'requests', title: 'PxgAdminRequests' },
   { key: 'audit', title: 'PxgAdminAudit' },
   { key: 'outbox', title: 'PxgAdminQueue' },
   { key: 'system', title: 'PxgAdminSystem' },
@@ -169,10 +172,22 @@ const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   sessions: ['sessions', 'presence'],
   accounts: ['accounts'],
   shares: ['shares'],
+  requests: ['requests'],
   audit: ['users', 'sessions', 'accounts', 'shares', 'outbox'],
   outbox: ['outbox'],
   system: ['accounts'],
 };
+
+/** Выдача доступа из запроса: права и история по умолчанию — как у владельца в форме «Поделиться» */
+const REQUEST_PRESETS = [
+  { key: 'readOnly', title: 'PxgPresetReadOnly' },
+  { key: 'assistant', title: 'PxgPresetAssistant' },
+  { key: 'full', title: 'PxgPresetFull' },
+] as const;
+const REQUEST_HISTORIES = [
+  { key: 'all', title: 'PxgHistoryAll' },
+  { key: 'new_only', title: 'PxgHistoryNew' },
+] as const;
 
 /** Загрузка раздела админки с живым обновлением по событию admin.changed */
 function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
@@ -259,6 +274,7 @@ const AdminPanel = () => {
         {tabKey === 'sessions' && <SessionsTab {...props} />}
         {tabKey === 'accounts' && <AccountsTab {...props} />}
         {tabKey === 'shares' && <SharesTab {...props} />}
+        {tabKey === 'requests' && <RequestsTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'outbox' && <OutboxTab {...props} />}
         {tabKey === 'system' && <SystemTab {...props} />}
@@ -1275,6 +1291,151 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
 });
 
 // ─── Журнал и очередь ───────────────────────────────────────────────────────
+
+const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
+  const { data, error } = useAdminData<AdminAccessRequestDto[]>(
+    'admin.requests',
+    { status: 'pending', limit: 100, offset: 0 },
+    topics,
+  );
+  const [approvingId, setApprovingId] = useState<string>();
+  const [preset, setPreset] = useState<(typeof REQUEST_PRESETS)[number]['key']>('readOnly');
+  const [historyMode, setHistoryMode] = useState<(typeof REQUEST_HISTORIES)[number]['key']>('all');
+
+  if (!data) return <Loading error={error} lang={lang} />;
+  if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminRequestsEmpty')}</p>;
+
+  return (
+    <>
+      <p className={styles.secondary}>{lang('PxgAdminRequestsHint')}</p>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>{lang('PxgAdminColWho')}</th>
+            <th>{lang('PxgAdminRequestOwner')}</th>
+            <th>{lang('PxgAdminRequestTarget')}</th>
+            <th>{lang('PxgAdminColTime')}</th>
+            <th aria-label={lang('PxgAdminColActions')} />
+          </tr>
+        </thead>
+        {data.map((row) => (
+          <tbody key={row.id}>
+            <tr>
+              <td>
+                {row.requester.name}
+                {row.requester.username && (
+                  <div className={styles.secondary}>{`@${row.requester.username}`}</div>
+                )}
+              </td>
+              <td>
+                {row.ownerName}
+                {row.accountName && <div className={styles.secondary}>{row.accountName}</div>}
+              </td>
+              <td>
+                {row.peerTitle ?? row.query}
+                {row.originTitle && <div className={styles.secondary}>{row.originTitle}</div>}
+                {row.context && (
+                  <div className={styles.secondary}>
+                    {lang('PxgRequestsCommonGroups', { count: row.context.commonGroups })}
+                  </div>
+                )}
+              </td>
+              <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
+              <td className={styles.actions}>
+                {row.accountId && typeof row.peerId === 'number' ? (
+                  <Button
+                    size="tiny"
+                    color="primary"
+                    isText
+                    onClick={() => setApprovingId(approvingId === row.id ? undefined : row.id)}
+                  >
+                    {lang('PxgAdminGrant')}
+                  </Button>
+                ) : (
+                  <span className={styles.secondary}>{lang('PxgAdminRequestNoChat')}</span>
+                )}
+                <Button
+                  size="tiny"
+                  color="danger"
+                  isText
+                  onClick={() => ask(
+                    lang('PxgAdminRequestRejectText'),
+                    lang('PxgAdminRequestReject'),
+                    () => pxgRpc.call('admin.requests.reject', { id: row.id }),
+                  )}
+                >
+                  {lang('PxgAdminRequestReject')}
+                </Button>
+              </td>
+            </tr>
+            {approvingId === row.id && (
+              <tr>
+                <td colSpan={5}>
+                  <div className={styles.form}>
+                    <h3 className={styles.sectionTitle}>{lang('PxgAdminRequestApproveTitle')}</h3>
+                    <div className={styles.row}>
+                      <label className={styles.field}>
+                        {lang('PxgAdminRequestPreset')}
+                        <select
+                          value={preset}
+                          onChange={(e) => setPreset(e.currentTarget.value as typeof preset)}
+                        >
+                          {REQUEST_PRESETS.map((item) => (
+                            <option key={item.key} value={item.key}>{lang(item.title)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className={styles.field}>
+                        {lang('PxgAdminRequestHistory')}
+                        <select
+                          value={historyMode}
+                          onChange={(e) => setHistoryMode(e.currentTarget.value as typeof historyMode)}
+                        >
+                          {REQUEST_HISTORIES.map((item) => (
+                            <option key={item.key} value={item.key}>{lang(item.title)}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className={styles.formButtons}>
+                      <Button
+                        size="smaller"
+                        fluid={false}
+                        onClick={() => void run(async () => {
+                          if (!row.accountId || typeof row.peerId !== 'number') return;
+                          await pxgRpc.call('admin.shares.create', {
+                            accountId: row.accountId,
+                            requestId: row.id,
+                            granteeUserId: row.requester.id,
+                            scope: 'chat',
+                            peerId: row.peerId,
+                            preset,
+                            historyMode,
+                          });
+                          setApprovingId(undefined);
+                        })}
+                      >
+                        {lang('PxgAdminGrant')}
+                      </Button>
+                      <Button
+                        size="smaller"
+                        fluid={false}
+                        color="translucent"
+                        onClick={() => setApprovingId(undefined)}
+                      >
+                        {lang('Cancel')}
+                      </Button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        ))}
+      </table>
+    </>
+  );
+});
 
 const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?: string }) => {
   const [action, setAction] = useState('');

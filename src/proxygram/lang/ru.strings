@@ -509,6 +509,17 @@
 "PxgAdminQueue" = "Очередь";
 "PxgAdminLoading" = "Загрузка…";
 "PxgAdminEmpty" = "Пока пусто";
+"PxgAdminRequests" = "Запросы";
+"PxgAdminRequestsHint" = "Гости просят доступ к чатам владельцев — ответьте вместо владельца";
+"PxgAdminRequestsEmpty" = "Открытых запросов нет";
+"PxgAdminRequestApproveTitle" = "Выдать доступ по запросу";
+"PxgAdminRequestReject" = "Отклонить";
+"PxgAdminRequestRejectText" = "Отклонить запрос? Гость увидит отказ.";
+"PxgAdminRequestTarget" = "Чат";
+"PxgAdminRequestOwner" = "Владелец";
+"PxgAdminRequestNoChat" = "Чат не найден — выдайте доступ вручную во вкладке «Доступы»";
+"PxgAdminRequestPreset" = "Права";
+"PxgAdminRequestHistory" = "История";
 "PxgAdminConfirm" = "Точно?";
 "PxgAdminReadingNow" = "Сейчас читают";
 "PxgAdminNobodyReading" = "Сейчас никто не открыл расшаренный чат";
