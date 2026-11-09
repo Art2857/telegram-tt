@@ -1,5 +1,6 @@
 import { useEffect, useRef } from '../../lib/teact/teact';
 
+import type { DownloadedChat } from '../downloadedChat';
 import type { AccountDto, StoredSession } from './types';
 
 import { ACCOUNT_SLOT } from '../../util/multiaccount';
@@ -41,6 +42,8 @@ export interface PxgState {
   shareRequest?: { id: string; grantee: { id: string; tgUserId: number; username: string | null; name: string } };
   /** Окно «Скрыть от гостей»: сообщения своего чата (альбом — целиком) */
   hideMessages?: { accountId: string; peerId: number; chatId: string; msgIds: number[] };
+  /** Открытый локально .pxgchat: только чтение, без сервера и Telegram */
+  downloadedChat?: DownloadedChat;
 }
 
 const SESSION_KEY_PREFIX = 'pxg-session';
@@ -77,6 +80,7 @@ export function setPxgState(patch: Partial<PxgState>) {
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
+      downloadedChat: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }

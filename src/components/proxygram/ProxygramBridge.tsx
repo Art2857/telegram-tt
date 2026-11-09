@@ -27,6 +27,7 @@ import AdminPanel from './admin/AdminPanel';
 import AppUpdateModal from './AppUpdateModal';
 import ConnectServerModal from './ConnectServerModal';
 import DevMessageModal from './DevMessageModal';
+import DownloadedChatModal from './DownloadedChatModal';
 import HiddenMarksLoader from './HiddenMarksLoader';
 import HideFromGuestsModal from './HideFromGuestsModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
@@ -75,6 +76,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isConnectOpen = usePxgState((state) => state.isConnectOpen);
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
+  const downloadedChat = usePxgState((state) => state.downloadedChat);
   const isAdmin = usePxgState((state) => state.session?.user.role === 'admin');
   const shareChatId = usePxgState((state) => state.shareChatId);
   const shareFolder = usePxgState((state) => state.shareFolder);
@@ -299,6 +301,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
+      {downloadedChat && <DownloadedChatModal chat={downloadedChat} />}
       {isAdmin && <DevMessageModal />}
       <ReactionLogModal />
       <HideFromGuestsModal />

@@ -3526,6 +3526,18 @@ export interface LangPair {
   'PxgRequestExpired': undefined;
   'PxgSettingsMyRequests': undefined;
   'PxgSettingsContacts': undefined;
+  'PxgSettingsDownloaded': undefined;
+  'PxgDownloadedHint': undefined;
+  'PxgDownloadedOpen': undefined;
+  'PxgDownloadedBadFile': undefined;
+  'PxgDownloadedTooLarge': undefined;
+  'PxgDownloadedReadOnly': undefined;
+  'PxgDownloadedSearch': undefined;
+  'PxgDownloadedEmpty': undefined;
+  'PxgDownloadedUnknownSender': undefined;
+  'PxgDownloadedEdited': undefined;
+  'PxgDownloadedDeleted': undefined;
+  'PxgDownloadedClose': undefined;
   'PxgReachableHint': undefined;
   'PxgReachableSearch': undefined;
   'PxgReachableOpen': undefined;
@@ -6464,6 +6476,13 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgRequestsCommonGroups': {
     'count': V;
   };
+  'PxgDownloadedMeta': {
+    'count': V;
+    'date': V;
+  };
+  'PxgDownloadedMedia': {
+    'kind': V;
+  };
   'PxgRequestAskWhom': {
     'name': V;
   };
@@ -9089,6 +9108,16 @@ export interface LangKeyGroups {
     keys:
       | 'PxgAppDownloadHintServer';
     variables: 'host' | 'version';
+  };
+  'count,date': {
+    keys:
+      | 'PxgDownloadedMeta';
+    variables: 'count' | 'date';
+  };
+  'kind': {
+    keys:
+      | 'PxgDownloadedMedia';
+    variables: 'kind';
   };
   'size': {
     keys:

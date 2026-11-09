@@ -10,6 +10,7 @@ import { IS_ANDROID, IS_IOS, IS_PWA } from '../../../util/browser/windowEnvironm
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { getProxyPeerId } from '../../../api/proxy';
+import { parsePxgChatFile } from '../../../proxygram/downloadedChat';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
@@ -126,6 +127,7 @@ const TABS = [
   { key: 'incoming', title: 'PxgSettingsIncoming', isOwnerOnly: false },
   { key: 'requests', title: 'PxgSettingsMyRequests', isOwnerOnly: false },
   { key: 'contacts', title: 'PxgSettingsContacts', isOwnerOnly: false },
+  { key: 'downloaded', title: 'PxgSettingsDownloaded', isOwnerOnly: false },
   { key: 'archive', title: 'PxgSettingsArchive', isOwnerOnly: true },
   { key: 'audit', title: 'PxgSettingsAudit', isOwnerOnly: true },
   { key: 'devices', title: 'PxgSettingsDevices', isOwnerOnly: false },
@@ -302,6 +304,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'incoming' && <IncomingTab {...props} />}
         {tabKey === 'requests' && <MyRequestsTab {...props} />}
         {tabKey === 'contacts' && <ReachableTab {...props} />}
+        {tabKey === 'downloaded' && <DownloadedTab {...props} />}
         {tabKey === 'archive' && <HideDeletedOption lang={lang} />}
         {tabKey === 'archive' && <ArchiveTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
@@ -1482,6 +1485,52 @@ function groupBy<T>(items: T[], keyOf: (item: T) => string): [string, T[]][] {
   });
   return [...groups.entries()];
 }
+
+const DownloadedTab = memo(({ lang, t }: TabProps) => {
+  const inputRef = useRef<HTMLInputElement>();
+  const [error, setError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(undefined);
+    setIsLoading(true);
+    try {
+      const chat = await parsePxgChatFile(file);
+      setPxgState({ downloadedChat: chat, isSettingsOpen: false });
+    } catch (err) {
+      setError(err instanceof Error && err.message === 'too_large'
+        ? t('PxgDownloadedTooLarge')
+        : t('PxgDownloadedBadFile'));
+    } finally {
+      setIsLoading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <>
+      <p className={styles.secondary}>{t('PxgDownloadedHint')}</p>
+      <input
+        ref={inputRef}
+        className={styles.hiddenInput}
+        type="file"
+        accept=".pxgchat,application/zip"
+        onClick={(e) => {
+          // повторный выбор того же файла тоже должен открывать его
+          (e.target as HTMLInputElement).value = '';
+        }}
+        onChange={(e) => void onFile((e.target).files?.[0])}
+      />
+      <div className={styles.filters}>
+        <Button isLoading={isLoading} onClick={() => inputRef.current?.click()}>
+          {t('PxgDownloadedOpen')}
+        </Button>
+      </div>
+      {error && <p className={styles.errorText}>{error}</p>}
+    </>
+  );
+});
 
 const ReachableTab = memo(({ lang, t }: TabProps) => {
   const [query, setQuery] = useState('');
