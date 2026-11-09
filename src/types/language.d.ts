@@ -6685,6 +6685,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgErrFileTooLarge': {
     'mb': V;
   };
+  'PxgCrossForwardOnlyText': {
+    'count': V;
+  };
   'PxgErrFoldersLimit': {
     'max': V;
   };
@@ -7949,7 +7952,8 @@ export interface LangKeyGroups {
       | 'PxgAdminDevices'
       | 'PxgAdminMessages'
       | 'PxgAdminBulkRevokeConfirm'
-      | 'PxgAdminRevokeSelected';
+      | 'PxgAdminRevokeSelected'
+      | 'PxgCrossForwardOnlyText';
     variables: 'count';
   };
   'duration,time': {

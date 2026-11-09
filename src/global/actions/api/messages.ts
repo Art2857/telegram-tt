@@ -69,24 +69,12 @@ import { formatStarsAsText } from '../../../util/localization/format';
 import { debounce, onTickEnd, rafPromise } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi, cancelApiProgress } from '../../../api/gramjs';
-import {
-  getIsSavedDialog,
-  getUserFullName,
-  groupMessageIdsByThreadId,
-  isChatChannel,
-  isChatSuperGroup,
-  isDeletedUser,
-  isEphemeralSendSupported,
-  isMessageLocal,
-  isServiceNotificationMessage,
-  isUserBot,
-  isUserRightBanned,
-  resolveEphemeralCommand,
-  runForFocusedTabs,
-  splitMessagesForForwarding,
-} from '../../helpers';
+import { getIsSavedDialog, getUserFullName, groupMessageIdsByThreadId, isChatChannel, isChatSuperGroup,
+  isDeletedUser, isEphemeralSendSupported, isMessageLocal, isServiceNotificationMessage, isUserBot,
+  isUserRightBanned, resolveEphemeralCommand, runForFocusedTabs, splitMessagesForForwarding } from '../../helpers';
 import { isChatAdmin } from '../../helpers/chats';
 import { isApiPeerChat, isApiPeerUser } from '../../helpers/peers';
+import { stripCustomEmoji } from '../../helpers/symbols';
 import {
   addActionHandler, getActions, getGlobal, getPromiseActions, setGlobal,
 } from '../../index';
@@ -2095,6 +2083,18 @@ async function executeForwardMessages(global: GlobalState, sendParams: SendMessa
     return undefined;
   }
 
+  // R7: свой Telegram и прокси-чат — разные провайдеры; пока пересылаются только текст и rich-сообщения
+  if (Boolean(fromChat.pxgProxy) !== Boolean(toChat.pxgProxy)) {
+    const forwardable = messages.filter((message) => (
+      !isServiceNotificationMessage(message) && selectCanForwardMessage(global, message)
+    ));
+    await copyAcrossProviders({
+      toChat, messages: forwardable, skipped: messages.length - forwardable.length,
+      toThreadId, isSilent, scheduledAt, scheduleRepeatPeriod,
+    }, tabId);
+    return undefined;
+  }
+
   const privateForwardName = selectUserFullInfo(global, fromChat.id)?.privateForwardName;
   const sendAs = selectSendAs(global, toChatId!);
   const draft = selectDraft(global, toChatId!, toThreadId || MAIN_THREAD_ID);
@@ -2173,6 +2173,75 @@ async function executeForwardMessages(global: GlobalState, sendParams: SendMessa
   }, tabId);
   setGlobal(global);
   return localMessages;
+}
+
+/** Своя сессия Telegram и прокси-чат — разные провайдеры: копия без автора, пока только текст и rich */
+async function copyAcrossProviders(params: {
+  toChat: ApiChat;
+  messages: ApiMessage[];
+  /** Сколько сообщений отсеяно ещё до копии: служебные и запрещённые к пересылке */
+  skipped: number;
+  toThreadId: ThreadId;
+  isSilent?: boolean;
+  scheduledAt?: number;
+  scheduleRepeatPeriod?: number;
+}, tabId: number) {
+  const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage'>[] = [];
+  let skipped = params.skipped;
+  for (const message of params.messages) {
+    if (hasNonTextContent(message.content)) {
+      skipped++;
+      continue;
+    }
+    if (message.content.richMessage) {
+      copies.push({ richMessage: message.content.richMessage });
+      continue;
+    }
+    const text = message.content.text;
+    const formatted = text?.text ? stripCustomEmoji(text) : undefined;
+    if (!formatted?.text) {
+      skipped++;
+      continue;
+    }
+    copies.push({ text: formatted.text, entities: formatted.entities });
+  }
+
+  for (const copy of copies) {
+    await callApi('sendMessage', {
+      chat: params.toChat,
+      messageList: {
+        chatId: params.toChat.id,
+        threadId: params.toThreadId,
+        type: params.scheduledAt ? 'scheduled' : 'thread',
+      },
+      ...copy,
+      isSilent: params.isSilent,
+      scheduledAt: params.scheduledAt,
+      scheduleRepeatPeriod: params.scheduleRepeatPeriod,
+    });
+  }
+
+  if (skipped) {
+    getActions().showNotification({
+      message: { key: 'PxgCrossForwardOnlyText', variables: { count: skipped } },
+      tabId,
+    });
+  }
+
+  let global = getGlobal();
+  global = updateTabState(global, {
+    forwardMessages: {},
+    isShareMessageModalShown: false,
+  }, tabId);
+  setGlobal(global);
+}
+
+/** Медиа и прочее, что нельзя скопировать простым текстом между провайдерами */
+function hasNonTextContent(content: ApiMessage['content']) {
+  return Boolean(content.photo || content.video || content.audio || content.document || content.sticker
+    || content.pollId || content.todo || content.contact || content.location
+    || content.invoice || content.storyData || content.dice || content.giveaway || content.giveawayResults
+    || content.paidMedia || content.action);
 }
 
 function cleanupExpiredMessagesForChat(
