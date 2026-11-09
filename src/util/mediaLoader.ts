@@ -46,7 +46,11 @@ export function fetch<T extends ApiMediaFormat>(
   callbackUniqueId?: string,
 ): Promise<ApiPreparedMedia> {
   // Локальный файл из .pxgchat: браузер уже дал Blob URL, качать и кэшировать нечего
-  if (url.startsWith('blob:')) return Promise.resolve(url);
+  if (url.startsWith('blob:')) {
+    // useMedia читает только кэш: без записи blob-URL картинка навсегда остаётся скелетоном
+    memoryCache.set(url, url);
+    return Promise.resolve(url);
+  }
   if (mediaFormat === ApiMediaFormat.Progressive) {
     return (
       IS_PROGRESSIVE_SUPPORTED
