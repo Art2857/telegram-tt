@@ -598,6 +598,12 @@
   padding: 1rem;
 }
 
+@media (max-width: 600px) {
+  .settingsTabs {
+    mask-image: linear-gradient(to right, transparent 0, #000 1.25rem, #000 calc(100% - 1.25rem), transparent 100%);
+  }
+}
+
 @media (max-width: 720px) {
   .settingsHeader {
     padding: 0 0.75rem;
