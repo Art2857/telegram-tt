@@ -183,6 +183,7 @@
 "PxgDownloadedEdited" = "изменено";
 "PxgDownloadedDeleted" = "удалено";
 "PxgDownloadedMedia" = "[медиа: {kind}]";
+"PxgDownloadedOpenFile" = "Открыть файл";
 "PxgDownloadedClose" = "Закрыть";
 "PxgReachableHint" = "Те, кому можно написать по выданному охвату участников. Сам групповой чат при этом не открыт.";
 "PxgReachableSearch" = "Имя или ник";

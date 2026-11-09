@@ -4696,6 +4696,7 @@
 "PxgDownloadedEdited" = "edited";
 "PxgDownloadedDeleted" = "deleted";
 "PxgDownloadedMedia" = "[media: {kind}]";
+"PxgDownloadedOpenFile" = "Open file";
 "PxgDownloadedClose" = "Close";
 "PxgReachableHint" = "People you can write to under the member coverage. The group chat itself stays closed.";
 "PxgReachableSearch" = "Name or username";

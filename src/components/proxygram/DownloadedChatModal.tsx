@@ -1,8 +1,9 @@
 import { memo, useMemo, useState } from '../../lib/teact/teact';
 
-import type { DownloadedChat } from '../../proxygram/downloadedChat';
+import type { DownloadedChat, DownloadedMessage } from '../../proxygram/downloadedChat';
 
 import buildClassName from '../../util/buildClassName';
+import { releaseDownloadedChat } from '../../proxygram/downloadedChat';
 import { setPxgState } from '../../proxygram/server/store';
 import { formatDateTime } from './helpers';
 
@@ -36,7 +37,10 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
     return messages.slice(-VISIBLE_MESSAGES);
   }, [chat.messages, query]);
 
-  const close = () => setPxgState({ downloadedChat: undefined });
+  const close = () => {
+    releaseDownloadedChat(chat);
+    setPxgState({ downloadedChat: undefined });
+  };
 
   return (
     <Modal isOpen title={chat.title} hasCloseButton onClose={close} className={styles.root}>
@@ -68,6 +72,7 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
             <div className={styles.text}>
               {message.text || (message.mediaKind ? lang('PxgDownloadedMedia', { kind: message.mediaKind }) : '')}
             </div>
+            {message.mediaUrl && renderMedia(message, lang('PxgDownloadedOpenFile'))}
           </div>
         ))}
       </div>
@@ -79,3 +84,22 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
 };
 
 export default memo(DownloadedChatModal);
+
+function renderMedia(message: DownloadedMessage, linkLabel: string) {
+  const { mediaUrl, mediaMime } = message;
+  if (!mediaUrl) return undefined;
+  if (mediaMime?.startsWith('image/')) {
+    return <img className={styles.mediaImage} src={mediaUrl} alt="" />;
+  }
+  if (mediaMime?.startsWith('video/')) {
+    return <video className={styles.mediaVideo} src={mediaUrl} controls />;
+  }
+  if (mediaMime?.startsWith('audio/')) {
+    return <audio className={styles.mediaAudio} src={mediaUrl} controls />;
+  }
+  return (
+    <a className={styles.fileLink} href={mediaUrl} download>
+      {linkLabel}
+    </a>
+  );
+}

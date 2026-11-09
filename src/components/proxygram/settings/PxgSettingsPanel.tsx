@@ -10,9 +10,9 @@ import { IS_ANDROID, IS_IOS, IS_PWA } from '../../../util/browser/windowEnvironm
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { getProxyPeerId } from '../../../api/proxy';
-import { parsePxgChatFile } from '../../../proxygram/downloadedChat';
+import { parsePxgChatFile, releaseDownloadedChat } from '../../../proxygram/downloadedChat';
 import { pxgRpc } from '../../../proxygram/server/rpc';
-import { setPxgState, usePxgState } from '../../../proxygram/server/store';
+import { getPxgState, setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
 
 import useSelector from '../../../hooks/data/useSelector';
@@ -1497,6 +1497,8 @@ const DownloadedTab = memo(({ lang, t }: TabProps) => {
     setIsLoading(true);
     try {
       const chat = await parsePxgChatFile(file);
+      const previous = getPxgState().downloadedChat;
+      if (previous) releaseDownloadedChat(previous);
       setPxgState({ downloadedChat: chat, isSettingsOpen: false });
     } catch (err) {
       setError(err instanceof Error && err.message === 'too_large'

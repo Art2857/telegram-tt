@@ -13,6 +13,10 @@ export type DownloadedMessage = {
   isDeleted: boolean;
   isEdited: boolean;
   mediaKind?: string;
+  mediaKey?: string;
+  /** Blob URL файла из ZIP; живёт до закрытия окна */
+  mediaUrl?: string;
+  mediaMime?: string;
 };
 
 export type DownloadedChat = {
@@ -21,6 +25,7 @@ export type DownloadedChat = {
   exportedAt: string;
   messageCount: number;
   messages: DownloadedMessage[];
+  media: Record<string, { url: string; mimeType: string }>;
   users: { userId: number; name: string }[];
 };
 
@@ -50,8 +55,12 @@ type PxgMessageRow = {
   isOutgoing: boolean;
   deletedAt: string | null;
   editDate: string | null;
-  media: { kind?: string } | null;
+  media: { key?: string; kind?: string } | null;
   versions?: unknown[];
+};
+
+type PxgMediaMap = {
+  files: { mediaKey: string; path: string; mimeType: string | null }[];
 };
 
 function decode(files: Record<string, Uint8Array>, name: string): string {
@@ -99,10 +108,32 @@ export async function parsePxgChatFile(file: File): Promise<DownloadedChat> {
         isDeleted: Boolean(row.deletedAt),
         isEdited: Boolean(row.editDate) || Boolean(row.versions?.length),
         mediaKind: row.media?.kind ?? undefined,
+        mediaKey: row.media?.key,
       });
     }
   }
   messages.sort((left, right) => left.id - right.id);
+
+  const media: Record<string, { url: string; mimeType: string }> = {};
+  if (files['pxg/media.json']) {
+    const map = parseJson<PxgMediaMap>(files, 'pxg/media.json');
+    for (const mediaFile of map.files) {
+      const data = files[mediaFile.path];
+      if (!data) continue;
+      const mimeType = mediaFile.mimeType || 'application/octet-stream';
+      media[mediaFile.mediaKey] = {
+        url: URL.createObjectURL(new Blob([data], { type: mimeType })),
+        mimeType,
+      };
+    }
+    for (const message of messages) {
+      if (!message.mediaKey) continue;
+      const found = media[message.mediaKey];
+      if (!found) continue;
+      message.mediaUrl = found.url;
+      message.mediaMime = found.mimeType;
+    }
+  }
 
   return {
     title: chat.peer.title ?? String(chat.peer.peerId),
@@ -110,6 +141,12 @@ export async function parsePxgChatFile(file: File): Promise<DownloadedChat> {
     exportedAt: manifest.exportedAt,
     messageCount: messages.length,
     messages,
+    media,
     users: chat.users.map((user) => ({ userId: user.userId, name: names.get(user.userId) ?? String(user.userId) })),
   };
+}
+
+/** Закрыть файл: Blob URL больше не нужны */
+export function releaseDownloadedChat(chat: DownloadedChat): void {
+  for (const item of Object.values(chat.media)) URL.revokeObjectURL(item.url);
 }

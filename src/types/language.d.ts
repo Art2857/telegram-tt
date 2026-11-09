@@ -3537,6 +3537,7 @@ export interface LangPair {
   'PxgDownloadedUnknownSender': undefined;
   'PxgDownloadedEdited': undefined;
   'PxgDownloadedDeleted': undefined;
+  'PxgDownloadedOpenFile': undefined;
   'PxgDownloadedClose': undefined;
   'PxgReachableHint': undefined;
   'PxgReachableSearch': undefined;
