@@ -81,6 +81,8 @@ export interface AccessChat {
   restricted: AccessRestriction | null;
   /** The owner's label for the guest: "Clients / Acme" */
   label?: string | null;
+  /** Личка из охвата участников: название чата-источника */
+  coverageSourceTitle?: string | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
   /** Кто поделился: по ним полный вход переходит к этому человеку в своём Telegram */

@@ -688,6 +688,7 @@
 "PxgAttachOther" = "Вложение";
 "PxgOwnerTab" = "От {name}";
 "PxgFromOwner" = "от {name}";
+"PxgCoverageMember" = "участник «{title}»";
 "PxgFromOwnerHint" = "Этим чатом с вами поделился {name}. Нажмите, чтобы перейти к этому человеку";
 "PxgSharedFor" = "для {name}";
 "PxgSharedForMany" = "для {name} +{count}";
@@ -828,6 +829,7 @@
 "PxgErrShareToSelf" = "Нельзя выдать доступ самому себе";
 "PxgErrShareTargetMissing" = "Не указан чат, тема или папка";
 "PxgErrShareMembersHistory" = "Для участников нельзя ограничить историю последними N сообщениями";
+"PxgErrStartChatsLimit" = "Слишком много новых диалогов за сутки: попробуйте позже";
 "PxgErrFoldersLimit" = "Не больше {max} папок";
 "PxgErrCannotBlockSelf" = "Нельзя заблокировать себя";
 "PxgErrAlreadyAdmin" = "Вы уже администратор";

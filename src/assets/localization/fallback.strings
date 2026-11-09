@@ -5201,6 +5201,7 @@
 "PxgAttachOther" = "Attachment";
 "PxgOwnerTab" = "From {name}";
 "PxgFromOwner" = "from {name}";
+"PxgCoverageMember" = "member of {title}";
 "PxgFromOwnerHint" = "{name} shared this chat with you. Click to go to this person";
 "PxgSharedFor" = "for {name}";
 "PxgSharedForMany" = "for {name} +{count}";
@@ -5341,6 +5342,7 @@
 "PxgErrShareToSelf" = "You cannot give access to yourself";
 "PxgErrShareTargetMissing" = "No chat, topic or folder is specified";
 "PxgErrShareMembersHistory" = "Member coverage cannot be limited to the last N messages";
+"PxgErrStartChatsLimit" = "Too many new conversations today: try again later";
 "PxgErrFoldersLimit" = "No more than {max} folders";
 "PxgErrCannotBlockSelf" = "You cannot block yourself";
 "PxgErrAlreadyAdmin" = "You are already the administrator";

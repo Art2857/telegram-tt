@@ -111,6 +111,7 @@ export const PXG_ERROR_REASON_KEYS = {
   share_to_self: 'PxgErrShareToSelf',
   share_target_missing: 'PxgErrShareTargetMissing',
   share_members_history: 'PxgErrShareMembersHistory',
+  start_chats_limit: 'PxgErrStartChatsLimit',
   folders_limit: 'PxgErrFoldersLimit',
   saved_quota: 'PxgErrSavedQuota',
   requests_limit: 'PxgErrRequestsLimit',

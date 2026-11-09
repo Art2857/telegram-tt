@@ -4102,6 +4102,7 @@ export interface LangPair {
   'PxgErrShareToSelf': undefined;
   'PxgErrShareTargetMissing': undefined;
   'PxgErrShareMembersHistory': undefined;
+  'PxgErrStartChatsLimit': undefined;
   'PxgErrCannotBlockSelf': undefined;
   'PxgErrAlreadyAdmin': undefined;
   'PxgErrUnblockFirst': undefined;
@@ -6643,6 +6644,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgFromOwner': {
     'name': V;
   };
+  'PxgCoverageMember': {
+    'title': V;
+  };
   'PxgFromOwnerHint': {
     'name': V;
   };
@@ -8354,7 +8358,8 @@ export interface LangKeyGroups {
       | 'PxgArchiveClearChatConfirm'
       | 'PxgArchiveOnlyChat'
       | 'PxgArchiveExportChatHint'
-      | 'PxgShareViaFolder';
+      | 'PxgShareViaFolder'
+      | 'PxgCoverageMember';
     variables: 'title';
   };
   'from,text': {

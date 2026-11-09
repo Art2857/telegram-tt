@@ -8,6 +8,8 @@ export type ProxyChatInfo = {
   restricted?: AccessRestriction;
   /** The owner's label for the guest: "Clients / Acme" */
   label?: string;
+  /** Личка из охвата участников: название чата-источника */
+  coverageSourceTitle?: string;
   /** The viewer's own account in thin mode: nobody's name to write on behalf of */
   isOwn?: boolean;
   /** The provider's Telegram Saved Messages */
