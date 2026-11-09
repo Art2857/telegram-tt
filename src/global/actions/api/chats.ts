@@ -2565,6 +2565,13 @@ addActionHandler('loadMoreMembers', async (global, actions, payload): Promise<vo
 
   const { members, userStatusesById } = result;
   if (!members || !members.length) {
+    // Пустой список — это тоже ответ: иначе вкладка участников крутит загрузку вечно
+    global = getGlobal();
+    global = updateChatFullInfo(global, chat.id, { members: [] });
+    if (chat.membersCount === undefined) {
+      global = updateChats(global, { [chat.id]: { ...chat, membersCount: 0 } });
+    }
+    setGlobal(global);
     return;
   }
 
