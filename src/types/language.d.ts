@@ -3837,6 +3837,13 @@ export interface LangPair {
   'PxgAdminRequestNoChat': undefined;
   'PxgAdminRequestPreset': undefined;
   'PxgAdminRequestHistory': undefined;
+  'PxgAdminMemory': undefined;
+  'PxgAdminMemoryAccount': undefined;
+  'PxgAdminDiskFree': undefined;
+  'PxgAdminOutboxPending': undefined;
+  'PxgAdminOutboxRunning': undefined;
+  'PxgAdminOutboxDone': undefined;
+  'PxgAdminOutboxFailed': undefined;
   'PxgAdminConfirm': undefined;
   'PxgAdminReadingNow': undefined;
   'PxgAdminNobodyReading': undefined;

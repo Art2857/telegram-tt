@@ -17,13 +17,14 @@ import { findFreeSlot } from '../../../proxygram/server/slots';
 import { setPxgState, usePxgState, writeSlotSession } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
 
+import useAppLayout from '../../../hooks/useAppLayout';
 import useLang from '../../../hooks/useLang';
 
+import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import Checkbox from '../../ui/Checkbox';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import InputText from '../../ui/InputText';
-import TabList from '../../ui/TabList';
 import { HISTORY_KEYS } from '../ShareSettingsFields';
 import AdminShareForm from './AdminShareForm';
 
@@ -49,6 +50,8 @@ type SystemInfo = {
   startedAt: string;
   uptimeSeconds: number;
   migrations: number | null;
+  memory: { rssBytes: number; heapUsedBytes: number; accounts: number; perAccountBytes: number };
+  storage: { disk: { totalBytes: number; freeBytes: number } | null };
   workers: { workerId: string | null; accounts: number; leaseUntil: string | null; stale: number }[];
   vpn: {
     isReachable: boolean;
@@ -189,6 +192,14 @@ const REQUEST_HISTORIES = [
   { key: 'new_only', title: 'PxgHistoryNew' },
 ] as const;
 
+/** Состояния очереди по-человечески, а не значениями из базы */
+const OUTBOX_STATUS_KEYS = {
+  pending: 'PxgAdminOutboxPending',
+  running: 'PxgAdminOutboxRunning',
+  done: 'PxgAdminOutboxDone',
+  failed: 'PxgAdminOutboxFailed',
+} as const;
+
 /** Загрузка раздела админки с живым обновлением по событию admin.changed */
 function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
   const [loaded, setLoaded] = useState<{ key: string; value: T }>();
@@ -232,8 +243,10 @@ function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], 
 /** Админка (PLAN.md, 7.15): только метаданные — кто, какой чат, когда; не переписка */
 const AdminPanel = () => {
   const lang = useLang();
+  const { isMobile } = useAppLayout();
   const session = usePxgState((state) => state.session);
   const [tab, setTab] = useState(0);
+  const [isSectionOpen, setIsSectionOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>();
   const [actionError, setActionError] = useState<string>();
   const tabKey = TABS[tab].key;
@@ -250,35 +263,70 @@ const AdminPanel = () => {
     }
   };
 
-  const tabs = TABS.map((item) => ({ title: lang(item.title) }));
   const props = { lang, ask, run, selfId: session?.user.id, topics: TAB_TOPICS[tabKey] };
 
   return (
     <div className={styles.root}>
-      <header className={styles.header}>
-        <Button
-          round
-          size="smaller"
-          color="translucent"
-          iconName="close"
-          onClick={close}
-          ariaLabel={lang('Close')}
-        />
-        <h2>{lang('PxgAdminTitle')}</h2>
-      </header>
-      <TabList tabs={tabs} activeTab={tab} onSwitchTab={setTab} className={styles.tabs} />
-      {actionError && <div className={styles.actionError}>{actionError}</div>}
-      <div className={buildClassName(styles.content, 'custom-scroll')}>
-        {tabKey === 'overview' && <OverviewTab {...props} />}
-        {tabKey === 'users' && <UsersTab {...props} />}
-        {tabKey === 'sessions' && <SessionsTab {...props} />}
-        {tabKey === 'accounts' && <AccountsTab {...props} />}
-        {tabKey === 'shares' && <SharesTab {...props} />}
-        {tabKey === 'requests' && <RequestsTab {...props} />}
-        {tabKey === 'audit' && <AuditTab {...props} />}
-        {tabKey === 'outbox' && <OutboxTab {...props} />}
-        {tabKey === 'system' && <SystemTab {...props} />}
-      </div>
+      {(!isMobile || !isSectionOpen) && (
+        <aside className={styles.sidebar}>
+          <header className={styles.sidebarHeader}>
+            <Button
+              round
+              size="smaller"
+              color="translucent"
+              iconName="close"
+              onClick={close}
+              ariaLabel={lang('Close')}
+            />
+            <h2 className={styles.title}>{lang('PxgAdminTitle')}</h2>
+          </header>
+          <nav className={styles.nav}>
+            {TABS.map((item, index) => (
+              <button
+                key={item.key}
+                type="button"
+                className={buildClassName(styles.navItem, index === tab && styles.navItemActive)}
+                onClick={() => {
+                  setTab(index);
+                  setIsSectionOpen(true);
+                }}
+              >
+                <span>{lang(item.title)}</span>
+                <Icon name="arrow-right" className={styles.navChevron} />
+              </button>
+            ))}
+          </nav>
+        </aside>
+      )}
+      {(!isMobile || isSectionOpen) && (
+        <main className={styles.content}>
+          <header className={styles.contentHeader}>
+            {isMobile && (
+              <Button
+                round
+                size="smaller"
+                color="translucent"
+                iconName="arrow-left"
+                onClick={() => setIsSectionOpen(false)}
+                ariaLabel={lang('Back')}
+              />
+            )}
+            <h2 className={styles.title}>{lang(TABS[tab].title)}</h2>
+          </header>
+          {actionError && <div className={styles.actionError}>{actionError}</div>}
+          <div className={buildClassName(styles.contentBody, 'custom-scroll')}>
+            {tabKey === 'overview' && <OverviewTab {...props} />}
+            {tabKey === 'users' && <UsersTab {...props} />}
+            {tabKey === 'sessions' && <SessionsTab {...props} />}
+            {tabKey === 'accounts' && <AccountsTab {...props} />}
+            {tabKey === 'shares' && <SharesTab {...props} />}
+            {tabKey === 'requests' && <RequestsTab {...props} />}
+            {tabKey === 'audit' && <AuditTab {...props} />}
+            {tabKey === 'outbox' && <OutboxTab {...props} />}
+            {tabKey === 'system' && <SystemTab {...props} />}
+          </div>
+        </main>
+      )}
       <ConfirmDialog
         isOpen={Boolean(confirm)}
         title={lang('PxgAdminConfirm')}
@@ -312,6 +360,23 @@ function Loading({ error, lang }: { error: unknown; lang: TabProps['lang'] }) {
 
 function Badge({ children, tone }: { children: TeactNode; tone?: 'green' | 'red' | 'blue' | 'gray' }) {
   return <span className={buildClassName(styles.badge, tone && styles[tone])}>{children}</span>;
+}
+
+/** Кружок с инициалами: у людей админки нет фотографий Telegram, цвет стабилен для одного и того же id */
+function AdminAvatar({ name, id }: { name: string; id: string }) {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+  let hash = 0;
+  for (const char of id) hash = (hash + char.charCodeAt(0)) % 360;
+  return (
+    <span className={styles.avatar} style={`background: hsl(${hash} 45% 45%)`}>
+      {initials || '?'}
+    </span>
+  );
 }
 
 function LevelBadge({ level, lang }: { level: 'guest' | 'client' | null; lang: TabProps['lang'] }) {
@@ -479,6 +544,10 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
               <tr key={user.id} className={buildClassName(user.blockedAt && styles.muted)}>
                 <td>
                   <div className={styles.name}>
+                    <AdminAvatar
+                      name={[user.firstName, user.lastName].filter(Boolean).join(' ') || displayName(user)}
+                      id={user.id}
+                    />
                     {user.online && <span className={styles.onlineDot} />}
                     <Button size="tiny" color="translucent" isText onClick={() => setSelectedUserId(user.id)}>
                       {[user.firstName, user.lastName].filter(Boolean).join(' ') || displayName(user)}
@@ -813,6 +882,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
               <tr key={row.id}>
                 <td>
                   <div className={styles.name}>
+                    <AdminAvatar name={displayName(row.user)} id={row.user?.id ?? row.id} />
                     {row.online && <span className={styles.onlineDot} />}
                     {displayName(row.user)}
                   </div>
@@ -1322,7 +1392,10 @@ const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
           <tbody key={row.id}>
             <tr>
               <td>
-                {row.requester.name}
+                <div className={styles.name}>
+                  <AdminAvatar name={row.requester.name} id={row.requester.id} />
+                  {row.requester.name}
+                </div>
                 {row.requester.username && (
                   <div className={styles.secondary}>{`@${row.requester.username}`}</div>
                 )}
@@ -1536,6 +1609,27 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
           <span className={styles.statValue}>{data.migrations ?? '—'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminMigrations')}</span>
         </div>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>{formatFileSize(lang, data.memory.rssBytes)}</span>
+          <span className={styles.statLabel}>{lang('PxgAdminMemory')}</span>
+        </div>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>
+            {formatFileSize(lang, data.memory.perAccountBytes)}
+            <span className={styles.secondary}>{` / ${data.memory.accounts}`}</span>
+          </span>
+          <span className={styles.statLabel}>{lang('PxgAdminMemoryAccount')}</span>
+        </div>
+        {data.storage.disk && (
+          <div className={styles.stat}>
+            <span className={styles.statValue}>
+              {formatFileSize(lang, data.storage.disk.freeBytes)}
+              {' / '}
+              {formatFileSize(lang, data.storage.disk.totalBytes)}
+            </span>
+            <span className={styles.statLabel}>{lang('PxgAdminDiskFree')}</span>
+          </div>
+        )}
       </div>
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminWorkers')}</h3>
@@ -1630,7 +1724,7 @@ const OutboxTab = memo(({ lang, run, topics }: TabProps) => {
             <td><code>{row.kind}</code></td>
             <td>
               <Badge tone={row.status === 'failed' ? 'red' : row.status === 'done' ? 'green' : 'blue'}>
-                {row.status}
+                {lang(OUTBOX_STATUS_KEYS[row.status as keyof typeof OUTBOX_STATUS_KEYS] ?? 'PxgAdminOutboxPending')}
               </Badge>
               {row.error && (
                 <div className={styles.secondary}>{getPxgReasonText(lang, row.error) ?? row.error}</div>

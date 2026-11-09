@@ -5033,6 +5033,13 @@
 "PxgAdminRequestNoChat" = "Chat not found — grant access manually in the “Access” tab";
 "PxgAdminRequestPreset" = "Rights";
 "PxgAdminRequestHistory" = "History";
+"PxgAdminMemory" = "Process memory";
+"PxgAdminMemoryAccount" = "Memory per account";
+"PxgAdminDiskFree" = "Disk free";
+"PxgAdminOutboxPending" = "Pending";
+"PxgAdminOutboxRunning" = "Running";
+"PxgAdminOutboxDone" = "Done";
+"PxgAdminOutboxFailed" = "Failed";
 "PxgAdminConfirm" = "Are you sure?";
 "PxgAdminReadingNow" = "Reading now";
 "PxgAdminNobodyReading" = "Nobody has a shared chat open right now";

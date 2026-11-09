@@ -520,6 +520,13 @@
 "PxgAdminRequestNoChat" = "Чат не найден — выдайте доступ вручную во вкладке «Доступы»";
 "PxgAdminRequestPreset" = "Права";
 "PxgAdminRequestHistory" = "История";
+"PxgAdminMemory" = "Память процесса";
+"PxgAdminMemoryAccount" = "Память на аккаунт";
+"PxgAdminDiskFree" = "Свободно на диске";
+"PxgAdminOutboxPending" = "Ждёт";
+"PxgAdminOutboxRunning" = "Выполняется";
+"PxgAdminOutboxDone" = "Готово";
+"PxgAdminOutboxFailed" = "Ошибка";
 "PxgAdminConfirm" = "Точно?";
 "PxgAdminReadingNow" = "Сейчас читают";
 "PxgAdminNobodyReading" = "Сейчас никто не открыл расшаренный чат";
