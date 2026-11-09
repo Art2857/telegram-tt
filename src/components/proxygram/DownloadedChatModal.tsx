@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from '../../lib/teact/teact';
+import { getActions } from '../../global';
 
 import type { DownloadedChat, DownloadedMessage } from '../../proxygram/downloadedChat';
 
@@ -42,6 +43,10 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
     setPxgState({ downloadedChat: undefined });
   };
 
+  const openAsChat = () => {
+    getActions().openDownloadedChatAsChat({ chat });
+  };
+
   return (
     <Modal isOpen title={chat.title} hasCloseButton onClose={close} className={styles.root}>
       <p className={styles.meta}>
@@ -77,6 +82,7 @@ const DownloadedChatModal = ({ chat }: OwnProps) => {
         ))}
       </div>
       <div className={styles.buttons}>
+        <Button onClick={openAsChat}>{lang('PxgDownloadedOpenAsChat')}</Button>
         <Button color="translucent" onClick={close}>{lang('PxgDownloadedClose')}</Button>
       </div>
     </Modal>

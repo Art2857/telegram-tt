@@ -38,6 +38,8 @@ export interface ApiChat {
   id: string;
   // PXG: Server access and identity are separate from the Telegram peer
   pxgProxy?: ProxyChatInfo;
+  /** Локально открытый .pxgchat: только чтение, без сервера и Telegram */
+  pxgDownloaded?: true;
   folderId?: number;
   type: ApiChatType;
   title: string;

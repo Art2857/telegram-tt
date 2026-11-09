@@ -651,6 +651,8 @@ addActionHandler('loadFullChat', (global, actions, payload): ActionReturnType =>
   if (!chat) {
     return;
   }
+  // Скачанный .pxgchat уже содержит всё, что можно показать: сервер и Telegram не нужны
+  if (chat.pxgDownloaded) return;
 
   const loadChat = async () => {
     await loadFullChat(global, actions, chat);

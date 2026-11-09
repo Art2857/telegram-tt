@@ -14,12 +14,13 @@
 }
 
 .list {
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+
   max-height: 55vh;
   padding-inline-end: 0.25rem;
-  overflow-y: auto;
 }
 
 .message {
@@ -37,6 +38,7 @@
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
   align-items: baseline;
+
   margin-bottom: 0.25rem;
 }
 
@@ -58,6 +60,7 @@
 .mediaImage,
 .mediaVideo {
   display: block;
+
   max-width: 100%;
   max-height: 20rem;
   margin-top: 0.5rem;

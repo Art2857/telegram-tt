@@ -82,6 +82,7 @@ import type { ApiCredentials } from '../../components/payment/PaymentModal';
 import type { FoldersActions } from '../../hooks/reducers/useFoldersReducer';
 import type { ReducerAction } from '../../hooks/useReducer';
 import type { P2pMessage } from '../../lib/vibecalls';
+import type { DownloadedChat } from '../../proxygram/downloadedChat';
 import type { ChatStateDto, ChatTypingDto, ReachablePerson } from '../../proxygram/server/types';
 import type {
   AccountSettings,
@@ -142,6 +143,8 @@ export interface ActionPayloads {
   loadProxyChats: { shouldKeepUnchanged?: boolean } | undefined;
   /** Первый диалог с человеком из охвата: локальная личка до первого сообщения */
   startProxyChat: { accountId: string; person: ReachablePerson } & WithTabId;
+  /** Открыть скачанный .pxgchat как обычный чат только для чтения */
+  openDownloadedChatAsChat: { chat: DownloadedChat } & WithTabId;
   initProxyGuest: undefined;
   resetProxyGuest: undefined;
   refreshProxyMessage: {

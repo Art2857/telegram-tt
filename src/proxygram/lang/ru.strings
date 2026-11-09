@@ -177,6 +177,7 @@
 "PxgDownloadedTooLarge" = "Файл слишком большой: пока читаем до 512 МБ";
 "PxgDownloadedMeta" = "{count} сообщений · выгружено {date}";
 "PxgDownloadedReadOnly" = "Только чтение · локальный файл";
+"PxgDownloadedReadOnlyChat" = "Скачанный чат: только чтение, отправлять сообщения нельзя";
 "PxgDownloadedSearch" = "Поиск по сообщениям";
 "PxgDownloadedEmpty" = "Ничего не найдено";
 "PxgDownloadedUnknownSender" = "Неизвестный";
@@ -184,6 +185,7 @@
 "PxgDownloadedDeleted" = "удалено";
 "PxgDownloadedMedia" = "[медиа: {kind}]";
 "PxgDownloadedOpenFile" = "Открыть файл";
+"PxgDownloadedOpenAsChat" = "Открыть как чат";
 "PxgDownloadedClose" = "Закрыть";
 "PxgReachableHint" = "Те, кому можно написать по выданному охвату участников. Сам групповой чат при этом не открыт.";
 "PxgReachableSearch" = "Имя или ник";

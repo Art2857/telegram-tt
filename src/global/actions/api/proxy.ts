@@ -22,6 +22,8 @@ import {
 } from '../../../api/proxy/methods';
 import { buildSavedChat } from '../../../api/proxy/saved';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
+import { releaseDownloadedChat } from '../../../proxygram/downloadedChat';
+import { buildDownloadedChatState } from '../../../proxygram/downloadedChatChat';
 import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
@@ -32,7 +34,7 @@ import {
   addChatListIds, addNotifyExceptions, addUserStatuses, updateChatFullInfo, updateChats, updateChatsLastMessageId,
   updateUsers,
 } from '../../reducers';
-import { replaceMessages } from '../../reducers/messages';
+import { replaceChatMessages, replaceMessages, updateListedIds } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import { replaceThreadLocalStateParam, updateMainThreadReadStates, updateThreadInfo } from '../../reducers/threads';
 import { updateTopicsInfo } from '../../reducers/topics';
@@ -388,6 +390,23 @@ addActionHandler('startProxyChat', (global, actions, payload): ActionReturnType 
   global = updateChats(global, { [chat.id]: chat });
   setGlobal(global);
   actions.openChat({ id: chatId, tabId });
+});
+
+/** Скачанный .pxgchat становится обычным чатом только для чтения: сообщения уже в памяти */
+addActionHandler('openDownloadedChatAsChat', (global, actions, payload): ActionReturnType => {
+  const { chat: downloaded, tabId = getCurrentTabId() } = payload;
+  releaseDownloadedChat(downloaded);
+  const built = buildDownloadedChatState(downloaded);
+  global = updateUsers(global, buildCollectionByKey(built.users, 'id'));
+  global = updateChats(global, { [built.chatId]: built.chat });
+  global = addChatListIds(global, 'active', [built.chatId]);
+  global = replaceChatMessages(global, built.chatId, buildCollectionByKey(built.messages, 'id'));
+  global = updateListedIds(global, built.chatId, MAIN_THREAD_ID, built.messages.map((message) => message.id));
+  const lastMessageId = built.messages.at(-1)?.id;
+  if (lastMessageId) global = updateChatsLastMessageId(global, { [built.chatId]: lastMessageId }, 'active');
+  setGlobal(global);
+  setPxgState({ downloadedChat: undefined });
+  actions.openChat({ id: built.chatId, tabId });
 });
 
 /** A changed message: updates a loaded one or adds a newer one, as live updates do */

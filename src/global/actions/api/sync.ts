@@ -13,6 +13,7 @@ import {
 } from '../../../util/iteratees';
 import { finishWebLogin } from '../../../util/webLogin';
 import { callApi, reconnectApi } from '../../../api/gramjs';
+import { getDownloadedChatMessages } from '../../../proxygram/downloadedChatChat';
 import { getIsSavedDialog } from '../../helpers';
 import {
   addActionHandler, getActions, getGlobal, setGlobal,
@@ -434,6 +435,10 @@ function loadTopMessages<T extends GlobalState>(
 
   const chat = selectChat(global, realChatId);
   if (!chat) return undefined;
+  if (chat.pxgDownloaded) {
+    const messages = getDownloadedChatMessages(realChatId) ?? [];
+    return { messages, count: messages.length, chats: [], users: [] };
+  }
 
   const readState = selectThreadReadState(global, chatId, threadId);
   const viewportAnchorId = viewportIds?.[0];

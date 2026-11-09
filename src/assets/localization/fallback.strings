@@ -4690,6 +4690,7 @@
 "PxgDownloadedTooLarge" = "The file is too large: we currently read up to 512 MB";
 "PxgDownloadedMeta" = "{count} messages · exported {date}";
 "PxgDownloadedReadOnly" = "Read-only · local file";
+"PxgDownloadedReadOnlyChat" = "Downloaded chat: read-only, messages cannot be sent";
 "PxgDownloadedSearch" = "Search messages";
 "PxgDownloadedEmpty" = "Nothing found";
 "PxgDownloadedUnknownSender" = "Unknown";
@@ -4697,6 +4698,7 @@
 "PxgDownloadedDeleted" = "deleted";
 "PxgDownloadedMedia" = "[media: {kind}]";
 "PxgDownloadedOpenFile" = "Open file";
+"PxgDownloadedOpenAsChat" = "Open as chat";
 "PxgDownloadedClose" = "Close";
 "PxgReachableHint" = "People you can write to under the member coverage. The group chat itself stays closed.";
 "PxgReachableSearch" = "Name or username";

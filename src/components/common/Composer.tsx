@@ -2770,8 +2770,18 @@ const Composer = ({
     });
   }, [shouldRenderPaidStars, starsForAllMessages, paidStarsRef, mainButtonRef]);
 
+  // Скачанный .pxgchat — только чтение: отправлять некуда, сервера и Telegram за ним нет
+  if (chat?.pxgDownloaded) {
+    return (
+      <div className="composer-readonly-note">
+        <p>{lang('PxgDownloadedReadOnlyChat')}</p>
+      </div>
+    );
+  }
+
   return (
     <div ref={composerRef} className={fullClassName}>
+      {' '}
       {isInMessageList && canAttachMedia && !hasRichOnlyContent && isReady && !isRichInputExpansionActive && (
         <DropArea
           isOpen={dropAreaState !== DropAreaState.None}

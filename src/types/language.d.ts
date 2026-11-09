@@ -3532,12 +3532,14 @@ export interface LangPair {
   'PxgDownloadedBadFile': undefined;
   'PxgDownloadedTooLarge': undefined;
   'PxgDownloadedReadOnly': undefined;
+  'PxgDownloadedReadOnlyChat': undefined;
   'PxgDownloadedSearch': undefined;
   'PxgDownloadedEmpty': undefined;
   'PxgDownloadedUnknownSender': undefined;
   'PxgDownloadedEdited': undefined;
   'PxgDownloadedDeleted': undefined;
   'PxgDownloadedOpenFile': undefined;
+  'PxgDownloadedOpenAsChat': undefined;
   'PxgDownloadedClose': undefined;
   'PxgReachableHint': undefined;
   'PxgReachableSearch': undefined;

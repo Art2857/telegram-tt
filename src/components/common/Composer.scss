@@ -1147,3 +1147,10 @@
     pointer-events: auto;
   }
 }
+
+.composer-readonly-note {
+  padding: 1rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  background: var(--color-background);
+}
