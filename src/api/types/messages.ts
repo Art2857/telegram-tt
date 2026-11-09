@@ -75,6 +75,8 @@ export interface ApiSticker {
   hasEffect?: boolean;
   isFree?: boolean;
   shouldUseTextColor?: boolean;
+  /** Локальный файл (скачанный .pxgchat): рисуется прямо из Blob URL */
+  blobUrl?: string;
 }
 
 export interface ApiStickerSet {

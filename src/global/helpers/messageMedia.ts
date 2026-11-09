@@ -336,6 +336,7 @@ export function getWebDocumentHash(webDocument?: ApiWebDocument) {
 }
 
 export function getStickerMediaHash(sticker: ApiSticker, target: SizeTarget) {
+  if (sticker.blobUrl) return sticker.blobUrl;
   const base = `document${sticker.id}`;
 
   switch (target) {

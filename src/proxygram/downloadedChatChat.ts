@@ -88,6 +88,7 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
         size: media.size ?? 0,
         blobUrl: media.url,
         supportsStreaming: true,
+        isGif: media.kind === 'gif',
       };
     } else if (media?.kind === 'voice') {
       content.voice = {
@@ -107,6 +108,17 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
         size: media.size ?? 0,
         blobUrl: media.url,
       };
+    } else if (media?.kind === 'sticker' || media?.kind === 'emoji') {
+      content.sticker = {
+        mediaType: 'sticker',
+        id: `pxg-downloaded-${message.id}`,
+        stickerSetInfo: { isMissing: true },
+        isLottie: media.mimeType.includes('tgsticker'),
+        isVideo: media.mimeType.includes('webm'),
+        width: media.width,
+        height: media.height,
+        blobUrl: media.url,
+      };
     } else if (media) {
       content.document = {
         mediaType: 'document',
@@ -117,7 +129,10 @@ export function buildDownloadedChatState(downloaded: DownloadedChat): {
         blobUrl: media.url,
       };
     }
-    if (!content.text && !content.photo && !content.video && !content.voice && !content.audio && !content.document) {
+    if (
+      !content.text && !content.photo && !content.video && !content.voice && !content.audio
+      && !content.sticker && !content.document
+    ) {
       content.text = { text: body, entities: [] };
     }
     messages.push({
