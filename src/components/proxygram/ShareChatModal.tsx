@@ -3,7 +3,7 @@ import { getActions, getGlobal } from '../../global';
 
 import type { ApiUser } from '../../api/types';
 import type {
-  GuestCandidate, Permissions, PresetKey, UserLookup,
+  GuestCandidate, Permissions, PresetKey, ReachablePage, UserLookup,
 } from '../../proxygram/server/types';
 import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
 
@@ -128,6 +128,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
   const [coverMembers, setCoverMembers] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberPage, setMemberPage] = useState<ReachablePage>();
   const [inviteLink, setInviteLink] = useState<string>();
   const [invites, setInvites] = useState<Invite[]>();
   const [error, setError] = useState<string>();
@@ -140,8 +143,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const peerTitle = chatId && chatId === currentUserId ? lang('SavedMessages')
     : chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
   const chat = chatId ? selectChat(getGlobal(), chatId) : undefined;
+  const isMemberScope = Boolean(editing?.scope.endsWith('_members'));
   // Охват участников: групповой чат или все чаты папки, но не канал и не тема
-  const canCoverMembers = !editing && !isInviting && !topic
+  const canCoverMembers = (!editing || isMemberScope) && !isInviting && !topic
     && Boolean(folder || (chat && !isChatChannel(chat)
       && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup')));
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
@@ -175,6 +179,29 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
   // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
   useEffect(loadShares, [account?.id, peerId, folder?.id, topic?.id, connection]);
+
+  // Кого можно включить в охват: состав своего чата или всех чатов папки
+  useEffect(() => {
+    if (!coverMembers || !canCoverMembers || !account) return undefined;
+    let isActive = true;
+    const timer = setTimeout(() => {
+      void pxgRpc.call<ReachablePage>('members.source', {
+        accountId: account.id,
+        ...(folder ? { folderId: folder.id } : { peerId }),
+        query: memberQuery.trim() || undefined,
+      })
+        .then((page) => {
+          if (isActive) setMemberPage(page);
+        })
+        .catch(() => {
+          if (isActive) setMemberPage(undefined);
+        });
+    }, 250);
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+    };
+  }, [coverMembers, canCoverMembers, account, folder, peerId, memberQuery]);
 
   useEffect(() => pxgRpc.on((event) => {
     if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
@@ -218,6 +245,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setExcludedIds([]);
     setIsInviting(false);
     setCoverMembers(false);
+    setSelectedMembers([]);
+    setMemberQuery('');
+    setMemberPage(undefined);
   };
 
   const startInvite = () => {
@@ -349,6 +379,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setStarsLimit(share.limits.starsPerDay ? String(share.limits.starsPerDay) : '');
     setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
+    if (share.scope.endsWith('_members')) {
+      setCoverMembers(true);
+      setSelectedMembers(share.memberIds ?? []);
+    }
   };
 
   // Opened from the chat profile to change one particular access
@@ -392,6 +426,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       historySince: historyMode === 'since_date' && historySince ? new Date(historySince).toISOString() : undefined,
       expiresAt: expiresAt(),
     };
+    const memberMode = !coverMembers ? 'none' as const : selectedMembers.length ? 'selected' as const : 'all' as const;
     try {
       if (isInviting) {
         const result = await pxgRpc.call<{ link: string }>('invites.create', {
@@ -407,6 +442,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           // The server clears the expiry only on an explicit JSON `null`
           // eslint-disable-next-line no-null/no-null
           shareId: editing.id, ...common, label: label.trim(), expiresAt: expiresAt() ?? null,
+          ...(isMemberScope ? { memberMode, memberIds: selectedMembers } : {}),
         });
       } else {
         await pxgRpc.call('shares.create', {
@@ -429,6 +465,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
             historyLimit: target.historyLimit,
             historySince: target.historySince,
             expiresAt: target.expiresAt,
+            memberMode: selectedMembers.length ? 'selected' : 'all',
+            memberIds: selectedMembers,
             accountId: account.id,
             ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
           });
@@ -535,10 +573,52 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           <div className={styles.section}>
             <Checkbox
               checked={coverMembers}
-              onCheck={setCoverMembers}
+              onCheck={(isChecked) => {
+                setCoverMembers(isChecked);
+                if (!isChecked) setSelectedMembers([]);
+              }}
               label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
               subLabel={lang('PxgShareMembersHint')}
             />
+            {coverMembers && (
+              <>
+                <InputText
+                  label={lang('PxgShareMembersFind')}
+                  value={memberQuery}
+                  onChange={(e) => setMemberQuery(e.target.value)}
+                />
+                {memberPage?.people.length ? (
+                  <div className={styles.memberList}>
+                    {memberPage.people.map((person) => {
+                      const name = [person.firstName, person.lastName].filter(Boolean).join(' ')
+                        || person.username || String(person.tgUserId);
+                      const sourceTitles = person.sources
+                        .map((source) => source.title || lang('PxgShareMembersSource'))
+                        .join(' · ');
+                      return (
+                        <Checkbox
+                          key={person.tgUserId}
+                          checked={selectedMembers.includes(person.tgUserId)}
+                          onCheck={(isChecked) => setSelectedMembers((current) => (isChecked
+                            ? [...current, person.tgUserId]
+                            : current.filter((id) => id !== person.tgUserId)))}
+                          label={name}
+                          subLabel={[person.username ? `@${person.username}` : undefined, sourceTitles]
+                            .filter(Boolean).join(' · ')}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : memberPage ? (
+                  <p className={styles.secondary}>{lang('PxgShareMembersNobody')}</p>
+                ) : undefined}
+                <p className={styles.secondary}>
+                  {selectedMembers.length
+                    ? lang('PxgShareMembersSelected', { count: selectedMembers.length })
+                    : lang('PxgShareMembersAll')}
+                </p>
+              </>
+            )}
           </div>
         )}
 

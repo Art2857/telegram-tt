@@ -144,3 +144,8 @@
     margin-bottom: 0.375rem;
   }
 }
+
+.memberList {
+  max-height: 14rem;
+  overflow-y: auto;
+}

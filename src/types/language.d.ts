@@ -3714,6 +3714,10 @@ export interface LangPair {
   'PxgShareMembersChat': undefined;
   'PxgShareMembersFolder': undefined;
   'PxgShareMembersHint': undefined;
+  'PxgShareMembersFind': undefined;
+  'PxgShareMembersNobody': undefined;
+  'PxgShareMembersAll': undefined;
+  'PxgShareMembersSource': undefined;
   'PxgShareMembersChip': undefined;
   'PxgShareList': undefined;
   'PxgShareRevoke': undefined;
@@ -6529,6 +6533,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareNotRegistered': {
     'username': V;
   };
+  'PxgShareMembersSelected': {
+    'count': V;
+  };
   'PxgShareEditing': {
     'name': V;
   };
@@ -7961,6 +7968,7 @@ export interface LangKeyGroups {
       | 'PxgSettingsGuests'
       | 'PxgArchiveCleared'
       | 'PxgAuditMassDelete'
+      | 'PxgShareMembersSelected'
       | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnLease'

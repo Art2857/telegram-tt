@@ -385,6 +385,11 @@
 "PxgShareMembersChat" = "Писать участникам этого чата";
 "PxgShareMembersFolder" = "Писать участникам чатов папки";
 "PxgShareMembersHint" = "Появятся существующие лички с участниками. Сам групповой чат не откроется. Боты и вы сами не входят.";
+"PxgShareMembersFind" = "Найти участника";
+"PxgShareMembersNobody" = "Никого не найдено";
+"PxgShareMembersSelected" = "Выбрано: {count}";
+"PxgShareMembersAll" = "Никого не выбрано — охват всех участников источника";
+"PxgShareMembersSource" = "чат-источник";
 "PxgShareMembersChip" = "участники";
 "PxgShareList" = "У кого есть доступ";
 "PxgShareRevoke" = "Отозвать";

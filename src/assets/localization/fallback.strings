@@ -4898,6 +4898,11 @@
 "PxgShareMembersChat" = "Write to members of this chat";
 "PxgShareMembersFolder" = "Write to members of the folder chats";
 "PxgShareMembersHint" = "Existing private chats with members appear. The group chat itself does not open. Bots and you are not included.";
+"PxgShareMembersFind" = "Find a member";
+"PxgShareMembersNobody" = "Nobody found";
+"PxgShareMembersSelected" = "Selected: {count}";
+"PxgShareMembersAll" = "Nobody selected — cover all members of the source";
+"PxgShareMembersSource" = "source chat";
 "PxgShareMembersChip" = "members";
 "PxgShareList" = "Who has access";
 "PxgShareRevoke" = "Revoke";
