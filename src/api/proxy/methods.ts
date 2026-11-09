@@ -1,6 +1,7 @@
 import type {
   AccessChat, ChatUnreadDto, ContactRequirementsDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto,
-  MemberDto, MessageDto, PeerBriefDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto, TopicsListResult,
+  MemberDto, MessageDto, PeerBriefDto, PollVotesDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto,
+  TopicsListResult,
 } from '../../proxygram/server/types';
 import type { ThreadId, ThreadReadState } from '../../types';
 import type { MethodArgs, MethodResponse, Methods } from '../gramjs/methods/types';
@@ -45,8 +46,9 @@ import {
 } from './stickers';
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
-  answerCallbackButton, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic, editChatPhoto, editMessage,
-  editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, forwardMessagesLocal, getSendAsPeerId,
+  answerCallbackButton, appendPollAnswer, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic,
+  editChatPhoto, editMessage, editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, forwardMessagesLocal,
+  getSendAsPeerId,
   markMessageListRead, markMessagesRead, pinMessage,
   readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendMessageLocal, sendPaidReaction,
   sendPollVote,
@@ -132,6 +134,8 @@ const methods = {
   forwardMessagesLocal,
   answerCallbackButton,
   sendPollVote,
+  appendPollAnswer,
+  loadPollOptionResults,
   updateChatNotifySettings,
   toggleChatPinned,
   toggleChatArchived,
@@ -699,6 +703,25 @@ function emitPeerBriefs(accountId: string, peers?: PeerBriefDto[]) {
 
 function emitTranscription({ id, text, pending }: NonNullable<MessageDto['transcription']>) {
   emitProxyUpdate({ '@type': 'updateTranscribedAudio', transcriptionId: id, text, isPending: pending || undefined });
+}
+
+/** Who voted in a public poll: profiles come with the page, as in the reaction list */
+async function loadPollOptionResults({
+  chat, messageId, option, offset, limit, shouldResetVoters,
+}: MethodArgs<'loadPollOptionResults'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return undefined;
+  const result = await pxgRpc.call<PollVotesDto>('polls.voters', {
+    ...peer, msgId: messageId, option: option || undefined, offset: offset || undefined, limit: limit || 50,
+  }).catch(() => undefined);
+  if (!result) return undefined;
+  emitPeerBriefs(peer.accountId, result.votes);
+  return {
+    count: result.count,
+    nextOffset: result.nextOffset || undefined,
+    shouldResetVoters,
+    votes: result.votes.map(({ peerId, date }) => ({ peerId: getProxyPeerId(peer.accountId, peerId), date })),
+  };
 }
 
 /** Speech-to-text costs the owner's Premium, as in Telegram; a pending result arrives as a message change */

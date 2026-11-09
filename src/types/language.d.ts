@@ -4037,6 +4037,8 @@ export interface LangPair {
   'PxgErrPollNotFound': undefined;
   'PxgErrPollClosed': undefined;
   'PxgErrPollOptionMissing': undefined;
+  'PxgErrPollAnswersDisabled': undefined;
+  'PxgErrPollVotersHidden': undefined;
   'PxgErrStickerUnavailable': undefined;
   'PxgErrRetryKeyRequired': undefined;
   'PxgErrRetryKeyConflict': undefined;

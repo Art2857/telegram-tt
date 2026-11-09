@@ -496,6 +496,13 @@ function buildProxyAction(dto: MessageDto): ApiMessageAction | undefined {
         isClosed: action.isClosed ?? undefined,
         isHidden: action.isHidden ?? undefined,
       };
+    case 'pollAppendAnswer':
+    case 'pollDeleteAnswer':
+      return {
+        mediaType: 'action',
+        type: action.type,
+        answer: { text: { text: action.answer.text }, option: action.answer.option },
+      };
     default:
       return { mediaType: 'action', type: action.type };
   }
@@ -584,12 +591,23 @@ export function buildProxyPoll(dto: MessageDto): ApiMessagePoll | undefined {
       isPublic: poll.isPublic || undefined,
       isMultipleChoice: poll.isMultipleChoice || undefined,
       isQuiz: poll.isQuiz || undefined,
+      canAddAnswers: poll.canAddAnswers || undefined,
+      isRevoteDisabled: poll.isRevoteDisabled || undefined,
+      shouldShuffleAnswers: poll.shouldShuffleAnswers || undefined,
+      shouldHideResultsUntilClose: poll.shouldHideResultsUntilClose || undefined,
+      isCreator: poll.isCreator || undefined,
+      isRestrictedToSubscribers: poll.isRestrictedToSubscribers || undefined,
+      allowedCountryCodes: poll.allowedCountryCodes,
+      closePeriod: poll.closePeriod,
+      closeDate: poll.closeDate,
       question: { text: poll.question, entities: buildProxyEntities(poll.questionEntities, dto.accountId) },
       answers: poll.answers.map(({ text, option }) => ({ text: { text }, option })),
     },
     results: {
       totalVoters: poll.results?.totalVoters,
       solution: poll.results?.solution || undefined,
+      solutionEntities: poll.results?.solutionEntities?.length
+        ? buildProxyEntities(poll.results.solutionEntities, dto.accountId) : undefined,
       resultByOption: poll.results ? Object.fromEntries(poll.results.answers.map((answer) => [answer.option, {
         option: answer.option,
         votersCount: answer.voters,

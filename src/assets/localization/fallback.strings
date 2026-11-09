@@ -5275,6 +5275,8 @@
 "PxgErrPollNotFound" = "Poll not found";
 "PxgErrPollClosed" = "The poll is closed";
 "PxgErrPollOptionMissing" = "There is no such option";
+"PxgErrPollAnswersDisabled" = "New options cannot be suggested in this poll";
+"PxgErrPollVotersHidden" = "Who voted is visible only in a public poll";
 "PxgErrStickerUnavailable" = "The sticker is not available in this chat";
 "PxgErrRetryKeyRequired" = "Retrying needs the sending key";
 "PxgErrRetryKeyConflict" = "The sending key is already used for another message";

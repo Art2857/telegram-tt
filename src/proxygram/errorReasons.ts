@@ -75,6 +75,8 @@ export const PXG_ERROR_REASON_KEYS = {
   poll_not_found: 'PxgErrPollNotFound',
   poll_closed: 'PxgErrPollClosed',
   poll_option_missing: 'PxgErrPollOptionMissing',
+  poll_answers_disabled: 'PxgErrPollAnswersDisabled',
+  poll_voters_hidden: 'PxgErrPollVotersHidden',
   sticker_unavailable: 'PxgErrStickerUnavailable',
   retry_key_required: 'PxgErrRetryKeyRequired',
   retry_key_conflict: 'PxgErrRetryKeyConflict',

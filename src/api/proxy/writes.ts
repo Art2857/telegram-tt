@@ -181,8 +181,14 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
           isRevoteDisabled: poll.summary.isRevoteDisabled,
           shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
           shouldHideResults: poll.summary.shouldHideResultsUntilClose,
+          // Telegram 2026: несколько правильных ответов, срок закрытия, только подписчики, страны
+          correctAnswers: poll.correctAnswers,
           correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
           solution: poll.solution,
+          closePeriod: poll.summary.closePeriod,
+          closeDate: poll.summary.closeDate,
+          subscribersOnly: poll.summary.isRestrictedToSubscribers,
+          countriesIso2: poll.summary.allowedCountryCodes,
         },
         dice,
         replyToMsgId,
@@ -741,6 +747,22 @@ export async function sendPollVote({ chat, messageId, options }: MethodArgs<'sen
   if (!peer) return;
   try {
     await runProxyJob('polls.vote', { ...peer, msgId: messageId, options });
+    const result = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
+      ...peer, msgIds: [messageId],
+    });
+    const poll = result.messages[0] && buildProxyPoll(result.messages[0]);
+    if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** An open poll (Telegram 2026): the guest suggests a new answer instead of voting */
+export async function appendPollAnswer({ chat, messageId, text }: MethodArgs<'appendPollAnswer'>[0]): Promise<void> {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('polls.addAnswer', { ...peer, msgId: messageId, text });
     const result = await pxgRpc.call<{ messages: MessageDto[] }>('messages.window', {
       ...peer, msgIds: [messageId],
     });

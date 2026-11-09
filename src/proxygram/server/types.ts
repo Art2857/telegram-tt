@@ -243,11 +243,29 @@ export interface PollDto {
   isPublic: boolean;
   isMultipleChoice: boolean;
   isQuiz: boolean;
+  /** Telegram 2026: новые возможности опросов */
+  canAddAnswers?: boolean;
+  isRevoteDisabled?: boolean;
+  shouldShuffleAnswers?: boolean;
+  shouldHideResultsUntilClose?: boolean;
+  isCreator?: boolean;
+  isRestrictedToSubscribers?: boolean;
+  allowedCountryCodes?: string[];
+  closePeriod?: number;
+  closeDate?: number;
   results: {
     totalVoters: number;
     answers: { option: string; voters: number; isChosen: boolean; isCorrect: boolean }[];
     solution: string | null;
+    solutionEntities?: unknown[];
   } | null;
+}
+
+/** Кто голосовал в публичном опросе */
+export interface PollVotesDto {
+  count: number;
+  nextOffset: string | null;
+  votes: (PeerBriefDto & { date: number })[];
 }
 
 export interface MessageDto {
@@ -394,6 +412,9 @@ export type ServiceActionDto =
     isClosed: boolean | null;
     isHidden: boolean | null;
   }
+  /** Открытый опрос: участник предложил или удалил вариант (Telegram 2026) */
+  | { type: 'pollAppendAnswer'; answer: { text: string; option: string } }
+  | { type: 'pollDeleteAnswer'; answer: { text: string; option: string } }
   | { type: 'unsupported' };
 
 /** Тема форума; lastMsgId — последнее видимое гостю сообщение темы */
