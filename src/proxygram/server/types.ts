@@ -828,7 +828,24 @@ export interface GuestCandidate {
   lastName?: string | null;
 }
 
-export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox' | 'requests';
+export type AdminTopic = 'presence' | 'sessions' | 'users' | 'accounts' | 'shares' | 'outbox' | 'requests' | 'exports';
+
+/** Задание скачивания чата в админке (spec/09) */
+export type AdminExportJob = {
+  id: string;
+  accountId: string;
+  peerId: number;
+  status: 'queued' | 'collecting' | 'packing' | 'ready' | 'failed' | 'cancelled' | 'expired';
+  messageCount: number;
+  fileCount: number;
+  sizeBytes: number | null;
+  error: string | null;
+  createdAt: string;
+  readyAt: string | null;
+  expiresAt: string | null;
+  accountName: string | null;
+  peerTitle: string | null;
+};
 
 /** Запрос доступа в админке: владелец, аккаунт и контекст видны только администратору */
 export interface AdminAccessRequestDto {

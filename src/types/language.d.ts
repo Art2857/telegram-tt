@@ -3839,6 +3839,23 @@ export interface LangPair {
   'PxgAdminShares': undefined;
   'PxgAdminAudit': undefined;
   'PxgAdminQueue': undefined;
+  'PxgAdminExports': undefined;
+  'PxgAdminExportsStart': undefined;
+  'PxgAdminExportsFindChat': undefined;
+  'PxgAdminExportsFind': undefined;
+  'PxgAdminExportsStartAction': undefined;
+  'PxgAdminExportsNoChats': undefined;
+  'PxgAdminExportsJobs': undefined;
+  'PxgAdminExportsEmpty': undefined;
+  'PxgAdminExportsDownload': undefined;
+  'PxgAdminExportsCancel': undefined;
+  'PxgExportStatusQueued': undefined;
+  'PxgExportStatusCollecting': undefined;
+  'PxgExportStatusPacking': undefined;
+  'PxgExportStatusReady': undefined;
+  'PxgExportStatusFailed': undefined;
+  'PxgExportStatusCancelled': undefined;
+  'PxgExportStatusExpired': undefined;
   'PxgAdminLoading': undefined;
   'PxgAdminEmpty': undefined;
   'PxgAdminRequests': undefined;
@@ -6572,6 +6589,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminLastSeen': {
     'time': V;
   };
+  'PxgAdminExportsCounts': {
+    'messages': V;
+    'files': V;
+  };
   'PxgAdminWarnAccounts': {
     'count': V;
   };
@@ -9105,6 +9126,11 @@ export interface LangKeyGroups {
       | 'PxgHiddenFrom'
       | 'PxgSharedForHint';
     variables: 'names';
+  };
+  'files,messages': {
+    keys:
+      | 'PxgAdminExportsCounts';
+    variables: 'files' | 'messages';
   };
   'answering,total': {
     keys:
