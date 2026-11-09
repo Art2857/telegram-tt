@@ -2276,17 +2276,20 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
     scheduleRepeatPeriod: params.scheduleRepeatPeriod,
   });
 
-  for (const copy of standalone) await sendCopy(copy);
-  // Одна группа — один альбом: части должны стартовать вместе, иначе прокси отправит первую отдельно
-  for (const group of albums.values()) {
-    if (group.length === 1) {
-      const [{ groupedId: _groupedId, ...single }] = group;
-      await sendCopy(single);
-      continue;
+  try {
+    for (const copy of standalone) await sendCopy(copy);
+    // Одна группа — один альбом: части должны стартовать вместе, иначе прокси отправит первую отдельно
+    for (const group of albums.values()) {
+      if (group.length === 1) {
+        const [{ groupedId: _groupedId, ...single }] = group;
+        await sendCopy(single);
+        continue;
+      }
+      await Promise.all(group.map(sendCopy));
     }
-    await Promise.all(group.map(sendCopy));
+  } finally {
+    if (filesToCopy) getActions().dismissNotification({ localId: copyNotificationId, tabId });
   }
-  if (filesToCopy) getActions().dismissNotification({ localId: copyNotificationId, tabId });
 
   if (skipped) {
     getActions().showNotification({
