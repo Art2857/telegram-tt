@@ -18,6 +18,7 @@ import { getTranslationFn } from '../../util/localization';
 import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
+import { composeMessageWithAI, fetchAiComposeTones } from './ai';
 import {
   buildProxyAuthorChat, buildProxyChat, buildProxyChatInfo, buildProxyChatReactions, buildProxyCommentsInfo,
   buildProxyDraft,
@@ -104,6 +105,8 @@ const methods = {
   translateText,
   translateRichMessage,
   fetchMessageSummary,
+  composeMessageWithAI,
+  fetchAiComposeTones,
   updateTopicMutedState,
   fetchChats,
   fetchChat,

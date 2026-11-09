@@ -3243,12 +3243,15 @@ export async function composeMessageWithAI({
   isEmojify,
   translateToLang,
   tone,
+  chat: _chat,
 }: {
   text: ApiFormattedText;
   shouldProofread?: boolean;
   isEmojify?: boolean;
   translateToLang?: string;
   tone?: ApiInputAiComposeTone;
+  /** PXG: The proxy composes through the owner's chat; the native client ignores it */
+  chat?: ApiChat;
 }): Promise<{ result?: ApiComposedMessageWithAI; error?: 'floodPremium' | 'aiError' | 'generic' }> {
   try {
     const result = await invokeRequest(new GramJs.messages.ComposeMessageWithAI({
@@ -3281,12 +3284,15 @@ export async function composeRichMessageWithAI({
   isEmojify,
   translateToLang,
   tone,
+  chat: _chat,
 }: {
   text?: ApiInputRichMessage;
   shouldProofread?: boolean;
   isEmojify?: boolean;
   translateToLang?: string;
   tone?: ApiInputAiComposeTone;
+  /** PXG: The proxy composes through the owner's chat; the native client ignores it */
+  chat?: ApiChat;
 }): Promise<{ result?: ApiRichMessage; error?: 'floodPremium' | 'aiError' | 'generic' } | undefined> {
   const inputText = text && buildInputRichMessage(text);
   if (text && !inputText) return { error: 'generic' };
@@ -3316,8 +3322,11 @@ export async function composeRichMessageWithAI({
 
 export async function fetchAiComposeTones({
   hash,
+  chat: _chat,
 }: {
   hash?: string;
+  /** PXG: The proxy asks through one of the guest's chats; the native client ignores it */
+  chat?: ApiChat;
 }) {
   const result = await invokeRequest(new GramJs.aicompose.GetTones({
     hash: hash ? BigInt(hash) : DEFAULT_PRIMITIVES.BIGINT,

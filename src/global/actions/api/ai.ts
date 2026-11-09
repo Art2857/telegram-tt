@@ -8,6 +8,7 @@ import { hasAiEditorContent } from '../../helpers/aiMessageEditor';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { updateTabState } from '../../reducers/tabs';
 import { selectTabState } from '../../selectors';
+import { selectChat } from '../../selectors/chats';
 import { selectCurrentLimit } from '../../selectors/limits';
 import { selectIsCurrentUserPremium } from '../../selectors/users';
 
@@ -88,10 +89,13 @@ addActionHandler('composeWithAiMessageEditor', async (global, actions, payload):
   if (shouldUseCache) return;
 
   const options = { shouldProofread, isEmojify, translateToLang, tone };
+  // PXG: A proxy guest composes through the owner's chat; the native client ignores the field
+  const chat = selectChat(global, modal.chatId);
   let response: { result?: AiEditorResult; error?: 'floodPremium' | 'aiError' | 'generic' } | undefined;
   if (modal.content.type === 'rich') {
     const richResponse = await callApi('composeRichMessageWithAI', {
       ...options,
+      chat,
       text: hasSource ? modal.content.richMessage : undefined,
     });
     const richMessage = richResponse?.result;
@@ -100,7 +104,7 @@ addActionHandler('composeWithAiMessageEditor', async (global, actions, payload):
       error: richResponse?.error,
     };
   } else {
-    const textResponse = await callApi('composeMessageWithAI', { ...options, text: modal.content.text });
+    const textResponse = await callApi('composeMessageWithAI', { ...options, chat, text: modal.content.text });
     response = {
       result: textResponse?.result ? {
         type: 'text', text: textResponse.result.resultText, diffText: textResponse.result.diffText,
@@ -295,7 +299,9 @@ addActionHandler('loadAiTonePreviewExample', async (global, actions, payload): P
 
 addActionHandler('loadAiComposeTones', async (global): Promise<void> => {
   const hash = global.aiComposeTones?.hash;
-  const result = await callApi('fetchAiComposeTones', { hash });
+  // PXG: Through any proxy chat with writing rights; the native client ignores the field
+  const chat = Object.values(global.chats.byId).find((item) => item.pxgProxy?.permissions.write);
+  const result = await callApi('fetchAiComposeTones', { hash, chat });
   if (!result) return;
 
   global = getGlobal();

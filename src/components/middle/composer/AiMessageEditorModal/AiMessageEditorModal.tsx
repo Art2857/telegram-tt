@@ -9,6 +9,7 @@ import { SCHEDULED_WHEN_ONLINE } from '../../../../config';
 import { hasAiEditorContent } from '../../../../global/helpers/aiMessageEditor';
 import {
   selectCanScheduleUntilOnline,
+  selectChat,
   selectIsChatWithSelf,
   selectIsStoryViewerOpen,
   selectPeerPaidMessagesStars,
@@ -45,6 +46,8 @@ export type OwnProps = {
 type StateProps = {
   animationLevel: AnimationLevel;
   isPremium?: boolean;
+  /** PXG: A proxy chat with the owner's Premium: built-in AI styles only */
+  isProxyChat?: boolean;
   isChatWithSelf?: boolean;
   canScheduleUntilOnline?: boolean;
   isInScheduledList?: boolean;
@@ -66,6 +69,7 @@ const AiMessageEditorModal = ({
   modal,
   animationLevel,
   isPremium,
+  isProxyChat,
   isChatWithSelf,
   canScheduleUntilOnline,
   isInScheduledList,
@@ -228,6 +232,7 @@ const AiMessageEditorModal = ({
               result={styleTab?.result}
               error={styleTab?.error}
               isPremium={isPremium}
+              isProxyChat={isProxyChat}
               onGenerate={handleGenerate}
             />
           </div>
@@ -366,6 +371,7 @@ export default memo(withGlobal<OwnProps>(
     return {
       animationLevel: selectAnimationLevel(global),
       isPremium: selectIsCurrentUserPremium(global),
+      isProxyChat: Boolean(chatId && selectChat(global, chatId)?.pxgProxy),
       isChatWithSelf: chatId ? selectIsChatWithSelf(global, chatId) : undefined,
       canScheduleUntilOnline: currentMessageList?.chatId
         ? selectCanScheduleUntilOnline(global, currentMessageList.chatId)

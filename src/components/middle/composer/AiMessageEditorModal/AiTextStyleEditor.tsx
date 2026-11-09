@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from '../../../../lib/teact/teact';
+import { memo, useEffect, useMemo, useState } from '../../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../../global';
 
 import type {
@@ -41,6 +41,8 @@ type OwnProps = {
   result?: AiEditorResult;
   error?: 'floodPremium' | 'aiError' | 'generic';
   isPremium?: boolean;
+  /** PXG: A guest uses the owner's built-in styles and cannot create or edit them */
+  isProxyChat?: boolean;
   onGenerate: NoneToVoidFunction;
 };
 
@@ -58,6 +60,7 @@ const AiTextStyleEditor = ({
   result,
   error,
   isPremium,
+  isProxyChat,
   tones,
   isAiToneEditorOpen,
   onGenerate,
@@ -69,9 +72,16 @@ const AiTextStyleEditor = ({
     closeAiMessageEditorModal,
     deleteAiTone,
     openChatWithDraft,
+    loadAiComposeTones,
   } = getActions();
 
   const lang = useLang();
+
+  // PXG: the list loads at startup, before the guest's chats are known; the editor asks once more
+  const hasNoTones = tones.length === 0;
+  useEffect(() => {
+    if (hasNoTones) loadAiComposeTones();
+  }, [hasNoTones]);
 
   const [toneToDelete, setToneToDelete] = useState<ApiInputAiComposeTone>();
   const [isCreatorDelete, setIsCreatorDelete] = useState(false);
@@ -136,12 +146,12 @@ const AiTextStyleEditor = ({
       contextActions: buildContextActions(entry),
     }))];
 
-    if (tones.length) {
+    if (tones.length && !isProxyChat) {
       tabs.push({ icon: 'add', title: lang('AiToneEditorNewStyle') });
     }
 
     return tabs;
-  }, [tones, lang, buildContextActions]);
+  }, [tones, lang, buildContextActions, isProxyChat]);
 
   const toneIndex = tones.findIndex((entry) => compareAiTones(selectedTone, getInputTone(entry)));
   const activeStyleIndex = isPromptSelected ? 0 : toneIndex >= 0 ? toneIndex + 1 : -1;

@@ -83,6 +83,8 @@ export const PXG_ERROR_REASON_KEYS = {
   todo_item_missing: 'PxgErrTodoItemMissing',
   todo_append_disabled: 'PxgErrTodoAppendDisabled',
   todo_complete_disabled: 'PxgErrTodoCompleteDisabled',
+  ai_premium: 'PxgErrAiPremium',
+  ai_tone_unavailable: 'PxgErrAiToneUnavailable',
   sticker_unavailable: 'PxgErrStickerUnavailable',
   retry_key_required: 'PxgErrRetryKeyRequired',
   retry_key_conflict: 'PxgErrRetryKeyConflict',

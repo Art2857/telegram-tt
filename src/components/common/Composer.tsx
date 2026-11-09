@@ -2726,7 +2726,7 @@ const Composer = ({
     && !isComposerBlocked && !isEditingMedia;
   const canCloseRichInput = Boolean(isRichInputExpansionActive && !isComposerBlocked);
   const canToggleRichInput = canOpenRichInput || canCloseRichInput;
-  const shouldShowAiButton = !chat?.pxgProxy
+  const shouldShowAiButton = (!chat?.pxgProxy || Boolean(chat.pxgProxy.isProviderPremium))
     && (isRichInputExpansionActive || (shouldShowRichInputButton && hasInputContent))
     && !isInStoryViewer && !hasAttachments && !isComposerBlocked && !activeRecording && !hasRichMediaBlocking;
   const {

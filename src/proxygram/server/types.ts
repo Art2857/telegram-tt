@@ -285,6 +285,25 @@ export interface TodoDto {
   completions?: { itemId: number; completedBy: number; date: number }[];
 }
 
+/** Встроенный стиль AI-редактора */
+export interface AiToneDto {
+  tone: string;
+  title: string;
+  emojiId: string | null;
+}
+
+export interface AiTonesDto {
+  hash: string | null;
+  tones: AiToneDto[];
+}
+
+/** Результат AI-редактора: текст с разметкой; у исправления — готовая разница */
+export interface AiComposedDto {
+  text: string;
+  entities: unknown[];
+  diffText?: { text: string; entities: unknown[] };
+}
+
 export interface MessageDto {
   permissions?: Permissions;
   /** Speech-to-text of a voice or round message; pending — Telegram is still recognizing it */

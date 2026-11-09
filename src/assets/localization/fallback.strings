@@ -5283,6 +5283,8 @@
 "PxgErrTodoItemMissing" = "There is no such item in the checklist";
 "PxgErrTodoAppendDisabled" = "Items cannot be added to this checklist";
 "PxgErrTodoCompleteDisabled" = "Items cannot be checked in this checklist";
+"PxgErrAiPremium" = "The AI editor needs the owner's Telegram Premium";
+"PxgErrAiToneUnavailable" = "This AI editor style is not available to a guest";
 "PxgErrStickerUnavailable" = "The sticker is not available in this chat";
 "PxgErrRetryKeyRequired" = "Retrying needs the sending key";
 "PxgErrRetryKeyConflict" = "The sending key is already used for another message";

@@ -4045,6 +4045,8 @@ export interface LangPair {
   'PxgErrTodoItemMissing': undefined;
   'PxgErrTodoAppendDisabled': undefined;
   'PxgErrTodoCompleteDisabled': undefined;
+  'PxgErrAiPremium': undefined;
+  'PxgErrAiToneUnavailable': undefined;
   'PxgErrStickerUnavailable': undefined;
   'PxgErrRetryKeyRequired': undefined;
   'PxgErrRetryKeyConflict': undefined;
