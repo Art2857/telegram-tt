@@ -1,9 +1,8 @@
 {
-    "name": "Telegram Web",
-    "short_name": "Telegram Web",
-    "description": "Telegram is a cloud-based mobile and desktop messaging app with a focus on security and speed.",
-    "start_url": "./",
-    "gcm_sender_id": "122867383838",
+    "name": "Proxygram",
+    "short_name": "Proxygram",
+    "description": "Proxygram is an unofficial client built on the Telegram API, with shared chat access, an archive of deleted messages and edit history.",
+    "start_url": "./",
     "icons": [
         {
             "src": "icon-square-192x192.png",

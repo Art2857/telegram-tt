@@ -1,0 +1,2 @@
+import{g as e,x as t}from"./teact-BfK0E3zo.js";function n(e){let n=t(e);return n.current=e,n}function r(t){let r=n(t);return e((...e)=>r.current?.(...e),[])}export{n,r as t};
+//# sourceMappingURL=useLastCallback-BkwZJXqt.js.map
