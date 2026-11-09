@@ -358,6 +358,8 @@ export interface MessageDto {
   poll?: PollDto;
   /** Чек-лист Telegram 2026 */
   todo?: TodoDto;
+  /** Форматированный текст Telegram 2026: блоки в том же виде, что понимает Web A */
+  richMessage?: { blocks: Record<string, unknown>[]; isRtl?: boolean };
   sentByUserId: string | null;
   /** The name of that guest */
   sentByName?: string | null;

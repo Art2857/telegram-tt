@@ -790,6 +790,8 @@
 "PxgErrTodoCompleteDisabled" = "В этом чек-листе нельзя отмечать пункты";
 "PxgErrAiPremium" = "AI-редактор доступен при Telegram Premium у владельца";
 "PxgErrAiToneUnavailable" = "Этот стиль AI-редактора гостю недоступен";
+"PxgErrRichPremium" = "Форматированные сообщения доступны при Telegram Premium у владельца";
+"PxgErrRichMediaUnsupported" = "Медиа в форматированном сообщении пока не поддерживается";
 "PxgErrStickerUnavailable" = "Стикер недоступен в этом чате";
 "PxgErrRetryKeyRequired" = "Для повтора нужен ключ отправки";
 "PxgErrRetryKeyConflict" = "Ключ отправки уже используется для другого сообщения";

@@ -62,7 +62,11 @@ function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string)
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
-      // A poll, a checklist and a dice appear as they are once Telegram has them; until then their text stands in
+      // A poll, a checklist, a rich message and a dice appear as they are once Telegram has them; until then text stands in
+      richMessage: params.richMessage && {
+        blocks: params.richMessage.blocks,
+        isRtl: params.richMessage.isRtl,
+      },
       text: {
         text: poll?.summary.question.text || todo?.todo.title.text || dice || text || attachment?.filename || '',
         entities,
@@ -140,7 +144,8 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   }
   let request: SendRequest | undefined;
   try {
-    if (params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice || params.todo))) {
+    if (isSavedPeer(peer)
+      && (isScheduled || poll || dice || params.todo || params.richMessage)) {
       throw new PxgError('unsupported');
     }
     // The owner's sticker or GIF must come from the catalog of the chat's provider account; Saved Messages take one
@@ -171,6 +176,10 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
         ...peer,
         text: text || '',
         entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+        richMessage: params.richMessage && {
+          blocks: params.richMessage.blocks,
+          isRtl: params.richMessage.isRtl,
+        },
         file,
         groupedId: isSavedPeer(peer) ? params.groupedId : undefined,
         document: catalogItem && !isSavedPeer(peer) ? { documentId: catalogItem.documentId } : undefined,
@@ -467,17 +476,21 @@ export async function rescheduleMessage({
 }
 
 export async function editMessage({
-  chat, message, attachment, text, entities,
+  chat, message, attachment, text, entities, richMessage,
 }: MethodArgs<'editMessage'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
   if (message.isScheduled) {
+    if (richMessage) {
+      emitProxyError(new PxgError('unsupported'));
+      return;
+    }
     await editScheduledMessage(chat, message, text, entities);
     return;
   }
   try {
     if (isSavedPeer(peer)) {
-      if (attachment) throw new PxgError('unsupported');
+      if (attachment || richMessage) throw new PxgError('unsupported');
       const note = await editSavedNote(chat, message.id, text, entities);
       emitProxyUpdate({ '@type': 'updateMessage', id: note.id, chatId: chat.id, message: note, isFull: true });
       return;
@@ -487,6 +500,7 @@ export async function editMessage({
       msgId: message.id,
       text,
       entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+      richMessage: richMessage && { blocks: richMessage.blocks, isRtl: richMessage.isRtl },
       file: attachment && { uploadId: (await uploadAttachment(chat, attachment)).uploadId },
     });
     const saved = await readSentMessage(chat, message.id);

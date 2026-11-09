@@ -5303,6 +5303,8 @@
 "PxgErrTodoCompleteDisabled" = "Items cannot be checked in this checklist";
 "PxgErrAiPremium" = "The AI editor needs the owner's Telegram Premium";
 "PxgErrAiToneUnavailable" = "This AI editor style is not available to a guest";
+"PxgErrRichPremium" = "Rich messages are available with the owner's Telegram Premium";
+"PxgErrRichMediaUnsupported" = "Media in rich messages is not supported yet";
 "PxgErrStickerUnavailable" = "The sticker is not available in this chat";
 "PxgErrRetryKeyRequired" = "Retrying needs the sending key";
 "PxgErrRetryKeyConflict" = "The sending key is already used for another message";

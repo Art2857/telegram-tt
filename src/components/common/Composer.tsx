@@ -2720,8 +2720,10 @@ const Composer = ({
 
   const effectEmoji = areEffectsSupported && effect?.emoticon;
 
-  const canExpandRichInput = !chat?.pxgProxy && isInMessageList && !isRichInputExpansionActive && !isEditingMedia;
-  const canOpenRichInput = !chat?.pxgProxy && shouldShowRichInputButton && isInMessageList
+  // PXG: In a proxy chat the owner's Premium unlocks rich input; the owner's account sends it
+  const canUseRichInput = !chat?.pxgProxy || Boolean(chat.pxgProxy.isProviderPremium);
+  const canExpandRichInput = canUseRichInput && isInMessageList && !isRichInputExpansionActive && !isEditingMedia;
+  const canOpenRichInput = canUseRichInput && shouldShowRichInputButton && isInMessageList
     && !hasAttachments && !isRichInputExpanded
     && !isComposerBlocked && !isEditingMedia;
   const canCloseRichInput = Boolean(isRichInputExpansionActive && !isComposerBlocked);

@@ -4,7 +4,7 @@ import type {
 } from '../../proxygram/server/types';
 import type {
   ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMediaTodo, ApiMessage,
-  ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction,
+  ApiMessagePoll, ApiMessageReplyInfo, ApiPageBlock, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction,
   ApiReactionCount, ApiReactionWithPaid, ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
@@ -343,6 +343,10 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
       ...media,
       pollId: dto.poll?.id,
       todo: buildProxyTodo(dto),
+      richMessage: dto.richMessage && {
+        blocks: dto.richMessage.blocks as unknown as ApiPageBlock[],
+        isRtl: dto.richMessage.isRtl || undefined,
+      },
       action: buildProxyAction(dto),
       text: dto.text ? { text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId) } : undefined,
       webPage: dto.webPage ? { id: buildProxyWebPageId(chat.id, dto.msgId) } : undefined,

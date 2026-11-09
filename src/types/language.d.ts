@@ -4065,6 +4065,8 @@ export interface LangPair {
   'PxgErrTodoCompleteDisabled': undefined;
   'PxgErrAiPremium': undefined;
   'PxgErrAiToneUnavailable': undefined;
+  'PxgErrRichPremium': undefined;
+  'PxgErrRichMediaUnsupported': undefined;
   'PxgErrStickerUnavailable': undefined;
   'PxgErrRetryKeyRequired': undefined;
   'PxgErrRetryKeyConflict': undefined;
