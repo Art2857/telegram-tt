@@ -150,7 +150,7 @@ const AccountMenuItems = ({
         })}
       {/* PXG: гостевые аккаунты Proxygram */}
       <GuestAccountItems onSwitchAccount={onSwitchAccount} />
-      {newAccountUrl && (
+      {Boolean(newAccountUrl) || shouldShowLimit ? (
         <MenuItem
           icon="add"
           rel="noopener" // Allow referrer to be passed
@@ -159,7 +159,7 @@ const AccountMenuItems = ({
         >
           {lang('MenuAddAccount')}
         </MenuItem>
-      )}
+      ) : undefined}
     </>
   );
 };

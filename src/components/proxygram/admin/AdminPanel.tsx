@@ -6,6 +6,7 @@ import type {
 } from '../../../proxygram/server/types';
 import type { AdminShare as ShareRow } from './types';
 
+import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { formatTimeDuration } from '../../../util/dates/duration';
 import { getAccountSlotUrl } from '../../../util/multiaccount';
@@ -665,10 +666,23 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
 /** Opens the person's own session in a free account slot of this browser: from there it is just this person */
 function signInAs(userId: string) {
   return async () => {
-    const tokens = await pxgRpc.call<SessionTokensResponse>('admin.users.signInAs', { userId });
-    const slot = findFreeSlot();
-    writeSlotSession(slot, sessionFromTokens(tokens));
-    window.open(getAccountSlotUrl(slot), '_blank', 'noopener');
+    // A browser only allows a popup that is opened synchronously from the click, before the RPC
+    const popup = IS_TAURI ? undefined : window.open('', '_blank');
+    try {
+      const tokens = await pxgRpc.call<SessionTokensResponse>('admin.users.signInAs', { userId });
+      const slot = findFreeSlot();
+      writeSlotSession(slot, sessionFromTokens(tokens));
+      const url = getAccountSlotUrl(slot);
+      if (popup && !popup.closed) {
+        popup.location.replace(url);
+        popup.focus();
+      } else {
+        window.location.assign(url);
+      }
+    } catch (err) {
+      popup?.close();
+      throw err;
+    }
   };
 }
 

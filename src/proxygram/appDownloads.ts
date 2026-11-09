@@ -50,7 +50,8 @@ export function getAppDownloads(manifest: ReleaseManifest): AppDownload[] {
 }
 
 /** Tauri mobile cannot update itself: the Android shell offers the newer APK from the manifest */
-export async function getAndroidAppUpdate(currentVersion: string) {
+export async function getAndroidAppUpdate(currentVersion?: string) {
+  if (!currentVersion) return undefined;
   const manifest = await fetchReleaseManifest();
   const url = manifest?.android?.url;
   return manifest && url && isNewerVersion(manifest.version, currentVersion)

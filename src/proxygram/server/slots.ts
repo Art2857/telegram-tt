@@ -1,6 +1,6 @@
 import type { StoredSession } from './types';
 
-import { getAccountsInfo, loadSlotSession } from '../../util/multiaccount';
+import { ACCOUNT_SLOT, getAccountsInfo, loadSlotSession } from '../../util/multiaccount';
 import { listPxgSessionSlots } from './store';
 
 /**
@@ -15,12 +15,13 @@ export function isGuestSlot(slot: number) {
   return listGuestSlots().some((item) => item.slot === slot);
 }
 
-/** Первый слот, не занятый ни аккаунтом Telegram, ни гостевым */
+/** Первый слот, не занятый ни аккаунтом Telegram, ни гостевым, ни текущей вкладкой */
 export function findFreeSlot() {
   const telegram = getAccountsInfo();
   const guests = new Set(listGuestSlots().map((item) => item.slot));
+  const currentSlot = ACCOUNT_SLOT || 1;
   let slot = 1;
-  while (telegram[slot] || guests.has(slot)) slot += 1;
+  while (slot === currentSlot || telegram[slot] || guests.has(slot)) slot += 1;
   return slot;
 }
 
