@@ -1743,7 +1743,8 @@ const Composer = ({
   });
 
   const handleTodoListCreate = useLastCallback(() => {
-    if (!isCurrentUserPremium) {
+    // PXG: In a proxy chat the owner's Premium is the one that unlocks checklists
+    if (!isCurrentUserPremium && !chat?.pxgProxy?.isProviderPremium) {
       showNotification({
         message: lang('SubscribeToTelegramPremiumForCreateToDo'),
         action: {

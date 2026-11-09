@@ -3,9 +3,9 @@ import type {
   UserStatusDto,
 } from '../../proxygram/server/types';
 import type {
-  ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMessage,
-  ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction, ApiReactionCount,
-  ApiReactionWithPaid, ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
+  ApiChat, ApiChatFullInfo, ApiCommentsInfo, ApiDraft, ApiKeyboardButton, ApiKeyboardButtons, ApiMediaTodo, ApiMessage,
+  ApiMessagePoll, ApiMessageReplyInfo, ApiPeerReaction, ApiPhoneCallDiscardReason, ApiReaction,
+  ApiReactionCount, ApiReactionWithPaid, ApiSponsoredMessage, ApiTopicWithState, ApiUser, ApiUserStatus, ApiWebPageFull,
 } from '../types';
 import type { ApiMessageAction } from '../types/messageActions';
 import type { ProxyPeer } from './ids';
@@ -342,6 +342,7 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
     content: {
       ...media,
       pollId: dto.poll?.id,
+      todo: buildProxyTodo(dto),
       action: buildProxyAction(dto),
       text: dto.text ? { text: dto.text, entities: buildProxyEntities(dto.entities, dto.accountId) } : undefined,
       webPage: dto.webPage ? { id: buildProxyWebPageId(chat.id, dto.msgId) } : undefined,
@@ -503,6 +504,22 @@ function buildProxyAction(dto: MessageDto): ApiMessageAction | undefined {
         type: action.type,
         answer: { text: { text: action.answer.text }, option: action.answer.option },
       };
+    case 'todoCompletions':
+      return {
+        mediaType: 'action',
+        type: 'todoCompletions',
+        completedIds: action.completedIds,
+        incompletedIds: action.incompletedIds,
+      };
+    case 'todoAppendTasks':
+      return {
+        mediaType: 'action',
+        type: 'todoAppendTasks',
+        items: action.items.map((item) => ({
+          id: item.id,
+          title: { text: item.title, entities: buildProxyEntities(item.entities, dto.accountId) },
+        })),
+      };
     default:
       return { mediaType: 'action', type: action.type };
   }
@@ -577,6 +594,32 @@ function buildInlineButtonAction(
     default:
       return { type: 'unsupported' };
   }
+}
+
+/**
+ * A checklist (Telegram 2026): items keep their Telegram numbers, and a completion is shown for the owner's account
+ * only — the guest's own marks are the account's marks
+ */
+export function buildProxyTodo(dto: MessageDto): ApiMediaTodo | undefined {
+  const { todo } = dto;
+  if (!todo) return undefined;
+  return {
+    mediaType: 'todo',
+    todo: {
+      title: { text: todo.title, entities: buildProxyEntities(todo.titleEntities, dto.accountId) },
+      items: todo.items.map((item) => ({
+        id: item.id,
+        title: { text: item.title, entities: buildProxyEntities(item.entities, dto.accountId) },
+      })),
+      othersCanAppend: todo.othersCanAppend || undefined,
+      othersCanComplete: todo.othersCanComplete || undefined,
+    },
+    completions: todo.completions?.map((completion) => ({
+      itemId: completion.itemId,
+      completedBy: getProxyPeerId(dto.accountId, completion.completedBy),
+      completedAt: completion.date,
+    })),
+  };
 }
 
 export function buildProxyPoll(dto: MessageDto): ApiMessagePoll | undefined {

@@ -5242,6 +5242,7 @@
 "PxgErrNoAdmin" = "You are not allowed to perform admin actions";
 "PxgErrNoBotButtons" = "You are not allowed to press bot buttons";
 "PxgErrNoVote" = "You are not allowed to vote in polls";
+"PxgErrNoInteract" = "You are not allowed to interact with this message";
 "PxgErrNoUploadHere" = "You are not allowed to send files to this chat";
 "PxgErrNoSourceAccess" = "You have no access to the source chat";
 "PxgErrCannotEditMessage" = "This message cannot be edited";
@@ -5277,6 +5278,11 @@
 "PxgErrPollOptionMissing" = "There is no such option";
 "PxgErrPollAnswersDisabled" = "New options cannot be suggested in this poll";
 "PxgErrPollVotersHidden" = "Who voted is visible only in a public poll";
+"PxgErrTodoPremium" = "Checklists need the owner's Telegram Premium";
+"PxgErrTodoNotFound" = "The checklist was not found";
+"PxgErrTodoItemMissing" = "There is no such item in the checklist";
+"PxgErrTodoAppendDisabled" = "Items cannot be added to this checklist";
+"PxgErrTodoCompleteDisabled" = "Items cannot be checked in this checklist";
 "PxgErrStickerUnavailable" = "The sticker is not available in this chat";
 "PxgErrRetryKeyRequired" = "Retrying needs the sending key";
 "PxgErrRetryKeyConflict" = "The sending key is already used for another message";

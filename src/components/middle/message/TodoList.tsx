@@ -10,7 +10,7 @@ import type {
 } from '../../../api/types';
 
 import { getPeerFullTitle, getPeerTitle } from '../../../global/helpers/peers';
-import { selectIsCurrentUserPremium, selectPeer, selectSender } from '../../../global/selectors';
+import { selectChat, selectIsCurrentUserPremium, selectPeer, selectSender } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import { renderTextWithEntities } from '../../common/helpers/renderTextWithEntities';
 
@@ -31,6 +31,8 @@ type OwnProps = {
 type StateProps = {
   sender?: ApiPeer;
   isCurrentUserPremium: boolean;
+  /** PXG: A guest checks items with the owner's Premium, not their own */
+  isProviderPremium?: boolean;
   isSynced?: boolean;
 };
 
@@ -39,6 +41,7 @@ const TodoList = ({
   todoList,
   sender,
   isCurrentUserPremium,
+  isProviderPremium,
   isSynced,
 }: OwnProps & StateProps) => {
   const { toggleTodoCompleted, showNotification, requestConfetti } = getActions();
@@ -47,7 +50,9 @@ const TodoList = ({
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const completedTasksSet = useMemo(() => new Set(completedTasks), [completedTasks]);
 
-  const canToggle = !message.isScheduled && isCurrentUserPremium && isSynced;
+  // PXG: in a proxy chat the owner's Premium is the one that matters
+  const canComplete = isCurrentUserPremium || Boolean(isProviderPremium);
+  const canToggle = !message.isScheduled && canComplete && isSynced;
 
   useLayoutEffect(() => {
     const completedIds = completions?.map((c) => c.itemId.toString()) || [];
@@ -60,7 +65,9 @@ const TodoList = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isCurrentUserPremium) {
+    if (!canComplete) {
+      // The guest cannot buy the owner's Premium: a proxy chat without it simply has no marks
+      if (isProviderPremium !== undefined) return;
       showNotification({
         message: lang('SubscribeToTelegramPremiumForToggleTask'),
         action: {
@@ -109,7 +116,7 @@ const TodoList = ({
         options={tasks}
         selected={completedTasks}
         onChange={handleTaskToggle}
-        onClickLabel={!isCurrentUserPremium ? handleTaskLabelClick : undefined}
+        onClickLabel={!canComplete ? handleTaskLabelClick : undefined}
         disabled={!canToggle}
         isRound
       />
@@ -192,9 +199,11 @@ const TodoList = ({
 
 export default memo(withGlobal<OwnProps>((global, { message }): Complete<StateProps> => {
   const sender = selectSender(global, message);
+  const chat = selectChat(global, message.chatId);
   return {
     sender,
     isCurrentUserPremium: selectIsCurrentUserPremium(global),
+    isProviderPremium: chat?.pxgProxy?.isProviderPremium,
     isSynced: global.isSynced,
   };
 },

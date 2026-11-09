@@ -4004,6 +4004,7 @@ export interface LangPair {
   'PxgErrNoAdmin': undefined;
   'PxgErrNoBotButtons': undefined;
   'PxgErrNoVote': undefined;
+  'PxgErrNoInteract': undefined;
   'PxgErrNoUploadHere': undefined;
   'PxgErrNoSourceAccess': undefined;
   'PxgErrCannotEditMessage': undefined;
@@ -4039,6 +4040,11 @@ export interface LangPair {
   'PxgErrPollOptionMissing': undefined;
   'PxgErrPollAnswersDisabled': undefined;
   'PxgErrPollVotersHidden': undefined;
+  'PxgErrTodoPremium': undefined;
+  'PxgErrTodoNotFound': undefined;
+  'PxgErrTodoItemMissing': undefined;
+  'PxgErrTodoAppendDisabled': undefined;
+  'PxgErrTodoCompleteDisabled': undefined;
   'PxgErrStickerUnavailable': undefined;
   'PxgErrRetryKeyRequired': undefined;
   'PxgErrRetryKeyConflict': undefined;

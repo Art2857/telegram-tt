@@ -247,7 +247,9 @@ export function getAllowedAttachmentOptions(
     canAttachPolls: !isEphemeral && !isStoryReply && !chat.isMonoforum
       && (isAdmin || !isUserRightBanned(chat, 'sendPolls', chatFullInfo))
       && (!isUserId(chat.id) || isChatWithBot || isSavedMessages),
-    canAttachToDoLists: !chat.pxgProxy && !isEphemeral && !isStoryReply && !chat.isMonoforum && !isChatChannel(chat),
+    // PXG: A guest may write checklists only with the owner's Telegram Premium
+    canAttachToDoLists: (!chat.pxgProxy || Boolean(chat.pxgProxy.isProviderPremium))
+      && !isEphemeral && !isStoryReply && !chat.isMonoforum && !isChatChannel(chat),
     canSendStickers: isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendStickers', chatFullInfo),
     canSendGifs: isAdmin || isStoryReply || !isUserRightBanned(chat, 'sendGifs', chatFullInfo),
     canAttachEmbedLinks: !isStoryReply && (isAdmin || !isUserRightBanned(chat, 'embedLinks', chatFullInfo)),

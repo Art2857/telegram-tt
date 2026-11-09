@@ -46,14 +46,16 @@ import {
 } from './stickers';
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
-  answerCallbackButton, appendPollAnswer, createTopic, deleteMessages, deleteScheduledMessages, deleteTopic,
-  editChatPhoto, editMessage, editTopic, emitProxyError, fetchScheduledHistory, forwardMessages, forwardMessagesLocal,
+  answerCallbackButton, appendPollAnswer, appendTodoList, createTopic, deleteMessages, deleteScheduledMessages,
+  deleteTopic, editChatPhoto, editMessage, editTodo, editTopic, emitProxyError, fetchScheduledHistory, forwardMessages,
+  forwardMessagesLocal,
   getSendAsPeerId,
   markMessageListRead, markMessagesRead, pinMessage,
   readAllReactions, rescheduleMessage, saveDraft, sendMessage, sendMessageAction, sendMessageLocal, sendPaidReaction,
   sendPollVote,
   sendReaction,
-  sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic, updateChatAbout,
+  sendScheduledMessages, toggleChatArchived, toggleChatPinned, toggleDialogUnread, togglePinnedTopic,
+  toggleTodoCompleted, updateChatAbout,
   updateChatMemberBannedRights, updateChatNotifySettings, updateChatTitle,
   updateProxyPaidStars,
 } from './writes';
@@ -135,6 +137,9 @@ const methods = {
   answerCallbackButton,
   sendPollVote,
   appendPollAnswer,
+  toggleTodoCompleted,
+  appendTodoList,
+  editTodo,
   loadPollOptionResults,
   updateChatNotifySettings,
   toggleChatPinned,

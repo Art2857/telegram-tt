@@ -729,6 +729,7 @@
 "PxgErrNoAdmin" = "Нет права на админ-действия";
 "PxgErrNoBotButtons" = "Нет права нажимать кнопки ботов";
 "PxgErrNoVote" = "Нет права голосовать в опросах";
+"PxgErrNoInteract" = "Нет права взаимодействовать с сообщением";
 "PxgErrNoUploadHere" = "Нет права отправлять файлы в этот чат";
 "PxgErrNoSourceAccess" = "Нет доступа к исходному чату";
 "PxgErrCannotEditMessage" = "Нельзя изменить это сообщение";
@@ -764,6 +765,11 @@
 "PxgErrPollOptionMissing" = "Такого варианта нет";
 "PxgErrPollAnswersDisabled" = "В этом опросе нельзя предлагать варианты";
 "PxgErrPollVotersHidden" = "Кто голосовал, видно только в публичном опросе";
+"PxgErrTodoPremium" = "Чек-листы доступны при Telegram Premium у владельца";
+"PxgErrTodoNotFound" = "Чек-лист не найден";
+"PxgErrTodoItemMissing" = "Такого пункта в чек-листе нет";
+"PxgErrTodoAppendDisabled" = "В этот чек-лист нельзя добавлять пункты";
+"PxgErrTodoCompleteDisabled" = "В этом чек-листе нельзя отмечать пункты";
 "PxgErrStickerUnavailable" = "Стикер недоступен в этом чате";
 "PxgErrRetryKeyRequired" = "Для повтора нужен ключ отправки";
 "PxgErrRetryKeyConflict" = "Ключ отправки уже используется для другого сообщения";

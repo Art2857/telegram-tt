@@ -48,7 +48,7 @@ const albums = new Map<string, { expected: number; parts: Map<number, AlbumPart>
 /** The message the guest sees until the server confirms it; the same one waits for a paid send to start */
 function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string): ApiMessage {
   const {
-    attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, scheduleRepeatPeriod, effectId,
+    attachment, text, entities, replyInfo, sticker, gif, poll, todo, dice, scheduledAt, scheduleRepeatPeriod, effectId,
     sendAs,
   } = params;
   const isScheduled = Boolean(scheduledAt);
@@ -62,8 +62,12 @@ function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string)
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
-      // A poll and a dice appear as they are once Telegram has them; until then their text stands in
-      text: { text: poll?.summary.question.text || dice || text || attachment?.filename || '', entities },
+      // A poll, a checklist and a dice appear as they are once Telegram has them; until then their text stands in
+      text: {
+        text: poll?.summary.question.text || todo?.todo.title.text || dice || text || attachment?.filename || '',
+        entities,
+      },
+      todo: todo && { mediaType: 'todo', todo: todo.todo },
     },
     sendingState: 'messageSendingStatePending',
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
@@ -93,8 +97,8 @@ export function sendMessageLocal(params: SendParams) {
 
 export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
   const {
-    chat, attachment, text, entities, replyInfo, sticker, gif, poll, dice, scheduledAt, scheduleRepeatPeriod, effectId,
-    sendAs,
+    chat, attachment, text, entities, replyInfo, sticker, gif, poll, todo, dice, scheduledAt, scheduleRepeatPeriod,
+    effectId, sendAs,
   } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
@@ -136,7 +140,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   }
   let request: SendRequest | undefined;
   try {
-    if (params.todo || params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice))) {
+    if (params.richMessage || (isSavedPeer(peer) && (isScheduled || poll || dice || params.todo))) {
       throw new PxgError('unsupported');
     }
     // The owner's sticker or GIF must come from the catalog of the chat's provider account; Saved Messages take one
@@ -189,6 +193,12 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
           closeDate: poll.summary.closeDate,
           subscribersOnly: poll.summary.isRestrictedToSubscribers,
           countriesIso2: poll.summary.allowedCountryCodes,
+        },
+        todo: todo && {
+          title: todo.todo.title.text,
+          items: todo.todo.items.map(({ id, title }) => ({ id, title: title.text })),
+          othersCanAppend: todo.todo.othersCanAppend,
+          othersCanComplete: todo.todo.othersCanComplete,
         },
         dice,
         replyToMsgId,
@@ -770,6 +780,64 @@ export async function appendPollAnswer({ chat, messageId, text }: MethodArgs<'ap
     if (poll) emitProxyUpdate({ '@type': 'updateMessagePoll', pollId: poll.summary.id, pollUpdate: poll });
   } catch (err) {
     emitProxyError(err);
+  }
+}
+
+/**
+ * A checklist (Telegram 2026): the guest marks items as the owner's account. Web A shows the mark at once; the
+ * archive brings the real state, and a refusal shows its reason
+ */
+export async function toggleTodoCompleted({
+  chat, messageId, completedIds, incompletedIds,
+}: MethodArgs<'toggleTodoCompleted'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('todos.toggle', {
+      ...peer, msgId: messageId, completed: completedIds, uncompleted: incompletedIds,
+    });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** A checklist: add items — the list itself changes through the archive */
+export async function appendTodoList({ chat, message, items }: MethodArgs<'appendTodoList'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  try {
+    await runProxyJob('todos.append', { ...peer, msgId: message.id, titles: items.map(({ title }) => title.text) });
+  } catch (err) {
+    emitProxyError(err);
+  }
+}
+
+/** A checklist: title and items change at once in the interface; a refusal restores what Telegram has */
+export async function editTodo({ chat, message, todo }: MethodArgs<'editTodo'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  const optimistic: ApiMessage = {
+    ...message,
+    content: { ...message.content, todo: { mediaType: 'todo', todo: todo.todo } },
+  };
+  emitProxyUpdate({
+    '@type': 'updateMessage', id: message.id, chatId: chat.id, message: optimistic, isFull: true,
+  });
+  try {
+    await runProxyJob('todos.edit', {
+      ...peer,
+      msgId: message.id,
+      title: todo.todo.title.text,
+      items: todo.todo.items.map(({ id, title }) => ({ id, title: title.text })),
+      othersCanAppend: todo.todo.othersCanAppend,
+      othersCanComplete: todo.todo.othersCanComplete,
+    });
+  } catch (err) {
+    emitProxyError(err);
+    const actual = await readSentMessage(chat, message.id).catch(() => undefined);
+    if (actual) {
+      emitProxyUpdate({ '@type': 'updateMessage', id: message.id, chatId: chat.id, message: actual, isFull: true });
+    }
   }
 }
 

@@ -268,6 +268,23 @@ export interface PollVotesDto {
   votes: (PeerBriefDto & { date: number })[];
 }
 
+/** Пункт чек-листа: номер не меняется при правке списка */
+export interface TodoItemDto {
+  id: number;
+  title: string;
+  entities: unknown[];
+}
+
+/** Чек-лист сообщения (Telegram 2026) */
+export interface TodoDto {
+  title: string;
+  titleEntities: unknown[];
+  items: TodoItemDto[];
+  othersCanAppend?: boolean;
+  othersCanComplete?: boolean;
+  completions?: { itemId: number; completedBy: number; date: number }[];
+}
+
 export interface MessageDto {
   permissions?: Permissions;
   /** Speech-to-text of a voice or round message; pending — Telegram is still recognizing it */
@@ -306,6 +323,8 @@ export interface MessageDto {
   /** Встроенные кнопки бота; data и варианты опроса — base64, гость отправляет их обратно серверу */
   buttons?: InlineButtonDto[][];
   poll?: PollDto;
+  /** Чек-лист Telegram 2026 */
+  todo?: TodoDto;
   sentByUserId: string | null;
   /** The name of that guest */
   sentByName?: string | null;
@@ -415,6 +434,9 @@ export type ServiceActionDto =
   /** Открытый опрос: участник предложил или удалил вариант (Telegram 2026) */
   | { type: 'pollAppendAnswer'; answer: { text: string; option: string } }
   | { type: 'pollDeleteAnswer'; answer: { text: string; option: string } }
+  /** Чек-лист: пункты отметили или добавили (Telegram 2026) */
+  | { type: 'todoCompletions'; completedIds: number[]; incompletedIds: number[] }
+  | { type: 'todoAppendTasks'; items: TodoItemDto[] }
   | { type: 'unsupported' };
 
 /** Тема форума; lastMsgId — последнее видимое гостю сообщение темы */
