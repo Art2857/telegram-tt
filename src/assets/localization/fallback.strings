@@ -4888,6 +4888,10 @@
 "PxgHistoryAll" = "Whole history";
 "PxgHistoryNew" = "Only new messages";
 "PxgShareGrant" = "Give access";
+"PxgShareMembersChat" = "Write to members of this chat";
+"PxgShareMembersFolder" = "Write to members of the folder chats";
+"PxgShareMembersHint" = "Existing private chats with members appear. The group chat itself does not open. Bots and you are not included.";
+"PxgShareMembersChip" = "members";
 "PxgShareList" = "Who has access";
 "PxgShareRevoke" = "Revoke";
 "PxgShareNeedServer" = "To share chats, first allow sharing from this account.";
@@ -5329,6 +5333,7 @@
 "PxgErrServiceChatForbidden" = "This chat cannot be shared: your sign-in codes come here";
 "PxgErrShareToSelf" = "You cannot give access to yourself";
 "PxgErrShareTargetMissing" = "No chat, topic or folder is specified";
+"PxgErrShareMembersHistory" = "Member coverage cannot be limited to the last N messages";
 "PxgErrFoldersLimit" = "No more than {max} folders";
 "PxgErrCannotBlockSelf" = "You cannot block yourself";
 "PxgErrAlreadyAdmin" = "You are already the administrator";

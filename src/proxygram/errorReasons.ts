@@ -110,6 +110,7 @@ export const PXG_ERROR_REASON_KEYS = {
   service_chat_forbidden: 'PxgErrServiceChatForbidden',
   share_to_self: 'PxgErrShareToSelf',
   share_target_missing: 'PxgErrShareTargetMissing',
+  share_members_history: 'PxgErrShareMembersHistory',
   folders_limit: 'PxgErrFoldersLimit',
   saved_quota: 'PxgErrSavedQuota',
   requests_limit: 'PxgErrRequestsLimit',

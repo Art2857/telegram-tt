@@ -375,6 +375,10 @@
 "PxgHistoryAll" = "Вся история";
 "PxgHistoryNew" = "Только новые сообщения";
 "PxgShareGrant" = "Открыть доступ";
+"PxgShareMembersChat" = "Писать участникам этого чата";
+"PxgShareMembersFolder" = "Писать участникам чатов папки";
+"PxgShareMembersHint" = "Появятся существующие лички с участниками. Сам групповой чат не откроется. Боты и вы сами не входят.";
+"PxgShareMembersChip" = "участники";
 "PxgShareList" = "У кого есть доступ";
 "PxgShareRevoke" = "Отозвать";
 "PxgShareNeedServer" = "Чтобы делиться чатами, сначала разрешите раздачу с этого аккаунта.";
@@ -816,6 +820,7 @@
 "PxgErrServiceChatForbidden" = "Этот чат открыть нельзя: в нём приходят ваши коды входа";
 "PxgErrShareToSelf" = "Нельзя выдать доступ самому себе";
 "PxgErrShareTargetMissing" = "Не указан чат, тема или папка";
+"PxgErrShareMembersHistory" = "Для участников нельзя ограничить историю последними N сообщениями";
 "PxgErrFoldersLimit" = "Не больше {max} папок";
 "PxgErrCannotBlockSelf" = "Нельзя заблокировать себя";
 "PxgErrAlreadyAdmin" = "Вы уже администратор";

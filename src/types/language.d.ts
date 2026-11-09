@@ -3704,6 +3704,10 @@ export interface LangPair {
   'PxgHistoryAll': undefined;
   'PxgHistoryNew': undefined;
   'PxgShareGrant': undefined;
+  'PxgShareMembersChat': undefined;
+  'PxgShareMembersFolder': undefined;
+  'PxgShareMembersHint': undefined;
+  'PxgShareMembersChip': undefined;
   'PxgShareList': undefined;
   'PxgShareRevoke': undefined;
   'PxgShareNeedServer': undefined;
@@ -4090,6 +4094,7 @@ export interface LangPair {
   'PxgErrServiceChatForbidden': undefined;
   'PxgErrShareToSelf': undefined;
   'PxgErrShareTargetMissing': undefined;
+  'PxgErrShareMembersHistory': undefined;
   'PxgErrCannotBlockSelf': undefined;
   'PxgErrAlreadyAdmin': undefined;
   'PxgErrUnblockFirst': undefined;

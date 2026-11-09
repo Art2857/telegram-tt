@@ -8,7 +8,7 @@ import type {
 import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
 
 import { SERVICE_NOTIFICATIONS_USER_ID } from '../../config';
-import { getMainUsername, getUserFullName } from '../../global/helpers';
+import { getMainUsername, getUserFullName, isChatChannel } from '../../global/helpers';
 import { selectChat, selectChatFullInfo, selectUser } from '../../global/selectors';
 import { copyTextToClipboard } from '../../util/clipboard';
 import { getOrderedIds } from '../../util/folderManager';
@@ -26,6 +26,7 @@ import useLastCallback from '../../hooks/useLastCallback';
 
 import Avatar from '../common/Avatar';
 import Button from '../ui/Button';
+import Checkbox from '../ui/Checkbox';
 import InputText from '../ui/InputText';
 import ListItem from '../ui/ListItem';
 import Modal from '../ui/Modal';
@@ -36,11 +37,14 @@ import styles from './ConnectServerModal.module.scss';
 type OutgoingShare = {
   id: string;
   accountId: string;
-  scope: 'chat' | 'topic' | 'folder';
+  scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   topicId: number | null;
   folderId: number | null;
   excludePeerIds: number[];
+  memberMode?: 'all' | 'selected' | 'none';
+  memberIds?: number[];
+  includeBots?: boolean;
   preset: PresetKey;
   permissions: Partial<Permissions>;
   historyMode: HistoryMode;
@@ -123,6 +127,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [starsLimit, setStarsLimit] = useState('');
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
+  const [coverMembers, setCoverMembers] = useState(false);
   const [inviteLink, setInviteLink] = useState<string>();
   const [invites, setInvites] = useState<Invite[]>();
   const [error, setError] = useState<string>();
@@ -134,15 +139,20 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const currentUserId = getGlobal().currentUserId;
   const peerTitle = chatId && chatId === currentUserId ? lang('SavedMessages')
     : chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
+  const chat = chatId ? selectChat(getGlobal(), chatId) : undefined;
+  // Охват участников: групповой чат или все чаты папки, но не канал и не тема
+  const canCoverMembers = !editing && !isInviting && !topic
+    && Boolean(folder || (chat && !isChatChannel(chat)
+      && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup')));
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const account = accounts?.find((item) => String(item.tgUserId) === currentUserId && item.status !== 'revoked');
   const peerId = chatId ? Number(chatId) : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
 
   const isSameTarget = (item: ShareTargetFields) => {
-    if (folder) return item.scope === 'folder' && item.folderId === folder.id;
+    if (folder) return (item.scope === 'folder' || item.scope === 'folder_members') && item.folderId === folder.id;
     if (topic) return item.scope === 'topic' && item.peerId === peerId && item.topicId === topic.id;
-    return item.scope === 'chat' && item.peerId === peerId;
+    return (item.scope === 'chat' || item.scope === 'chat_members') && item.peerId === peerId;
   };
 
   const loadShares = useLastCallback(() => {
@@ -207,6 +217,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setStarsLimit('');
     setExcludedIds([]);
     setIsInviting(false);
+    setCoverMembers(false);
   };
 
   const startInvite = () => {
@@ -407,6 +418,21 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           // Someone who has never signed in gets the account in advance and finds the chat at the first sign-in
           ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
         });
+        // Охват участников — отдельный доступ: сам групповой чат он не открывает
+        if (coverMembers && canCoverMembers) {
+          await pxgRpc.call('shares.create', {
+            ...common,
+            ...(folder
+              ? { scope: 'folder_members' as const, folderId: folder.id }
+              : { scope: 'chat_members' as const, peerId }),
+            historyMode: target.historyMode,
+            historyLimit: target.historyLimit,
+            historySince: target.historySince,
+            expiresAt: target.expiresAt,
+            accountId: account.id,
+            ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
+          });
+        }
       }
       resetForm();
       loadShares();
@@ -504,6 +530,17 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           folderChats={folderChats}
           onChange={changeSettings}
         />
+
+        {canCoverMembers && (
+          <div className={styles.section}>
+            <Checkbox
+              checked={coverMembers}
+              onCheck={setCoverMembers}
+              label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
+              subLabel={lang('PxgShareMembersHint')}
+            />
+          </div>
+        )}
 
         <div className={styles.buttons}>
           <Button isLoading={isSaving} disabled={!isHistoryValid} onClick={() => void save()}>
@@ -700,6 +737,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                       {share.expiresAt
                         ? ` · ${lang('PxgShareExpires', { date: formatDateTime(share.expiresAt) })}` : ''}
                       {share.label ? ` · ${share.label}` : ''}
+                      {share.scope.endsWith('_members') ? ` · ${lang('PxgShareMembersChip')}` : ''}
                     </span>
                   </span>
                   <span className={styles.rowActions}>
