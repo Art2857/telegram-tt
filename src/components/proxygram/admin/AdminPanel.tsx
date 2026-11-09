@@ -169,7 +169,7 @@ const TABS = [
   { key: 'system', title: 'PxgAdminSystem' },
 ] as const;
 
-/** Какие события перерисовывают какую вкладку */
+/** РљР°РєРёРµ СЃРѕР±С‹С‚РёСЏ РїРµСЂРµСЂРёСЃРѕРІС‹РІР°СЋС‚ РєР°РєСѓСЋ РІРєР»Р°РґРєСѓ */
 const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   overview: ['presence', 'sessions', 'users', 'accounts', 'shares', 'outbox'],
   users: ['users', 'sessions', 'presence'],
@@ -183,7 +183,7 @@ const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   system: ['accounts'],
 };
 
-/** Выдача доступа из запроса: права и история по умолчанию — как у владельца в форме «Поделиться» */
+/** Р’С‹РґР°С‡Р° РґРѕСЃС‚СѓРїР° РёР· Р·Р°РїСЂРѕСЃР°: РїСЂР°РІР° Рё РёСЃС‚РѕСЂРёСЏ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ вЂ” РєР°Рє Сѓ РІР»Р°РґРµР»СЊС†Р° РІ С„РѕСЂРјРµ В«РџРѕРґРµР»РёС‚СЊСЃСЏВ» */
 const REQUEST_PRESETS = [
   { key: 'readOnly', title: 'PxgPresetReadOnly' },
   { key: 'assistant', title: 'PxgPresetAssistant' },
@@ -194,7 +194,7 @@ const REQUEST_HISTORIES = [
   { key: 'new_only', title: 'PxgHistoryNew' },
 ] as const;
 
-/** Состояния очереди по-человечески, а не значениями из базы */
+/** РЎРѕСЃС‚РѕСЏРЅРёСЏ РѕС‡РµСЂРµРґРё РїРѕ-С‡РµР»РѕРІРµС‡РµСЃРєРё, Р° РЅРµ Р·РЅР°С‡РµРЅРёСЏРјРё РёР· Р±Р°Р·С‹ */
 const OUTBOX_STATUS_KEYS = {
   pending: 'PxgAdminOutboxPending',
   running: 'PxgAdminOutboxRunning',
@@ -202,7 +202,7 @@ const OUTBOX_STATUS_KEYS = {
   failed: 'PxgAdminOutboxFailed',
 } as const;
 
-/** Загрузка раздела админки с живым обновлением по событию admin.changed */
+/** Р—Р°РіСЂСѓР·РєР° СЂР°Р·РґРµР»Р° Р°РґРјРёРЅРєРё СЃ Р¶РёРІС‹Рј РѕР±РЅРѕРІР»РµРЅРёРµРј РїРѕ СЃРѕР±С‹С‚РёСЋ admin.changed */
 function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
   const [loaded, setLoaded] = useState<{ key: string; value: T }>();
   const [error, setError] = useState<unknown>();
@@ -242,7 +242,7 @@ function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], 
   return { data: loaded?.key === paramsKey ? loaded.value : undefined, error };
 }
 
-/** Админка (PLAN.md, 7.15): только метаданные — кто, какой чат, когда; не переписка */
+/** РђРґРјРёРЅРєР° (PLAN.md, 7.15): С‚РѕР»СЊРєРѕ РјРµС‚Р°РґР°РЅРЅС‹Рµ вЂ” РєС‚Рѕ, РєР°РєРѕР№ С‡Р°С‚, РєРѕРіРґР°; РЅРµ РїРµСЂРµРїРёСЃРєР° */
 const AdminPanel = () => {
   const lang = useLang();
   const { isMobile } = useAppLayout();
@@ -365,7 +365,7 @@ function Badge({ children, tone }: { children: TeactNode; tone?: 'green' | 'red'
   return <span className={buildClassName(styles.badge, tone && styles[tone])}>{children}</span>;
 }
 
-/** Кружок с инициалами: у людей админки нет фотографий Telegram, цвет стабилен для одного и того же id */
+/** РљСЂСѓР¶РѕРє СЃ РёРЅРёС†РёР°Р»Р°РјРё: Сѓ Р»СЋРґРµР№ Р°РґРјРёРЅРєРё РЅРµС‚ С„РѕС‚РѕРіСЂР°С„РёР№ Telegram, С†РІРµС‚ СЃС‚Р°Р±РёР»РµРЅ РґР»СЏ РѕРґРЅРѕРіРѕ Рё С‚РѕРіРѕ Р¶Рµ id */
 function AdminAvatar({ name, id }: { name: string; id: string }) {
   const initials = name
     .split(' ')
@@ -411,7 +411,7 @@ const t = (lang: TabProps['lang'], key: string, vars?: Record<string, string | n
   (lang as unknown as (k: string, v?: Record<string, string | number>) => string)(key, vars)
 );
 
-// ─── Обзор ──────────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ РћР±Р·РѕСЂ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const OverviewTab = memo(({ lang, topics }: TabProps) => {
   const { data, error } = useAdminData<Overview>('admin.overview', {}, topics, SYSTEM_REFRESH_MS);
@@ -435,7 +435,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
     [lang('PxgAdminStatArchive'), data.archive.messagesLastDay],
     [lang('PxgAdminStatQueue'), (data.outbox.pending ?? 0) + (data.outbox.running ?? 0)],
     [lang('PxgAdminStatMedia'), formatFileSize(lang, data.storage.mediaBytes)],
-    [lang('PxgAdminStatDisk'), diskPercent !== undefined ? `${diskPercent}%` : '—'],
+    [lang('PxgAdminStatDisk'), diskPercent !== undefined ? `${diskPercent}%` : 'вЂ”'],
   ];
 
   return (
@@ -459,16 +459,19 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
         ))}
       </div>
       <div className={styles.accountStatuses}>
-        {Object.entries(ACCOUNT_STATUS).map(([status, { key, tone }]) => (
-          <Badge key={status} tone={tone}>{`${t(lang, key)}: ${data.accounts[status] ?? 0}`}</Badge>
-        ))}
+        {Object.entries(ACCOUNT_STATUS).map(([status, { key, tone }]) => {
+          const count = data.accounts[status] ?? 0;
+          return (
+            <Badge key={status} tone={count ? tone : 'gray'}>{`${t(lang, key)}: ${count}`}</Badge>
+          );
+        })}
       </div>
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminReadingNow')}</h3>
       {reading.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminNobodyReading')}</p>
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColWho')}</th>
@@ -487,8 +490,8 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
                   <LevelBadge level={row.level} lang={lang} />
                 </td>
                 <td>{row.chat?.title ?? row.chat?.peerId}</td>
-                <td>{row.chat?.accountName ?? '—'}</td>
-                <td>{[row.device, row.platform].filter(Boolean).join(' · ') || '—'}</td>
+                <td>{row.chat?.accountName ?? 'вЂ”'}</td>
+                <td>{[row.device, row.platform].filter(Boolean).join(' В· ') || 'вЂ”'}</td>
                 <td>{formatDateTime(row.chat?.since)}</td>
               </tr>
             ))}
@@ -499,7 +502,7 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
   );
 });
 
-// ─── Пользователи ───────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ РџРѕР»СЊР·РѕРІР°С‚РµР»Рё в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
   const [query, setQuery] = useState('');
@@ -532,7 +535,7 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColUser')}</th>
@@ -559,7 +562,7 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
                     {user.blockedAt && <Badge tone="red">{lang('PxgAdminBlocked')}</Badge>}
                   </div>
                   <div className={styles.secondary}>
-                    {user.username ? `@${user.username} · ` : ''}
+                    {user.username ? `@${user.username} В· ` : ''}
                     {user.tgUserId}
                   </div>
                 </td>
@@ -609,7 +612,7 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       )}
       {user.id !== selfId && (
         <>
-          {/* docs/spec/08-admin.md §2: a plain session of this person in a new slot, seen in the person's devices */}
+          {/* docs/spec/08-admin.md В§2: a plain session of this person in a new slot, seen in the person's devices */}
           {!user.blockedAt && (
             <Button
               size="tiny"
@@ -669,7 +672,7 @@ function signInAs(userId: string) {
   };
 }
 
-/** Карточка не читает переписку: только устройства, аккаунты, доступы и журнал действий */
+/** РљР°СЂС‚РѕС‡РєР° РЅРµ С‡РёС‚Р°РµС‚ РїРµСЂРµРїРёСЃРєСѓ: С‚РѕР»СЊРєРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР°, Р°РєРєР°СѓРЅС‚С‹, РґРѕСЃС‚СѓРїС‹ Рё Р¶СѓСЂРЅР°Р» РґРµР№СЃС‚РІРёР№ */
 const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
   userId: string;
   onClose: () => void;
@@ -697,7 +700,7 @@ const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
           <div className={buildClassName(styles.secondary, styles.details)}>{data.user.id}</div>
           <p className={styles.secondary}>
             {t(lang, 'PxgAdminRegistered', { time: formatDateTime(data.user.createdAt) })}
-            {' · '}
+            {' В· '}
             {t(lang, 'PxgAdminLastSeen', { time: formatDateTime(data.user.lastSeenAt) })}
           </p>
           <div className={styles.filters}>
@@ -718,15 +721,15 @@ const UserCard = memo(({ userId, onClose, lang, ask, run, selfId }: TabProps & {
                 <div className={styles.stat} key={session.id}>
                   <div className={styles.name}>
                     {session.online && <span className={styles.onlineDot} />}
-                    {session.deviceName || session.platform || '—'}
+                    {session.deviceName || session.platform || 'вЂ”'}
                   </div>
                   <LevelBadge level={session.level} lang={lang} />
                   <div className={styles.secondary}>
                     {session.platform}
                     {' '}
-                    ·
+                    В·
                     {' '}
-                    {session.ip ?? '—'}
+                    {session.ip ?? 'вЂ”'}
                   </div>
                   <div className={styles.secondary}>
                     {t(lang, 'PxgAdminSince', { time: formatDateTime(session.createdAt) })}
@@ -794,7 +797,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
     <>
       <h3 className={styles.sectionTitle}>{title}</h3>
       {shares.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColChat')}</th>
@@ -807,7 +810,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
             {shares.map((share) => (
               <tr key={share.id}>
                 <td>
-                  {share.peerTitle ?? share.peerId ?? t(lang, 'PxgSettingsFolder', { id: share.folderId ?? '—' })}
+                  {share.peerTitle ?? share.peerId ?? t(lang, 'PxgSettingsFolder', { id: share.folderId ?? 'вЂ”' })}
                   <div className={styles.secondary}>{share.account.displayName}</div>
                   {Boolean(share.topicId) && (
                     <div className={styles.secondary}>
@@ -821,7 +824,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
                 <td>
                   {displayName(share.grantor)}
                   {' '}
-                  →
+                  в†’
                   {' '}
                   {displayName(share.grantee)}
                 </td>
@@ -839,7 +842,7 @@ function UserShares({ title, shares, lang }: { title: string; shares: ShareRow[]
   );
 }
 
-// ─── Сессии ─────────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ РЎРµСЃСЃРёРё в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -870,7 +873,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColUser')}</th>
@@ -898,7 +901,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
                 </td>
                 <td><LevelBadge level={row.level} lang={lang} /></td>
                 <td>
-                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? '—'}
+                  {row.isAdminSignIn ? lang('PxgAdminSignInSession') : row.deviceName ?? row.platform ?? 'вЂ”'}
                   <div className={styles.secondary}>{row.ip ?? ''}</div>
                 </td>
                 <td>
@@ -927,7 +930,7 @@ const SessionsTab = memo(({ lang, ask, topics }: TabProps) => {
   );
 });
 
-// ─── Аккаунты ───────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ РђРєРєР°СѓРЅС‚С‹ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const AccountsTab = memo(({ lang, run, topics }: TabProps) => {
   const [selectedId, setSelectedId] = useState<string>();
@@ -953,7 +956,7 @@ const AccountsTab = memo(({ lang, run, topics }: TabProps) => {
           onDisconnect={setDisconnect}
         />
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColAccount')}</th>
@@ -970,11 +973,11 @@ const AccountsTab = memo(({ lang, run, topics }: TabProps) => {
                 <tr key={account.id}>
                   <td>
                     <Button size="tiny" color="translucent" isText onClick={() => setSelectedId(account.id)}>
-                      {account.displayName ?? '—'}
+                      {account.displayName ?? 'вЂ”'}
                     </Button>
                     <div className={styles.secondary}>
                       {t(lang, 'PxgAdminOwner', { name: displayName(account.owner) })}
-                      {account.tgUserId ? ` · ${account.tgUserId}` : ''}
+                      {account.tgUserId ? ` В· ${account.tgUserId}` : ''}
                     </div>
                   </td>
                   <td>
@@ -1074,7 +1077,7 @@ function AccountCard({ account, lang, run, onClose, onDisconnect }: {
 } & Pick<TabProps, 'lang' | 'run'>) {
   const status = ACCOUNT_STATUS[account.status] ?? { key: account.status, tone: 'gray' as const };
   const facts = [
-    [lang('PxgAdminWorker'), account.workerId ?? '—'],
+    [lang('PxgAdminWorker'), account.workerId ?? 'вЂ”'],
     [lang('PxgAdminLease'), formatDateTime(account.leaseUntil)],
     [lang('PxgAdminConnected'), formatDateTime(account.connectedAt)],
     [lang('PxgAdminLastEvent'), formatDateTime(account.lastMessageAt)],
@@ -1117,7 +1120,7 @@ function AccountCard({ account, lang, run, onClose, onDisconnect }: {
   );
 }
 
-// ─── Доступы ────────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Р”РѕСЃС‚СѓРїС‹ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const SHARES_PAGE_SIZE = 200;
 type ShareFilters = {
@@ -1239,7 +1242,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
             </Button>
           </div>
           {data.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
-            <table className={styles.table}>
+            <table className={buildClassName(styles.table, styles.stacked)}>
               <thead>
                 <tr>
                   <th aria-label={lang('ContextMenuItemSelectAll')} />
@@ -1275,7 +1278,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                         {share.scope === 'topic' && <div>{share.topicTitle ?? share.topicId}</div>}
                         {share.label && <div>{share.label}</div>}
                         <div className={styles.secondary}>
-                          {t(lang, 'PxgAdminFromAccount', { name: share.account.displayName ?? '—' })}
+                          {t(lang, 'PxgAdminFromAccount', { name: share.account.displayName ?? 'вЂ”' })}
                         </div>
                       </td>
                       <td>
@@ -1288,7 +1291,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                         {t(lang, `PxgPreset${share.preset[0].toUpperCase()}${share.preset.slice(1)}`)}
                         {Object.entries(share.permissions).map(([key, value]) => (
                           <div key={key} className={styles.secondary}>
-                            {`${value ? '✓' : '✗'} ${t(lang, `PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}`}
+                            {`${value ? 'вњ“' : 'вњ—'} ${t(lang, `PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}`}
                           </div>
                         ))}
                         <div className={styles.secondary}>{lang(HISTORY_KEYS[share.historyMode])}</div>
@@ -1363,7 +1366,7 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
   );
 });
 
-// ─── Журнал и очередь ───────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Р–СѓСЂРЅР°Р» Рё РѕС‡РµСЂРµРґСЊ в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
   const { data, error } = useAdminData<AdminAccessRequestDto[]>(
@@ -1381,7 +1384,7 @@ const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
   return (
     <>
       <p className={styles.secondary}>{lang('PxgAdminRequestsHint')}</p>
-      <table className={styles.table}>
+      <table className={buildClassName(styles.table, styles.stacked)}>
         <thead>
           <tr>
             <th>{lang('PxgAdminColWho')}</th>
@@ -1551,7 +1554,7 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
       ) : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminColTime')}</th>
@@ -1576,7 +1579,7 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
   );
 });
 
-// ─── Система ────────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ РЎРёСЃС‚РµРјР° в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 function parseAuditDate(value: string, isEndOfDay?: boolean) {
   if (!value) return undefined;
@@ -1595,12 +1598,12 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
     <>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? '—'}</span>
+          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? 'вЂ”'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminVersion')}</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.statValue}>
-            {formatTimeDuration(lang, data.uptimeSeconds) ?? '—'}
+            {formatTimeDuration(lang, data.uptimeSeconds) ?? 'вЂ”'}
           </span>
           <span className={styles.statLabel}>{lang('PxgAdminUptime')}</span>
         </div>
@@ -1609,7 +1612,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
           <span className={styles.statLabel}>Node.js</span>
         </div>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{data.migrations ?? '—'}</span>
+          <span className={styles.statValue}>{data.migrations ?? 'вЂ”'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminMigrations')}</span>
         </div>
         <div className={styles.stat}>
@@ -1637,7 +1640,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminWorkers')}</h3>
       {data.workers.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <thead>
             <tr>
               <th>{lang('PxgAdminWorker')}</th>
@@ -1648,7 +1651,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
           <tbody>
             {data.workers.map((worker) => (
               <tr key={worker.workerId ?? 'none'}>
-                <td><code>{worker.workerId ?? '—'}</code></td>
+                <td><code>{worker.workerId ?? 'вЂ”'}</code></td>
                 <td>{worker.accounts}</td>
                 <td>
                   {formatDateTime(worker.leaseUntil ?? undefined)}
@@ -1671,12 +1674,12 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
                   {lang(vpn.isHealthy ? 'PxgAdminVpnHealthy' : 'PxgAdminVpnDown')}
                 </Badge>
                 {' '}
-                {vpn.active ?? '—'}
-                {vpn.activeRttMs ? ` · ${vpn.activeRttMs} ms` : ''}
-                {` · ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
+                {vpn.active ?? 'вЂ”'}
+                {vpn.activeRttMs ? ` В· ${vpn.activeRttMs} ms` : ''}
+                {` В· ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
               </p>
               {Boolean(vpn.switches?.length) && (
-                <table className={styles.table}>
+                <table className={buildClassName(styles.table, styles.stacked)}>
                   <thead>
                     <tr>
                       <th>{lang('PxgAdminColTime')}</th>
@@ -1688,7 +1691,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
                     {vpn.switches.map((item) => (
                       <tr key={item.at}>
                         <td className={styles.nowrap}>{formatDateTime(item.at)}</td>
-                        <td>{[item.from, item.to].filter(Boolean).join(' → ')}</td>
+                        <td>{[item.from, item.to].filter(Boolean).join(' в†’ ')}</td>
                         <td className={styles.details}>{item.reason}</td>
                       </tr>
                     ))}
@@ -1709,7 +1712,7 @@ const OutboxTab = memo(({ lang, run, topics }: TabProps) => {
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
 
   return (
-    <table className={styles.table}>
+    <table className={buildClassName(styles.table, styles.stacked)}>
       <thead>
         <tr>
           <th>{lang('PxgAdminColTime')}</th>
@@ -1774,7 +1777,7 @@ const EXPORT_STATUS: Record<AdminExportJob['status'], string> = {
 
 type ExportPeer = { peerId: number; title: string | null; username: string | null; type: string | null };
 
-/** Скачивание чата администратором: выбрать аккаунт и чат, поставить задание, забрать файл */
+/** РЎРєР°С‡РёРІР°РЅРёРµ С‡Р°С‚Р° Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРј: РІС‹Р±СЂР°С‚СЊ Р°РєРєР°СѓРЅС‚ Рё С‡Р°С‚, РїРѕСЃС‚Р°РІРёС‚СЊ Р·Р°РґР°РЅРёРµ, Р·Р°Р±СЂР°С‚СЊ С„Р°Р№Р» */
 const ExportsTab = memo(({ lang, run }: TabProps) => {
   const { data: accounts, error: accountsError } = useAdminData<AccountRow[]>('admin.accounts', {}, ['accounts']);
   const { data: jobs, error } = useAdminData<AdminExportJob[]>('admin.exports', {}, ['exports'], 5000);
@@ -1844,7 +1847,7 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
               <tr key={peer.peerId}>
                 <td>
                   <div className={styles.name}>{peer.title ?? peer.username ?? String(peer.peerId)}</div>
-                  <div className={styles.secondary}>{peer.type ?? '—'}</div>
+                  <div className={styles.secondary}>{peer.type ?? 'вЂ”'}</div>
                 </td>
                 <td>
                   <Button size="tiny" isText fluid={false} onClick={() => start(peer)}>
@@ -1868,14 +1871,14 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
                 <td>
                   <div className={styles.name}>{job.peerTitle ?? String(job.peerId)}</div>
                   <div className={styles.secondary}>
-                    {`${job.accountName ?? job.accountId} · ${t(lang, EXPORT_STATUS[job.status])}`}
+                    {`${job.accountName ?? job.accountId} В· ${t(lang, EXPORT_STATUS[job.status])}`}
                   </div>
                   {job.error && <div className={styles.errorText}>{job.error}</div>}
                 </td>
                 <td>
                   <div>{t(lang, 'PxgAdminExportsCounts', { messages: job.messageCount, files: job.fileCount })}</div>
                   <div className={styles.secondary}>
-                    {job.sizeBytes ? formatFileSize(lang, job.sizeBytes) : '—'}
+                    {job.sizeBytes ? formatFileSize(lang, job.sizeBytes) : 'вЂ”'}
                   </div>
                 </td>
                 <td>

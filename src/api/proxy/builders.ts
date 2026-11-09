@@ -329,10 +329,12 @@ export function buildProxyMessage(dto: MessageDto, chat: ApiChat): ApiMessage {
   const media = permissions.download && !dto.isMediaUnavailable
     ? buildProxyMedia(dto, chat.id) : undefined;
   const attachment = buildProxyAttachment(dto, chat.id);
-  const mediaFallback = dto.attachment?.type === 'other' ? { attachmentKind: dto.attachment.kind }
-    : !media && dto.media?.id ? {
-      fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable, size: dto.media.size,
-    } : undefined;
+  // Чек-лист рисует свой компонент: подпись-заглушка «📎 Checklist» под ним не нужна
+  const mediaFallback = dto.todo ? undefined
+    : dto.attachment?.type === 'other' ? { attachmentKind: dto.attachment.kind }
+      : !media && dto.media?.id ? {
+        fileName: dto.media.fileName, isUnavailable: dto.isMediaUnavailable, size: dto.media.size,
+      } : undefined;
   return {
     id: dto.msgId,
     sendingState: undefined,

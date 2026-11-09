@@ -279,8 +279,8 @@ const PxgSettingsPanel = () => {
   };
 
   return (
-    <div className={styles.root}>
-      <header className={styles.header}>
+    <div className={styles.settingsRoot}>
+      <header className={styles.settingsHeader}>
         <Button
           round
           size="smaller"
@@ -289,16 +289,16 @@ const PxgSettingsPanel = () => {
           onClick={close}
           ariaLabel={lang('Close')}
         />
-        <h2>{lang('PxgSettingsTitle')}</h2>
+        <h2 className={styles.title}>{lang('PxgSettingsTitle')}</h2>
       </header>
       <TabList
         tabs={tabs.map((item) => ({ title: t(item.title) }))}
         activeTab={tab}
         onSwitchTab={(index) => setSelectedTabKey(tabs[index].key)}
-        className={styles.tabs}
+        className={styles.settingsTabs}
       />
       {actionError && <div className={styles.actionError}>{actionError}</div>}
-      <div className={buildClassName(styles.content, 'custom-scroll')}>
+      <div className={buildClassName(styles.settingsContent, 'custom-scroll')}>
         {tabKey === 'server' && <ServerTab {...props} />}
         {tabKey === 'outgoing' && <OutgoingTab {...props} />}
         {tabKey === 'incoming' && <IncomingTab {...props} />}

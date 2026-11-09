@@ -189,6 +189,11 @@ export function getMessageTextWithFallback(lang: LangFn, message: MediaContainer
     return message.content.text;
   }
 
+  // Чек-лист рисует отдельный компонент: без этой ветки под карточкой появляется «не поддерживается»
+  if (message.content.todo) {
+    return undefined;
+  }
+
   const richMessageText = message.content.richMessage
     ? getRichMessagePreviewText(message.content.richMessage)
     : undefined;

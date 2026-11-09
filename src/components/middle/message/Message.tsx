@@ -60,7 +60,6 @@ import {
   getMessageSingleCustomEmoji,
   getMessageSingleRegularEmoji,
   getMessageWebPage,
-  hasMessageText,
   hasMessageTtl,
   isAnonymousForwardsChat,
   isAnonymousOwnMessage,
@@ -814,7 +813,10 @@ const Message = ({
   }, [message.isDeleting]);
 
   const textMessage = album?.hasMultipleCaptions ? undefined : (album?.captionMessage || message);
-  const hasTextContent = Boolean((textMessage && hasMessageText(textMessage)) || message.pxgMediaFallback);
+  // Медиа без подписи не считается текстом: иначе под чек-листом появляется «не поддерживается»
+  const hasTextContent = Boolean(
+    textMessage && (textMessage.content.text || textMessage.content.richMessage || textMessage.pxgMediaFallback),
+  );
   const hasText = hasTextContent || hasFactCheck;
 
   const containerClassName = buildClassName(

@@ -559,3 +559,104 @@
 .hiddenInput {
   display: none;
 }
+
+/* «Настройки Proxygram» — отдельная полноэкранная панель: заголовок, вкладки и контент столбиком */
+.settingsRoot {
+  position: fixed;
+  z-index: var(--z-modal, 1000);
+  inset: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  color: var(--color-text);
+
+  background: var(--color-background);
+}
+
+.settingsHeader {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.75rem;
+  align-items: center;
+
+  min-height: 3.5rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--color-borders);
+}
+
+.settingsTabs {
+  overflow-x: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-borders);
+}
+
+.settingsContent {
+  overflow-y: auto;
+  flex: 1;
+
+  width: 100%;
+  max-width: 75rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (max-width: 720px) {
+  .settingsHeader {
+    padding: 0 0.75rem;
+  }
+
+  .settingsContent {
+    padding: 0.75rem;
+  }
+}
+
+/* Карточки вместо таблиц на телефоне: заголовки колонок скрыты, строки идут столбиком */
+@media (max-width: 700px) {
+  .table.stacked {
+    overflow-x: visible;
+    display: block;
+  }
+
+  .table.stacked thead {
+    display: none;
+  }
+
+  .table.stacked tbody,
+  .table.stacked tr,
+  .table.stacked td {
+    display: block;
+    width: auto;
+  }
+
+  .table.stacked tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-borders);
+  }
+
+  .table.stacked td {
+    padding: 0.25rem 0.5rem;
+    border-bottom: 0;
+  }
+
+  .table.stacked .actions {
+    text-align: start;
+    white-space: normal;
+  }
+
+  .name {
+    flex-wrap: wrap;
+  }
+
+  .actions :global(.Button) {
+    margin-bottom: 0.25rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .name :global(.Button) {
+    flex: 0 1 auto;
+    width: auto;
+    text-align: start;
+  }
+}
