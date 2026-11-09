@@ -4687,6 +4687,7 @@
 "PxgReachableSearch" = "Name or username";
 "PxgReachableOpen" = "Open";
 "PxgReachableNoChat" = "No chat yet";
+"PxgReachableWrite" = "Write";
 "PxgReachableEmpty" = "Nobody yet: member coverage is not granted or the members have not been read.";
 "PxgRequestAskLabel" = "Username, phone or ID";
 "PxgRequestAskWhom" = "Ask {name} to open a chat";

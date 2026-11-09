@@ -82,7 +82,7 @@ import type { ApiCredentials } from '../../components/payment/PaymentModal';
 import type { FoldersActions } from '../../hooks/reducers/useFoldersReducer';
 import type { ReducerAction } from '../../hooks/useReducer';
 import type { P2pMessage } from '../../lib/vibecalls';
-import type { ChatStateDto, ChatTypingDto } from '../../proxygram/server/types';
+import type { ChatStateDto, ChatTypingDto, ReachablePerson } from '../../proxygram/server/types';
 import type {
   AccountSettings,
   AttachmentCompression,
@@ -140,6 +140,8 @@ export type WithTabId = { tabId?: number };
 
 export interface ActionPayloads {
   loadProxyChats: { shouldKeepUnchanged?: boolean } | undefined;
+  /** Первый диалог с человеком из охвата: локальная личка до первого сообщения */
+  startProxyChat: { accountId: string; person: ReachablePerson } & WithTabId;
   initProxyGuest: undefined;
   resetProxyGuest: undefined;
   refreshProxyMessage: {

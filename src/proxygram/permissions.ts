@@ -6,7 +6,7 @@ import type { PermissionKey, Permissions, PresetKey } from './server/types';
 export const PERMISSION_KEYS: PermissionKey[] = [
   'read', 'write', 'sendMedia', 'useOwnerStickers', 'react', 'editOwn', 'deleteOwn', 'manageOwnerOutgoing',
   'interact', 'download', 'forwardOut', 'seeArchive', 'seeAttribution', 'markRead', 'typing', 'seePhones', 'admin',
-  'signMessages', 'spendStars',
+  'signMessages', 'spendStars', 'startChats',
 ];
 
 const NONE = Object.fromEntries(PERMISSION_KEYS.map((key) => [key, false])) as Permissions;

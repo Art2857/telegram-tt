@@ -1507,6 +1507,11 @@ const ReachableTab = memo(({ lang, t }: TabProps) => {
     getActions().openChat({ id: getProxyPeerId(person.accountId, person.tgUserId) });
   };
 
+  const writePerson = (person: ReachablePerson) => {
+    setPxgState({ isSettingsOpen: false });
+    getActions().startProxyChat({ accountId: person.accountId, person });
+  };
+
   return (
     <>
       <p className={styles.secondary}>{t('PxgReachableHint')}</p>
@@ -1540,6 +1545,10 @@ const ReachableTab = memo(({ lang, t }: TabProps) => {
                   {person.hasChat ? (
                     <Button size="tiny" isText fluid={false} onClick={() => openPerson(person)}>
                       {t('PxgReachableOpen')}
+                    </Button>
+                  ) : person.canStartChats ? (
+                    <Button size="tiny" isText fluid={false} onClick={() => writePerson(person)}>
+                      {t('PxgReachableWrite')}
                     </Button>
                   ) : (
                     <span className={styles.secondary}>{t('PxgReachableNoChat')}</span>

@@ -3530,6 +3530,7 @@ export interface LangPair {
   'PxgReachableSearch': undefined;
   'PxgReachableOpen': undefined;
   'PxgReachableNoChat': undefined;
+  'PxgReachableWrite': undefined;
   'PxgReachableEmpty': undefined;
   'PxgRequestAskLabel': undefined;
   'PxgRequestSend': undefined;

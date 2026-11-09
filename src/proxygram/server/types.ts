@@ -39,7 +39,7 @@ export interface SessionTokensResponse {
 export type PermissionKey =
   | 'read' | 'write' | 'sendMedia' | 'useOwnerStickers' | 'react' | 'editOwn' | 'deleteOwn'
   | 'manageOwnerOutgoing' | 'interact' | 'download' | 'forwardOut' | 'seeArchive' | 'seeAttribution'
-  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages' | 'spendStars';
+  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages' | 'spendStars' | 'startChats';
 
 export type Permissions = Record<PermissionKey, boolean>;
 
@@ -918,6 +918,8 @@ export type ReachablePerson = {
   username: string | null;
   photoId: string | null;
   hasChat: boolean;
+  /** Доступ разрешает написать первой */
+  canStartChats: boolean;
   sources: { peerId: number; title: string | null; scope: 'chat_members' | 'folder_members' }[];
 };
 

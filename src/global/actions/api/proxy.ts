@@ -22,6 +22,7 @@ import {
 } from '../../../api/proxy/methods';
 import { buildSavedChat } from '../../../api/proxy/saved';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
+import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { getIsChatMuted } from '../../helpers/notifications';
@@ -362,6 +363,31 @@ addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
   } catch {
     // The next reconnect starts from the same cursor
   }
+});
+
+/** Первый диалог с человеком из охвата: локальная личка живёт до первого сообщения, как черновик */
+addActionHandler('startProxyChat', (global, actions, payload): ActionReturnType => {
+  const { accountId, person, tabId = getCurrentTabId() } = payload;
+  const chatId = getProxyPeerId(accountId, person.tgUserId);
+  const name = [person.firstName, person.lastName].filter(Boolean).join(' ')
+    || person.username || String(person.tgUserId);
+  const user = buildProxyUser(accountId, person.tgUserId, name, person.photoId);
+  const chat: ApiChat = {
+    id: chatId,
+    type: 'chatTypePrivate',
+    title: name,
+    isListed: true,
+    pxgProxy: {
+      accountId,
+      peerId: person.tgUserId,
+      permissions: resolvePermissions('full'),
+      shareIds: [],
+    },
+  };
+  global = updateUsers(global, { [user.id]: user });
+  global = updateChats(global, { [chat.id]: chat });
+  setGlobal(global);
+  actions.openChat({ id: chatId, tabId });
 });
 
 /** A changed message: updates a loaded one or adds a newer one, as live updates do */
