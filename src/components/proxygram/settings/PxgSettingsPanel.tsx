@@ -518,7 +518,6 @@ const OutgoingTab = memo(({
   const [view, setView] = useState<OutgoingView>('guest');
   const [inspected, setInspected] = useState<{ userId: string; name: string }>();
   if (!data) return <Loading error={error} lang={lang} />;
-  if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
   const shareById = new Map(data.map((share) => [share.id, share]));
 
   const revoke = (items: ShareRow[], text: string) => ask(text, lang('PxgShareRevoke'), async () => {
