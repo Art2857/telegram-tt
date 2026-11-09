@@ -656,3 +656,19 @@
     text-align: start;
   }
 }
+
+@media (max-width: 700px) {
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .filters > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filters input,
+  .filters select {
+    max-width: 100%;
+  }
+}
