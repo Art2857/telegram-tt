@@ -939,7 +939,7 @@ const IncomingTab = memo(({
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgGuestNoChatsNoUsername')}</p>;
 
   return (
-    <table className={styles.table}>
+    <table className={buildClassName(styles.table, styles.stacked)}>
       <tbody>
         {groupBy(data, (share) => share.grantor?.id ?? '').map(([, items]) => items.map((share, index) => (
           <tr key={share.id}>
