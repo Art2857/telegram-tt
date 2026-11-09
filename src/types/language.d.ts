@@ -6755,6 +6755,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgCrossForwardSkipped': {
     'count': V;
   };
+  'PxgCopyProgress': {
+    'percent': V;
+  };
   'PxgErrFoldersLimit': {
     'max': V;
   };
@@ -8230,7 +8233,8 @@ export interface LangKeyGroups {
       | 'PaidMessageTransactionDescription'
       | 'StarTransactionCommission'
       | 'PxgGuestUploading'
-      | 'PxgAdminWarnDisk';
+      | 'PxgAdminWarnDisk'
+      | 'PxgCopyProgress';
     variables: 'percent';
   };
   'receiver': {

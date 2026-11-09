@@ -2191,6 +2191,25 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
 }, tabId: number) {
   const copies: Pick<SendMessageParams, 'text' | 'entities' | 'richMessage' | 'attachment' | 'groupedId'>[] = [];
   let skipped = params.skipped;
+  const copyNotificationId = `pxg-copy-${Date.now()}`;
+  const filesToCopy = params.messages.filter((message) => {
+    const content = message.content;
+    return !content.richMessage && hasNonTextContent(content)
+      && Boolean(selectMessageDownloadableMedia(globalState, message));
+  }).length;
+  let lastCopyPercent = -1;
+  const showCopyProgress = (percent: number) => {
+    const rounded = Math.min(99, Math.max(0, Math.round(percent)));
+    if (rounded === lastCopyPercent) return;
+    lastCopyPercent = rounded;
+    getActions().showNotification({
+      message: { key: 'PxgCopyProgress', variables: { percent: rounded } },
+      localId: copyNotificationId,
+      tabId,
+    });
+  };
+  if (filesToCopy > 0) showCopyProgress(0);
+  let copiedFiles = 0;
   for (const message of params.messages) {
     const content = message.content;
     if (content.richMessage) {
@@ -2215,17 +2234,23 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
       continue;
     }
     try {
-      const downloaded = await callApi('downloadMedia', { url, mediaFormat: ApiMediaFormat.BlobUrl });
+      const downloaded = await callApi('downloadMedia', { url, mediaFormat: ApiMediaFormat.BlobUrl }, (progress) => {
+        if (filesToCopy) showCopyProgress(((copiedFiles + progress) / filesToCopy) * 90);
+      });
       const data = downloaded?.dataBlob;
       if (!data) {
         skipped++;
+        copiedFiles++;
         continue;
       }
       const blob = typeof data === 'string' ? await (await fetch(data)).blob() : data;
       const attachment = await buildAttachment(getMediaFilename(media), blob);
       copies.push({ attachment, text: caption?.text, entities: caption?.entities, groupedId: message.groupedId });
+      copiedFiles++;
+      if (filesToCopy) showCopyProgress((copiedFiles / filesToCopy) * 90);
     } catch {
       skipped++;
+      copiedFiles++;
     }
   }
 
@@ -2261,6 +2286,7 @@ async function copyAcrossProviders(globalState: GlobalState, params: {
     }
     await Promise.all(group.map(sendCopy));
   }
+  if (filesToCopy) getActions().dismissNotification({ localId: copyNotificationId, tabId });
 
   if (skipped) {
     getActions().showNotification({

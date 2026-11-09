@@ -790,6 +790,7 @@
 "PxgErrUploadInterrupted" = "Загрузка прервалась — повторите, она продолжится с принятого места";
 "PxgErrUploadNoResume" = "Докачка файлов на этом сервере недоступна";
 "PxgCrossForwardSkipped" = "Не удалось перенести {count} сообщений — попробуйте переслать их по отдельности";
+"PxgCopyProgress" = "Копирование файлов: {percent}%";
 "PxgErrNoForwardOut" = "Нет права пересылать из этого чата";
 "PxgErrNoEditHistory" = "Нет права видеть историю правок";
 "PxgErrNoDownload" = "Нет права скачивать файлы";
