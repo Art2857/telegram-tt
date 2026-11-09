@@ -1901,7 +1901,7 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
                       {lang('PxgAdminExportsDownload')}
                     </Button>
                   )}
-                  {(job.status === 'queued' || job.status === 'collecting' || job.status === 'packing') && (
+                  {job.status === 'queued' && (
                     <Button
                       size="tiny"
                       color="danger"

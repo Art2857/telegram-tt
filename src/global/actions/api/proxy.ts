@@ -7,6 +7,7 @@ import { MAIN_THREAD_ID } from '../../../api/types';
 import { LoadMoreDirection } from '../../../types';
 
 import { ARCHIVED_FOLDER_ID } from '../../../config';
+import { IS_SHARED_WORKER_SUPPORTED } from '../../../util/browser/globalEnvironment';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
@@ -147,7 +148,7 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     },
   };
   setGlobal(global);
-  initSharedState(global.sharedState);
+  if (IS_SHARED_WORKER_SUPPORTED) initSharedState(global.sharedState);
   // Telegram's peer colors never reach a guest, so avatar placeholders and names use the built-in palette
   if (!global.peerColors) updatePeerColors({});
   actions.loadProxyChats();
@@ -166,7 +167,7 @@ addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   };
   setGlobal(global);
   actions.initApi();
-  initSharedState(INITIAL_SHARED_STATE);
+  if (IS_SHARED_WORKER_SUPPORTED) initSharedState(INITIAL_SHARED_STATE);
 });
 
 addActionHandler('loadProxyChats', async (global, actions, payload): Promise<void> => {

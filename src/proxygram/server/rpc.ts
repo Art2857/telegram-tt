@@ -187,6 +187,8 @@ class PxgRpc {
       if (token && this.#ws?.readyState === WebSocket.OPEN) {
         this.#ws.send(JSON.stringify({ t: 'auth', token }));
       }
+      // Сетевой сбой продления не должен оставлять клиент без следующей попытки
+      if (getPxgState().session) this.#scheduleTokenRefresh();
     }, delay);
   }
 

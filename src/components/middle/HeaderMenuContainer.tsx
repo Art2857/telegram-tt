@@ -11,7 +11,7 @@ import type { IconName } from '../../types/icons';
 import type { RegularLangKey } from '../../types/language';
 import { MAIN_THREAD_ID } from '../../api/types';
 
-import { UNMUTE_TIMESTAMP } from '../../config';
+import { SERVICE_NOTIFICATIONS_USER_ID, UNMUTE_TIMESTAMP } from '../../config';
 import {
   getCanAddContact,
   getCanDeleteChat,
@@ -696,7 +696,7 @@ const HeaderMenuContainer = ({
             </MenuItem>
           )}
           {/* PXG: открыть чат гостю через сервер Proxygram */}
-          {hasPxgSession && !savedDialog && (
+          {hasPxgSession && !savedDialog && chatId !== SERVICE_NOTIFICATIONS_USER_ID && (
             <MenuItem
               icon="share-filled"
               onClick={() => {

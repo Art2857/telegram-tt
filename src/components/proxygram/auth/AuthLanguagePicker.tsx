@@ -44,7 +44,6 @@ const AuthLanguagePicker = () => {
       size="smaller"
       color="translucent"
       pill
-      fluid
       className={isOpen ? 'active' : undefined}
       iconName="language"
       ariaLabel={lang('Language')}
