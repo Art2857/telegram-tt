@@ -44,6 +44,7 @@ import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
   fetchFavoriteStickers,
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
+  rememberSearchChat, searchGifs, searchStickersGlobal,
 } from './stickers';
 import { fetchMessageSummary, translateRichMessage, translateText } from './translations';
 import {
@@ -194,6 +195,8 @@ const methods = {
   fetchSavedGifs,
   fetchStickers,
   fetchStickersForEmoji,
+  searchStickersGlobal,
+  searchGifs,
   fetchAvailableEffects,
   fetchAvailableReactions,
 } satisfies Partial<Methods>;
@@ -254,6 +257,8 @@ export async function fetchProxyChats() {
     setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
     setProxyUserPaidStars(chat.accountId, chat.peerId, chat.info?.paidMessagesStars);
   });
+  // Telegram-wide sticker and GIF search borrows an open chat: the owner's account answers there
+  chats.forEach(rememberSearchChat);
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
     buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
   ));

@@ -1,10 +1,10 @@
 import type {
-  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, HashedResult, InlineResultDto,
-  ReactionAnimation, StickerCatalogDto,
+  AvailableEffectDto, AvailableReactionsDto, CatalogDocumentDto, CatalogSetDto, GifSearchDto, HashedResult,
+  InlineResultDto, ReactionAnimation, StickerCatalogDto, StickerSearchDto,
 } from '../../proxygram/server/types';
 import type { MethodArgs } from '../gramjs/methods/types';
 import type {
-  ApiAvailableEffect, ApiAvailableReaction, ApiBotInlineMediaResult, ApiBotInlineResult, ApiDocument,
+  ApiAvailableEffect, ApiAvailableReaction, ApiBotInlineMediaResult, ApiBotInlineResult, ApiChat, ApiDocument,
   ApiInlineResultType, ApiSticker, ApiStickerSet, ApiVideo,
 } from '../types';
 import { PROXY_REACTION_EMOJIS } from './types';
@@ -14,6 +14,7 @@ import {
 } from '../../proxygram/server/catalogCache';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
+import { resolveProxyPeer } from './index';
 import { buildProxyCatalogMediaId, parseProxyCatalogId } from './mediaIds';
 
 const REACTION_ANIMATIONS: ReactionAnimation[] = [
@@ -28,6 +29,24 @@ const EMPTY_HASH = '0';
 const DEFAULT_RESULT_SIZE = 512;
 
 let cached: { userId: string; at: number; catalog: Promise<StickerCatalogDto[]> } | undefined;
+
+/**
+ * Chat used for Telegram-wide sticker and GIF search: the global search needs the owner's session,
+ * and the proxy has no chat of its own. The first open chat with the owner's stickers wins, otherwise any writable one
+ */
+let stickerSearchChat: { accountId: string; peerId: number } | undefined;
+let gifSearchChat: { accountId: string; peerId: number } | undefined;
+
+export function rememberSearchChat(chat: ApiChat) {
+  const peer = resolveProxyPeer(chat.id);
+  if (!peer) return;
+  const permissions = chat.pxgProxy?.permissions;
+  if (!permissions) return;
+  if (!gifSearchChat && permissions.write) gifSearchChat = { accountId: peer.accountId, peerId: peer.peerId };
+  if (!stickerSearchChat && permissions.useOwnerStickers) {
+    stickerSearchChat = { accountId: peer.accountId, peerId: peer.peerId };
+  }
+}
 
 /** One request feeds the sticker panel, recent, favorite and GIF tabs opened together */
 function getCatalog(): Promise<StickerCatalogDto[]> {
@@ -158,6 +177,40 @@ export async function fetchStickersForEmoji({ emoji }: MethodArgs<'fetchStickers
     buildStickers(accountId, [...faved, ...recent].filter((doc) => doc.emoji === emoji))
   ));
   return { stickers, hash: EMPTY_HASH };
+}
+
+/** Найденные по описанию стикеры и кастомные эмодзи (Telegram 2026): файлы отдаёт каталог владельца */
+export async function searchStickersGlobal({
+  query, emoticon, langCode, offset, isEmoji,
+}: MethodArgs<'searchStickersGlobal'>[0]) {
+  if (!stickerSearchChat) return undefined;
+  const result = await pxgRpc.call<StickerSearchDto>('stickers.search', {
+    ...stickerSearchChat,
+    query,
+    emoticon: emoticon || undefined,
+    offset: offset ?? 0,
+    isEmoji: isEmoji || undefined,
+    langCode,
+  }).catch(() => undefined);
+  if (!result) return undefined;
+  return {
+    stickers: buildStickers(result.accountId, result.stickers),
+    nextOffset: result.nextOffset ?? undefined,
+  };
+}
+
+/** GIF из @gif от имени владельца: как сам инлайн-бот, только файлы идут через каталог */
+export async function searchGifs({ query, offset }: MethodArgs<'searchGifs'>[0]) {
+  const chat = gifSearchChat ?? stickerSearchChat;
+  if (!chat) return undefined;
+  const result = await pxgRpc.call<GifSearchDto>('stickers.searchGifs', {
+    ...chat, query, offset,
+  }).catch(() => undefined);
+  if (!result) return undefined;
+  return {
+    gifs: result.gifs.map((doc) => buildProxyGif(result.accountId, doc)),
+    nextOffset: result.nextOffset ?? undefined,
+  };
 }
 
 /**

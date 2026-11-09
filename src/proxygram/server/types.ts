@@ -275,6 +275,20 @@ export interface TodoItemDto {
   entities: unknown[];
 }
 
+/** Стикер, найденный по описанию (Telegram 2026) */
+export interface StickerSearchDto {
+  accountId: string;
+  stickers: CatalogDocumentDto[];
+  nextOffset: number | null;
+}
+
+/** GIF, найденные через @gif */
+export interface GifSearchDto {
+  accountId: string;
+  gifs: CatalogDocumentDto[];
+  nextOffset: string | null;
+}
+
 /** Чек-лист сообщения (Telegram 2026) */
 export interface TodoDto {
   title: string;
