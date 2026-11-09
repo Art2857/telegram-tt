@@ -1598,7 +1598,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
     <>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? '—'}</span>
+          <span className={styles.statValue}>{data.version?.slice(0, 7) ?? 'dev'}</span>
           <span className={styles.statLabel}>{lang('PxgAdminVersion')}</span>
         </div>
         <div className={styles.stat}>
