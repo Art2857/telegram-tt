@@ -1,12 +1,15 @@
 import { memo, useCallback, useEffect, useRef, useState } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
-import type { AccountDto, ImportStateDto, PresetKey, ServerEvent } from '../../../proxygram/server/types';
+import type {
+  AccountDto, ImportStateDto, PresetKey, ReachablePage, ReachablePerson, ServerEvent,
+} from '../../../proxygram/server/types';
 
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import { IS_ANDROID, IS_IOS, IS_PWA } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
+import { getProxyPeerId } from '../../../api/proxy';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { describePxgError, displayName, formatDateTime } from '../helpers';
@@ -122,6 +125,7 @@ const TABS = [
   { key: 'outgoing', title: 'PxgSettingsOutgoing', isOwnerOnly: true },
   { key: 'incoming', title: 'PxgSettingsIncoming', isOwnerOnly: false },
   { key: 'requests', title: 'PxgSettingsMyRequests', isOwnerOnly: false },
+  { key: 'contacts', title: 'PxgSettingsContacts', isOwnerOnly: false },
   { key: 'archive', title: 'PxgSettingsArchive', isOwnerOnly: true },
   { key: 'audit', title: 'PxgSettingsAudit', isOwnerOnly: true },
   { key: 'devices', title: 'PxgSettingsDevices', isOwnerOnly: false },
@@ -297,6 +301,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'outgoing' && <OutgoingTab {...props} />}
         {tabKey === 'incoming' && <IncomingTab {...props} />}
         {tabKey === 'requests' && <MyRequestsTab {...props} />}
+        {tabKey === 'contacts' && <ReachableTab {...props} />}
         {tabKey === 'archive' && <HideDeletedOption lang={lang} />}
         {tabKey === 'archive' && <ArchiveTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
@@ -1477,5 +1482,76 @@ function groupBy<T>(items: T[], keyOf: (item: T) => string): [string, T[]][] {
   });
   return [...groups.entries()];
 }
+
+const ReachableTab = memo(({ lang, t }: TabProps) => {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState<ReachablePage>();
+  const [error, setError] = useState<unknown>();
+  const requestRef = useRef(0);
+
+  useEffect(() => {
+    const request = ++requestRef.current;
+    void pxgRpc.call<ReachablePage>('members.reachable', { query: query.trim() || undefined })
+      .then((result) => {
+        if (request !== requestRef.current) return;
+        setPage(result);
+        setError(undefined);
+      })
+      .catch((err: unknown) => {
+        if (request === requestRef.current) setError(err);
+      });
+  }, [query]);
+
+  const openPerson = (person: ReachablePerson) => {
+    setPxgState({ isSettingsOpen: false });
+    getActions().openChat({ id: getProxyPeerId(person.accountId, person.tgUserId) });
+  };
+
+  return (
+    <>
+      <p className={styles.secondary}>{t('PxgReachableHint')}</p>
+      <InputText
+        label={t('PxgReachableSearch')}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {error ? <p className={styles.errorText}>{describePxgError(lang, error)}</p> : !page ? (
+        <Loading error={undefined} lang={lang} />
+      ) : !page.people.length ? (
+        <p className={styles.empty}>{t('PxgReachableEmpty')}</p>
+      ) : (
+        <table className={buildClassName(styles.table, styles.stacked)}>
+          <tbody>
+            {page.people.map((person) => (
+              <tr key={`${person.accountId}:${person.tgUserId}`}>
+                <td>
+                  <div className={styles.name}>
+                    {[person.firstName, person.lastName].filter(Boolean).join(' ')
+                      || person.username || String(person.tgUserId)}
+                  </div>
+                  {person.username && <div className={styles.secondary}>{`@${person.username}`}</div>}
+                  <div className={styles.secondary}>
+                    {person.sources
+                      .map((source) => source.title || t('PxgSettingsChat', { id: source.peerId }))
+                      .join(' · ')}
+                  </div>
+                </td>
+                <td>
+                  {person.hasChat ? (
+                    <Button size="tiny" isText fluid={false} onClick={() => openPerson(person)}>
+                      {t('PxgReachableOpen')}
+                    </Button>
+                  ) : (
+                    <span className={styles.secondary}>{t('PxgReachableNoChat')}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+});
 
 export default memo(PxgSettingsPanel);

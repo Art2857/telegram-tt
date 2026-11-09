@@ -3525,6 +3525,12 @@ export interface LangPair {
   'PxgRequestCancelled': undefined;
   'PxgRequestExpired': undefined;
   'PxgSettingsMyRequests': undefined;
+  'PxgSettingsContacts': undefined;
+  'PxgReachableHint': undefined;
+  'PxgReachableSearch': undefined;
+  'PxgReachableOpen': undefined;
+  'PxgReachableNoChat': undefined;
+  'PxgReachableEmpty': undefined;
   'PxgRequestAskLabel': undefined;
   'PxgRequestSend': undefined;
   'PxgRequestsMineEmpty': undefined;

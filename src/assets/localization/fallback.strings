@@ -4682,6 +4682,12 @@
 "PxgRequestCancelled" = "cancelled";
 "PxgRequestExpired" = "expired";
 "PxgSettingsMyRequests" = "My requests";
+"PxgSettingsContacts" = "Covered people";
+"PxgReachableHint" = "People you can write to under the member coverage. The group chat itself stays closed.";
+"PxgReachableSearch" = "Name or username";
+"PxgReachableOpen" = "Open";
+"PxgReachableNoChat" = "No chat yet";
+"PxgReachableEmpty" = "Nobody yet: member coverage is not granted or the members have not been read.";
 "PxgRequestAskLabel" = "Username, phone or ID";
 "PxgRequestAskWhom" = "Ask {name} to open a chat";
 "PxgRequestSend" = "Ask";

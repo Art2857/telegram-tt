@@ -910,6 +910,22 @@ export interface OutboxDoneDto {
   peerId: number;
 }
 
+export type ReachablePerson = {
+  accountId: string;
+  tgUserId: number;
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  photoId: string | null;
+  hasChat: boolean;
+  sources: { peerId: number; title: string | null; scope: 'chat_members' | 'folder_members' }[];
+};
+
+export type ReachablePage = {
+  people: ReachablePerson[];
+  total: number;
+};
+
 export class PxgError extends Error {
   readonly code: string;
 

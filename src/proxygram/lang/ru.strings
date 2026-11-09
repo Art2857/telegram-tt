@@ -169,6 +169,12 @@
 "PxgRequestCancelled" = "отменён";
 "PxgRequestExpired" = "истёк";
 "PxgSettingsMyRequests" = "Мои запросы";
+"PxgSettingsContacts" = "Люди охвата";
+"PxgReachableHint" = "Те, кому можно написать по выданному охвату участников. Сам групповой чат при этом не открыт.";
+"PxgReachableSearch" = "Имя или ник";
+"PxgReachableOpen" = "Открыть";
+"PxgReachableNoChat" = "Нет переписки";
+"PxgReachableEmpty" = "Пока никого: охват участников не выдан или состав ещё не прочитан.";
 "PxgRequestAskLabel" = "Ник, номер или ID";
 "PxgRequestAskWhom" = "Попросить {name} открыть чат";
 "PxgRequestSend" = "Попросить";
