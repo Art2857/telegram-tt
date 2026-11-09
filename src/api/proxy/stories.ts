@@ -4,6 +4,7 @@ import type { ApiPeerStories, ApiStory, ApiTypeStory, MediaContent } from '../ty
 
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getProxyPeerId, resolveProxyPeer } from './index';
+import { parseProxyCatalogId } from './mediaIds';
 
 /** Истории открытых чатов: медиа приходит готовым data: URL, Web A рисует обычным просмотрщиком */
 export async function fetchAllStories(): Promise<{
@@ -61,15 +62,20 @@ export async function markStoryRead({ peer, storyId }: { peer: { id: string }; s
   return [storyId];
 }
 
-/** Реакция на историю: обычный эмодзи; кастомные эмодзи пока не переносим */
+/** Реакция на историю: обычный или кастомный эмодзи из каталога владельца */
 export async function sendStoryReaction({ peer, storyId, reaction }: MethodArgs<'sendStoryReaction'>[0]) {
   const proxyPeer = resolveProxyPeer(peer.id);
   if (!proxyPeer) return undefined;
-  if (reaction && reaction.type !== 'emoji') return undefined;
+  if (reaction && reaction.type !== 'emoji' && reaction.type !== 'custom') return undefined;
+
+  const custom = reaction?.type === 'custom' ? parseProxyCatalogId(reaction.documentId) : undefined;
+  if (reaction?.type === 'custom' && (!custom || custom.accountId !== proxyPeer.accountId)) return undefined;
+
   await pxgRpc.call('stories.react', {
     ...proxyPeer,
     storyId,
-    emoji: reaction?.emoticon,
+    ...(reaction?.type === 'emoji' ? { emoji: reaction.emoticon } : {}),
+    ...(custom ? { documentId: custom.documentId } : {}),
   });
   return true;
 }
