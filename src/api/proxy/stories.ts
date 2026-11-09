@@ -60,9 +60,13 @@ export async function markStoryRead({ peer, storyId }: { peer: { id: string }; s
   return [storyId];
 }
 
-/** Просмотр засчитывается вместе с чтением: отдельного incrementStoryViews у прокси нет */
-export function viewStory() {
-  return Promise.resolve(true);
+/** Просмотр засчитывается владельцу: stories.incrementStoryViews от его имени */
+export function viewStory({ peer, storyId }: { peer: { id: string }; storyId: number }) {
+  const proxyPeer = resolveProxyPeer(peer.id);
+  if (!proxyPeer) return Promise.resolve(false);
+  return pxgRpc.call('stories.view', { ...proxyPeer, ids: [storyId] })
+    .then(() => true)
+    .catch(() => false);
 }
 
 function buildStory(dto: StoryDto, peerId: string): ApiStory {
