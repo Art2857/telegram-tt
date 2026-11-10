@@ -1996,28 +1996,37 @@ addActionHandler('saveVoiceWaveform', (global, actions, payload): ActionReturnTy
   });
 });
 
+const transcribingAudio = new Set<string>();
+
 addActionHandler('transcribeAudio', async (global, actions, payload): Promise<void> => {
   const { messageId, chatId } = payload;
+  const key = `${chatId}:${messageId}`;
+  if (transcribingAudio.has(key)) return;
 
   const chat = selectChat(global, chatId);
 
   if (!chat) return;
 
-  global = updateChatMessage(global, chatId, messageId, {
-    transcriptionId: '',
-  });
+  transcribingAudio.add(key);
+  try {
+    global = updateChatMessage(global, chatId, messageId, {
+      transcriptionId: '',
+    });
 
-  setGlobal(global);
+    setGlobal(global);
 
-  const result = await callApi('transcribeAudio', { chat, messageId });
+    const result = await callApi('transcribeAudio', { chat, messageId });
 
-  global = getGlobal();
-  global = updateChatMessage(global, chatId, messageId, {
-    transcriptionId: result,
-    isTranscriptionError: !result,
-  });
+    global = getGlobal();
+    global = updateChatMessage(global, chatId, messageId, {
+      transcriptionId: result,
+      isTranscriptionError: !result,
+    });
 
-  setGlobal(global);
+    setGlobal(global);
+  } finally {
+    transcribingAudio.delete(key);
+  }
 });
 
 addActionHandler('loadCustomEmojis', async (global, actions, payload): Promise<void> => {

@@ -3491,6 +3491,20 @@ export interface LangPair {
   'PxgSignOut': undefined;
   'PxgSessionRevoked': undefined;
   'PxgSessionSignInAgain': undefined;
+  'PxgQrScanMenu': undefined;
+  'PxgQrScanTitle': undefined;
+  'PxgQrScanHint': undefined;
+  'PxgQrScanManual': undefined;
+  'PxgQrScanSubmit': undefined;
+  'PxgQrScanInvalid': undefined;
+  'PxgQrScanSuccess': undefined;
+  'PxgQrScanNoCamera': undefined;
+  'PxgQrScanUnsupported': undefined;
+  'PxgLoginQrTitle': undefined;
+  'PxgLoginQrHelp1': undefined;
+  'PxgLoginQrHelp2': undefined;
+  'PxgLoginQrHelp3': undefined;
+  'PxgLoginQrCancel': undefined;
   'PxgErrorNetwork': undefined;
   'PxgErrorInvalidCode': undefined;
   'PxgErrorExpired': undefined;
@@ -3554,6 +3568,7 @@ export interface LangPair {
   'PxgRequestsMineEmpty': undefined;
   'PxgRequestCancel': undefined;
   'PxgRequestSent': undefined;
+  'PxgRequestNew': undefined;
   'PxgRequestAccess': undefined;
   'PxgSettingsIncoming': undefined;
   'PxgSettingsArchive': undefined;

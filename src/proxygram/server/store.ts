@@ -21,6 +21,7 @@ export interface PxgState {
   /** «Настройки Proxygram»: сервер, доступы, архив, журнал, устройства */
   isSettingsOpen: boolean;
   isAppUpdateOpen?: boolean;
+  isQrScannerOpen?: boolean;
   isConnectOpen: boolean;
   /** Сервер завершил сессию: не входим заново без явного действия человека */
   isSessionRevoked?: boolean;

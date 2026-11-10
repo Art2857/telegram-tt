@@ -48,6 +48,11 @@ const PxgMenuItems = () => {
           : isFlood ? <span className="menu-item-badge">{lang('PxgMenuSharingFlood')}</span>
             : isSharing && <span className="menu-item-badge">{lang('PxgMenuSharingOn')}</span>}
       </MenuItem>
+      {session.level === 'client' && (
+        <MenuItem icon="camera" onClick={() => setPxgState({ isQrScannerOpen: true })}>
+          {lang('PxgQrScanMenu')}
+        </MenuItem>
+      )}
       <MenuItem icon="settings" onClick={() => setPxgState({ isSettingsOpen: true })}>
         {lang('PxgSettingsTitle')}
       </MenuItem>

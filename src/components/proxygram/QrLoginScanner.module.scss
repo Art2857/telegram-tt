@@ -1,0 +1,23 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.video {
+  width: 100%;
+  max-height: 50vh;
+  border-radius: 0.75rem;
+  background: #000000;
+  object-fit: cover;
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  line-height: 1.35;
+}
+
+.error {
+  color: var(--color-danger);
+  line-height: 1.35;
+}

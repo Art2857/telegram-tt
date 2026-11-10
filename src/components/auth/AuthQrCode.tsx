@@ -168,15 +168,15 @@ const AuthCode = ({
           </div>
           {!isQrMounted && <div className="qr-loading"><Loading /></div>}
         </div>
-        <h1>{lang('LoginQRTitle')}</h1>
+        <h1>{lang('PxgLoginQrTitle')}</h1>
         <ol>
-          <li><span>{lang('LoginQRHelp1')}</span></li>
-          <li><span>{lang('LoginQRHelp2', undefined, { withNodes: true, withMarkdown: true })}</span></li>
-          <li><span>{lang('LoginQRHelp3')}</span></li>
+          <li><span>{lang('PxgLoginQrHelp1')}</span></li>
+          <li><span>{lang('PxgLoginQrHelp2', undefined, { withNodes: true, withMarkdown: true })}</span></li>
+          <li><span>{lang('PxgLoginQrHelp3')}</span></li>
         </ol>
         {isAuthReady && (
           <Button className="auth-button" isText onClick={handleReturnToAuthPhoneNumber}>
-            {lang('LoginQRCancel')}
+            {lang('PxgLoginQrCancel')}
           </Button>
         )}
         {passkeyOption && (

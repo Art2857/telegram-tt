@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "app": {
     "security": {
@@ -66,6 +66,6 @@
   },
   "identifier": "app.proxygram.client",
   "productName": "Proxygram",
-  "version": "1.0.4"
+  "version": "1.0.5"
 }
 

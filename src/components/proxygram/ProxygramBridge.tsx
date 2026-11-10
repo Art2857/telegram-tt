@@ -31,6 +31,7 @@ import DownloadedChatModal from './DownloadedChatModal';
 import HiddenMarksLoader from './HiddenMarksLoader';
 import HideFromGuestsModal from './HideFromGuestsModal';
 import LocalArchiveLoader from './LocalArchiveLoader';
+import QrLoginScanner from './QrLoginScanner';
 import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
@@ -77,6 +78,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isAdminOpen = usePxgState((state) => state.isAdminOpen);
   const isSettingsOpen = usePxgState((state) => state.isSettingsOpen);
   const isSessionRevoked = usePxgState((state) => state.isSessionRevoked);
+  const isQrScannerOpen = usePxgState((state) => state.isQrScannerOpen);
   const downloadedChat = usePxgState((state) => state.downloadedChat);
   const isAdmin = usePxgState((state) => state.session?.user.role === 'admin');
   const shareChatId = usePxgState((state) => state.shareChatId);
@@ -211,6 +213,9 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     return pxgRpc.on((event) => {
       // Sent for a profile change too: only a chat whose access is gone closes
       if (event.e === 'access.changed') loadProxyChats({ shouldKeepUnchanged: true });
+      if (event.e === 'requests.changed' && hasOwnSession) {
+        showNotification({ message: { key: 'PxgRequestNew' } });
+      }
       if (event.e === 'archive.change') refreshProxyMessage(event.d);
       if (event.e === 'outbox.done' && event.d.status === 'delayed' && !SILENT_JOB_KINDS.has(event.d.kind)) {
         showNotification({ message: { key: 'PxgFloodDelay', variables: { seconds: event.d.retryInSeconds } } });
@@ -312,6 +317,10 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
+      <QrLoginScanner
+        isOpen={Boolean(isQrScannerOpen)}
+        onClose={() => setPxgState({ isQrScannerOpen: false })}
+      />
       {downloadedChat && <DownloadedChatModal chat={downloadedChat} />}
       {isAdmin && <DevMessageModal />}
       <ReactionLogModal />
