@@ -83,7 +83,7 @@ import type { FoldersActions } from '../../hooks/reducers/useFoldersReducer';
 import type { ReducerAction } from '../../hooks/useReducer';
 import type { P2pMessage } from '../../lib/vibecalls';
 import type { DownloadedChat } from '../../proxygram/downloadedChat';
-import type { ChatStateDto, ChatTypingDto, ReachablePerson } from '../../proxygram/server/types';
+import type { ChatStateDto, ChatTypingDto, ReachablePerson, SharedFolderPrefDto } from '../../proxygram/server/types';
 import type {
   AccountSettings,
   AttachmentCompression,
@@ -141,6 +141,10 @@ export type WithTabId = { tabId?: number };
 
 export interface ActionPayloads {
   loadProxyChats: { shouldKeepUnchanged?: boolean } | undefined;
+  /** Названия, скрытие и порядок локальных папок доступов — с сервера */
+  loadProxyFolderPrefs: undefined;
+  /** Применить уже полученные настройки локальных папок (после переименования, скрытия, перестановки) */
+  applyProxyFolderPrefs: { prefs: Record<string, SharedFolderPrefDto> };
   /** Первый диалог с человеком из охвата: локальная личка до первого сообщения */
   startProxyChat: { accountId: string; person: ReachablePerson } & WithTabId;
   /** Открыть скачанный .pxgchat как обычный чат только для чтения */

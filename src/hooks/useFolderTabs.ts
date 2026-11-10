@@ -17,6 +17,7 @@ import { selectCanShareFolder } from '../global/selectors';
 import { MEMO_EMPTY_ARRAY } from '../util/memo';
 import { renderTextWithEntities } from '../components/common/helpers/renderTextWithEntities';
 import { getPxgState, setPxgState } from '../proxygram/server/store';
+import { openSharedFolderEditor, prefsByKey, saveSharedFolder } from '../proxygram/sharedFolders';
 import useAppLayout from './useAppLayout';
 import { useFolderManagerForUnreadChatsByFolder, useFolderManagerForUnreadCounters } from './useFolderManager';
 import useLang from './useLang';
@@ -71,6 +72,8 @@ const useFolderTabs = (params: Params) => {
     markChatMessagesRead,
     openSettingsScreen,
     setSharedSettingOption,
+    applyProxyFolderPrefs,
+    showNotification,
   } = getActions();
 
   const allChatsFolder: ApiChatFolder = useMemo(() => {
@@ -113,13 +116,45 @@ const useFolderTabs = (params: Params) => {
 
     return displayedFolders.map((folder, i) => {
       const { id } = folder;
-      const localTitle = folder.pxgOwnerName
-        ? lang('PxgOwnerTab', { name: folder.pxgOwnerName })
-        : lang('PxgSharedWithMe');
-      const title = folder.pxgLocal ? { text: localTitle } : folder.title;
+      // У локальной папки название может быть своим; без него — исходное название или подпись владельца
+      const localFallback = folder.pxgLocalKind === 'folder'
+        ? (folder.pxgOriginalTitle || lang('PxgSharedFolder'))
+        : folder.pxgOwnerName ? lang('PxgOwnerTab', { name: folder.pxgOwnerName }) : lang('PxgSharedWithMe');
+      const localTitle = folder.pxgLocal
+        ? { text: folder.pxgCustomTitle && folder.title.text ? folder.title.text : localFallback }
+        : folder.title;
+      const title = localTitle;
       const isBlocked = !folder.pxgLocal && id !== ALL_FOLDER_ID && i > maxFolders - 1;
       const canShareFolder = selectCanShareFolder(getGlobal(), id);
       const contextActions: MenuItemContextAction[] = [];
+
+      if (!isReadOnly && folder.pxgLocal) {
+        contextActions.push({
+          title: lang('PxgFolderRename'),
+          icon: 'edit',
+          handler: () => openSharedFolderEditor(folder),
+        });
+        if (folder.pxgCustomTitle) {
+          contextActions.push({
+            title: lang('PxgFolderReset'),
+            icon: 'undo',
+            handler: () => {
+              void saveSharedFolder(folder.pxgLocalKey!, { title: '' })
+                .then(({ prefs }) => applyProxyFolderPrefs({ prefs: prefsByKey(prefs) }))
+                .catch(() => showNotification({ message: { key: 'PxgErrorGeneric' } }));
+            },
+          });
+        }
+        contextActions.push({
+          title: lang('PxgFolderHide'),
+          icon: 'eye-crossed',
+          handler: () => {
+            void saveSharedFolder(folder.pxgLocalKey!, { hidden: true })
+              .then(({ prefs }) => applyProxyFolderPrefs({ prefs: prefsByKey(prefs) }))
+              .catch(() => showNotification({ message: { key: 'PxgErrorGeneric' } }));
+          },
+        });
+      }
 
       if (!isReadOnly && !folder.pxgLocal) {
         if (canShareFolder) {
@@ -256,6 +291,10 @@ const useFolderTabs = (params: Params) => {
         contextActions: contextActions.length ? contextActions : undefined,
         emoticon: noEmoticons ? undefined : folderIcon,
         noTitleAnimations: folder.noTitleAnimations,
+        isPxgShared: folder.pxgLocal && Boolean(folder.pxgSharedBy),
+        pxgSharedTitle: folder.pxgSharedBy
+          ? lang('PxgFolderFrom', { name: folder.pxgSharedBy })
+          : undefined,
       } satisfies TabWithProperties;
     });
   }, [

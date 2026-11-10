@@ -29,6 +29,7 @@ import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
 import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
+import { fetchSharedFolderPrefs, prefsByKey } from '../../../proxygram/sharedFolders';
 import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE, INITIAL_SHARED_STATE } from '../../initialState';
@@ -174,6 +175,39 @@ addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   setGlobal(global);
   actions.initApi();
   if (IS_SHARED_WORKER_SUPPORTED) initSharedState(INITIAL_SHARED_STATE);
+});
+
+addActionHandler('loadProxyFolderPrefs', async (global): Promise<void> => {
+  const sessionUserId = getPxgState().session?.user.id;
+  if (!sessionUserId) return;
+  try {
+    const prefs = await fetchSharedFolderPrefs();
+    if (getPxgState().session?.user.id !== sessionUserId) return;
+    global = getGlobal();
+    global = {
+      ...global,
+      chatFolders: { ...global.chatFolders, pxgPrefs: prefsByKey(prefs) },
+    };
+    global = updateProxyFolder(global);
+    setGlobal(global);
+  } catch {
+    // Список чатов важнее оформления папок: при сбое останутся исходные названия и порядок
+    if (getPxgState().session?.user.id !== sessionUserId) return;
+    global = getGlobal();
+    global = { ...global, chatFolders: { ...global.chatFolders, pxgPrefs: {} } };
+    global = updateProxyFolder(global);
+    setGlobal(global);
+  }
+});
+
+addActionHandler('applyProxyFolderPrefs', (global, actions, { prefs }): void => {
+  global = getGlobal();
+  global = {
+    ...global,
+    chatFolders: { ...global.chatFolders, pxgPrefs: prefs },
+  };
+  global = updateProxyFolder(global);
+  setGlobal(global);
 });
 
 addActionHandler('loadProxyChats', async (global, actions, payload): Promise<void> => {

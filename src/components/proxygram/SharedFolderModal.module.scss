@@ -1,0 +1,43 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.hint,
+.original {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.original {
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-error);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 480px) {
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions > * {
+    flex: 1;
+  }
+}

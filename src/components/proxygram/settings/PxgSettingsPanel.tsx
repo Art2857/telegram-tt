@@ -25,6 +25,7 @@ import InputText from '../../ui/InputText';
 import Modal from '../../ui/Modal';
 import TabList from '../../ui/TabList';
 import ArchiveTools from './ArchiveTools';
+import SharedFoldersTab from './SharedFoldersTab';
 
 import styles from '../admin/AdminPanel.module.scss';
 
@@ -125,6 +126,7 @@ const TABS = [
   { key: 'server', title: 'PxgSettingsServer', isOwnerOnly: true },
   { key: 'outgoing', title: 'PxgSettingsOutgoing', isOwnerOnly: true },
   { key: 'incoming', title: 'PxgSettingsIncoming', isOwnerOnly: false },
+  { key: 'folders', title: 'PxgSettingsFolders', isOwnerOnly: false },
   { key: 'requests', title: 'PxgSettingsMyRequests', isOwnerOnly: false },
   { key: 'contacts', title: 'PxgSettingsContacts', isOwnerOnly: false },
   { key: 'downloaded', title: 'PxgSettingsDownloaded', isOwnerOnly: false },
@@ -315,6 +317,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'server' && <ServerTab {...props} />}
         {tabKey === 'outgoing' && <OutgoingTab {...props} />}
         {tabKey === 'incoming' && <IncomingTab {...props} />}
+        {tabKey === 'folders' && <SharedFoldersTab />}
         {tabKey === 'requests' && <MyRequestsTab {...props} />}
         {tabKey === 'contacts' && <ReachableTab {...props} />}
         {tabKey === 'downloaded' && <DownloadedTab {...props} />}

@@ -118,8 +118,13 @@ const SettingsFoldersMain = ({
     });
   }, [loadRecommendedChatFolders]);
 
+  const telegramFolderCount = useMemo(
+    () => Object.values(foldersById).filter((folder) => !folder.pxgLocal).length,
+    [foldersById],
+  );
+
   const handleCreateFolder = useCallback(() => {
-    if (Object.keys(foldersById).length >= maxFolders - 1) {
+    if (telegramFolderCount >= maxFolders - 1) {
       openLimitReachedModal({
         limit: 'dialogFilters',
       });
@@ -128,7 +133,7 @@ const SettingsFoldersMain = ({
     }
 
     onCreateFolder();
-  }, [foldersById, maxFolders, onCreateFolder, openLimitReachedModal]);
+  }, [telegramFolderCount, maxFolders, onCreateFolder, openLimitReachedModal]);
 
   const lang = useLang();
 
@@ -172,7 +177,7 @@ const SettingsFoldersMain = ({
   }, [folderIds, foldersById, lang, chatsCountByFolderId]);
 
   const handleCreateFolderFromRecommended = useCallback((folder: ApiChatFolder) => {
-    if (Object.keys(foldersById).length >= maxFolders - 1) {
+    if (telegramFolderCount >= maxFolders - 1) {
       openLimitReachedModal({
         limit: 'dialogFilters',
       });
@@ -181,7 +186,7 @@ const SettingsFoldersMain = ({
     }
 
     addChatFolder({ folder });
-  }, [foldersById, maxFolders, addChatFolder, openLimitReachedModal]);
+  }, [telegramFolderCount, maxFolders, addChatFolder, openLimitReachedModal]);
 
   const handleToggleTags = useCallback(() => {
     if (!canUseTags) {
@@ -225,8 +230,8 @@ const SettingsFoldersMain = ({
   });
 
   const canCreateNewFolder = useMemo(() => {
-    return !isPremium || Object.keys(foldersById).length < maxFolders - 1;
-  }, [foldersById, isPremium, maxFolders]);
+    return !isPremium || telegramFolderCount < maxFolders - 1;
+  }, [isPremium, telegramFolderCount, maxFolders]);
 
   return (
     <Surface scrollable className="settings-content no-border">

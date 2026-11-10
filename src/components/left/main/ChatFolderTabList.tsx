@@ -6,6 +6,7 @@ import buildClassName from '../../../util/buildClassName';
 
 import useLastCallback from '../../../hooks/useLastCallback';
 
+import Icon from '../../common/icons/Icon';
 import TabList from '../../ui/TabList';
 
 import styles from './ChatFolderTabList.module.scss';
@@ -26,10 +27,19 @@ const ChatFolderTabList = ({
   onFileHoverOpen,
 }: OwnProps) => {
   const renderExtra = useLastCallback((tab: TabWithProperties) => {
-    if (!tab.badgeCount) return undefined;
+    if (!tab.isPxgShared && !tab.badgeCount) return undefined;
     return (
-      <span className={buildClassName(styles.badge, tab.isBadgeActive && styles.badgeActive)}>
-        {tab.badgeCount}
+      <span className={styles.extras}>
+        {tab.isPxgShared && (
+          <span className={styles.shared} title={tab.pxgSharedTitle}>
+            <Icon name="share-filled" />
+          </span>
+        )}
+        {Boolean(tab.badgeCount) && (
+          <span className={buildClassName(styles.badge, tab.isBadgeActive && styles.badgeActive)}>
+            {tab.badgeCount}
+          </span>
+        )}
       </span>
     );
   });

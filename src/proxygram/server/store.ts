@@ -45,9 +45,19 @@ export interface PxgState {
   shareRequest?: { id: string; grantee: { id: string; tgUserId: number; username: string | null; name: string } };
   /** Окно «Скрыть от гостей»: сообщения своего чата (альбом — целиком) */
   hideMessages?: { accountId: string; peerId: number; chatId: string; msgIds: number[] };
+  /** Окно переименования локальной папки доступа */
+  sharedFolderEdit?: SharedFolderEdit;
   /** Открытый локально .pxgchat: только чтение, без сервера и Telegram */
   downloadedChat?: DownloadedChat;
 }
+
+export type SharedFolderEdit = {
+  key: string;
+  title: string;
+  originalTitle: string;
+  ownerName?: string;
+  kind: 'accesses' | 'owner' | 'folder';
+};
 
 const SESSION_KEY_PREFIX = 'pxg-session';
 
@@ -83,7 +93,7 @@ export function setPxgState(patch: Partial<PxgState>) {
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
-      downloadedChat: undefined,
+      downloadedChat: undefined, sharedFolderEdit: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
     };
   }

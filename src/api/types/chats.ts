@@ -269,6 +269,17 @@ export interface ApiChatFolder {
   pxgLocal?: true;
   /** A local tab with the chats of one owner */
   pxgOwnerName?: string;
+  /** Стабильный ключ локальной папки доступа; по нему хранятся название, скрытие и порядок */
+  pxgLocalKey?: string;
+  pxgLocalKind?: 'accesses' | 'owner' | 'folder';
+  /** Исходное название расшаренной папки или подпись владельца */
+  pxgOriginalTitle?: string;
+  /** Кто открыл папку: подпись «от …» на вкладке и в настройках */
+  pxgSharedBy?: string;
+  /** У папки своё название, отличное от исходного */
+  pxgCustomTitle?: true;
+  /** Локальная папка скрыта из вкладок; настройки продолжают её показывать */
+  pxgLocalHidden?: true;
   title: ApiFormattedText;
   noTitleAnimations?: true;
   description?: string;

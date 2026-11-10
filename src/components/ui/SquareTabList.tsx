@@ -27,6 +27,9 @@ export type TabWithProperties = {
   emoticon?: string | ApiMessageEntityCustomEmoji;
   customEmojiDocumentId?: string;
   noTitleAnimations?: boolean;
+  /** Локальная папка доступа: на вкладке показываем, что она пришла от другого человека */
+  isPxgShared?: boolean;
+  pxgSharedTitle?: string;
 };
 
 type OwnProps = {

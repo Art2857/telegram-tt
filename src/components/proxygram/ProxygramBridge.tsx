@@ -36,6 +36,7 @@ import QrLoginScanner from './QrLoginScanner';
 import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
 import ShareChatModal from './ShareChatModal';
+import SharedFolderModal from './SharedFolderModal';
 import TombstonesLoader from './TombstonesLoader';
 
 type StateProps = {
@@ -71,7 +72,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const {
     loadProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
     applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
-    loadChatFolders, setSharedSettingOption, loadSavedReactionTags,
+    loadChatFolders, setSharedSettingOption, loadSavedReactionTags, loadProxyFolderPrefs,
   } = getActions();
   const session = usePxgState((state) => state.session);
   const connection = usePxgState((state) => state.connection);
@@ -200,6 +201,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
     setProxyUpdateHandler(apiUpdate);
     loadProxyChats();
+    loadProxyFolderPrefs();
     if (isGuest) loadChatFolders();
     return pxgRpc.on((event) => {
       // Sent for a profile change too: only a chat whose access is gone closes
@@ -252,7 +254,10 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           message: { key: GUEST_BURST_MESSAGES[event.d.reason], variables: { name: event.d.guestName } },
         });
       }
-      if (event.e === 'folders.changed' && isGuest) loadChatFolders();
+      if (event.e === 'folders.changed') {
+        if (isGuest) loadChatFolders();
+        loadProxyFolderPrefs();
+      }
       if (event.e === 'chat.typing') applyProxyTyping(event.d);
       if (event.e === 'chat.readOutbox') {
         apiUpdate({
@@ -285,7 +290,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     });
   }, [connection, hasOwnSession, isGuest, loadProxyChats, refreshProxyMessage, refreshProxyHistory,
     refreshProxyTopics, refreshProxyUnread, applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
-    loadChatFolders]);
+    loadChatFolders, loadProxyFolderPrefs]);
 
   useEffect(() => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
@@ -315,6 +320,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       )}
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
+      <SharedFolderModal />
       <QrLoginScanner
         isOpen={Boolean(isQrScannerOpen)}
         onClose={() => setPxgState({ isQrScannerOpen: false })}

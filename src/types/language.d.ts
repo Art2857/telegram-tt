@@ -3571,6 +3571,27 @@ export interface LangPair {
   'PxgRequestNew': undefined;
   'PxgRequestAccess': undefined;
   'PxgSettingsIncoming': undefined;
+  'PxgSettingsFolders': undefined;
+  'PxgSharedFolder': undefined;
+  'PxgFolderRename': undefined;
+  'PxgFolderReset': undefined;
+  'PxgFolderHide': undefined;
+  'PxgFolderShow': undefined;
+  'PxgFolderHidden': undefined;
+  'PxgFolderCustomMark': undefined;
+  'PxgFolderKindAccesses': undefined;
+  'PxgFolderKindOwner': undefined;
+  'PxgFolderKindShared': undefined;
+  'PxgFolderOpen': undefined;
+  'PxgFolderMoveUp': undefined;
+  'PxgFolderMoveDown': undefined;
+  'PxgFoldersHint': undefined;
+  'PxgFoldersEmpty': undefined;
+  'PxgFoldersAllHidden': undefined;
+  'PxgFoldersHiddenTitle': undefined;
+  'PxgFolderRenameTitle': undefined;
+  'PxgFolderRenameHint': undefined;
+  'PxgFolderName': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
   'PxgSettingsDevices': undefined;
@@ -6539,6 +6560,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgRequestAskWhom': {
     'name': V;
   };
+  'PxgFolderFrom': {
+    'name': V;
+  };
+  'PxgFolderOriginal': {
+    'title': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -7823,6 +7850,7 @@ export interface LangKeyGroups {
       | 'PxgGuestSignedInAs'
       | 'PxgSharesEffectiveTitle'
       | 'PxgRequestAskWhom'
+      | 'PxgFolderFrom'
       | 'PxgSettingsFrom'
       | 'PxgServerAdmin'
       | 'PxgArchiveClearConfirm'
@@ -8459,6 +8487,7 @@ export interface LangKeyGroups {
       | 'PxgSharesViaChatMembers'
       | 'PxgSharesViaTopic'
       | 'PxgRequestsFromGroup'
+      | 'PxgFolderOriginal'
       | 'PxgSettingsLeaveConfirm'
       | 'PxgArchiveClearChatHint'
       | 'PxgArchiveClearChatConfirm'

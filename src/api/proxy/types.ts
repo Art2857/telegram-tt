@@ -16,6 +16,8 @@ export type ProxyChatInfo = {
   isSavedMessages?: boolean;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;
+  /** Папки владельца, через которые открыт чат: отдельные вкладки «папка от …» */
+  sharedFolders?: { id: number; title: string | null }[];
   /** Who shared the chat: a full login goes to this person in their own Telegram */
   providerUserId?: number;
   providerUsername?: string;

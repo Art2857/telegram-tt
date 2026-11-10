@@ -85,6 +85,8 @@ export interface AccessChat {
   coverageSourceTitle?: string | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
+  /** Расшаренные папки владельца, через которые открыт чат */
+  sharedFolders?: { id: number; title: string | null }[];
   /** Кто поделился: по ним полный вход переходит к этому человеку в своём Telegram */
   providerUserId: number | null;
   providerUsername: string | null;
@@ -102,6 +104,15 @@ export interface AccessChat {
   pinnedAt: number | null;
   /** В архиве списка гостя, unix-секунды */
   archivedAt: number | null;
+}
+
+/** Название, скрытие и порядок папки, появившейся из доступа; хранится на сервере */
+export interface SharedFolderPrefDto {
+  key: string;
+  title: string | null;
+  hidden: boolean;
+  position: number;
+  updatedAt: string;
 }
 
 export type ForwardOptionsDto = {

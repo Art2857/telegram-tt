@@ -71,6 +71,7 @@ import type {
   ApiWebPage,
   ApiWebSession,
 } from '../../api/types';
+import type { SharedFolderPrefDto } from '../../proxygram/server/types';
 import type {
   AccountSettings,
   AttachmentCompression,
@@ -327,6 +328,10 @@ export type GlobalState = {
     invites: Record<number, ApiChatlistExportedInvite[]>;
     recommended?: ApiChatFolder[];
     areTagsEnabled?: boolean;
+    /** Все локальные папки доступов, включая скрытые: по ним строится вкладка настроек */
+    pxgLocalFolders?: ApiChatFolder[];
+    /** Названия, скрытие и порядок локальных папок с сервера */
+    pxgPrefs?: Record<string, SharedFolderPrefDto>;
   };
 
   phoneCall?: ApiPhoneCall;

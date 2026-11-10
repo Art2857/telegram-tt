@@ -1,0 +1,144 @@
+.root {
+  padding: 1rem 0;
+}
+
+.hint,
+.empty {
+  margin: 0 1rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.empty {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.sectionTitle {
+  margin: 1.5rem 1rem 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+
+  padding: 0.75rem;
+  border: 1px solid var(--color-borders);
+  border-radius: 0.75rem;
+
+  background: var(--color-background-secondary);
+
+  transition: border-color var(--layer-transition), opacity var(--layer-transition);
+}
+
+.rowOver {
+  border-color: var(--color-primary);
+}
+
+.rowHidden {
+  opacity: 0.65;
+}
+
+.handle {
+  cursor: grab;
+
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+
+  color: var(--color-text-secondary);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.title {
+  overflow: hidden;
+
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.5rem;
+
+  font-size: 0.6875rem;
+  color: var(--color-primary);
+
+  background: var(--color-primary-opacity);
+}
+
+.meta {
+  overflow: hidden;
+
+  margin-top: 0.125rem;
+
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-flow: row nowrap;
+  flex-shrink: 0;
+  gap: 0.125rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.actions > * {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+@media (max-width: 600px) {
+  .row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .main {
+    flex-basis: calc(100% - 2rem);
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+    padding-inline-start: 1.75rem;
+  }
+
+  .title {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .meta {
+    white-space: normal;
+  }
+}
