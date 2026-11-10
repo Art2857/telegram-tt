@@ -1,3 +1,5 @@
+import { getGlobal } from '../../global';
+
 import type { MessageDto, ScheduledMessageDto } from '../../proxygram/server/types';
 import type { MethodArgs, Methods } from '../gramjs/methods/types';
 import type {
@@ -40,6 +42,8 @@ type SendRequest = NonNullable<ApiMessage['pxgSendRequest']>;
 
 /** Sends that failed before their request was fixed, e.g. during the upload: a retry needs the file again */
 const unsentParams = new Map<string, SendParams>();
+/** Local message id → request id so deleting a failed message frees its file too */
+const unsentMessageIds = new Map<number, string>();
 
 type AlbumPart = { localMessage: ApiMessage; request: SendRequest };
 /** Albums being uploaded: how many parts Web A has started and which of them are ready */
@@ -225,6 +229,7 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
       },
     };
     unsentParams.delete(requestId);
+    unsentMessageIds.delete(localMessage.id);
     if (albumSlot !== undefined) {
       await joinAlbum(chat, params.groupedId!, albumSlot, { localMessage, request });
       return;
@@ -236,7 +241,10 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
     // A part that did not upload leaves the album; the rest still go together
     if (albumSlot !== undefined && !request) void joinAlbum(chat, params.groupedId!, albumSlot);
     const isFinal = err instanceof PxgError && (err.code === 'unsupported' || err.code === 'canceled');
-    if (!request && !isFinal) unsentParams.set(requestId, params);
+    if (!request && !isFinal) {
+      unsentParams.set(requestId, params);
+      unsentMessageIds.set(localMessage.id, requestId);
+    }
     emitSendFailed(chat, localMessage, err);
   }
 }
@@ -542,6 +550,13 @@ async function editScheduledMessage(
 export async function deleteMessages({ chat, messageIds }: MethodArgs<'deleteMessages'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
+  // A failed message that is deleted will never be retried: do not keep its file in memory
+  for (const id of messageIds) {
+    const requestId = unsentMessageIds.get(id);
+    if (!requestId) continue;
+    unsentParams.delete(requestId);
+    unsentMessageIds.delete(id);
+  }
   try {
     if (isSavedPeer(peer)) {
       for (let offset = 0; offset < messageIds.length; offset += DELETE_BATCH_SIZE) {
@@ -859,8 +874,19 @@ export async function editTodo({ chat, message, todo }: MethodArgs<'editTodo'>[0
 export async function updateChatNotifySettings({ chat, settings }: MethodArgs<'updateChatNotifySettings'>[0]) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer || settings.mutedUntil === undefined) return;
+  const previous = getGlobal().chats.notifyExceptionById[chat.id];
   emitProxyUpdate({ '@type': 'updateChatNotifySettings', chatId: chat.id, settings });
-  await pxgRpc.call('chats.mute', { ...peer, mutedUntil: settings.mutedUntil }).catch(emitProxyError);
+  try {
+    await pxgRpc.call('chats.mute', { ...peer, mutedUntil: settings.mutedUntil });
+  } catch (err) {
+    // сервер отказал — возвращаем прежнее значение, а не оставляем неверный переключатель
+    emitProxyUpdate({
+      '@type': 'updateChatNotifySettings',
+      chatId: chat.id,
+      settings: previous || { mutedUntil: undefined },
+    });
+    emitProxyError(err);
+  }
 }
 
 /** Pins and the archive belong to the guest's own chat list and are shared by all of their devices */

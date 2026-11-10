@@ -3,10 +3,12 @@ import type { HistoryMode } from '../ShareSettingsFields';
 
 export type AdminShare = {
   id: string;
-  scope: 'chat' | 'topic' | 'folder';
+  scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   folderId: number | null;
   topicId: number | null;
+  memberMode?: 'all' | 'selected' | 'none';
+  memberIds?: number[];
   preset: PresetKey;
   permissions: Partial<Permissions>;
   historyMode: HistoryMode;

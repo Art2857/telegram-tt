@@ -44,7 +44,7 @@ import {
   buildInlineResult, fetchAvailableEffects, fetchAvailableReactions, fetchCustomEmoji, fetchCustomEmojiSets,
   fetchFavoriteStickers,
   fetchRecentStickers, fetchSavedGifs, fetchStickers, fetchStickerSets, fetchStickersForEmoji,
-  rememberSearchChat, searchGifs, searchStickersGlobal,
+  rememberSearchChat, resetSearchChats, searchGifs, searchStickersGlobal,
 } from './stickers';
 import {
   fetchAllStories, fetchPeerStories, fetchPeerStoriesByIds, markStoryRead, sendStoryReaction, viewStory,
@@ -267,6 +267,7 @@ export async function fetchProxyChats() {
     setProxyUserPaidStars(chat.accountId, chat.peerId, chat.info?.paidMessagesStars);
   });
   // Telegram-wide sticker and GIF search borrows an open chat: the owner's account answers there
+  resetSearchChats();
   chats.forEach(rememberSearchChat);
   const users: ApiUser[] = access.filter((chat) => chat.peerId > 0).map((chat) => (
     buildProxyUser(chat.accountId, chat.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges)
@@ -578,7 +579,9 @@ async function fetchMembers({ chat, memberFilter = 'recent', offset, query }: Me
   });
   const members = result.members.filter((member) => memberFilter !== 'admin' || member.role !== 'member');
   members.forEach((member) => {
-    setProxyUserPhone(peer.accountId, member.userId, member.phone);
+    // номер открыт правом seePhones этого чата; null означает «не показывать», а не «стереть» —
+    // иначе членство в общей группе стирало бы номер, открытый по другому доступу
+    if (member.phone) setProxyUserPhone(peer.accountId, member.userId, member.phone);
     const user = buildProxyUser(peer.accountId, member.userId, member.name || member.username || undefined,
       member.photoId, member.badges);
     if (member.isBot) user.type = 'userTypeBot';

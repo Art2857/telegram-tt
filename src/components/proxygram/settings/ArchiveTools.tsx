@@ -3,6 +3,7 @@ import { getActions } from '../../../global';
 
 import type { ArchiveSearchResult } from '../../../proxygram/server/types';
 
+import buildClassName from '../../../util/buildClassName';
 import { PXG_SERVER_URL } from '../../../proxygram/server/http';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
@@ -150,7 +151,7 @@ const ArchiveTools = ({
         {result && <p className={styles.secondary}>{lang('PxgArchiveFound', { count: result.count })}</p>}
       </div>
       {Boolean(result?.messages.length) && (
-        <table className={styles.table}>
+        <table className={buildClassName(styles.table, styles.stacked)}>
           <tbody>
             {result.messages.map((row) => (
               <tr key={`${row.peerId}:${row.msgId}`}>

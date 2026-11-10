@@ -69,7 +69,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   const targetsKey = JSON.stringify({
     accountId,
     peerId: scope === 'topic' ? peerId : undefined,
-    folderId: scope === 'folder' ? folderId : undefined,
+    folderId: scope === 'folder' || scope === 'folder_members' ? folderId : undefined,
   });
   const targets = targetResult?.key === targetsKey ? targetResult.data : undefined;
   const folderChats = useMemo(() => targets?.folderChats.map((chat) => ({
@@ -106,7 +106,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   }, [accountId, targetsKey, lang]);
 
   useEffect(() => {
-    if (!accountId || share || scope === 'folder') return;
+    if (!accountId || share || scope === 'folder' || scope === 'folder_members') return;
     let isActive = true;
     const timer = window.setTimeout(() => {
       void pxgRpc.call<PeerOption[]>('admin.peers', { accountId, query: chatQuery.trim() || undefined })
@@ -140,7 +140,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
     }
   };
 
-  const hasTarget = Boolean(share || (scope === 'folder'
+  const hasTarget = Boolean(share || (scope === 'folder' || scope === 'folder_members'
     ? targets?.folders.some((folder) => folder.id === folderId)
     : peers.some((peer) => peer.peerId === peerId)
       && (scope !== 'topic' || targets?.topics.some((topic) => topic.id === topicId))));
@@ -165,7 +165,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
           deletePerMinute: parseLimit(settings.deleteLimit),
           starsPerDay: parseStarsLimit(settings.starsLimit, settings.permissions),
         },
-        excludePeerIds: scope === 'folder' ? settings.excludePeerIds : undefined,
+        excludePeerIds: scope === 'folder' || scope === 'folder_members' ? settings.excludePeerIds : undefined,
       };
       if (share) {
         await pxgRpc.call('admin.shares.update', {
@@ -182,9 +182,10 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
           granteeUserId: guest?.user?.id,
           grantee: guest?.user ? undefined : guest?.candidate,
           scope,
-          peerId: scope !== 'folder' ? peerId : undefined,
+          peerId: scope !== 'folder' && scope !== 'folder_members' ? peerId : undefined,
           topicId: scope === 'topic' ? topicId : undefined,
-          folderId: scope === 'folder' ? folderId : undefined,
+          folderId: scope === 'folder' || scope === 'folder_members' ? folderId : undefined,
+          memberMode: scope.endsWith('_members') ? 'all' : undefined,
           historyMode: settings.historyMode,
           historyLimit: settings.historyMode === 'last_n'
             ? Math.max(1, Math.min(Number(settings.historyLimit) || 1, MAX_HISTORY_LIMIT)) : undefined,
@@ -242,11 +243,13 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
               }}
             >
               <option value="chat">{lang('PxgAdminColChat')}</option>
+              <option value="chat_members">{lang('PxgShareMembersChat')}</option>
+              <option value="folder_members">{lang('PxgShareMembersFolder')}</option>
               <option value="topic">{lang('PxgShareTopic')}</option>
               <option value="folder">{lang('PxgShareFolderTitle')}</option>
             </select>
           </label>
-          {scope === 'folder' ? (
+          {scope === 'folder' || scope === 'folder_members' ? (
             <label className={styles.field}>
               <span>{lang('PxgShareFolderTitle')}</span>
               <select
@@ -332,10 +335,10 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
       )}
       <ShareSettingsFields
         value={settings}
-        isFolder={scope === 'folder'}
+        isFolder={scope === 'folder' || scope === 'folder_members'}
         editingHistory={share?.historyMode}
         expiresAt={share?.expiresAt ?? undefined}
-        folderChats={scope === 'folder' ? folderChats : undefined}
+        folderChats={scope === 'folder' || scope === 'folder_members' ? folderChats : undefined}
         onChange={changeSettings}
       />
       {error && <p className={styles.errorText}>{error}</p>}

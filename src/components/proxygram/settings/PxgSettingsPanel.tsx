@@ -37,7 +37,7 @@ type AccountRow = AccountDto & { messages: number; mediaBytes: number; activeSha
 type ShareRow = {
   id: string;
   accountId: string;
-  scope: 'chat' | 'topic' | 'folder';
+  scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   topicId: number | null;
   folderId: number | null;
@@ -199,6 +199,19 @@ const AUDIT_KEYS: Record<string, string> = {
   'admin.message_debug': 'PxgAuditMessageDebug',
   'admin.outbox.cancel': 'PxgAuditAdminCancel',
   'admin.outbox.retry': 'PxgAuditAdminRetry',
+  request_approved: 'PxgAuditRequestApproved',
+  request_rejected: 'PxgAuditRequestRejected',
+  'admin.request.reject': 'PxgAuditRequestRejected',
+  'admin.share.create': 'PxgAuditAdminShareCreate',
+  'admin.share.update': 'PxgAuditAdminShareUpdate',
+  'admin.share.revoke': 'PxgAuditAdminShareRevoke',
+  'admin.account.pause': 'PxgAuditAdminAccountPause',
+  'admin.account.resume': 'PxgAuditAdminAccountResume',
+  'admin.account.restart': 'PxgAuditAdminAccountRestart',
+  'admin.export.start': 'PxgAuditAdminExportStart',
+  'admin.export.ready': 'PxgAuditAdminExportReady',
+  'admin.export.download': 'PxgAuditAdminExportDownload',
+  'admin.export.cancel': 'PxgAuditAdminExportCancel',
 };
 const FAILED_SUFFIX = '_failed';
 /** Someone cleared the history or removed many messages at once: the count, not a wall of IDs */
@@ -512,7 +525,7 @@ const OutgoingTab = memo(({
   lang, t, ask, run,
 }: TabProps) => {
   const { data, error, reload } = usePxgData<ShareRow[]>('shares.outgoing', {}, ['shares.changed', 'access.changed']);
-  const { data: chats } = usePxgData<OutgoingChatRow[]>(
+  const { data: chats, error: chatsError } = usePxgData<OutgoingChatRow[]>(
     'shares.outgoingChats', {}, ['shares.changed', 'access.changed'],
   );
   const [view, setView] = useState<OutgoingView>('guest');
@@ -574,7 +587,9 @@ const OutgoingTab = memo(({
     return (
       <>
         {renderViews()}
-        {!sorted ? <Loading error={undefined} lang={lang} /> : (
+        {!sorted ? <Loading error={chatsError} lang={lang} /> : sorted.length === 0 ? (
+          <p className={styles.empty}>{lang('PxgSharesNoChats')}</p>
+        ) : (
           <table className={buildClassName(styles.table, styles.stacked)}>
             <tbody>
               {sorted.map((chat) => chat.viewers.map((viewer, index) => (
@@ -616,7 +631,11 @@ const OutgoingTab = memo(({
           onClose={() => setInspected(undefined)}
         />
       )}
-      {!groups[0]?.items.length ? <p className={styles.empty}>{lang('PxgSharesNoExpiring')}</p> : (
+      {!groups[0]?.items.length ? (
+        <p className={styles.empty}>
+          {lang(view === 'expiring' ? 'PxgSharesNoExpiring' : 'PxgSharesEmpty')}
+        </p>
+      ) : (
         <table className={buildClassName(styles.table, styles.stacked)}>
           <tbody>
             {groups.map((group) => group.items.map((share, index) => (
@@ -812,20 +831,23 @@ function EffectiveModal({
   );
 }
 
-/** Откуда у гостя чат: прямой доступ, тема или папка */
+/** Откуда у гостя чат: прямой доступ, тема, папка или охват участников */
 function describeSource(t: Translate, share: ShareRow) {
-  if (share.scope === 'folder') {
+  if (share.scope === 'folder' || share.scope === 'folder_members') {
     return t('PxgSharesViaFolder', {
       title: share.folderTitle || t('PxgSettingsFolder', { id: share.folderId ?? 0 }),
     });
   }
   if (share.scope === 'topic') return t('PxgSharesViaTopic', { title: share.topicTitle ?? '—' });
+  if (share.scope === 'chat_members') {
+    return t('PxgSharesViaChatMembers', { title: share.peerTitle ?? '—' });
+  }
   return t('PxgSharesViaDirect');
 }
 
 /** Правка доступа — то же окно «Поделиться», что и из профиля чата */
 function openShareEditor(share: ShareRow) {
-  if (share.scope === 'folder') {
+  if (share.scope === 'folder' || share.scope === 'folder_members') {
     setPxgState({
       shareChatId: undefined,
       shareFolder: { id: share.folderId!, title: share.folderTitle ?? '' },
@@ -1015,14 +1037,19 @@ const ArchiveTab = memo(({
   const [filesDays, setFilesDays] = useState('');
   const [deletedDays, setDeletedDays] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const requestRef = useRef(0);
 
   const accountId = account?.id;
   const load = useCallback(() => {
     if (!accountId) return;
+    const request = ++requestRef.current;
+    setError(undefined);
     setPolicy(undefined);
     setIsSaved(false);
     pxgRpc.call<Policy>('archive.policy.get', { accountId })
       .then((result) => {
+        // ответ прежнего аккаунта не должен заполнить форму нового
+        if (request !== requestRef.current) return;
         setPolicy(result);
         setFilesDays(String(result.media.keepDays));
         setDeletedDays(String(result.retention.deletedDays));
@@ -1031,7 +1058,9 @@ const ArchiveTab = memo(({
         setPerChat(String(result.import.perChat));
         setMaxMembers(String(result.chats.maxMembers));
       })
-      .catch(setError);
+      .catch((err) => {
+        if (request === requestRef.current) setError(err);
+      });
   }, [accountId]);
 
   useEffect(load, [load]);
@@ -1333,7 +1362,7 @@ const DevicesTab = memo(({ lang, t, ask }: TabProps) => {
       <ServerAdminLine lang={lang} t={t} />
       {IS_TAURI && !IS_ANDROID && <AutostartToggle lang={lang} />}
       <BotNotificationsToggle lang={lang} />
-      <table className={styles.table}>
+      <table className={buildClassName(styles.table, styles.stacked)}>
         <tbody>
           {data.map((row) => (
             <tr key={row.id}>
@@ -1446,8 +1475,14 @@ function AutostartToggle({ lang }: { lang: Lang }) {
 
 function describeTarget(t: Translate, share: ShareRow) {
   if (share.label) return share.label;
-  if (share.scope === 'folder') return share.folderTitle || t('PxgSettingsFolder', { id: share.folderId ?? 0 });
+  if (share.scope === 'folder' || share.scope === 'folder_members') {
+    const title = share.folderTitle || t('PxgSettingsFolder', { id: share.folderId ?? 0 });
+    return share.scope === 'folder_members' ? `${title} · ${t('PxgShareMembersChip')}` : title;
+  }
   if (share.scope === 'topic' && share.topicTitle) return `${share.peerTitle ?? '—'} › ${share.topicTitle}`;
+  if (share.scope === 'chat_members') {
+    return `${share.peerTitle ?? '—'} · ${t('PxgShareMembersChip')}`;
+  }
   return share.peerTitle ?? '—';
 }
 
@@ -1468,7 +1503,7 @@ function describeAction(t: Translate, row: AuditRow) {
   // A paid action and its spend are two entries: the amount is the only thing this one adds
   if (base === 'stars_spent' && row.stars) return t('PxgAuditStarsSpent', { stars: row.stars });
   const key = AUDIT_KEYS[base];
-  const text = key ? t(key) : base;
+  const text = key ? t(key) : t('PxgAuditUnknown');
   return isFailed ? `${text} · ${t('PxgAuditFailed')}` : text;
 }
 

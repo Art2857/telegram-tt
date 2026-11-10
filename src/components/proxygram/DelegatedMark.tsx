@@ -22,7 +22,11 @@ import styles from './DelegatedMark.module.scss';
 type OwnProps = { message: ApiMessage };
 
 const SCOPE_KEYS = {
-  chat: 'PxgAttributionChat', topic: 'PxgAttributionTopic', folder: 'PxgAttributionFolder',
+  chat: 'PxgAttributionChat',
+  topic: 'PxgAttributionTopic',
+  folder: 'PxgAttributionFolder',
+  chat_members: 'PxgShareMembersChip',
+  folder_members: 'PxgShareMembersChip',
 } as const;
 
 /** Владелец открывает сведения об отправке, гость видит только разрешённую подпись */

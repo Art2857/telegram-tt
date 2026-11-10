@@ -648,7 +648,7 @@ export interface AttributionDto {
   date?: string;
   share?: {
     id: string;
-    scope: 'chat' | 'topic' | 'folder';
+    scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
     label: string | null;
     topicId: number | null;
     folderId: number | null;

@@ -48,6 +48,12 @@ export function rememberSearchChat(chat: ApiChat) {
   }
 }
 
+/** После перезагрузки доступов или смены гостя старый чат поиска может быть уже недоступен */
+export function resetSearchChats() {
+  stickerSearchChat = undefined;
+  gifSearchChat = undefined;
+}
+
 /** One request feeds the sticker panel, recent, favorite and GIF tabs opened together */
 function getCatalog(): Promise<StickerCatalogDto[]> {
   const userId = getPxgState().session?.user.id;

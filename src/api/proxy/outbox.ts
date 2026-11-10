@@ -30,7 +30,11 @@ export async function runProxyJob(method: string, params: unknown, timeoutMs?: n
     const result = await Promise.race([
       completion, pollJob(queued.id), ...(timeoutMs ? [rejectAfter(timeoutMs)] : []),
     ]);
-    if (result.status === 'failed') throw new PxgError('outbox_failed', result.error || undefined);
+    if (result.status === 'failed') {
+      // a machine reason comes back as the error code; Telegram's own codes stay as they are
+      const reason = result.error && /^[a-z][a-z0-9_]*$/.test(result.error) ? result.error : undefined;
+      throw new PxgError('outbox_failed', result.error || undefined, reason);
+    }
     return result.result;
   } finally {
     isFinished = true;

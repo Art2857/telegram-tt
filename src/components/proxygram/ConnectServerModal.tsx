@@ -13,6 +13,7 @@ import useLang from '../../hooks/useLang';
 
 import PasswordForm from '../common/PasswordForm';
 import Button from '../ui/Button';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import Modal from '../ui/Modal';
 import BotLinkQr from './auth/BotLinkQr';
 import { connectDismissKey } from './ProxygramBridge';
@@ -42,6 +43,7 @@ const ConnectServerModal = () => {
   const lang = useLang();
   // Своей сессии Telegram на устройстве нет — подтвердить вход сервера может только телефон
   const [isQr] = useState(isProxyGuest);
+  const [disconnectId, setDisconnectId] = useState<string>();
   const [phase, setPhase] = useState<Phase>(() => {
     const { accounts } = getPxgState();
     return accounts ? initialPhase(accounts) : { kind: 'loading' };
@@ -178,7 +180,7 @@ const ConnectServerModal = () => {
           <p className={styles.secondary}>{lang('PxgConnectDisconnectNote')}</p>
           <div className={styles.buttons}>
             <Button onClick={close}>{lang('PxgConnectOk')}</Button>
-            <Button color="danger" onClick={() => void disconnect(phase.account.id)}>
+            <Button color="danger" onClick={() => setDisconnectId(phase.account.id)}>
               {lang('PxgConnectDisconnect')}
             </Button>
           </div>
@@ -241,6 +243,18 @@ const ConnectServerModal = () => {
           </div>
         </>
       )}
+      <ConfirmDialog
+        isOpen={Boolean(disconnectId)}
+        onClose={() => setDisconnectId(undefined)}
+        text={lang('PxgConnectDisconnectNote')}
+        confirmLabel={lang('PxgConnectDisconnect')}
+        confirmIsDestructive
+        confirmHandler={async () => {
+          const id = disconnectId;
+          setDisconnectId(undefined);
+          if (id) await disconnect(id);
+        }}
+      />
     </Modal>
   );
 };

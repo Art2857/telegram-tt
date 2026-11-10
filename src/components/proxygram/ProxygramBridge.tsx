@@ -8,6 +8,7 @@ import { MAIN_THREAD_ID } from '../../api/types';
 import { selectCurrentMessageList } from '../../global/selectors';
 import { IS_TAURI } from '../../util/browser/globalEnvironment';
 import { IS_ANDROID } from '../../util/browser/windowEnvironment';
+import { closeMessageNotifications } from '../../util/notifications';
 import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
 import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
@@ -233,6 +234,13 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           readState: { lastReadInboxMessageId: event.d.maxId },
         });
       } else if (event.e === 'read.changed') {
+        // прочтение на другом устройстве гасит локальное уведомление этого чата, как в Telegram
+        if (event.d.maxId !== undefined) {
+          closeMessageNotifications({
+            chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
+            lastReadInboxMessageId: event.d.maxId,
+          });
+        }
         refreshProxyUnread(event.d);
       }
       if (event.e === 'chats.state') applyProxyChatState(event.d);

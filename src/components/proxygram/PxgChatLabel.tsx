@@ -52,6 +52,12 @@ const PxgChatLabel = ({ chatId, proxy }: OwnProps) => {
         title={lang('PxgFromOwnerHint', { name: proxy.providerName })}
         onMouseDown={handleMouseDown}
         onClick={handleOwnerClick}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          e.stopPropagation();
+          openProxyChatOwner({ chatId });
+        }}
       >
         {[lang('PxgFromOwner', { name: proxy.providerName }), proxy.label].filter(Boolean).join(' · ')}
       </span>
@@ -68,6 +74,12 @@ const PxgChatLabel = ({ chatId, proxy }: OwnProps) => {
       title={lang('PxgSharedForHint', { names: grantees.join(', ') })}
       onMouseDown={handleMouseDown}
       onClick={handleGranteesClick}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        e.stopPropagation();
+        setPxgState({ shareChatId: chatId });
+      }}
     >
       {grantees.length > 1
         ? lang('PxgSharedForMany', { name: grantees[0], count: grantees.length - 1 })

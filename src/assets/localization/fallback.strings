@@ -4682,6 +4682,7 @@
 "PxgSharesEffectiveEmpty" = "Nothing in your chats is shared with this person now";
 "PxgSharesViaDirect" = "directly";
 "PxgSharesViaFolder" = "via folder «{title}»";
+"PxgSharesViaChatMembers" = "members of «{title}»";
 "PxgSharesViaTopic" = "topic «{title}»";
 "PxgRequestsIncoming" = "Requests";
 "PxgRequestsEmpty" = "No access requests";
@@ -4738,6 +4739,7 @@
 "PxgSettingsMedia" = "Files: {size}";
 "PxgSettingsChats" = "{count} chats";
 "PxgSettingsFolder" = "Folder #{id}";
+"PxgSettingsChat" = "Chat";
 "PxgSettingsFrom" = "From {name}";
 "PxgSettingsLeave" = "Leave";
 "PxgSettingsLeaveConfirm" = "Leave the access to «{title}»? Only the owner can give it back.";
@@ -4746,6 +4748,8 @@
 "PxgSharesByChat" = "By chat";
 "PxgSharesExpiring" = "With an end date";
 "PxgSharesNoExpiring" = "No access has an end date";
+"PxgSharesEmpty" = "No accesses yet";
+"PxgSharesNoChats" = "No chats are shared";
 "PxgRevokeAll" = "Revoke all";
 "PxgRevokeAllOfGuestConfirm" = "Revoke all access of {title} ({count})?";
 "PxgRevokeAllOfChatConfirm" = "Revoke everyone's access to «{title}» ({count})?";
@@ -4861,6 +4865,19 @@
 "PxgAuditInlineBot" = "used an inline bot";
 "PxgAuditAdminCancel" = "server admin cancelled an action";
 "PxgAuditAdminRetry" = "server admin retried an action";
+"PxgAuditRequestApproved" = "access request approved";
+"PxgAuditRequestRejected" = "access request declined";
+"PxgAuditAdminShareCreate" = "administrator granted access";
+"PxgAuditAdminShareUpdate" = "administrator changed access";
+"PxgAuditAdminShareRevoke" = "administrator revoked access";
+"PxgAuditAdminAccountPause" = "administrator paused the account";
+"PxgAuditAdminAccountResume" = "administrator resumed the account";
+"PxgAuditAdminAccountRestart" = "administrator restarted the account";
+"PxgAuditAdminExportStart" = "administrator started a chat export";
+"PxgAuditAdminExportReady" = "chat export is ready";
+"PxgAuditAdminExportDownload" = "administrator downloaded the chat export";
+"PxgAuditAdminExportCancel" = "administrator cancelled the chat export";
+"PxgAuditUnknown" = "other action";
 "PxgAuditMessageDebug" = "server admin viewed a message's raw data";
 "PxgDevPanel" = "Developer panel";
 "PxgDevRawJson" = "Raw JSON";
@@ -5293,6 +5310,8 @@
 "PxgSharePending" = "{name} has not signed in to Proxygram yet. Access opens right away: the chat appears at their first guest sign-in.";
 "PxgErrConnectDisabled" = "Connecting accounts is turned off on this server";
 "PxgErrExportDisabled" = "Export is not available on this server";
+"PxgErrExportsDisabled" = "Chat export is not available on this server";
+"PxgErrExportNotReady" = "The export is not ready yet";
 "PxgErrMediaDisabled" = "Media is not available on this server";
 "PxgErrFilesDisabled" = "Files are not available on this server";
 "PxgErrInvitesDisabled" = "Invitations are turned off on this server";
@@ -5345,6 +5364,7 @@
 "PxgErrUserBlocked" = "The user is blocked";
 "PxgErrJobNoActor" = "The action has no sender";
 "PxgErrTooManyActions" = "Too many actions, wait a minute";
+"PxgErrJobInterrupted" = "The server restarted during the action — repeat it";
 "PxgErrSourceLost" = "The owner is no longer in this chat — only the archive is available";
 "PxgErrOwnerUnavailable" = "The owner's account is temporarily unavailable — only the archive is available";
 "PxgErrOwnerFlood" = "Telegram has temporarily limited sending from the owner's account";
@@ -5356,8 +5376,9 @@
 "PxgErrOwnerCannotManageTopics" = "The owner cannot manage this forum's topics";
 "PxgErrOwnerCannotDeleteTopics" = "The owner cannot delete this forum's topics";
 "PxgErrOwnerCannotChangeInfo" = "The owner cannot change the info of this chat";
-"PxgErrTopicsNeedFullForum" = "Topics can only be created with access to the whole forum";
+"PxgErrTopicsNeedFullForum" = "This requires access to the whole forum, not a single topic";
 "PxgErrGroupOnly" = "Only a group or a channel";
+"PxgErrTopicOnly" = "Unavailable with access to a single forum topic";
 "PxgErrAlbumParts" = "Parts of one album are needed";
 "PxgErrQuizAnswerUnknown" = "The correct answer of the quiz is unknown";
 "PxgErrGeoUnavailable" = "The location is not available";
@@ -5390,6 +5411,8 @@
 "PxgErrTranslateFailed" = "Telegram did not translate it";
 "PxgErrSummaryFailed" = "Telegram did not give a summary";
 "PxgErrGranteeMissing" = "It is not specified whom to give access to";
+"PxgErrGranteeNotRegistered" = "This person has not signed in to Proxygram yet";
+"PxgErrOwnerAccountRequired" = "A connected Telegram account is required";
 "PxgErrInviteNotPending" = "This invitation is no longer waiting for confirmation";
 "PxgErrSinceDateRequired" = "“Since a date” needs a date";
 "PxgErrLastNChatOnly" = "“Last N” is a number and only for a single chat";
@@ -5417,12 +5440,14 @@
 "PxgErrNoSpendStars" = "This message is paid, and you have no right to spend the owner's Stars";
 "PxgErrStarsLimit" = "The owner's Stars for today are used up: no more than {max} a day with this access";
 "PxgPermSpendStars" = "Spend your Stars: paid messages";
+"PxgPermStartChats" = "Start new private chats";
 "PxgShareLimitStars" = "Your Stars a day";
 "PxgShareLimitStarsHint" = "The guest confirms every paid message. Without a limit they spend no Stars at all.";
 "PxgPaidNoSpendStars" = "A message to this chat costs {stars} ⭐, and you have no right to spend the owner's Stars";
 "PxgPaidStarsLimit" = "The owner pays: no more than {stars} ⭐ a day with your access.";
 "PxgErrRequestRejectedRecently" = "This request was declined recently: you can ask again in a day";
 "PxgErrRequestNotFound" = "There is no such request, or it has been answered";
+"PxgErrRequestNotPending" = "This request has already been answered";
 "PxgErrRequestOwnerUnknown" = "You can only ask someone who has already shared something with you";
 "PxgErrSavedNotFound" = "There is no such message in Saved Messages";
 "PxgErrSavedNotEditable" = "A message saved from a chat cannot be edited — only your own notes";

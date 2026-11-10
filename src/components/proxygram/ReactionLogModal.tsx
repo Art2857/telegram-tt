@@ -6,6 +6,7 @@ import { formatDateTime } from '../../util/localization/dateFormat';
 import { buildProxyCatalogMediaId } from '../../api/proxy/mediaIds';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store';
+import { describePxgError } from './helpers';
 
 import useLang from '../../hooks/useLang';
 
@@ -21,19 +22,24 @@ const ReactionLogModal = () => {
   const lang = useLang();
   const target = usePxgState((state) => state.reactionLogMessage);
   const [entries, setEntries] = useState<ReactionLogEntryDto[]>();
+  const [error, setError] = useState<string>();
 
   useEffect(() => {
     setEntries(undefined);
+    setError(undefined);
     if (!target) return undefined;
     let isActive = true;
     const { isProxy, ...params } = target;
     pxgRpc.call<ReactionLogEntryDto[]>(isProxy ? 'messages.reactionLog' : 'archive.reactionLog', params)
       .then((result) => isActive && setEntries(result))
-      .catch(() => isActive && setEntries([]));
+      .catch((err) => {
+        // ошибка — не пустой журнал: владелец должен видеть, что данные не загрузились
+        if (isActive) setError(describePxgError(lang, err));
+      });
     return () => {
       isActive = false;
     };
-  }, [target]);
+  }, [target, lang]);
 
   // Entries go from new to old: the first mention of a reaction by someone tells if it still stands
   const currentIndexes = useMemo(() => {
@@ -54,6 +60,8 @@ const ReactionLogModal = () => {
       hasCloseButton
       onClose={() => setPxgState({ reactionLogMessage: undefined })}
     >
+      {entries === undefined && !error && <p className={styles.empty}>{lang('PxgAdminLoading')}</p>}
+      {error && <p className={styles.empty}>{error}</p>}
       {entries?.length === 0 && <p className={styles.empty}>{lang('PxgReactionLogEmpty')}</p>}
       <ul className={styles.list}>
         {entries?.map((entry, index) => (

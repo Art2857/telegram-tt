@@ -6,10 +6,11 @@ import type {
 } from '../../../proxygram/server/types';
 import type { AdminShare as ShareRow } from './types';
 
-import { IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { formatTimeDuration } from '../../../util/dates/duration';
 import { getAccountSlotUrl } from '../../../util/multiaccount';
+import { getServerTime } from '../../../util/serverTime';
 import { formatFileSize } from '../../../util/textFormat';
 import { getPxgReasonText } from '../../../proxygram/errorReasons';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -507,8 +508,13 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
 
 const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
   const [query, setQuery] = useState('');
+  const [offset, setOffset] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string>();
-  const { data, error } = useAdminData<UserRow[]>('admin.users', { query: query || undefined, limit: 200 }, topics);
+  const { data, error } = useAdminData<UserRow[]>(
+    'admin.users',
+    { query: query || undefined, limit: USERS_PAGE_SIZE, offset },
+    topics,
+  );
 
   if (selectedUserId) {
     return (
@@ -531,7 +537,10 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
         className={styles.search}
         label={lang('PxgAdminSearch')}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOffset(0);
+        }}
       />
       {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
@@ -590,6 +599,27 @@ const UsersTab = memo(({ lang, ask, run, selfId, topics }: TabProps) => {
           </tbody>
         </table>
       )}
+      {(offset > 0 || (data?.length ?? 0) === USERS_PAGE_SIZE) && (
+        <div className={styles.pagination}>
+          <Button
+            size="smaller"
+            fluid={false}
+            disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - USERS_PAGE_SIZE))}
+          >
+            {lang('AccDescrPrevious')}
+          </Button>
+          <span>{lang.number(offset / USERS_PAGE_SIZE + 1)}</span>
+          <Button
+            size="smaller"
+            fluid={false}
+            disabled={(data?.length ?? 0) < USERS_PAGE_SIZE}
+            onClick={() => setOffset(offset + USERS_PAGE_SIZE)}
+          >
+            {lang('Next')}
+          </Button>
+        </div>
+      )}
     </>
   );
 });
@@ -614,7 +644,7 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
       {user.id !== selfId && (
         <>
           {/* docs/spec/08-admin.md §2: a plain session of this person in a new slot, seen in the person's devices */}
-          {!user.blockedAt && (
+          {IS_MULTIACCOUNT_SUPPORTED && !user.blockedAt && (
             <Button
               size="tiny"
               color="translucent"
@@ -666,6 +696,8 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
 /** Opens the person's own session in a free account slot of this browser: from there it is just this person */
 function signInAs(userId: string) {
   return async () => {
+    // без слотов второй вход на устройстве некуда открыть: кнопка скрыта, а запрос не создаём
+    if (!IS_MULTIACCOUNT_SUPPORTED) return;
     // A browser only allows a popup that is opened synchronously from the click, before the RPC
     const popup = IS_TAURI ? undefined : window.open('', '_blank');
     try {
@@ -1137,6 +1169,8 @@ function AccountCard({ account, lang, run, onClose, onDisconnect }: {
 // ─── Доступы ────────────────────────────────────────────────────────────────
 
 const SHARES_PAGE_SIZE = 200;
+const REQUESTS_PAGE_SIZE = 50;
+const USERS_PAGE_SIZE = 100;
 type ShareFilters = {
   status: ShareRow['status'] | undefined;
   accountId: string;
@@ -1271,7 +1305,11 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
               </thead>
               <tbody>
                 {data.map((share) => {
-                  const shareStatus = SHARE_STATUS[share.status];
+                  const isExpired = share.status === 'active' && Boolean(share.expiresAt)
+                    && Date.parse(share.expiresAt) <= getServerTime() * 1000;
+                  const shareStatus = isExpired
+                    ? { key: 'PxgShareStatusExpired', tone: 'gray' as const }
+                    : SHARE_STATUS[share.status];
                   return (
                     <tr key={share.id}>
                       <td>
@@ -1286,8 +1324,12 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                       </td>
                       <td>
                         <div className={styles.name}>
-                          {share.scope === 'folder' ? share.folderTitle ?? share.folderId
+                          {share.scope === 'folder' || share.scope === 'folder_members'
+                            ? share.folderTitle ?? share.folderId
                             : share.peerTitle ?? share.peerId}
+                          {share.scope.endsWith('_members') && (
+                            <span className={styles.secondary}>{` · ${lang('PxgShareMembersChip')}`}</span>
+                          )}
                         </div>
                         {share.scope === 'topic' && <div>{share.topicTitle ?? share.topicId}</div>}
                         {share.label && <div>{share.label}</div>}
@@ -1383,9 +1425,19 @@ const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
 // ─── Журнал и очередь ───────────────────────────────────────────────────────
 
 const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
+  const [status, setStatus] = useState<
+    'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'all'
+  >('pending');
+  const [query, setQuery] = useState('');
+  const [offset, setOffset] = useState(0);
   const { data, error } = useAdminData<AdminAccessRequestDto[]>(
     'admin.requests',
-    { status: 'pending', limit: 100, offset: 0 },
+    {
+      status: status === 'all' ? undefined : status,
+      query: query.trim() || undefined,
+      limit: REQUESTS_PAGE_SIZE,
+      offset,
+    },
     topics,
   );
   const [approvingId, setApprovingId] = useState<string>();
@@ -1393,139 +1445,185 @@ const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
   const [historyMode, setHistoryMode] = useState<(typeof REQUEST_HISTORIES)[number]['key']>('all');
 
   if (!data) return <Loading error={error} lang={lang} />;
-  if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminRequestsEmpty')}</p>;
 
   return (
     <>
       <p className={styles.secondary}>{lang('PxgAdminRequestsHint')}</p>
-      <table className={buildClassName(styles.table, styles.stacked)}>
-        <thead>
-          <tr>
-            <th>{lang('PxgAdminColWho')}</th>
-            <th>{lang('PxgAdminRequestOwner')}</th>
-            <th>{lang('PxgAdminRequestTarget')}</th>
-            <th>{lang('PxgAdminColTime')}</th>
-            <th aria-label={lang('PxgAdminColActions')} />
-          </tr>
-        </thead>
-        {data.map((row) => (
-          <tbody key={row.id}>
+      <div className={styles.filters}>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.currentTarget.value as typeof status);
+            setOffset(0);
+          }}
+        >
+          <option value="pending">{lang('PxgRequestPending')}</option>
+          <option value="approved">{lang('PxgRequestApproved')}</option>
+          <option value="rejected">{lang('PxgRequestRejected')}</option>
+          <option value="cancelled">{lang('PxgRequestCancelled')}</option>
+          <option value="expired">{lang('PxgRequestExpired')}</option>
+          <option value="all">{lang('PxgAdminAll')}</option>
+        </select>
+        <InputText
+          label={lang('Search')}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.currentTarget.value);
+            setOffset(0);
+          }}
+        />
+      </div>
+      {data.length === 0 ? <p className={styles.empty}>{lang('PxgAdminRequestsEmpty')}</p> : (
+        <table className={buildClassName(styles.table, styles.stacked)}>
+          <thead>
             <tr>
-              <td>
-                <div className={styles.name}>
-                  <AdminAvatar name={row.requester.name} id={row.requester.id} />
-                  {row.requester.name}
-                </div>
-                {row.requester.username && (
-                  <div className={styles.secondary}>{`@${row.requester.username}`}</div>
-                )}
-              </td>
-              <td>
-                {row.ownerName}
-                {row.accountName && <div className={styles.secondary}>{row.accountName}</div>}
-              </td>
-              <td>
-                {row.peerTitle ?? row.query}
-                {row.originTitle && <div className={styles.secondary}>{row.originTitle}</div>}
-                {row.context && (
-                  <div className={styles.secondary}>
-                    {lang('PxgRequestsCommonGroups', { count: row.context.commonGroups })}
+              <th>{lang('PxgAdminColWho')}</th>
+              <th>{lang('PxgAdminRequestOwner')}</th>
+              <th>{lang('PxgAdminRequestTarget')}</th>
+              <th>{lang('PxgAdminColTime')}</th>
+              <th aria-label={lang('PxgAdminColActions')} />
+            </tr>
+          </thead>
+          {data.map((row) => (
+            <tbody key={row.id}>
+              <tr>
+                <td>
+                  <div className={styles.name}>
+                    <AdminAvatar name={row.requester.name} id={row.requester.id} />
+                    {row.requester.name}
                   </div>
-                )}
-              </td>
-              <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
-              <td className={styles.actions}>
-                {row.accountId && typeof row.peerId === 'number' ? (
+                  {row.requester.username && (
+                    <div className={styles.secondary}>{`@${row.requester.username}`}</div>
+                  )}
+                </td>
+                <td>
+                  {row.ownerName}
+                  {row.accountName && <div className={styles.secondary}>{row.accountName}</div>}
+                </td>
+                <td>
+                  {row.peerTitle ?? row.query}
+                  {row.originTitle && <div className={styles.secondary}>{row.originTitle}</div>}
+                  {row.context && (
+                    <div className={styles.secondary}>
+                      {lang('PxgRequestsCommonGroups', { count: row.context.commonGroups })}
+                    </div>
+                  )}
+                </td>
+                <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
+                <td className={styles.actions}>
+                  {row.accountId && typeof row.peerId === 'number' ? (
+                    <Button
+                      size="tiny"
+                      color="primary"
+                      isText
+                      onClick={() => setApprovingId(approvingId === row.id ? undefined : row.id)}
+                    >
+                      {lang('PxgAdminGrant')}
+                    </Button>
+                  ) : (
+                    <span className={styles.secondary}>{lang('PxgAdminRequestNoChat')}</span>
+                  )}
                   <Button
                     size="tiny"
-                    color="primary"
+                    color="danger"
                     isText
-                    onClick={() => setApprovingId(approvingId === row.id ? undefined : row.id)}
+                    onClick={() => ask(
+                      lang('PxgAdminRequestRejectText'),
+                      lang('PxgAdminRequestReject'),
+                      () => pxgRpc.call('admin.requests.reject', { id: row.id }),
+                    )}
                   >
-                    {lang('PxgAdminGrant')}
+                    {lang('PxgAdminRequestReject')}
                   </Button>
-                ) : (
-                  <span className={styles.secondary}>{lang('PxgAdminRequestNoChat')}</span>
-                )}
-                <Button
-                  size="tiny"
-                  color="danger"
-                  isText
-                  onClick={() => ask(
-                    lang('PxgAdminRequestRejectText'),
-                    lang('PxgAdminRequestReject'),
-                    () => pxgRpc.call('admin.requests.reject', { id: row.id }),
-                  )}
-                >
-                  {lang('PxgAdminRequestReject')}
-                </Button>
-              </td>
-            </tr>
-            {approvingId === row.id && (
-              <tr>
-                <td colSpan={5}>
-                  <div className={styles.form}>
-                    <h3 className={styles.sectionTitle}>{lang('PxgAdminRequestApproveTitle')}</h3>
-                    <div className={styles.row}>
-                      <label className={styles.field}>
-                        {lang('PxgAdminRequestPreset')}
-                        <select
-                          value={preset}
-                          onChange={(e) => setPreset(e.currentTarget.value as typeof preset)}
-                        >
-                          {REQUEST_PRESETS.map((item) => (
-                            <option key={item.key} value={item.key}>{lang(item.title)}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className={styles.field}>
-                        {lang('PxgAdminRequestHistory')}
-                        <select
-                          value={historyMode}
-                          onChange={(e) => setHistoryMode(e.currentTarget.value as typeof historyMode)}
-                        >
-                          {REQUEST_HISTORIES.map((item) => (
-                            <option key={item.key} value={item.key}>{lang(item.title)}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className={styles.formButtons}>
-                      <Button
-                        size="smaller"
-                        fluid={false}
-                        onClick={() => void run(async () => {
-                          if (!row.accountId || typeof row.peerId !== 'number') return;
-                          await pxgRpc.call('admin.shares.create', {
-                            accountId: row.accountId,
-                            requestId: row.id,
-                            granteeUserId: row.requester.id,
-                            scope: 'chat',
-                            peerId: row.peerId,
-                            preset,
-                            historyMode,
-                          });
-                          setApprovingId(undefined);
-                        })}
-                      >
-                        {lang('PxgAdminGrant')}
-                      </Button>
-                      <Button
-                        size="smaller"
-                        fluid={false}
-                        color="translucent"
-                        onClick={() => setApprovingId(undefined)}
-                      >
-                        {lang('Cancel')}
-                      </Button>
-                    </div>
-                  </div>
                 </td>
               </tr>
-            )}
-          </tbody>
-        ))}
-      </table>
+              {approvingId === row.id && (
+                <tr>
+                  <td colSpan={5}>
+                    <div className={styles.form}>
+                      <h3 className={styles.sectionTitle}>{lang('PxgAdminRequestApproveTitle')}</h3>
+                      <div className={styles.row}>
+                        <label className={styles.field}>
+                          {lang('PxgAdminRequestPreset')}
+                          <select
+                            value={preset}
+                            onChange={(e) => setPreset(e.currentTarget.value as typeof preset)}
+                          >
+                            {REQUEST_PRESETS.map((item) => (
+                              <option key={item.key} value={item.key}>{lang(item.title)}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className={styles.field}>
+                          {lang('PxgAdminRequestHistory')}
+                          <select
+                            value={historyMode}
+                            onChange={(e) => setHistoryMode(e.currentTarget.value as typeof historyMode)}
+                          >
+                            {REQUEST_HISTORIES.map((item) => (
+                              <option key={item.key} value={item.key}>{lang(item.title)}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className={styles.formButtons}>
+                        <Button
+                          size="smaller"
+                          fluid={false}
+                          onClick={() => void run(async () => {
+                            if (!row.accountId || typeof row.peerId !== 'number') return;
+                            await pxgRpc.call('admin.shares.create', {
+                              accountId: row.accountId,
+                              requestId: row.id,
+                              granteeUserId: row.requester.id,
+                              scope: 'chat',
+                              peerId: row.peerId,
+                              preset,
+                              historyMode,
+                            });
+                            setApprovingId(undefined);
+                          })}
+                        >
+                          {lang('PxgAdminGrant')}
+                        </Button>
+                        <Button
+                          size="smaller"
+                          fluid={false}
+                          color="translucent"
+                          onClick={() => setApprovingId(undefined)}
+                        >
+                          {lang('Cancel')}
+                        </Button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          ))}
+        </table>
+      )}
+      {(offset > 0 || data.length === REQUESTS_PAGE_SIZE) && (
+        <div className={styles.pagination}>
+          <Button
+            size="smaller"
+            fluid={false}
+            disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - REQUESTS_PAGE_SIZE))}
+          >
+            {lang('AccDescrPrevious')}
+          </Button>
+          <span>{lang.number(offset / REQUESTS_PAGE_SIZE + 1)}</span>
+          <Button
+            size="smaller"
+            fluid={false}
+            disabled={data.length < REQUESTS_PAGE_SIZE}
+            onClick={() => setOffset(offset + REQUESTS_PAGE_SIZE)}
+          >
+            {lang('Next')}
+          </Button>
+        </div>
+      )}
     </>
   );
 });
@@ -1901,7 +1999,7 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
                       {lang('PxgAdminExportsDownload')}
                     </Button>
                   )}
-                  {job.status === 'queued' && (
+                  {['queued', 'collecting', 'packing'].includes(job.status) && (
                     <Button
                       size="tiny"
                       color="danger"

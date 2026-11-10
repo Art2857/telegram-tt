@@ -27,6 +27,7 @@ import useLastCallback from '../../hooks/useLastCallback';
 import Avatar from '../common/Avatar';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import InputText from '../ui/InputText';
 import ListItem from '../ui/ListItem';
 import Modal from '../ui/Modal';
@@ -62,7 +63,7 @@ type ShareTargetFields = { scope: string; peerId: number | null; topicId: number
 type Invite = {
   id: string;
   status: 'pending' | 'awaiting';
-  scope: 'chat' | 'topic' | 'folder';
+  scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   topicId: number | null;
   folderId: number | null;
@@ -126,6 +127,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [deleteLimit, setDeleteLimit] = useState('');
   const [starsLimit, setStarsLimit] = useState('');
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
+  const [revokeTarget, setRevokeTarget] = useState<{ kind: 'share' | 'invite'; id: string; name: string }>();
   const [isInviting, setIsInviting] = useState(false);
   const [coverMembers, setCoverMembers] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
@@ -187,7 +189,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     const timer = setTimeout(() => {
       void pxgRpc.call<ReachablePage>('members.source', {
         accountId: account.id,
-        ...(folder ? { folderId: folder.id } : { peerId }),
+        ...(folder ? { folderId: folder.id, excludePeerIds: excludedIds } : { peerId }),
         query: memberQuery.trim() || undefined,
       })
         .then((page) => {
@@ -201,7 +203,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       isActive = false;
       clearTimeout(timer);
     };
-  }, [coverMembers, canCoverMembers, account, folder, peerId, memberQuery]);
+  }, [coverMembers, canCoverMembers, account, folder, peerId, memberQuery, excludedIds]);
 
   useEffect(() => pxgRpc.on((event) => {
     if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
@@ -406,6 +408,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const save = async () => {
+    // Button with isLoading is not disabled: a second click must not send a second create
+    if (isSaving) return;
     if (!account || (!editing && !guest?.user && !guest?.candidate && !isInviting)) return;
     setIsSaving(true);
     setError(undefined);
@@ -423,7 +427,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       folderId: folder?.id,
       historyMode,
       historyLimit: historyMode === 'last_n' ? Math.min(Number(historyLimit) || 1, MAX_HISTORY_LIMIT) : undefined,
-      historySince: historyMode === 'since_date' && historySince ? new Date(historySince).toISOString() : undefined,
+      historySince: historyMode === 'since_date' && historySince
+        ? new Date(`${historySince}T00:00:00`).toISOString() : undefined,
       expiresAt: expiresAt(),
     };
     const memberMode = !coverMembers ? 'none' as const : selectedMembers.length ? 'selected' as const : 'all' as const;
@@ -445,31 +450,37 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           ...(isMemberScope ? { memberMode, memberIds: selectedMembers } : {}),
         });
       } else {
-        await pxgRpc.call('shares.create', {
+        const base = await pxgRpc.call<{ id: string }>('shares.create', {
           ...common,
           ...target,
           accountId: account.id,
           // The access answers the guest's request: it becomes "approved" with a link to this access
           requestId: shareRequest && guest?.user?.id === shareRequest.grantee.id ? shareRequest.id : undefined,
           // Someone who has never signed in gets the account in advance and finds the chat at the first sign-in
-          ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
+          ...(guest!.user ? { granteeUserId: guest!.user.id } : { guest: guest!.candidate! }),
         });
         // Охват участников — отдельный доступ: сам групповой чат он не открывает
         if (coverMembers && canCoverMembers) {
-          await pxgRpc.call('shares.create', {
-            ...common,
-            ...(folder
-              ? { scope: 'folder_members' as const, folderId: folder.id }
-              : { scope: 'chat_members' as const, peerId }),
-            historyMode: target.historyMode,
-            historyLimit: target.historyLimit,
-            historySince: target.historySince,
-            expiresAt: target.expiresAt,
-            memberMode: selectedMembers.length ? 'selected' : 'all',
-            memberIds: selectedMembers,
-            accountId: account.id,
-            ...(guest!.user ? { granteeUserId: guest!.user.id } : { grantee: guest!.candidate! }),
-          });
+          try {
+            await pxgRpc.call('shares.create', {
+              ...common,
+              ...(folder
+                ? { scope: 'folder_members' as const, folderId: folder.id }
+                : { scope: 'chat_members' as const, peerId }),
+              historyMode: target.historyMode,
+              historyLimit: target.historyLimit,
+              historySince: target.historySince,
+              expiresAt: target.expiresAt,
+              memberMode: selectedMembers.length ? 'selected' : 'all',
+              memberIds: selectedMembers,
+              accountId: account.id,
+              ...(guest!.user ? { granteeUserId: guest!.user.id } : { guest: guest!.candidate! }),
+            });
+          } catch (err) {
+            // второй шаг не прошёл: не оставляем доступ, который открывает не то, что выбрал владелец
+            await pxgRpc.call('shares.revoke', { shareId: base.id }).catch(() => undefined);
+            throw err;
+          }
         }
       }
       resetForm();
@@ -516,6 +527,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     } catch (err) {
       setError(describePxgError(lang, err));
     }
+  };
+
+  const confirmRevoke = async () => {
+    const target = revokeTarget;
+    if (!target) return;
+    setRevokeTarget(undefined);
+    if (target.kind === 'share') await revoke(target.id);
+    else await revokeInvite(target.id);
   };
 
   const copyInviteLink = () => {
@@ -794,7 +813,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                         color="danger"
                         isText
                         fluid={false}
-                        onClick={() => void revokeInvite(invite.id)}
+                        onClick={() => setRevokeTarget({
+                          kind: 'invite',
+                          id: invite.id,
+                          name: invite.candidate?.firstName || invite.candidate?.username || '—',
+                        })}
                       >
                         {lang('PxgShareRevoke')}
                       </Button>
@@ -838,7 +861,17 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                     >
                       {lang(share.status === 'paused' ? 'PxgShareResume' : 'PxgSharePause')}
                     </Button>
-                    <Button size="tiny" color="danger" isText fluid={false} onClick={() => void revoke(share.id)}>
+                    <Button
+                      size="tiny"
+                      color="danger"
+                      isText
+                      fluid={false}
+                      onClick={() => setRevokeTarget({
+                        kind: 'share',
+                        id: share.id,
+                        name: displayName(share.grantee),
+                      })}
+                    >
                       {lang('PxgShareRevoke')}
                     </Button>
                   </span>
@@ -848,6 +881,17 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           )}
         </>
       )}
+      <ConfirmDialog
+        isOpen={Boolean(revokeTarget)}
+        onClose={() => setRevokeTarget(undefined)}
+        text={revokeTarget ? t('PxgSettingsRevokeConfirm', {
+          name: revokeTarget.name,
+          title: chatTitle ?? '',
+        }) : undefined}
+        confirmLabel={lang('PxgShareRevoke')}
+        confirmIsDestructive
+        confirmHandler={confirmRevoke}
+      />
     </Modal>
   );
 };

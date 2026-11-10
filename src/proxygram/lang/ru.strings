@@ -169,6 +169,7 @@
 "PxgSharesEffectiveEmpty" = "Сейчас этому человеку ничего из ваших чатов не открыто";
 "PxgSharesViaDirect" = "напрямую";
 "PxgSharesViaFolder" = "через папку «{title}»";
+"PxgSharesViaChatMembers" = "участники «{title}»";
 "PxgSharesViaTopic" = "тема «{title}»";
 "PxgRequestsIncoming" = "Запросы";
 "PxgRequestsEmpty" = "Запросов доступа нет";
@@ -225,6 +226,7 @@
 "PxgSettingsMedia" = "Файлы: {size}";
 "PxgSettingsChats" = "Чатов: {count}";
 "PxgSettingsFolder" = "Папка №{id}";
+"PxgSettingsChat" = "Чат";
 "PxgSettingsFrom" = "От {name}";
 "PxgSettingsLeave" = "Выйти";
 "PxgSettingsLeaveConfirm" = "Выйти из доступа к «{title}»? Вернуть его сможет только владелец.";
@@ -233,6 +235,8 @@
 "PxgSharesByChat" = "По чатам";
 "PxgSharesExpiring" = "Со сроком";
 "PxgSharesNoExpiring" = "Доступов со сроком нет";
+"PxgSharesEmpty" = "Доступов пока нет";
+"PxgSharesNoChats" = "Нет чатов с доступом";
 "PxgRevokeAll" = "Отозвать все";
 "PxgRevokeAllOfGuestConfirm" = "Отозвать у {title} все доступы ({count})?";
 "PxgRevokeAllOfChatConfirm" = "Отозвать доступ к «{title}» у всех ({count})?";
@@ -348,6 +352,19 @@
 "PxgAuditInlineBot" = "воспользовался инлайн-ботом";
 "PxgAuditAdminCancel" = "администратор сервера отменил действие";
 "PxgAuditAdminRetry" = "администратор сервера повторил действие";
+"PxgAuditRequestApproved" = "запрос доступа одобрен";
+"PxgAuditRequestRejected" = "запрос доступа отклонён";
+"PxgAuditAdminShareCreate" = "администратор выдал доступ";
+"PxgAuditAdminShareUpdate" = "администратор изменил доступ";
+"PxgAuditAdminShareRevoke" = "администратор отозвал доступ";
+"PxgAuditAdminAccountPause" = "администратор поставил аккаунт на паузу";
+"PxgAuditAdminAccountResume" = "администратор возобновил аккаунт";
+"PxgAuditAdminAccountRestart" = "администратор перезапустил аккаунт";
+"PxgAuditAdminExportStart" = "администратор начал выгрузку чата";
+"PxgAuditAdminExportReady" = "выгрузка чата готова";
+"PxgAuditAdminExportDownload" = "администратор скачал выгрузку чата";
+"PxgAuditAdminExportCancel" = "администратор отменил выгрузку чата";
+"PxgAuditUnknown" = "другое действие";
 "PxgAuditMessageDebug" = "администратор сервера посмотрел сырые данные сообщения";
 "PxgDevPanel" = "Панель разработчика";
 "PxgDevRawJson" = "Сырой JSON";
@@ -780,6 +797,8 @@
 "PxgSharePending" = "{name} ещё не входил в Proxygram. Доступ откроется сразу: чат появится у него при первом входе гостем.";
 "PxgErrConnectDisabled" = "Подключение аккаунтов на этом сервере выключено";
 "PxgErrExportDisabled" = "Экспорт недоступен на этом сервере";
+"PxgErrExportsDisabled" = "Выгрузка чатов недоступна на этом сервере";
+"PxgErrExportNotReady" = "Выгрузка ещё не готова";
 "PxgErrMediaDisabled" = "Медиа недоступны на этом сервере";
 "PxgErrFilesDisabled" = "Файлы недоступны на этом сервере";
 "PxgErrInvitesDisabled" = "Приглашения на этом сервере выключены";
@@ -832,6 +851,7 @@
 "PxgErrUserBlocked" = "Пользователь заблокирован";
 "PxgErrJobNoActor" = "У действия нет отправителя";
 "PxgErrTooManyActions" = "Слишком много действий, подождите минуту";
+"PxgErrJobInterrupted" = "Сервер перезапустился во время действия — повторите его";
 "PxgErrSourceLost" = "Владелец больше не состоит в этом чате — доступен только архив";
 "PxgErrOwnerUnavailable" = "Аккаунт владельца временно недоступен — доступен только архив";
 "PxgErrOwnerFlood" = "Telegram временно ограничил отправку с аккаунта владельца";
@@ -843,8 +863,9 @@
 "PxgErrOwnerCannotManageTopics" = "Владелец не может управлять темами этого форума";
 "PxgErrOwnerCannotDeleteTopics" = "Владелец не может удалять темы этого форума";
 "PxgErrOwnerCannotChangeInfo" = "Владелец не может менять информацию об этом чате";
-"PxgErrTopicsNeedFullForum" = "Создавать темы можно только с доступом ко всему форуму";
+"PxgErrTopicsNeedFullForum" = "Для этого нужен доступ ко всему форуму, а не к одной теме";
 "PxgErrGroupOnly" = "Только группа или канал";
+"PxgErrTopicOnly" = "Недоступно при доступе только к одной теме форума";
 "PxgErrAlbumParts" = "Нужны части одного альбома";
 "PxgErrQuizAnswerUnknown" = "Правильный ответ викторины неизвестен";
 "PxgErrGeoUnavailable" = "Геопозиция недоступна";
@@ -877,6 +898,8 @@
 "PxgErrTranslateFailed" = "Telegram не перевёл";
 "PxgErrSummaryFailed" = "Telegram не дал сводку";
 "PxgErrGranteeMissing" = "Не указано, кому открыть доступ";
+"PxgErrGranteeNotRegistered" = "Этот человек ещё не входил в Proxygram";
+"PxgErrOwnerAccountRequired" = "Для этого нужен подключённый аккаунт Telegram";
 "PxgErrInviteNotPending" = "Это приглашение уже не ждёт подтверждения";
 "PxgErrSinceDateRequired" = "Для «с даты» нужна дата";
 "PxgErrLastNChatOnly" = "«Последние N» задаётся числом и для отдельного чата";
@@ -904,12 +927,14 @@
 "PxgErrNoSpendStars" = "Сообщение платное, а права тратить звёзды владельца у вас нет";
 "PxgErrStarsLimit" = "Звёзды владельца на сегодня закончились: не больше {max} в сутки по этому доступу";
 "PxgPermSpendStars" = "Тратить ваши звёзды: платные сообщения";
+"PxgPermStartChats" = "Начинать новые личные диалоги";
 "PxgShareLimitStars" = "Ваших звёзд в сутки";
 "PxgShareLimitStarsHint" = "Каждое платное сообщение гость подтверждает сам. Без лимита он не потратит ни одной звезды.";
 "PxgPaidNoSpendStars" = "Сообщение в этот чат стоит {stars} ⭐, а права тратить звёзды владельца у вас нет";
 "PxgPaidStarsLimit" = "Платит владелец: не больше {stars} ⭐ в сутки по вашему доступу.";
 "PxgErrRequestRejectedRecently" = "Этот запрос недавно отклонили: повторить можно через сутки";
 "PxgErrRequestNotFound" = "Такого запроса нет или на него уже ответили";
+"PxgErrRequestNotPending" = "На этот запрос уже ответили";
 "PxgErrRequestOwnerUnknown" = "Просить можно только у того, кто уже открыл вам доступ";
 "PxgErrSavedNotFound" = "Такого сообщения в «Избранном» нет";
 "PxgErrSavedNotEditable" = "Сохранённое из чата не правится — только свои заметки";

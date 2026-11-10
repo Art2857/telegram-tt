@@ -3575,11 +3575,14 @@ export interface LangPair {
   'PxgSettingsAudit': undefined;
   'PxgSettingsDevices': undefined;
   'PxgSettingsNoAccounts': undefined;
+  'PxgSettingsChat': undefined;
   'PxgSettingsLeave': undefined;
   'PxgSharesByGuest': undefined;
   'PxgSharesByChat': undefined;
   'PxgSharesExpiring': undefined;
   'PxgSharesNoExpiring': undefined;
+  'PxgSharesEmpty': undefined;
+  'PxgSharesNoChats': undefined;
   'PxgRevokeAll': undefined;
   'PxgProxyAccessTitle': undefined;
   'PxgShareChipCustom': undefined;
@@ -3682,6 +3685,19 @@ export interface LangPair {
   'PxgAuditInlineBot': undefined;
   'PxgAuditAdminCancel': undefined;
   'PxgAuditAdminRetry': undefined;
+  'PxgAuditRequestApproved': undefined;
+  'PxgAuditRequestRejected': undefined;
+  'PxgAuditAdminShareCreate': undefined;
+  'PxgAuditAdminShareUpdate': undefined;
+  'PxgAuditAdminShareRevoke': undefined;
+  'PxgAuditAdminAccountPause': undefined;
+  'PxgAuditAdminAccountResume': undefined;
+  'PxgAuditAdminAccountRestart': undefined;
+  'PxgAuditAdminExportStart': undefined;
+  'PxgAuditAdminExportReady': undefined;
+  'PxgAuditAdminExportDownload': undefined;
+  'PxgAuditAdminExportCancel': undefined;
+  'PxgAuditUnknown': undefined;
   'PxgAuditMessageDebug': undefined;
   'PxgDevPanel': undefined;
   'PxgDevRawJson': undefined;
@@ -4051,6 +4067,8 @@ export interface LangPair {
   'PxgShareNotRegisteredPhone': undefined;
   'PxgErrConnectDisabled': undefined;
   'PxgErrExportDisabled': undefined;
+  'PxgErrExportsDisabled': undefined;
+  'PxgErrExportNotReady': undefined;
   'PxgErrMediaDisabled': undefined;
   'PxgErrFilesDisabled': undefined;
   'PxgErrInvitesDisabled': undefined;
@@ -4100,6 +4118,7 @@ export interface LangPair {
   'PxgErrUserBlocked': undefined;
   'PxgErrJobNoActor': undefined;
   'PxgErrTooManyActions': undefined;
+  'PxgErrJobInterrupted': undefined;
   'PxgErrSourceLost': undefined;
   'PxgErrOwnerUnavailable': undefined;
   'PxgErrOwnerFlood': undefined;
@@ -4113,6 +4132,7 @@ export interface LangPair {
   'PxgErrOwnerCannotChangeInfo': undefined;
   'PxgErrTopicsNeedFullForum': undefined;
   'PxgErrGroupOnly': undefined;
+  'PxgErrTopicOnly': undefined;
   'PxgErrAlbumParts': undefined;
   'PxgErrQuizAnswerUnknown': undefined;
   'PxgErrGeoUnavailable': undefined;
@@ -4145,6 +4165,8 @@ export interface LangPair {
   'PxgErrTranslateFailed': undefined;
   'PxgErrSummaryFailed': undefined;
   'PxgErrGranteeMissing': undefined;
+  'PxgErrGranteeNotRegistered': undefined;
+  'PxgErrOwnerAccountRequired': undefined;
   'PxgErrInviteNotPending': undefined;
   'PxgErrSinceDateRequired': undefined;
   'PxgErrLastNChatOnly': undefined;
@@ -4168,10 +4190,12 @@ export interface LangPair {
   'PxgErrCancelPendingOnly': undefined;
   'PxgErrNoSpendStars': undefined;
   'PxgPermSpendStars': undefined;
+  'PxgPermStartChats': undefined;
   'PxgShareLimitStars': undefined;
   'PxgShareLimitStarsHint': undefined;
   'PxgErrRequestRejectedRecently': undefined;
   'PxgErrRequestNotFound': undefined;
+  'PxgErrRequestNotPending': undefined;
   'PxgErrRequestOwnerUnknown': undefined;
   'PxgErrSavedNotFound': undefined;
   'PxgErrSavedNotEditable': undefined;
@@ -6488,6 +6512,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgSharesViaFolder': {
     'title': V;
   };
+  'PxgSharesViaChatMembers': {
+    'title': V;
+  };
   'PxgSharesViaTopic': {
     'title': V;
   };
@@ -8424,6 +8451,7 @@ export interface LangKeyGroups {
       | 'ActionCreatedChatYou'
       | 'AiToneCreated'
       | 'PxgSharesViaFolder'
+      | 'PxgSharesViaChatMembers'
       | 'PxgSharesViaTopic'
       | 'PxgRequestsFromGroup'
       | 'PxgSettingsLeaveConfirm'

@@ -122,6 +122,15 @@ export function buildProxyAttachment(dto: MessageDto, chatId: string): Partial<M
   }
 }
 
+/** Ссылка истории в любом виде, каким её передаёт Web A: с origin и служебным `/progressive/` */
+function normalizeStoryUrl(url: string) {
+  const path = url
+    .replace(/^https?:\/\/[^/]+/i, '')
+    .replace(/^\/(?:progressive|download)\//i, '/')
+    .replace(/^\/+/, '/');
+  return path.startsWith('/pxg/stories/') || path.startsWith('/stories/') ? path : undefined;
+}
+
 /** Byte ranges use the same inclusive end as GramJS and the service worker */
 export async function downloadMedia(
   { url, mediaFormat, start, end }: MethodArgs<'downloadMedia'>[0],
@@ -139,9 +148,11 @@ export async function downloadMedia(
       fullSize: buffer.byteLength,
     };
   }
-  // Медиа истории: подписанная ссылка сервера, качать через RPC нечего
-  if (url.startsWith('/pxg/stories/') || url.startsWith('/stories/')) {
-    const response = await fetch(`${PXG_SERVER_URL}${url}`, {
+  // Медиа истории: подписанная ссылка сервера, качать через RPC нечего.
+  // Web A просит видео потоком и добавляет `/progressive/` перед путём — ссылку надо узнать и в таком виде
+  const storyUrl = normalizeStoryUrl(url);
+  if (storyUrl) {
+    const response = await fetch(`${PXG_SERVER_URL}${storyUrl}`, {
       headers: start !== undefined || end !== undefined ? { Range: `bytes=${start || 0}-${end ?? ''}` } : {},
     });
     if (!response.ok) throw new PxgError(`http_${response.status}`);

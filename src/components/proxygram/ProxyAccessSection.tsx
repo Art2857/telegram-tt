@@ -10,7 +10,7 @@ import { isProxyPeerId } from '../../api/proxy/ids';
 import { getOwnAccountId } from '../../proxygram/server/ownAccount';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
-import { displayName, formatDateTime } from './helpers';
+import { describePxgError, displayName, formatDateTime } from './helpers';
 
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
@@ -30,7 +30,7 @@ type OwnProps = {
 type Share = {
   id: string;
   accountId: string;
-  scope: 'chat' | 'topic' | 'folder';
+  scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   topicId: number | null;
   topicTitle: string | null;
@@ -66,6 +66,7 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
   const [shares, setShares] = useState<Share[]>();
   const [archive, setArchive] = useState<ArchiveScope>();
   const [revoking, setRevoking] = useState<Share>();
+  const [error, setError] = useState<string>();
   const peerId = Number(chatId);
 
   const isAvailable = Boolean(accountId) && connection === 'online' && !isProxyPeerId(chatId);
@@ -74,9 +75,10 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
 
   const load = useLastCallback(() => {
     if (!isAvailable) return;
+    setError(undefined);
     pxgRpc.call<Share[]>('shares.forChat', { accountId, peerId })
       .then(setShares)
-      .catch(() => undefined);
+      .catch((err) => setError(describePxgError(lang, err)));
     // the worker has not seen the chat yet: there is nothing to switch
     pxgRpc.call<ArchiveScope>('archive.chat.get', { accountId, peerId })
       .then(setArchive)
@@ -94,7 +96,7 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
   }), [load]);
 
   const handleEdit = useLastCallback((share: Share) => {
-    if (share.scope === 'folder') {
+    if (share.scope === 'folder' || share.scope === 'folder_members') {
       setPxgState({
         shareChatId: undefined,
         shareFolder: { id: share.folderId!, title: share.folderTitle ?? '' },
@@ -119,14 +121,20 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
       : [...share.excludePeerIds, peerId];
     pxgRpc.call('shares.update', { shareId: share.id, excludePeerIds })
       .then(load)
-      .catch(() => undefined);
+      .catch((err) => setError(describePxgError(lang, err)));
   });
 
   const handleRevoke = useLastCallback(async () => {
     const share = revoking;
-    setRevoking(undefined);
-    if (share) await pxgRpc.call('shares.revoke', { shareId: share.id }).catch(() => undefined);
-    load();
+    if (!share) return;
+    try {
+      await pxgRpc.call('shares.revoke', { shareId: share.id });
+      setRevoking(undefined);
+      load();
+    } catch (err) {
+      // доступ остался: окно не закрываем, владелец видит причину и может повторить
+      setError(describePxgError(lang, err));
+    }
   });
 
   const handleShare = useLastCallback(() => {
@@ -140,14 +148,25 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
     // eslint-disable-next-line no-null/no-null
     pxgRpc.call<ArchiveScope>('archive.chat.set', { accountId, peerId, enabled: enabled ?? null })
       .then(setArchive)
-      .catch(() => undefined);
+      .catch((err) => setError(describePxgError(lang, err)));
   });
 
-  if (!isAvailable || !shares) return undefined;
+  if (!isAvailable) return undefined;
+  if (!shares) {
+    if (!error) return undefined;
+    return (
+      <Island className={buildClassName(styles.root, className)}>
+        <IslandTitle>{lang('PxgProxyAccessTitle')}</IslandTitle>
+        <p className={styles.secondary}>{error}</p>
+        <Button size="tiny" isText fluid={false} onClick={load}>{lang('PxgConnectRetry')}</Button>
+      </Island>
+    );
+  }
 
   return (
     <Island className={buildClassName(styles.root, className)}>
       <IslandTitle>{lang('PxgProxyAccessTitle')}</IslandTitle>
+      {error && <p className={styles.secondary}>{error}</p>}
       {archive && (
         <div className={styles.archive}>
           <Checkbox
@@ -175,7 +194,7 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
               {describeChips(t, share, peerId).map((chip) => <span key={chip} className={styles.chip}>{chip}</span>)}
             </div>
           </div>
-          {share.scope === 'folder' && (
+          {share.scope === 'folder' || share.scope === 'folder_members' ? (
             <Button
               round
               size="smaller"
@@ -184,7 +203,7 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
               ariaLabel={lang(share.excludePeerIds.includes(peerId) ? 'PxgShareChatInclude' : 'PxgShareChatExclude')}
               onClick={() => toggleExcluded(share)}
             />
-          )}
+          ) : undefined}
           <Button
             round
             size="smaller"
@@ -213,7 +232,7 @@ const ProxyAccessSection = ({ chatId, className }: OwnProps) => {
         onClose={() => setRevoking(undefined)}
         text={revoking ? t('PxgSettingsRevokeConfirm', {
           name: displayName(revoking.grantee),
-          title: revoking.scope === 'folder'
+          title: revoking.scope === 'folder' || revoking.scope === 'folder_members'
             ? revoking.folderTitle ?? ''
             : [selectChat(getGlobal(), chatId)?.title, revoking.topicTitle].filter(Boolean).join(' › '),
         }) : undefined}
@@ -236,6 +255,7 @@ function describeArchive(t: Translate, archive: ArchiveScope) {
 function describeChips(t: Translate, share: Share, peerId: number) {
   const chips = [t(`PxgPreset${share.preset[0].toUpperCase()}${share.preset.slice(1)}`)];
   if (share.scope === 'folder') chips.push(t('PxgShareViaFolder', { title: share.folderTitle ?? '' }));
+  if (share.scope.endsWith('_members')) chips.push(t('PxgShareMembersChip'));
   if (share.excludePeerIds.includes(peerId)) chips.push(t('PxgShareChatExcluded'));
   if (Object.keys(share.permissions).length) chips.push(t('PxgShareChipCustom'));
   if (share.status === 'paused') chips.push(t('PxgShareStatusPaused'));
