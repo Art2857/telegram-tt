@@ -214,7 +214,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     return pxgRpc.on((event) => {
       // Sent for a profile change too: only a chat whose access is gone closes
       if (event.e === 'access.changed') loadProxyChats({ shouldKeepUnchanged: true });
-      if (event.e === 'requests.changed' && hasOwnSession) {
+      if (event.e === 'requests.changed' && hasOwnSession && event.d.kind === 'new') {
         showNotification({ message: { key: 'PxgRequestNew' } });
       }
       if (event.e === 'archive.change') refreshProxyMessage(event.d);

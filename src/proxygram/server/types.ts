@@ -907,7 +907,7 @@ export type ServerEvent =
   | { e: 'share.expiring'; d: { target: string; expiresAt: string } }
   | { e: 'saved.changed'; d: Record<string, never> }
   | { e: 'hidden.changed'; d: { accountId: string; peerId: number } }
-  | { e: 'requests.changed'; d: Record<string, never> }
+  | { e: 'requests.changed'; d: { kind?: 'new' | 'answered' | 'cancelled' } }
   | { e: 'share.granted'; d: { accountId: string; peerId: number | null; target: string; from: string } }
   | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }
