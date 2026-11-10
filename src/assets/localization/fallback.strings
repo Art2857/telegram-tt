@@ -4966,6 +4966,7 @@
 "PxgShareCustomize" = "Fine-tune permissions";
 "PxgShareEditing" = "Access for {name}";
 "PxgPermWrite" = "Write messages";
+"PxgPermRead" = "Read messages";
 "PxgPermSendMedia" = "Send media and files";
 "PxgPermUseOwnerStickers" = "Your stickers and GIFs";
 "PxgPermReact" = "Reactions";
@@ -5112,6 +5113,7 @@
 "PxgAdminRequestsEmpty" = "No open requests";
 "PxgAdminRequestApproveTitle" = "Grant access by request";
 "PxgAdminRequestReject" = "Reject";
+"PxgAdminRequestAnswered" = "Answered";
 "PxgAdminRequestRejectText" = "Reject the request? The guest will see the refusal.";
 "PxgAdminRequestTarget" = "Chat";
 "PxgAdminRequestOwner" = "Owner";
@@ -5320,6 +5322,7 @@
 "PxgErrLangpackPending" = "The language pack is not available yet";
 "PxgErrAccountUnavailable" = "The account is temporarily unavailable";
 "PxgErrAccountAlreadyConnected" = "This account is already connected to the server";
+"PxgErrAccountDisconnecting" = "The account is being disconnected — try again in a minute";
 "PxgErrConnectBusy" = "Connecting is already in progress on another device";
 "PxgErrConnectWrongAccount" = "You signed in to a different Telegram account";
 "PxgErrPasswordNotRequested" = "The password is not being requested right now";
@@ -5435,6 +5438,8 @@
 "PxgErrAccountNoOwner" = "The account has no owner in the system";
 "PxgErrRetryFailedOnly" = "Only a failed action can be retried";
 "PxgErrCancelPendingOnly" = "Only a pending action can be cancelled";
+"PxgErrCancelledByAdmin" = "Cancelled by the administrator";
+"PxgErrExportFailed" = "The export failed — see the server log for details";
 "PxgErrSavedQuota" = "Saved Messages are full: no more than {mb} MB per person";
 "PxgErrRequestsLimit" = "No more than {max} open access requests: wait for an answer or cancel older ones";
 "PxgErrNoSpendStars" = "This message is paid, and you have no right to spend the owner's Stars";

@@ -3777,6 +3777,7 @@ export interface LangPair {
   'PxgShareTopicHint': undefined;
   'PxgShareCustomize': undefined;
   'PxgPermWrite': undefined;
+  'PxgPermRead': undefined;
   'PxgPermSendMedia': undefined;
   'PxgPermUseOwnerStickers': undefined;
   'PxgPermReact': undefined;
@@ -3911,6 +3912,7 @@ export interface LangPair {
   'PxgAdminRequestsEmpty': undefined;
   'PxgAdminRequestApproveTitle': undefined;
   'PxgAdminRequestReject': undefined;
+  'PxgAdminRequestAnswered': undefined;
   'PxgAdminRequestRejectText': undefined;
   'PxgAdminRequestTarget': undefined;
   'PxgAdminRequestOwner': undefined;
@@ -4077,6 +4079,7 @@ export interface LangPair {
   'PxgErrLangpackPending': undefined;
   'PxgErrAccountUnavailable': undefined;
   'PxgErrAccountAlreadyConnected': undefined;
+  'PxgErrAccountDisconnecting': undefined;
   'PxgErrConnectBusy': undefined;
   'PxgErrConnectWrongAccount': undefined;
   'PxgErrPasswordNotRequested': undefined;
@@ -4188,6 +4191,8 @@ export interface LangPair {
   'PxgErrAccountNoOwner': undefined;
   'PxgErrRetryFailedOnly': undefined;
   'PxgErrCancelPendingOnly': undefined;
+  'PxgErrCancelledByAdmin': undefined;
+  'PxgErrExportFailed': undefined;
   'PxgErrNoSpendStars': undefined;
   'PxgPermSpendStars': undefined;
   'PxgPermStartChats': undefined;

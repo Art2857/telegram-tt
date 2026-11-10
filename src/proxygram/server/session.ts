@@ -66,7 +66,7 @@ export function getAccessToken(force = false): Promise<string | undefined> {
           setPxgState({ session: stored });
           return stored.accessToken;
         }
-        setPxgState({ session: undefined, accounts: undefined });
+        setPxgState({ session: undefined, accounts: undefined, isSessionRevoked: true });
         return undefined;
       });
   };

@@ -14,10 +14,12 @@ import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { getOwnAccountId } from '../../proxygram/server/ownAccount';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import renderText from '../common/helpers/renderText';
+import { describePxgError } from './helpers';
 
 import useSelector from '../../hooks/data/useSelector';
 import useLang from '../../hooks/useLang';
 
+import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import Modal from '../ui/Modal';
 
@@ -59,6 +61,8 @@ const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
   const [shouldShowDiff, setShouldShowDiff] = useState(true);
   // Устройство правку не застало (было закрыто) — берём версии из серверного архива своего аккаунта
   const [serverRows, setServerRows] = useState<MessageVersionDto[]>();
+  const [error, setError] = useState<unknown>();
+  const [reloadKey, setReloadKey] = useState(0);
   const proxy = useSelector((global) => selectChat(global, message.chatId)?.pxgProxy);
   const localHistory = proxy ? undefined : message.pxgEditHistory;
   const accountId = proxy?.accountId || getOwnAccountId();
@@ -67,18 +71,22 @@ const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
   useEffect(() => {
     if (!isOpen || !message.isEdited) return;
     setServerRows(undefined);
-    if (isProxyPeerId(message.chatId) && !proxy?.permissions.seeArchive) return;
+    setError(undefined);
+    if (isProxyPeerId(message.chatId) && !proxy?.permissions.seeArchive) {
+      setError(new PxgError('forbidden', undefined, 'no_edit_history'));
+      return;
+    }
     if (!accountId) return;
     let isActive = true;
     pxgRpc.call<MessageVersionDto[]>(proxy ? 'messages.versions' : 'archive.versions', {
       accountId, peerId, msgId: message.id,
     })
       .then((rows) => isActive && setServerRows(rows))
-      .catch(() => undefined);
+      .catch((err) => isActive && setError(err));
     return () => {
       isActive = false;
     };
-  }, [accountId, isOpen, message.chatId, message.id, message.isEdited, peerId, proxy]);
+  }, [accountId, isOpen, message.chatId, message.id, message.isEdited, peerId, proxy, reloadKey]);
 
   const versions = useMemo(() => {
     // The server knows files too; this device keeps its own only if it saw more edits than the server
@@ -113,11 +121,21 @@ const EditHistoryModal = ({ isOpen, message, onClose }: OwnProps) => {
     }).reverse();
   }, [lang, localHistory, message, serverRows]);
 
-  const hasLostVersions = message.isEdited && !localHistory?.length && !serverRows?.length;
+  // Пока ответа нет, «версии не сохранены» — ложь: показываем её только после пустого ответа
+  const isLoading = message.isEdited && !error && serverRows === undefined && localHistory === undefined;
+  const hasLostVersions = message.isEdited && !isLoading && !error
+    && !localHistory?.length && !serverRows?.length;
 
   return (
     <Modal isOpen={isOpen} title={lang('PxgEditHistoryTitle')} hasCloseButton onClose={onClose}>
-      {hasLostVersions && <p className={styles.notice}>{lang('PxgEditHistoryNotCaptured')}</p>}
+      {error ? (
+        <div className={styles.notice}>
+          <p>{describePxgError(lang, error)}</p>
+          <Button size="smaller" fluid={false} onClick={() => setReloadKey((key) => key + 1)}>
+            {lang('Retry')}
+          </Button>
+        </div>
+      ) : hasLostVersions && <p className={styles.notice}>{lang('PxgEditHistoryNotCaptured')}</p>}
       <ul className={styles.list}>
         {versions.map((version) => (
           <li key={version.key} className={styles.version}>

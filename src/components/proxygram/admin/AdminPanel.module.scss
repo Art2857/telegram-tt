@@ -106,7 +106,8 @@
   padding: 1rem;
 }
 
-@media (max-width: 720px) {
+/* Порог совпадает с isMobile (600 px): при 601–720 px работают оба столбца, и контент не должен сжиматься в 0 */
+@media (max-width: 600px) {
   .sidebar {
     width: 100%;
     border-right: 0;

@@ -1,7 +1,7 @@
 import type { RegularLangKey } from '../types/language';
 import type { AdvancedLangFnParameters } from '../util/localization';
 
-import { isPxgErrorReason, PXG_ERROR_REASON_KEYS } from './errorReasons';
+import { isPxgErrorReason, PXG_ERROR_REASON_KEYS, splitPxgReason } from './errorReasons';
 
 const SEND_ERROR_KEYS: Record<string, RegularLangKey> = {
   CHAT_WRITE_FORBIDDEN: 'PxgSendErrorWrite',
@@ -30,6 +30,10 @@ const SEND_ERROR_KEYS: Record<string, RegularLangKey> = {
   ALLOW_PAYMENT_REQUIRED: 'PxgSendErrorPaid',
   STARS_PAYMENT_REQUIRED: 'PxgSendErrorPaid',
   COPY_UNSUPPORTED: 'PxgForwardNativeOnly',
+  too_large: 'PxgGuestFileTooLarge',
+  network: 'PxgErrorNetwork',
+  timeout: 'PxgErrorNetwork',
+  disconnected: 'PxgErrorNetwork',
 };
 
 /** Сохраняем число секунд Telegram: оно нужно гостю для повторной попытки */
@@ -40,7 +44,9 @@ export function getProxySendError(error: string): AdvancedLangFnParameters | und
   if (price) return { key: 'PxgSendErrorPaidPrice', variables: { stars: Number(price[1]) } };
   const key = SEND_ERROR_KEYS[error];
   if (key) return { key };
-  // The server's own refusal, kept by the queue as a reason
-  // A queued job has no values to fill in, and the reasons that need them never come from the queue
-  return isPxgErrorReason(error) ? { key: PXG_ERROR_REASON_KEYS[error] } as AdvancedLangFnParameters : undefined;
+  // The server's own refusal, kept by the queue as a reason (with values, when it needs them)
+  const parsed = splitPxgReason(error);
+  return isPxgErrorReason(parsed.reason)
+    ? { key: PXG_ERROR_REASON_KEYS[parsed.reason], variables: parsed.params } as AdvancedLangFnParameters
+    : undefined;
 }

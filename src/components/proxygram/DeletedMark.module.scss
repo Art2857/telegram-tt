@@ -1,8 +1,13 @@
 .root {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
+
   margin-inline-end: 0.25rem;
+
+  font-size: 0.75rem;
   color: var(--color-error);
+  white-space: nowrap;
 }
 
 .icon {

@@ -1297,7 +1297,7 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
           onChange={(e) => setCategory(e.currentTarget.value)}
         >
           <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllActions')}</option>
-          {AUDIT_CATEGORIES.map(({ value, key }) => <option value={value}>{t(key)}</option>)}
+          {AUDIT_CATEGORIES.map(({ value, key }) => <option key={value} value={value}>{t(key)}</option>)}
         </select>
         <select
           aria-label={lang('PxgAuditFilterActor')}
@@ -1305,7 +1305,7 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
           onChange={(e) => setActorUserId(e.currentTarget.value)}
         >
           <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllPeople')}</option>
-          {filters?.actors.map((actor) => <option value={actor.id}>{displayName(actor)}</option>)}
+          {filters?.actors.map((actor) => <option key={actor.id} value={actor.id}>{displayName(actor)}</option>)}
         </select>
         <select
           aria-label={lang('PxgAuditFilterChat')}
@@ -1314,7 +1314,9 @@ const AuditTab = memo(({ lang, t }: TabProps) => {
         >
           <option value={AUDIT_FILTER_ALL}>{lang('PxgAuditFilterAllChats')}</option>
           {filters?.chats.map((chat) => (
-            <option value={`${chat.accountId}:${chat.peerId}`}>{chat.title ?? chat.peerId}</option>
+            <option key={`${chat.accountId}:${chat.peerId}`} value={`${chat.accountId}:${chat.peerId}`}>
+              {chat.title ?? chat.peerId}
+            </option>
           ))}
         </select>
       </div>
@@ -1444,7 +1446,9 @@ function BotNotificationsToggle({ lang }: { lang: Lang }) {
         subLabel={lang(data.pushDevices ? 'PxgNotifyViaBotHasPush' : 'PxgNotifyViaBotHint')}
         checked={data.viaBot}
         onCheck={(isChecked) => {
-          pxgRpc.call('notifications.setViaBot', { enabled: isChecked }).then(reload).catch(() => undefined);
+          pxgRpc.call('notifications.setViaBot', { enabled: isChecked }).then(reload).catch((err) => {
+            getActions().showNotification({ message: describePxgError(lang, err) });
+          });
         }}
       />
     </>
@@ -1467,7 +1471,9 @@ function AutostartToggle({ lang }: { lang: Lang }) {
       subLabel={lang('PxgAutostartHint')}
       checked={isEnabled}
       onCheck={(isChecked) => {
-        window.tauri.setAutostart(isChecked).then(() => setIsEnabled(isChecked)).catch(() => undefined);
+        window.tauri.setAutostart(isChecked)
+          .then(() => setIsEnabled(isChecked))
+          .catch((err) => getActions().showNotification({ message: describePxgError(lang, err) }));
       }}
     />
   );

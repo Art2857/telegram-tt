@@ -336,6 +336,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
       <ShareSettingsFields
         value={settings}
         isFolder={scope === 'folder' || scope === 'folder_members'}
+        isMemberCoverage={scope.endsWith('_members')}
         editingHistory={share?.historyMode}
         expiresAt={share?.expiresAt ?? undefined}
         folderChats={scope === 'folder' || scope === 'folder_members' ? folderChats : undefined}

@@ -118,13 +118,13 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
   const requestId = params.localMessage?.pxgSendRequest?.id || crypto.randomUUID();
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
-  const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
-  // Outside a forum it is a comment thread: the reply itself places the message, and the chat's draft stays
-  const threadId = !chat.isForum ? messageReply?.replyToTopId : undefined;
-  // "Reply in another chat": the replied message lives in that chat. A chat that is not a proxy chat (the full login's
-  // own Telegram) has nothing the owner's account could quote, so such a reply is dropped rather than misread here
+  // "Reply in another chat": the replied message lives in that chat. Its `replyToTopId` is a topic of the SOURCE
+  // chat, not of the target, so it must not leak into the outgoing topic/thread below
   const otherChatId = messageReply?.replyToPeerId && messageReply.replyToPeerId !== chat.id
     ? messageReply.replyToPeerId : undefined;
+  const topicId = chat.isForum && !otherChatId ? messageReply?.replyToTopId : undefined;
+  // Outside a forum it is a comment thread: the reply itself places the message, and the chat's draft stays
+  const threadId = !chat.isForum && !otherChatId ? messageReply?.replyToTopId : undefined;
   const replyToPeer = otherChatId ? resolveProxyPeer(otherChatId) : undefined;
   const hasReply = !otherChatId || Boolean(replyToPeer);
   const replyToMsgId = hasReply && messageReply?.replyToMsgId !== topicId ? messageReply?.replyToMsgId : undefined;
@@ -719,6 +719,7 @@ export async function forwardMessages({
           ...sourceParams,
           accountId: target.accountId, peerId: target.peerId,
           silent: isSilent, noCaptions, noAuthors, topicId, sendAsPeerId,
+          paidStars: messagePriceInStars ? messagePriceInStars * group.length : undefined,
         }, isSavedPeer(source) ? 'saved.forward' : undefined) as { msgId?: number; msgIds?: number[] };
         for (const msgId of sent.msgIds || (sent.msgId ? [sent.msgId] : [])) {
           const saved = await readSentMessage(toChat, msgId);

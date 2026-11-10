@@ -2,6 +2,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { memo, useEffect, useState } from '../../../lib/teact/teact';
 
 import type { LoginStart } from '../../../proxygram/server/types';
+import { PxgError } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
 import { pollLogin, startLogin, verifyLoginCode } from '../../../proxygram/server/http';
@@ -50,6 +51,8 @@ const GuestLogin = () => {
         if (isActive && 'accessToken' in result) setPxgSession(result);
       } catch (err) {
         if (!isActive) return;
+        // Сеть моргнула — запрос на сервере ещё жив: продолжаем ждать, а не сбрасываем введённый код
+        if (err instanceof PxgError && (err.code === 'network' || err.code.startsWith('http_5'))) return;
         window.clearInterval(timer);
         setError(describePxgError(lang, err));
         setRequest(undefined);

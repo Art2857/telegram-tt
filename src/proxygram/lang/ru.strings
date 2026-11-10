@@ -453,6 +453,7 @@
 "PxgShareCustomize" = "Настроить права";
 "PxgShareEditing" = "Доступ для {name}";
 "PxgPermWrite" = "Писать сообщения";
+"PxgPermRead" = "Читать сообщения";
 "PxgPermSendMedia" = "Отправлять медиа и файлы";
 "PxgPermUseOwnerStickers" = "Ваши стикеры и GIF";
 "PxgPermReact" = "Реакции";
@@ -599,6 +600,7 @@
 "PxgAdminRequestsEmpty" = "Открытых запросов нет";
 "PxgAdminRequestApproveTitle" = "Выдать доступ по запросу";
 "PxgAdminRequestReject" = "Отклонить";
+"PxgAdminRequestAnswered" = "Ответ дан";
 "PxgAdminRequestRejectText" = "Отклонить запрос? Гость увидит отказ.";
 "PxgAdminRequestTarget" = "Чат";
 "PxgAdminRequestOwner" = "Владелец";
@@ -807,6 +809,7 @@
 "PxgErrLangpackPending" = "Языковой пакет пока недоступен";
 "PxgErrAccountUnavailable" = "Аккаунт временно недоступен";
 "PxgErrAccountAlreadyConnected" = "Этот аккаунт уже подключён к серверу";
+"PxgErrAccountDisconnecting" = "Аккаунт отключается — повторите через минуту";
 "PxgErrConnectBusy" = "Подключение уже идёт на другом устройстве";
 "PxgErrConnectWrongAccount" = "Вход выполнен в другой аккаунт Telegram";
 "PxgErrPasswordNotRequested" = "Пароль сейчас не запрашивается";
@@ -922,6 +925,8 @@
 "PxgErrAccountNoOwner" = "У аккаунта нет владельца в системе";
 "PxgErrRetryFailedOnly" = "Повторить можно только действие с ошибкой";
 "PxgErrCancelPendingOnly" = "Отменить можно только ожидающее действие";
+"PxgErrCancelledByAdmin" = "Отменено администратором";
+"PxgErrExportFailed" = "Выгрузка не удалась — подробности в журнале сервера";
 "PxgErrSavedQuota" = "«Избранное» заполнено: не больше {mb} МБ на человека";
 "PxgErrRequestsLimit" = "Открытых запросов доступа не больше {max}: дождитесь ответа или отмените старые";
 "PxgErrNoSpendStars" = "Сообщение платное, а права тратить звёзды владельца у вас нет";

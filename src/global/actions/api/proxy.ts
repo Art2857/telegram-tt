@@ -10,6 +10,7 @@ import { ARCHIVED_FOLDER_ID } from '../../../config';
 import { IS_SHARED_WORKER_SUPPORTED } from '../../../util/browser/globalEnvironment';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey } from '../../../util/iteratees';
+import { getTranslationFn } from '../../../util/localization';
 import { getServerTime } from '../../../util/serverTime';
 import { updatePeerColors } from '../../../util/theme';
 import { callApi, closeApi } from '../../../api/gramjs';
@@ -24,6 +25,7 @@ import {
 import { buildSavedChat } from '../../../api/proxy/saved';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
 import { buildDownloadedChatState } from '../../../proxygram/downloadedChatChat';
+import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
 import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
@@ -286,8 +288,25 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
         actions.loadViewportMessages({ chatId: list.chatId, threadId: list.threadId, tabId });
       }
     });
-  } catch {
-    // The RPC reconnect event retries without interrupting the Telegram account
+  } catch (err) {
+    if (generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
+    // Без этого списка Web A рисовал бы вечную загрузку, а гость не знал бы, что сервер не ответил.
+    // Пустой список — уже не скелетон; рядом показываем причину и даём повторить.
+    global = getGlobal();
+    global = {
+      ...global,
+      chats: {
+        ...global.chats,
+        isFullyLoaded: { ...global.chats.isFullyLoaded, active: true, archived: true },
+      },
+    };
+    setGlobal(global);
+    actions.showNotification({
+      message: getPxgErrorMessage(getTranslationFn(), err),
+      actionText: { key: 'Retry' },
+      action: { action: 'loadProxyChats', payload: undefined },
+      tabId: getCurrentTabId(),
+    });
   }
 });
 

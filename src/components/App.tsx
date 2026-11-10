@@ -42,6 +42,7 @@ import AppInactive from './main/AppInactive';
 import LockScreen from './main/LockScreen.async';
 import Main from './main/Main.async';
 import NativeGuest from './proxygram/NativeGuest';
+import PxgSessionNotice from './proxygram/PxgSessionNotice';
 // import Test from './test/demo/MessageTextStreamingTest';
 import Transition from './ui/Transition';
 
@@ -286,6 +287,7 @@ const App = ({
         {renderContent}
       </Transition>
       {activeKey === AppScreens.auth && isTestServer && <div className="test-server-badge">{lang('TestServer')}</div>}
+      <PxgSessionNotice />
       <Notifications />
     </UiLoader>
   );

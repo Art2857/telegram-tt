@@ -434,7 +434,9 @@ async function fetchMessages({
     ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
   });
   const oldestId = result.messages.at(-1)?.msgId;
-  if (result.messages.length < limit && (!offsetId || !oldestId || oldestId <= offsetId)) {
+  // count — сколько сообщений вообще видно в этом окне: если страница уже покрыла всё, импорт не нужен
+  if (result.messages.length < result.count && result.messages.length < limit
+    && (!offsetId || !oldestId || oldestId <= offsetId)) {
     // A paused account must still display its existing archive. Completion events refresh late imports
     await runProxyJob('messages.loadOlder', { ...peer, ...thread, beforeMsgId: oldestId || offsetId }, HISTORY_WAIT_MS)
       .catch(() => undefined);
@@ -972,8 +974,15 @@ function updateNotificationSettings() {
 }
 
 /** A link to the real message in Telegram: it opens for those who have that chat in their own Telegram */
-function exportMessageLink({ chat, id }: MethodArgs<'exportMessageLink'>[0]) {
-  return Promise.resolve(getMessageLink(chat, undefined, id));
+async function exportMessageLink({ chat, id, shouldIncludeThread }: MethodArgs<'exportMessageLink'>[0]) {
+  const peer = resolveProxyPeer(chat.id);
+  let topicId: number | undefined;
+  if (peer && shouldIncludeThread) {
+    // Ссылка на сообщение форума должна нести тему: без неё Telegram откроет не тот контекст
+    const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: [id] }).catch(() => undefined);
+    topicId = result?.messages[0]?.topicId ?? undefined;
+  }
+  return getMessageLink(chat, topicId, id);
 }
 
 /** A guest mutes a topic only for themselves, as with whole chats */

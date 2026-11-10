@@ -1,5 +1,5 @@
 import type { TeactNode } from '../../../lib/teact/teact';
-import { memo, useEffect, useState } from '../../../lib/teact/teact';
+import { memo, useCallback, useEffect, useRef, useState } from '../../../lib/teact/teact';
 
 import type {
   AdminAccessRequestDto, AdminExportJob, AdminTopic, ImportStateDto, SessionTokensResponse,
@@ -157,6 +157,7 @@ type Confirm = { text: string; label: string; action: () => Promise<unknown> };
 /** PLAN.md 13: the admin is warned before the storage disk runs out */
 const DISK_WARNING_PERCENT = 80;
 const SYSTEM_REFRESH_MS = 15000;
+const AUDIT_PAGE = 200;
 
 const TABS = [
   { key: 'overview', title: 'PxgAdminOverview' },
@@ -203,6 +204,14 @@ const OUTBOX_STATUS_KEYS = {
   done: 'PxgAdminOutboxDone',
   failed: 'PxgAdminOutboxFailed',
 } as const;
+
+const REQUEST_STATUS_KEYS: Record<AdminAccessRequestDto['status'], string> = {
+  pending: 'PxgRequestPending',
+  approved: 'PxgRequestApproved',
+  rejected: 'PxgRequestRejected',
+  cancelled: 'PxgRequestCancelled',
+  expired: 'PxgRequestExpired',
+};
 
 /** Загрузка раздела админки с живым обновлением по событию admin.changed */
 function useAdminData<T>(method: string, params: unknown, topics: AdminTopic[], refreshMs?: number) {
@@ -470,7 +479,11 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
       </div>
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminReadingNow')}</h3>
-      {reading.length === 0 ? (
+      {presence.error ? (
+        <p className={styles.empty}>{describePxgError(lang, presence.error)}</p>
+      ) : !presence.data ? (
+        <Loading error={undefined} lang={lang} />
+      ) : reading.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminNobodyReading')}</p>
       ) : (
         <table className={buildClassName(styles.table, styles.stacked)}>
@@ -1509,32 +1522,41 @@ const RequestsTab = memo(({ lang, ask, run, topics }: TabProps) => {
                     </div>
                   )}
                 </td>
-                <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
+                <td className={styles.nowrap}>
+                  {formatDateTime(row.createdAt)}
+                  <div className={styles.secondary}>{t(lang, REQUEST_STATUS_KEYS[row.status])}</div>
+                </td>
                 <td className={styles.actions}>
-                  {row.accountId && typeof row.peerId === 'number' ? (
-                    <Button
-                      size="tiny"
-                      color="primary"
-                      isText
-                      onClick={() => setApprovingId(approvingId === row.id ? undefined : row.id)}
-                    >
-                      {lang('PxgAdminGrant')}
-                    </Button>
+                  {row.status === 'pending' ? (
+                    <>
+                      {row.accountId && typeof row.peerId === 'number' ? (
+                        <Button
+                          size="tiny"
+                          color="primary"
+                          isText
+                          onClick={() => setApprovingId(approvingId === row.id ? undefined : row.id)}
+                        >
+                          {lang('PxgAdminGrant')}
+                        </Button>
+                      ) : (
+                        <span className={styles.secondary}>{lang('PxgAdminRequestNoChat')}</span>
+                      )}
+                      <Button
+                        size="tiny"
+                        color="danger"
+                        isText
+                        onClick={() => ask(
+                          lang('PxgAdminRequestRejectText'),
+                          lang('PxgAdminRequestReject'),
+                          () => pxgRpc.call('admin.requests.reject', { id: row.id }),
+                        )}
+                      >
+                        {lang('PxgAdminRequestReject')}
+                      </Button>
+                    </>
                   ) : (
-                    <span className={styles.secondary}>{lang('PxgAdminRequestNoChat')}</span>
+                    <span className={styles.secondary}>{lang('PxgAdminRequestAnswered')}</span>
                   )}
-                  <Button
-                    size="tiny"
-                    color="danger"
-                    isText
-                    onClick={() => ask(
-                      lang('PxgAdminRequestRejectText'),
-                      lang('PxgAdminRequestReject'),
-                      () => pxgRpc.call('admin.requests.reject', { id: row.id }),
-                    )}
-                  >
-                    {lang('PxgAdminRequestReject')}
-                  </Button>
                 </td>
               </tr>
               {approvingId === row.id && (
@@ -1633,16 +1655,45 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
   const [peer, setPeer] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [rows, setRows] = useState<AuditRow[]>();
+  const [error, setError] = useState<unknown>();
+  const [hasMore, setHasMore] = useState(false);
+  const requestRef = useRef(0);
   const peerNumber = Number(peer.trim());
   const peerId = /^-?\d+$/.test(peer.trim()) && Number.isSafeInteger(peerNumber) ? peerNumber : undefined;
-  const { data, error } = useAdminData<AuditRow[]>('admin.audit', {
-    limit: 200,
-    actorUserId,
-    action: action.trim() || undefined,
-    peerId,
-    from: parseAuditDate(from),
-    to: parseAuditDate(to, true),
-  }, topics);
+  const filterKey = JSON.stringify({ actorUserId, action: action.trim() || undefined, peerId,
+    from: parseAuditDate(from), to: parseAuditDate(to, true) });
+
+  const load = useCallback((beforeId?: string) => {
+    const request = ++requestRef.current;
+    const filters = JSON.parse(filterKey) as Record<string, unknown>;
+    void pxgRpc.call<AuditRow[]>('admin.audit', {
+      ...filters,
+      limit: AUDIT_PAGE,
+      beforeId,
+    }).then((page) => {
+      if (request !== requestRef.current) return;
+      setRows((current) => (beforeId ? [...(current ?? []), ...page] : page));
+      setHasMore(page.length === AUDIT_PAGE);
+      setError(undefined);
+    }).catch((err) => {
+      if (request === requestRef.current) setError(err);
+    });
+  }, [filterKey]);
+
+  useEffect(() => {
+    setRows(undefined);
+    load();
+    const requestRefForCleanup = requestRef;
+    return () => {
+      // ответ прежнего фильтра не должен попасть в новый список
+      requestRefForCleanup.current++;
+    };
+  }, [load]);
+
+  useEffect(() => pxgRpc.on((event) => {
+    if (event.e === 'admin.changed' && event.d.topics.some((topic) => topics.includes(topic))) load();
+  }), [load, topics]);
 
   return (
     <>
@@ -1663,7 +1714,7 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
           <input className={styles.dateInput} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
-      {!data ? <Loading error={error} lang={lang} /> : data.length === 0 ? (
+      {!rows ? <Loading error={error} lang={lang} /> : rows.length === 0 ? (
         <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>
       ) : (
         <table className={buildClassName(styles.table, styles.stacked)}>
@@ -1676,7 +1727,7 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
             </tr>
           </thead>
           <tbody>
-            {data.map((row) => (
+            {rows.map((row) => (
               <tr key={row.id}>
                 <td className={styles.nowrap}>{formatDateTime(row.at)}</td>
                 <td>{displayName(row.actor)}</td>
@@ -1687,6 +1738,17 @@ const AuditTab = memo(({ lang, topics, actorUserId }: TabProps & { actorUserId?:
           </tbody>
         </table>
       )}
+      {hasMore && rows?.length ? (
+        <Button
+          size="smaller"
+          isText
+          fluid={false}
+          onClick={() => load(rows[rows.length - 1].id)}
+        >
+          {lang('PxgSettingsMore')}
+        </Button>
+      ) : undefined}
+      {error && rows ? <p className={styles.errorText}>{describePxgError(lang, error)}</p> : undefined}
     </>
   );
 });
@@ -1819,61 +1881,78 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
 });
 
 const OutboxTab = memo(({ lang, run, topics }: TabProps) => {
-  const { data, error } = useAdminData<OutboxRow[]>('admin.outbox', { limit: 200 }, topics);
+  const [status, setStatus] = useState<'pending' | 'running' | 'done' | 'failed' | undefined>();
+  const { data, error } = useAdminData<OutboxRow[]>('admin.outbox', { limit: 500, status }, topics);
   if (!data) return <Loading error={error} lang={lang} />;
-  if (data.length === 0) return <p className={styles.empty}>{lang('PxgAdminEmpty')}</p>;
 
   return (
-    <table className={buildClassName(styles.table, styles.stacked)}>
-      <thead>
-        <tr>
-          <th>{lang('PxgAdminColTime')}</th>
-          <th>{lang('PxgAdminColWho')}</th>
-          <th>{lang('PxgAdminColAction')}</th>
-          <th>{lang('PxgAdminColStatus')}</th>
-          <th aria-label={lang('PxgAdminColActions')} />
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((row) => (
-          <tr key={row.id}>
-            <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
-            <td>{displayName(row.actor)}</td>
-            <td><code>{row.kind}</code></td>
-            <td>
-              <Badge tone={row.status === 'failed' ? 'red' : row.status === 'done' ? 'green' : 'blue'}>
-                {lang(OUTBOX_STATUS_KEYS[row.status as keyof typeof OUTBOX_STATUS_KEYS] ?? 'PxgAdminOutboxPending')}
-              </Badge>
-              {row.error && (
-                <div className={styles.secondary}>{getPxgReasonText(lang, row.error) ?? row.error}</div>
-              )}
-            </td>
-            <td className={styles.actions}>
-              {row.status === 'failed' && (
-                <Button
-                  size="tiny"
-                  color="translucent"
-                  isText
-                  onClick={() => void run(call('admin.outbox.retry', { id: row.id }))}
-                >
-                  {lang('PxgAdminRetry')}
-                </Button>
-              )}
-              {row.status === 'pending' && (
-                <Button
-                  size="tiny"
-                  color="danger"
-                  isText
-                  onClick={() => void run(call('admin.outbox.cancel', { id: row.id }))}
-                >
-                  {lang('PxgAdminCancel')}
-                </Button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <>
+      <div className={styles.filters}>
+        <select
+          aria-label={lang('PxgAdminColStatus')}
+          value={status ?? ''}
+          onChange={(e) => setStatus((e.currentTarget.value || undefined) as typeof status)}
+        >
+          <option value="">{lang('PxgAdminAll')}</option>
+          <option value="pending">{lang('PxgAdminOutboxPending')}</option>
+          <option value="running">{lang('PxgAdminOutboxRunning')}</option>
+          <option value="done">{lang('PxgAdminOutboxDone')}</option>
+          <option value="failed">{lang('PxgAdminOutboxFailed')}</option>
+        </select>
+      </div>
+      {data.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
+        <table className={buildClassName(styles.table, styles.stacked)}>
+          <thead>
+            <tr>
+              <th>{lang('PxgAdminColTime')}</th>
+              <th>{lang('PxgAdminColWho')}</th>
+              <th>{lang('PxgAdminColAction')}</th>
+              <th>{lang('PxgAdminColStatus')}</th>
+              <th aria-label={lang('PxgAdminColActions')} />
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <tr key={row.id}>
+                <td className={styles.nowrap}>{formatDateTime(row.createdAt)}</td>
+                <td>{displayName(row.actor)}</td>
+                <td><code>{row.kind}</code></td>
+                <td>
+                  <Badge tone={row.status === 'failed' ? 'red' : row.status === 'done' ? 'green' : 'blue'}>
+                    {lang(OUTBOX_STATUS_KEYS[row.status as keyof typeof OUTBOX_STATUS_KEYS] ?? 'PxgAdminOutboxPending')}
+                  </Badge>
+                  {row.error && (
+                    <div className={styles.secondary}>{getPxgReasonText(lang, row.error) ?? row.error}</div>
+                  )}
+                </td>
+                <td className={styles.actions}>
+                  {row.status === 'failed' && row.error !== 'cancelled_by_admin' && (
+                    <Button
+                      size="tiny"
+                      color="translucent"
+                      isText
+                      onClick={() => void run(call('admin.outbox.retry', { id: row.id }))}
+                    >
+                      {lang('PxgAdminRetry')}
+                    </Button>
+                  )}
+                  {row.status === 'pending' && (
+                    <Button
+                      size="tiny"
+                      color="danger"
+                      isText
+                      onClick={() => void run(call('admin.outbox.cancel', { id: row.id }))}
+                    >
+                      {lang('PxgAdminCancel')}
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 });
 
@@ -1985,7 +2064,9 @@ const ExportsTab = memo(({ lang, run }: TabProps) => {
                   <div className={styles.secondary}>
                     {`${job.accountName ?? job.accountId} · ${t(lang, EXPORT_STATUS[job.status])}`}
                   </div>
-                  {job.error && <div className={styles.errorText}>{job.error}</div>}
+                  {job.error && (
+                    <div className={styles.errorText}>{getPxgReasonText(lang, job.error) ?? job.error}</div>
+                  )}
                 </td>
                 <td>
                   <div>{t(lang, 'PxgAdminExportsCounts', { messages: job.messageCount, files: job.fileCount })}</div>

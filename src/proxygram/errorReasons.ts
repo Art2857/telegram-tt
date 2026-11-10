@@ -16,6 +16,7 @@ export const PXG_ERROR_REASON_KEYS = {
   langpack_pending: 'PxgErrLangpackPending',
   account_unavailable: 'PxgErrAccountUnavailable',
   account_already_connected: 'PxgErrAccountAlreadyConnected',
+  account_disconnecting: 'PxgErrAccountDisconnecting',
   connect_busy: 'PxgErrConnectBusy',
   connect_wrong_account: 'PxgErrConnectWrongAccount',
   password_not_requested: 'PxgErrPasswordNotRequested',
@@ -139,6 +140,8 @@ export const PXG_ERROR_REASON_KEYS = {
   account_no_owner: 'PxgErrAccountNoOwner',
   retry_failed_only: 'PxgErrRetryFailedOnly',
   cancel_pending_only: 'PxgErrCancelPendingOnly',
+  cancelled_by_admin: 'PxgErrCancelledByAdmin',
+  export_failed: 'PxgErrExportFailed',
 } as const satisfies Record<string, RegularLangKey | RegularLangKeyWithVariables>;
 export type PxgErrorReason = keyof typeof PXG_ERROR_REASON_KEYS;
 
@@ -159,10 +162,27 @@ export function getPxgErrorMessage(lang: LangFn, error: unknown): string {
   return /^[A-Z][A-Z0-9_]*$/.test(error.message) ? error.message : lang('PxgErrorGeneric');
 }
 
+/** Причина с параметрами приходит из очереди строкой `reason|{"max":5}`: params в outbox не сохраняются */
+export function splitPxgReason(value: string): { reason: string; params?: PxgErrorParams } {
+  const separator = value.indexOf('|');
+  if (separator < 0) return { reason: value };
+  const reason = value.slice(0, separator);
+  try {
+    const params = JSON.parse(value.slice(separator + 1)) as unknown;
+    if (params && typeof params === 'object' && !Array.isArray(params)) {
+      return { reason, params: params as PxgErrorParams };
+    }
+  } catch {
+    // не наш формат — оставляем строку как есть
+  }
+  return { reason: value };
+}
+
 /** Text of a server refusal in the interface language: the server sends a reason and values, not a phrase */
 export function getPxgReasonText(lang: LangFn, reason: string, params?: PxgErrorParams) {
-  if (!isPxgErrorReason(reason)) return undefined;
+  const parsed = splitPxgReason(reason);
+  if (!isPxgErrorReason(parsed.reason)) return undefined;
   return (lang as unknown as (key: string, variables?: PxgErrorParams) => string)(
-    PXG_ERROR_REASON_KEYS[reason], params,
+    PXG_ERROR_REASON_KEYS[parsed.reason], parsed.params ?? params,
   );
 }

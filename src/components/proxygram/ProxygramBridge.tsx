@@ -128,16 +128,6 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   }, [isGuest, connection, apiUpdate]);
 
   useEffect(() => {
-    if (!isSessionRevoked) return;
-    showNotification({
-      message: { key: 'PxgSessionRevoked' },
-      actionText: { key: 'PxgSessionSignInAgain' },
-      action: { action: 'retryPxgSession', payload: undefined },
-      duration: 60_000,
-    });
-  }, [isSessionRevoked, showNotification]);
-
-  useEffect(() => {
     if (!currentUserId || hasOwnSession || isGuest || isSessionRevoked) return undefined;
     // сессия гостя или чужого аккаунта (сменили аккаунт Telegram) здесь не подходит
     if (getPxgState().session) signOutPxg();
