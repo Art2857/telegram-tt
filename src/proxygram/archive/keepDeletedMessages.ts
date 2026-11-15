@@ -3,6 +3,7 @@ import type { GlobalState } from '../../global/types';
 
 import { updateChatMessage } from '../../global/reducers';
 import { selectChatMessage, selectCommonBoxChatId } from '../../global/selectors';
+import { isLocalMessageId } from '../../util/keys/messageKey';
 import { getServerTime } from '../../util/serverTime';
 
 /**
@@ -37,7 +38,8 @@ export function keepDeletedMessages<T extends GlobalState>(
 }
 
 function canKeepDeleted(message: ApiMessage) {
-  return !message.ttlPeriod
+  return !isLocalMessageId(message.id)
+    && !message.ttlPeriod
     && !message.content.ttlSeconds
     && !message.content.action
     && !message.pxgDeletedAt;

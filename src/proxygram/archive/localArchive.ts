@@ -4,6 +4,7 @@ import type {
 
 import { PXG_ARCHIVE_IDB_STORE } from '../../util/browser/idb';
 import { unique } from '../../util/iteratees';
+import { isLocalMessageId } from '../../util/keys/messageKey';
 import { MEDIA_ICONS } from './serverTombstones';
 
 /** PLAN.md 9.4: without a server the device keeps deleted messages and edits for a limited time */
@@ -24,6 +25,7 @@ export type LocalChatArchive = {
  * survive a reload on this device, also without a connected server. Keys are `<own user>:<chat>`.
  */
 export function archiveDeletedMessages(ownerId: string, messages: ApiMessage[]) {
+  messages = messages.filter((message) => !isLocalMessageId(message.id));
   const chatIds = unique(messages.map((message) => message.chatId));
   return Promise.all(chatIds.map((chatId) => updateChatArchive(ownerId, chatId, (archive) => {
     messages.filter((message) => message.chatId === chatId).forEach((message) => {
@@ -53,7 +55,7 @@ export function selectLocalTombstones(
   archive: LocalChatArchive, chatId: string, minId: number, maxId: number,
 ): ApiMessage[] {
   return Object.values(archive.deleted)
-    .filter(({ id }) => id >= minId && id <= maxId)
+    .filter(({ id }) => !isLocalMessageId(id) && id >= minId && id <= maxId)
     .map(({ deletedAt, text, ...fields }) => ({
       ...fields,
       chatId,

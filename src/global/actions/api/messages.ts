@@ -731,6 +731,7 @@ addActionHandler('sendMessage', async (global, actions, payload): Promise<void> 
       const groupedAttachments = split(group, MAX_MEDIA_FILES_FOR_ALBUM);
       for (let i = 0; i < groupedAttachments.length; i++) {
         const groupedId = `${Date.now()}${groupIndex}${i}`;
+        const localGroupSize = groupedAttachments[i].length;
 
         const isFirst = i === 0 && groupIndex === 0;
         const isLast = i === groupedAttachments.length - 1 && groupIndex === byType.length - 1;
@@ -744,6 +745,7 @@ addActionHandler('sendMessage', async (global, actions, payload): Promise<void> 
             entities: isFirst && !hasSentCaption ? entities : undefined,
             attachment: firstAttachment,
             groupedId: restAttachments.length > 0 ? groupedId : undefined,
+            localGroupSize,
             wasDrafted: Boolean(draft),
           };
           await sendMessageOrReduceLocal(global, sendParams, localMessages);
@@ -755,6 +757,7 @@ addActionHandler('sendMessage', async (global, actions, payload): Promise<void> 
               ...commonParams,
               attachment,
               groupedId,
+              localGroupSize,
             };
             await sendMessageOrReduceLocal(global, sendParams, localMessages);
           }
@@ -766,6 +769,7 @@ addActionHandler('sendMessage', async (global, actions, payload): Promise<void> 
               ...commonParams,
               attachment,
               groupedId,
+              localGroupSize,
             };
             await sendMessageOrReduceLocal(global, sendParams, localMessages);
           }
@@ -776,6 +780,7 @@ addActionHandler('sendMessage', async (global, actions, payload): Promise<void> 
             entities: isLast && !hasSentCaption ? entities : undefined,
             attachment: lastAttachment,
             groupedId: firstAttachments.length > 0 ? groupedId : undefined,
+            localGroupSize,
             wasDrafted: Boolean(draft),
           };
           await sendMessageOrReduceLocal(global, sendParams, localMessages);
@@ -949,9 +954,11 @@ addActionHandler('cancelUploadMedia', (global, actions, payload): ActionReturnTy
 
   cancelMessageUpload(message);
 
+  if (message.nativeSendId) void callApi('cancelQueuedMessages', { chatId, messageIds: [messageId] });
+
   if (isMessageLocal(message)) {
     actions.apiUpdate({
-      '@type': 'deleteMessages',
+      '@type': message.isScheduled ? 'deleteScheduledMessages' : 'deleteMessages',
       ids: [messageId],
       chatId,
     });
@@ -1287,6 +1294,7 @@ addActionHandler('deleteMessages', (global, actions, payload): ActionReturnType 
   const chat = selectChat(global, chatId)!;
   // PXG: a waiting or failed message of a shared chat lives in the device's queue too: deleted, it is never sent
   if (chat?.pxgProxy) forgetLocalSends(chatId, messageIds);
+  else void callApi('cancelQueuedMessages', { chatId, messageIds });
   const messageIdsToDelete = messageIds.filter((id) => {
     const message = selectChatMessage(global, chatId, id);
     return message && !isMessageLocal(message);
@@ -1388,7 +1396,12 @@ addActionHandler('deleteScheduledMessages', (global, actions, payload): ActionRe
   const { chatId } = currentMessageList;
   const chat = selectChat(global, chatId)!;
 
-  void callApi('deleteScheduledMessages', { chat, messageIds });
+  if (chat.pxgProxy) forgetLocalSends(chatId, messageIds);
+  else void callApi('cancelQueuedMessages', { chatId, messageIds });
+  const localIds = messageIds.filter(isLocalMessageId);
+  const serverIds = messageIds.filter((id) => !isLocalMessageId(id));
+  if (localIds.length) actions.apiUpdate({ '@type': 'deleteScheduledMessages', chatId, ids: localIds });
+  if (serverIds.length) void callApi('deleteScheduledMessages', { chat, messageIds: serverIds });
 
   const editingId = selectEditingScheduledId(global, chatId);
   if (editingId && messageIds.includes(editingId)) {
@@ -1928,7 +1941,10 @@ addActionHandler('loadScheduledHistory', async (global, actions, payload): Promi
 
   const { messages } = result;
 
-  const byId = buildCollectionByKey(messages, 'id');
+  global = getGlobal();
+  const pending = Object.values(global.scheduledMessages.byChatId[chat.id]?.byId || {})
+    .filter((message) => message.nativeSendId && isMessageLocal(message));
+  const byId = buildCollectionByKey([...messages, ...pending], 'id');
   const ids = Object.keys(byId).map(Number).sort((a, b) => b - a);
 
   global = getGlobal();

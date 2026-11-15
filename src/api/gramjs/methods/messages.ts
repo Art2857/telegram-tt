@@ -133,6 +133,10 @@ import {
   deserializeBytes,
   resolveMessageApiChatId,
 } from '../helpers/misc';
+import {
+  awaitNativeSendQueue, cancelNativeSends, enqueueNativeSend, failNativeSend, finishNativeSend,
+  isNativeSendCanceled, retryNativeSend,
+} from '../helpers/nativeSendQueue';
 import localDb from '../localDb';
 import { sendApiUpdate } from '../updates/apiUpdateEmitter';
 import { processMessageAndUpdateThreadInfo } from '../updates/entityProcessor';
@@ -372,9 +376,10 @@ export async function fetchMessagesById({ chat, messageIds }: { chat: ApiChat; m
 
 let mediaQueue = Promise.resolve();
 
-export function sendMessageLocal(
+export async function sendMessageLocal(
   params: SendMessageParams,
-) {
+): Promise<ApiMessage | undefined> {
+  await awaitNativeSendQueue();
   const {
     chat, lastMessageId, text, entities, richMessage, replyInfo, suggestedPostInfo,
     attachment, sticker, story, gif, audio, poll, todo,
@@ -385,7 +390,7 @@ export function sendMessageLocal(
   if (!chat) return undefined;
 
   const {
-    message: localMessage,
+    message: builtMessage,
     poll: localPoll,
   } = buildLocalMessage({
     chat,
@@ -414,6 +419,8 @@ export function sendMessageLocal(
     dice,
   });
 
+  const localMessage: ApiMessage = { ...builtMessage, nativeSendId: params.clientRandomId };
+
   sendApiUpdate({
     '@type': localMessage.isScheduled ? 'newScheduledMessage' : 'newMessage',
     id: localMessage.id,
@@ -424,6 +431,28 @@ export function sendMessageLocal(
   });
 
   return Promise.resolve(localMessage);
+}
+
+export function restoreQueuedMessage(params: SendMessageParams, savedMessage: ApiMessage): ApiMessage {
+  const { message, poll } = buildLocalMessage({ ...params, chat: params.chat! });
+  const restored: ApiMessage = {
+    ...message, id: savedMessage.id, date: savedMessage.date, nativeSendId: savedMessage.nativeSendId,
+    sendingState: 'messageSendingStatePending',
+  };
+  sendApiUpdate({
+    '@type': restored.isScheduled ? 'newScheduledMessage' : 'newMessage',
+    id: restored.id, chatId: restored.chatId, message: restored, poll,
+  });
+  return restored;
+}
+
+export function retryQueuedMessage(params: { id: string }) {
+  return retryNativeSend(params);
+}
+
+export async function cancelQueuedMessages({ chatId, messageIds }: { chatId: string; messageIds: number[] }) {
+  await awaitNativeSendQueue();
+  cancelNativeSends(chatId, messageIds);
 }
 
 export function sendApiMessage(
@@ -443,7 +472,7 @@ export function sendApiMessage(
 
   let isSendCompleted = false;
   const timeout = setTimeout(() => {
-    if (isSendCompleted) return;
+    if (isSendCompleted || isNativeSendCanceled(localMessage)) return;
 
     sendApiUpdate({
       '@type': localMessage.isScheduled ? 'updateScheduledMessage' : 'updateMessage',
@@ -460,7 +489,7 @@ export function sendApiMessage(
     clearTimeout(timeout);
   };
 
-  const randomId = generateRandomBigInt();
+  const randomId = params.clientRandomId ? BigInt(params.clientRandomId) : generateRandomBigInt();
 
   if (groupedId) {
     return sendGroupedMedia({
@@ -471,6 +500,8 @@ export function sendApiMessage(
       suggestedPostInfo,
       attachment: attachment!,
       groupedId,
+      localGroupSize: params.localGroupSize,
+      sendAs,
       isSilent,
       scheduledAt,
       scheduleRepeatPeriod,
@@ -625,6 +656,11 @@ export function sendApiMessage(
       shouldIgnoreUpdates: true,
     });
 
+    if (onProgress?.isCanceled || isNativeSendCanceled(localMessage)) {
+      cancelSendingStatusTimeout();
+      return;
+    }
+
     try {
       let update;
       if (media) {
@@ -665,6 +701,8 @@ export function sendApiMessage(
 }
 
 function markMessageAsFailed(message: ApiMessage, error: Error) {
+  if (isNativeSendCanceled(message)) return;
+  if (failNativeSend(message, error)) return;
   sendApiUpdate({
     '@type': message.isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
     chatId: message.chatId,
@@ -681,8 +719,17 @@ export async function sendMessage(
     return undefined;
   }
 
+  params = { ...params, clientRandomId: params.clientRandomId || generateRandomBigInt().toString(), isPending: true };
   const localMessage = params.localMessage || await sendMessageLocal(params);
-  return localMessage ? sendApiMessage(params, localMessage, onProgress) : undefined;
+  if (!localMessage) return;
+  localMessage.nativeSendId = params.clientRandomId;
+  sendApiUpdate({
+    '@type': localMessage.isScheduled ? 'updateScheduledMessage' : 'updateMessage',
+    id: localMessage.id, chatId: localMessage.chatId,
+    message: { nativeSendId: params.clientRandomId, sendingState: 'messageSendingStatePending' }, isFull: false,
+  });
+  if (await enqueueNativeSend(params, localMessage, onProgress)) return;
+  return sendApiMessage(params, localMessage, onProgress);
 }
 
 export async function sendEphemeralMessage({
@@ -874,6 +921,8 @@ export async function reportEphemeralMessage({
 
 const groupedUploads: Record<string, {
   counter: number;
+  completed: number;
+  error?: Error;
   singleMediaByIndex: Record<number, GramJs.InputSingleMedia>;
   localMessages: Record<string, ApiMessage>;
   cancelSendingStatusTimeouts: Record<string, NoneToVoidFunction>;
@@ -888,6 +937,7 @@ function sendGroupedMedia(
     suggestedPostInfo,
     attachment,
     groupedId,
+    localGroupSize,
     isSilent,
     scheduledAt,
     scheduleRepeatPeriod,
@@ -901,6 +951,7 @@ function sendGroupedMedia(
     suggestedPostInfo?: ApiInputSuggestedPostInfo;
     attachment: ApiAttachment;
     groupedId: string;
+    localGroupSize?: number;
     isSilent?: boolean;
     scheduledAt?: number;
     scheduleRepeatPeriod?: number;
@@ -916,6 +967,7 @@ function sendGroupedMedia(
   if (!groupedUploads[groupedId]) {
     groupedUploads[groupedId] = {
       counter: 0,
+      completed: 0,
       singleMediaByIndex: {},
       localMessages: {},
       cancelSendingStatusTimeouts: {},
@@ -923,85 +975,66 @@ function sendGroupedMedia(
   }
 
   groupIndex = groupedUploads[groupedId].counter++;
+  const group = groupedUploads[groupedId];
+  group.localMessages[randomId.toString()] = localMessage;
+  group.cancelSendingStatusTimeouts[randomId.toString()] = cancelSendingStatusTimeout;
 
   const prevMediaQueue = mediaQueue;
   mediaQueue = (async () => {
     let inputMedia: GramJs.TypeInputMedia | undefined;
 
-    if (attachment.gif) {
-      inputMedia = buildInputMediaDocument(attachment.gif, attachment.shouldSendAsSpoiler);
-    } else {
-      let media;
-      try {
-        media = await uploadMedia(localMessage, attachment, onProgress!);
-      } catch (err) {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.warn(err);
-        }
-
-        groupedUploads[groupedId].counter--;
-
-        await prevMediaQueue;
-
-        return;
+    try {
+      if (attachment.gif) {
+        inputMedia = buildInputMediaDocument(attachment.gif, attachment.shouldSendAsSpoiler);
+      } else {
+        const media = await uploadMedia(localMessage, attachment, onProgress!);
+        inputMedia = await fetchInputMedia(buildInputPeer(chat.id, chat.accessHash), media);
       }
-
-      inputMedia = await fetchInputMedia(
-        buildInputPeer(chat.id, chat.accessHash),
-        media,
-      );
+      if (!inputMedia) throw new Error('LOCAL_QUEUE_FILE_MISSING');
+      if (onProgress?.isCanceled) throw new Error('LOCAL_QUEUE_CANCELED');
+    } catch (error) {
+      group.error ||= error as Error;
     }
 
-    await prevMediaQueue;
-
-    if (!inputMedia) {
-      groupedUploads[groupedId].counter--;
-
-      if (DEBUG) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to upload grouped media');
-      }
-
-      return;
+    await prevMediaQueue.catch(() => undefined);
+    if (onProgress?.isCanceled || isNativeSendCanceled(localMessage)) {
+      group.error ||= new Error('LOCAL_QUEUE_CANCELED');
     }
-
-    groupedUploads[groupedId].singleMediaByIndex[groupIndex] = new GramJs.InputSingleMedia({
-      media: inputMedia,
-      randomId,
-      message: text,
-      entities: entities ? entities.map(buildMtpMessageEntity) : undefined,
-    });
-    groupedUploads[groupedId].localMessages[randomId.toString()] = localMessage;
-    groupedUploads[groupedId].cancelSendingStatusTimeouts[randomId.toString()] = cancelSendingStatusTimeout;
-
-    if (Object.keys(groupedUploads[groupedId].singleMediaByIndex).length < groupedUploads[groupedId].counter) {
-      return;
+    if (inputMedia) {
+      group.singleMediaByIndex[groupIndex] = new GramJs.InputSingleMedia({
+        media: inputMedia, randomId, message: text,
+        entities: entities ? entities.map(buildMtpMessageEntity) : undefined,
+      });
     }
+    group.completed++;
+    if (group.completed < (localGroupSize || group.counter)) return;
 
-    const { singleMediaByIndex, localMessages, cancelSendingStatusTimeouts } = groupedUploads[groupedId];
+    const { singleMediaByIndex, localMessages, cancelSendingStatusTimeouts } = group;
     delete groupedUploads[groupedId];
     const count = Object.values(singleMediaByIndex).length;
-
-    const update = await invokeRequest(new GramJs.messages.SendMultiMedia({
-      clearDraft: true,
-      peer: buildInputPeer(chat.id, chat.accessHash),
-      multiMedia: Object.values(singleMediaByIndex), // Object keys are usually ordered
-      replyTo: replyInfo && buildInputReplyTo(replyInfo),
-      ...(isSilent && { silent: isSilent }),
-      ...(scheduledAt && { scheduleDate: scheduledAt }),
-      ...(scheduleRepeatPeriod && { scheduleRepeatPeriod }),
-      ...(sendAs && { sendAs: buildInputPeer(sendAs.id, sendAs.accessHash) }),
-      ...(messagePriceInStars && { allowPaidStars: BigInt(messagePriceInStars * count) }),
-      ...(suggestedPostInfo && { suggestedPost: buildInputSuggestedPost(suggestedPostInfo) }),
-    }), {
-      shouldIgnoreUpdates: true,
-    });
-
-    if (!update) return;
-
     Object.values(cancelSendingStatusTimeouts).forEach((cancel) => cancel());
-    handleMultipleLocalMessagesUpdate(localMessages, update);
+    try {
+      if (group.error) throw group.error;
+      const update = await invokeRequest(new GramJs.messages.SendMultiMedia({
+        clearDraft: true,
+        peer: buildInputPeer(chat.id, chat.accessHash),
+        multiMedia: Object.values(singleMediaByIndex), // Object keys are usually ordered
+        replyTo: replyInfo && buildInputReplyTo(replyInfo),
+        ...(isSilent && { silent: isSilent }),
+        ...(scheduledAt && { scheduleDate: scheduledAt }),
+        ...(scheduleRepeatPeriod && { scheduleRepeatPeriod }),
+        ...(sendAs && { sendAs: buildInputPeer(sendAs.id, sendAs.accessHash) }),
+        ...(messagePriceInStars && { allowPaidStars: BigInt(messagePriceInStars * count) }),
+        ...(suggestedPostInfo && { suggestedPost: buildInputSuggestedPost(suggestedPostInfo) }),
+      }), {
+        shouldIgnoreUpdates: true,
+        shouldThrow: true,
+      });
+
+      if (update) handleMultipleLocalMessagesUpdate(localMessages, update);
+    } catch (error) {
+      Object.values(localMessages).forEach((message) => markMessageAsFailed(message, error as Error));
+    }
   })();
 
   return mediaQueue;
@@ -1014,7 +1047,7 @@ async function fetchInputMedia(
   const messageMedia = await invokeRequest(new GramJs.messages.UploadMedia({
     peer,
     media: uploadedMedia,
-  }));
+  }), { shouldThrow: true });
   const isSpoiler = uploadedMedia.spoiler;
 
   if ((
@@ -3064,6 +3097,15 @@ export function handleLocalMessageUpdate(
     return;
   }
 
+  if (isNativeSendCanceled(localMessage)) {
+    handleGramJsUpdate(update);
+    return;
+  }
+  if (!finishNativeSend(localMessage)) {
+    handleGramJsUpdate(update);
+    return;
+  }
+
   let newContent: MediaContent | undefined;
   let poll: ApiMessagePoll | undefined;
   let webPages: ApiWebPage[] | undefined;
@@ -3111,6 +3153,8 @@ export function handleLocalMessageUpdate(
       }),
       id: messageUpdate.id,
       sendingState: undefined,
+      nativeSendId: undefined,
+      nativeSendError: undefined,
       ...('date' in messageUpdate && { date: messageUpdate.date }),
       ttlPeriod: messageUpdate instanceof GramJs.UpdateShortSentMessage
         ? messageUpdate.ttlPeriod

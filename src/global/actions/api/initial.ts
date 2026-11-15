@@ -106,6 +106,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       userAgent: navigator.userAgent,
       platform: PLATFORM_ENV,
       sessionData: loadStoredSession(),
+      currentUserId: global.currentUserId,
       isWebmSupported: IS_WEBM_SUPPORTED,
       maxBufferSize: MAX_BUFFER_SIZE,
       webAuthToken: token,

@@ -877,6 +877,7 @@ const AttachmentModal = ({
               <Button
                 ref={mainButtonRef}
                 className={styles.send}
+                ariaLabel={lang(editingMessage ? 'Save' : shouldSchedule ? 'Next' : 'Send')}
                 size="smaller"
                 inline
                 disabled={hasPreparingAttachments}

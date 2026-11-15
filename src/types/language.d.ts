@@ -3433,6 +3433,9 @@ export interface LangPair {
   'PxgSendErrorPremium': undefined;
   'PxgSendErrorPaid': undefined;
   'PxgSendErrorUnknown': undefined;
+  'PxgQueueSaveFailed': undefined;
+  'PxgQueueFileMissing': undefined;
+  'PxgQueueAlbumIncomplete': undefined;
   'PxgForwardCopy': undefined;
   'PxgForwardNative': undefined;
   'PxgForwardPollCopy': undefined;

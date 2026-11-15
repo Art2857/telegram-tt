@@ -98,6 +98,7 @@ import {
   resolveMessageApiChatId,
   serializeBytes,
 } from '../helpers/misc';
+import { setNativeSendQueueConnected } from '../helpers/nativeSendQueue';
 import localDb from '../localDb';
 import { scheduleMutedChatUpdate, scheduleMutedTopicUpdate } from '../scheduleUnmute';
 import { sendApiUpdate } from './apiUpdateEmitter';
@@ -115,6 +116,7 @@ export function updater(update: Update) {
       serverTimeOffset: update.timeOffset,
     });
   } else if (update instanceof UpdateConnectionState) {
+    setNativeSendQueueConnected(update.state === UpdateConnectionState.connected);
     let connectionState: ApiUpdateConnectionStateType;
 
     switch (update.state) {

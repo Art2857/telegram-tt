@@ -84,8 +84,10 @@ import buildClassName from '../../../util/buildClassName';
 import { copyTextToClipboard } from '../../../util/clipboard';
 import { isUserId } from '../../../util/entities/ids';
 import { getTranslationCacheKey, parseTranslationCacheKey } from '../../../util/keys/translationKey';
+import { callApi } from '../../../api/gramjs';
 import { canRetrySendMessage, retrySendMessage } from '../../../api/proxy/writes';
 import { purgeDeletedMessage } from '../../../proxygram/archive/purgeDeleted';
+import { getProxySendError } from '../../../proxygram/sendErrors';
 import { getOwnAccountId } from '../../../proxygram/server/ownAccount';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { getSelectionAsFormattedText } from './helpers/getSelectionAsFormattedText';
@@ -487,10 +489,20 @@ const ContextMenuContainer = ({
     purgeDeletedMessage(message).catch(() => showNotification({ message: { key: 'PxgPurgeFailed' } }));
   });
 
-  const canPxgRetry = Boolean(chat?.pxgProxy) && isMessageFailed(message) && canRetrySendMessage(message);
+  const canPxgRetry = isMessageFailed(message)
+    && (chat?.pxgProxy ? canRetrySendMessage(message) : Boolean(message.nativeSendId));
 
   const handlePxgRetry = useLastCallback(async () => {
     closeMenu();
+    if (!chat?.pxgProxy && message.nativeSendId) {
+      const didRetry = await callApi('retryQueuedMessage', { id: message.nativeSendId }).catch(() => false);
+      if (!didRetry) {
+        showNotification({
+          message: getProxySendError(message.nativeSendError || '') || { key: 'PxgSendErrorUnknown' },
+        });
+      }
+      return;
+    }
     const error = await retrySendMessage(chat!, message);
     if (error) showNotification({ message: error });
   });
@@ -1112,8 +1124,8 @@ export default memo(withGlobal<OwnProps>(
       defaultTagReactions: defaultTags,
       noOptions: message.isEphemeral ? false : noOptions,
       canReport: message.isEphemeral ? !message.isOutgoing : canReport,
-      canSendNow: isScheduled,
-      canReschedule: isScheduled,
+      canSendNow: isScheduled && !isLocal,
+      canReschedule: isScheduled && !isLocal,
       canReply: message.isEphemeral
         ? getCanReplyToEphemeralMessage(message)
         : !isPinned && !isScheduled && canReplyGlobally,

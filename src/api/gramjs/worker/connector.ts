@@ -33,6 +33,9 @@ const HEALTH_CHECK_TIMEOUT = 150;
 const HEALTH_CHECK_MIN_DELAY = 5 * 1000; // 5 sec
 const API_DESTROY_TIMEOUT_MS = 3000; // 3 sec
 const NO_QUEUE_BEFORE_INIT = new Set(['destroy']);
+const OFFLINE_METHODS = new Set([
+  'sendMessage', 'sendMessageLocal', 'retryQueuedMessage', 'cancelQueuedMessages', 'destroy',
+]);
 
 let worker: Worker | undefined;
 
@@ -232,7 +235,7 @@ export function setShouldEnableDebugLog(value: boolean) {
 export function callApiLocal<T extends keyof Methods>(
   fnName: T, ...args: MethodArgs<T>
 ): EnsurePromise<MethodResponse<T>> {
-  if (!isInited) {
+  if (!isInited && !(worker && OFFLINE_METHODS.has(fnName))) {
     if (NO_QUEUE_BEFORE_INIT.has(fnName)) {
       return Promise.resolve(undefined) as EnsurePromise<MethodResponse<T>>;
     }
@@ -298,7 +301,7 @@ export function callApi<T extends keyof Methods>(fnName: T, ...args: MethodArgs<
   const proxyCall = tryCallProxyApi(fnName, ...args);
   if (proxyCall) return proxyCall;
 
-  if (!isInited && isMasterTab) {
+  if (!isInited && isMasterTab && !(worker && OFFLINE_METHODS.has(fnName))) {
     if (NO_QUEUE_BEFORE_INIT.has(fnName)) {
       return Promise.resolve(undefined) as EnsurePromise<MethodResponse<T>>;
     }

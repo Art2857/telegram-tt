@@ -4578,6 +4578,9 @@
 "PxgSendErrorPaidPrice" = "A message to this chat now costs {stars} ⭐. Send it again at the new price.";
 "PxgSendErrorWait" = "Telegram asks you to wait {seconds} seconds before sending again.";
 "PxgSendErrorUnknown" = "Could not send the message. Check your connection and access to this chat, then try again.";
+"PxgQueueSaveFailed" = "Could not save this message on the device. Free some storage and choose Retry in the message menu. It has not been sent and will be lost if you close the app.";
+"PxgQueueFileMissing" = "The file saved for this message is unavailable. Delete the waiting message and attach the file again.";
+"PxgQueueAlbumIncomplete" = "The album is incomplete. Choose Retry in its message menu to send the remaining files, or delete them and attach the album again.";
 "PxgForwardCopy" = "Sent as a copy, without the original author.";
 "PxgForwardNative" = "Forwarded with the original author.";
 "PxgForwardPollCopy" = "Poll results are not copied.";

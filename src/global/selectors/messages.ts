@@ -632,7 +632,8 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
     const canEdit = isSaved && ((isOwn && permissions.editOwn) || canManage || canAdminEdit);
     // An unsent message exists only on this device: removing it never reaches Telegram
     const isFailed = isMessageFailed(message);
-    const canDelete = isFailed || (isSaved && ((isOwn && permissions.deleteOwn) || canManage || canAdminDelete));
+    const canDelete = isFailed || (!isSaved && Boolean(message.pxgSendRequest))
+      || (isSaved && ((isOwn && permissions.deleteOwn) || canManage || canAdminDelete));
     // A guest pins as the owner: either side in a private chat, otherwise the owner's rights given to the guest
     const canPinProxy = isSaved && !message.content.action && (isUserId(chat.id)
       ? permissions.write
@@ -645,7 +646,7 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
       canCopyLink: isSaved && !message.content.action && isChannelId(String(chat.pxgProxy.peerId)),
       canPin: canPinProxy && !isPinnedProxy, canUnpin: canPinProxy && isPinnedProxy,
       canReply: permissions.write && isSaved,
-      canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete && !isFailed,
+      canReplyGlobally: permissions.write && isSaved, canEdit, canDelete, canDeleteForAll: canDelete && isSaved,
       canDownload: permissions.download && Boolean(selectMessageDownloadableMedia(global, message)),
     };
   }
@@ -734,16 +735,17 @@ export function selectAllowedMessageActionsSlow<T extends GlobalState>(
   const canNotDeleteBoostMessage = isBoostMessage && isOwn
     && !getHasAdminRight(chat, 'deleteMessages');
 
-  const canDelete = (!isLocal || isFailed) && !isServiceNotification && !canNotDeleteBoostMessage && (
-    isPrivate
-    || isOwn
-    || isBasicGroup
-    || getHasAdminRight(chat, 'deleteMessages')
-  );
+  const canDelete = (isLocal && Boolean(message.nativeSendId))
+    || ((!isLocal || isFailed) && !isServiceNotification && !canNotDeleteBoostMessage && (
+      isPrivate
+      || isOwn
+      || isBasicGroup
+      || getHasAdminRight(chat, 'deleteMessages')
+    ));
 
-  const canReport = !isPrivate && !isOwn;
+  const canReport = !isLocal && !isPrivate && !isOwn;
 
-  const canDeleteForAll = canDelete && !chat.isForbidden && (
+  const canDeleteForAll = canDelete && !isLocal && !chat.isForbidden && (
     (isPrivate && !isChatWithSelf && !isBotChat && !content.dice)
     || (isBasicGroup && (
       isOwn || getHasAdminRight(chat, 'deleteMessages')

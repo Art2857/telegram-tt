@@ -1257,7 +1257,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      if (global.chats.byId[chatId]?.pxgProxy) {
+      const isNativeQueue = Boolean(selectChatMessage(global, chatId, localId)?.nativeSendId);
+      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && error.startsWith('LOCAL_QUEUE_'))) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
         });
@@ -1267,7 +1268,9 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         });
       }
 
-      global = updateChatMessage(global, chatId, localId, { sendingState: 'messageSendingStateFailed' });
+      global = updateChatMessage(global, chatId, localId, {
+        sendingState: 'messageSendingStateFailed', nativeSendError: isNativeQueue ? error : undefined,
+      });
       setGlobal(global);
       break;
     }
@@ -1275,7 +1278,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateScheduledMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      if (global.chats.byId[chatId]?.pxgProxy) {
+      const isNativeQueue = Boolean(selectScheduledMessage(global, chatId, localId)?.nativeSendId);
+      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && error.startsWith('LOCAL_QUEUE_'))) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
         });
@@ -1285,7 +1289,9 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
         });
       }
 
-      global = updateScheduledMessage(global, chatId, localId, { sendingState: 'messageSendingStateFailed' });
+      global = updateScheduledMessage(global, chatId, localId, {
+        sendingState: 'messageSendingStateFailed', nativeSendError: isNativeQueue ? error : undefined,
+      });
       setGlobal(global);
       break;
     }

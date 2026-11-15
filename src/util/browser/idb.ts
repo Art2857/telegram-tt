@@ -77,3 +77,6 @@ export const PXG_CATALOG_IDB_STORE = new IdbStore('pxg-catalog');
 export const PXG_MESSAGES_IDB_STORE = new IdbStore('pxg-messages');
 // PXG: the guest's sends waiting for the server, with their files — they outlive closing the tab (docs/spec/11 C9)
 export const PXG_SEND_QUEUE_IDB_STORE = new IdbStore('pxg-send-queue');
+// Содержимое очереди Telegram зашифровано ключом текущей сессии; файлы хранятся отдельными порциями
+export const NATIVE_SEND_QUEUE_IDB_STORE = new IdbStore('pxg-native-send-queue');
+export const NATIVE_SEND_FILES_IDB_STORE = new IdbStore('pxg-native-send-files');

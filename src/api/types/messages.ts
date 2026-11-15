@@ -826,6 +826,9 @@ export interface ApiMessage {
   pxgEditHistory?: PxgEditVersion[];
   // PXG: ключ отправки гостя на сервере; `params` — точный запрос `messages.send`, известен после загрузки файла
   pxgSendRequest?: { id: string; params?: Record<string, unknown> };
+  // Ключ ожидающей отправки полного входа Telegram
+  nativeSendId?: string;
+  nativeSendError?: string;
   previousLocalId?: number;
   viewsCount?: number;
   forwardsCount?: number;

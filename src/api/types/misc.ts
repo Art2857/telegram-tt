@@ -19,6 +19,7 @@ export interface ApiInitialArgs {
   userAgent: string;
   platform?: string;
   sessionData?: ApiSessionData;
+  currentUserId?: string;
   isTest?: boolean;
   isWebmSupported?: boolean;
   maxBufferSize?: number;

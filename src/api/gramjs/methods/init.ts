@@ -7,6 +7,8 @@ import type { LocalDb } from '../localDb';
 import type { MethodArgs, MethodResponse, Methods } from './types';
 
 import Deferred from '../../../util/Deferred';
+import { reserveLocalMessageId, setMessageBuilderCurrentUserId } from '../apiBuilders/messages';
+import { configureNativeSendQueue, initNativeSendQueue } from '../helpers/nativeSendQueue';
 import { updateFullLocalDb } from '../localDb';
 import { init as initUpdateEmitter } from '../updates/apiUpdateEmitter';
 import { init as initClient } from './client';
@@ -16,6 +18,14 @@ export function initApi(_onUpdate: OnApiUpdate, initialArgs: ApiInitialArgs, ini
   initUpdateEmitter(_onUpdate);
 
   if (initialLocalDb) updateFullLocalDb(initialLocalDb);
+
+  configureNativeSendQueue({
+    send: methods.sendApiMessage,
+    restore: methods.restoreQueuedMessage,
+    reserveId: reserveLocalMessageId,
+  });
+  if (initialArgs.currentUserId) setMessageBuilderCurrentUserId(initialArgs.currentUserId);
+  void initNativeSendQueue(initialArgs.sessionData, initialArgs.currentUserId);
 
   const connectDeferred = new Deferred<void>();
   initClient(initialArgs, () => connectDeferred.resolve());

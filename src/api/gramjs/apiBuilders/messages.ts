@@ -99,6 +99,10 @@ export function incrementLocalMessageCounter() {
   localMessageCounter++;
 }
 
+export function reserveLocalMessageId(id: number) {
+  localMessageCounter = Math.max(localMessageCounter, Math.round((id - Math.floor(id)) * LOCAL_MESSAGES_LIMIT));
+}
+
 let currentUserId!: string;
 
 export function setMessageBuilderCurrentUserId(_currentUserId: string) {

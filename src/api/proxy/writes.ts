@@ -108,7 +108,7 @@ function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string)
  * A paid message is shown first and sent once the guest has confirmed the price: Web A sends it with this local
  * message right after, and the key stays with it
  */
-export function sendMessageLocal(params: SendParams) {
+export async function sendMessageLocal(params: SendParams) {
   const { chat } = params;
   if (!chat || !resolveProxyPeer(chat.id)) return undefined;
   const localMessage = buildLocalMessage(params, chat, crypto.randomUUID());

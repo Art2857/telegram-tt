@@ -864,6 +864,8 @@ export type ResaleGiftsFilterOptions = {
 };
 
 export type SendMessageParams = {
+  clientRandomId?: string;
+  localGroupSize?: number;
   chat?: ApiChat;
   attachments?: ApiAttachment[];
   lastMessageId?: number;

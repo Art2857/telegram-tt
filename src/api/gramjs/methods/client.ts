@@ -49,6 +49,7 @@ import {
   buildApiError,
   isResponseUpdate, log,
 } from '../helpers/misc';
+import { stopNativeSendQueue, verifyNativeSendQueue } from '../helpers/nativeSendQueue';
 import localDb, { clearLocalDb, type InlineBotRepairInfo, type RepairInfo } from '../localDb';
 import { sendApiUpdate } from '../updates/apiUpdateEmitter';
 import { processAndUpdateEntities, processMessageAndUpdateThreadInfo } from '../updates/entityProcessor';
@@ -89,12 +90,14 @@ const ABORT_CONTROLLERS = new Map<string, AbortController>();
 
 let client: TelegramClient;
 let currentUserId: string | undefined;
+let isClientDestroyed = false;
 
 export function setLanguageCode({ langCode }: { langCode: string }) {
   return client.setLanguageCode(langCode);
 }
 
 export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoidFunction) {
+  isClientDestroyed = false;
   if (DEBUG) {
     // eslint-disable-next-line no-console
     console.log('>>> START INIT API');
@@ -135,6 +138,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
       isTestServerRequested,
     },
   );
+  const initializingClient = client;
 
   client.addEventHandler(handleGramJsUpdate, gramJsUpdateEventBuilder);
 
@@ -179,6 +183,8 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
       }
     }
 
+    if (isClientDestroyed || client !== initializingClient) return;
+
     if (DEBUG) {
       // eslint-disable-next-line no-console
       console.log('>>> FINISH INIT API');
@@ -207,6 +213,9 @@ export function setIsPremium({ isPremium }: { isPremium: boolean }) {
 
 const LOG_OUT_TIMEOUT = 2500;
 export async function destroy(noLogOut = false, noClearLocalDb = false) {
+  isClientDestroyed = true;
+  const session = (client.session as sessions.CallbackSession).getSessionData();
+  const clearingQueue = stopNativeSendQueue(!noClearLocalDb, session);
   if (!noLogOut && client.isConnected()) {
     await Promise.race([
       invokeRequest(new GramJs.auth.LogOut()),
@@ -220,6 +229,7 @@ export async function destroy(noLogOut = false, noClearLocalDb = false) {
   }
 
   client.destroy();
+  await clearingQueue;
 }
 
 export function disconnect() {
@@ -444,11 +454,12 @@ export function abortRequestGroup(group: string) {
 }
 
 export async function fetchCurrentUser() {
+  const requestingClient = client;
   const userFull = await invokeRequest(new GramJs.users.GetFullUser({
     id: new GramJs.InputUserSelf(),
   }));
 
-  if (!userFull || !(userFull.users[0] instanceof GramJs.User)) {
+  if (client !== requestingClient || isClientDestroyed || !userFull || !(userFull.users[0] instanceof GramJs.User)) {
     return;
   }
 
@@ -462,6 +473,7 @@ export async function fetchCurrentUser() {
   onCurrentUserUpdate(currentUser, currentUserFullInfo);
 
   currentUserId = currentUser.id;
+  void verifyNativeSendQueue(currentUser.id, (client.session as sessions.CallbackSession).getSessionData());
   setIsPremium({ isPremium: Boolean(currentUser.isPremium) });
 }
 

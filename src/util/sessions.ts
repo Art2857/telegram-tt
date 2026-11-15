@@ -8,6 +8,7 @@ import {
   SESSION_LEGACY_USER_KEY,
   TEST_SESSION,
 } from '../config';
+import { clearNativeSends } from '../api/gramjs/helpers/sendQueueStorage';
 import {
   isEncryptedSessionStoreEnabled,
   isSessionStoreLocked,
@@ -86,13 +87,23 @@ function storeLegacySession(sessionData: ApiSessionData, currentUserId?: string)
 }
 
 export function clearStoredSession(slot?: number) {
+  const targetSlot = slot ?? ACCOUNT_SLOT;
+  let session: ApiSessionData | undefined;
   return updateSessionStorage(() => {
-    if (!slot) {
+    const stored = loadSlotSession(targetSlot);
+    session = stored ? {
+      mainDcId: stored.dcId,
+      keys: Object.fromEntries(DC_IDS.flatMap((id) => (
+        stored[`dc${id}_auth_key`] ? [[id, stored[`dc${id}_auth_key`]!]] : []
+      ))),
+      isTest: stored.isTest || undefined,
+    } : (targetSlot || 1) === (ACCOUNT_SLOT || 1) ? loadStoredSession() : undefined;
+    if (!targetSlot || targetSlot === 1) {
       clearStoredLegacySession();
     }
 
-    removeSessionValue(`${SESSION_ACCOUNT_PREFIX}${slot || 1}`);
-  });
+    removeSessionValue(`${SESSION_ACCOUNT_PREFIX}${targetSlot || 1}`);
+  }).then(() => (session ? clearNativeSends(session).catch(() => undefined) : undefined));
 }
 
 // Intentionally does not refresh the sessions vault: used when locking the screen,

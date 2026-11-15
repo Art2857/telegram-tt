@@ -34,6 +34,9 @@ const SEND_ERROR_KEYS: Record<string, RegularLangKey> = {
   network: 'PxgErrorNetwork',
   timeout: 'PxgErrorNetwork',
   disconnected: 'PxgErrorNetwork',
+  LOCAL_QUEUE_STORAGE_FAILED: 'PxgQueueSaveFailed',
+  LOCAL_QUEUE_FILE_MISSING: 'PxgQueueFileMissing',
+  LOCAL_QUEUE_INCOMPLETE_ALBUM: 'PxgQueueAlbumIncomplete',
 };
 
 /** Сохраняем число секунд Telegram: оно нужно гостю для повторной попытки */
