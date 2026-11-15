@@ -147,9 +147,9 @@
 "PxgQrScanNoCamera" = "Камера недоступна — вставьте ссылку из QR-кода";
 "PxgQrScanUnsupported" = "Сканирование камерой недоступно - вставьте ссылку из QR-кода";
 "PxgLoginQrTitle" = "Вход в Proxygram по QR-коду";
-"PxgLoginQrHelp1" = "Откройте Proxygram на телефоне";
-"PxgLoginQrHelp2" = "Откройте меню и выберите **Сканировать QR-код**";
-"PxgLoginQrHelp3" = "Наведите телефон на этот экран, чтобы подтвердить вход";
+"PxgLoginQrHelp1" = "Откройте Telegram или Proxygram на другом устройстве, где уже выполнен вход";
+"PxgLoginQrHelp2" = "Откройте сканер в **Настройки → Устройства** в Telegram или **Сканировать QR-код** в меню Proxygram";
+"PxgLoginQrHelp3" = "Отсканируйте этот экран и подтвердите новый вход";
 "PxgLoginQrCancel" = "Войти по номеру телефона";
 "PxgErrorNetwork" = "Сервер Proxygram недоступен. Проверьте связь и попробуйте ещё раз.";
 "PxgErrorInvalidCode" = "Неверный код";
@@ -157,7 +157,7 @@
 "PxgGuestResend" = "Новый код";
 "PxgGuestResendIn" = "Новый код через {seconds} с";
 "PxgErrorResendLater" = "Новый код можно запросить через минуту";
-"PxgErrorBotOffline" = "Бот входа сейчас не отвечает этому серверу. Войдите по коду или попробуйте позже";
+"PxgErrorBotOffline" = "Бот входа временно недоступен. Попробуйте позже или выберите другой способ входа";
 "PxgErrorTooMany" = "Слишком много попыток — начните заново";
 "PxgErrorDenied" = "Вход отклонён";
 "PxgErrorForbidden" = "Нет доступа";
@@ -166,7 +166,7 @@
 "PxgErrorBusy" = "Это уже выполняется на другом устройстве. Закончите там или повторите через несколько минут.";
 "PxgErrorNotRegistered" = "Этот человек ещё не входил в Proxygram";
 "PxgErrorGeneric" = "Что-то пошло не так";
-"PxgErrorUsername" = "Введите ник (5–32 латинские буквы, цифры или _) или номер с кодом страны";
+"PxgErrorUsername" = "Введите ник с латинской буквы (5–32 буквы, цифры или _) или номер с кодом страны";
 "PxgMenuSharing" = "Раздача чатов";
 "PxgMenuSharingOn" = "вкл";
 "PxgSettingsTitle" = "Настройки Proxygram";

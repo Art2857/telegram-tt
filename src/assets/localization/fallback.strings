@@ -4660,9 +4660,9 @@
 "PxgQrScanNoCamera" = "Camera is unavailable — paste the QR link";
 "PxgQrScanUnsupported" = "Camera scanning is unavailable - paste the QR link";
 "PxgLoginQrTitle" = "Log in to Proxygram by QR Code";
-"PxgLoginQrHelp1" = "Open Proxygram on your phone";
-"PxgLoginQrHelp2" = "Open the menu and choose **Scan QR code**";
-"PxgLoginQrHelp3" = "Point your phone at this screen to confirm login";
+"PxgLoginQrHelp1" = "Open Telegram or Proxygram on another device where you are already signed in";
+"PxgLoginQrHelp2" = "Open the QR scanner in **Settings → Devices** in Telegram, or **Scan QR code** in Proxygram’s menu";
+"PxgLoginQrHelp3" = "Scan this screen and confirm the new sign-in";
 "PxgLoginQrCancel" = "Log in by phone number";
 "PxgErrorNetwork" = "The Proxygram server is unavailable. Check the connection and try again.";
 "PxgErrorInvalidCode" = "Wrong code";
@@ -4670,7 +4670,7 @@
 "PxgGuestResend" = "Send a new code";
 "PxgGuestResendIn" = "New code in {seconds} s";
 "PxgErrorResendLater" = "A new code can be requested in a minute";
-"PxgErrorBotOffline" = "The sign-in bot does not answer this server now. Sign in with a code or try again later";
+"PxgErrorBotOffline" = "The sign-in bot is temporarily unavailable. Try again later or choose another sign-in method";
 "PxgErrorTooMany" = "Too many attempts — start again";
 "PxgErrorDenied" = "Sign-in was declined";
 "PxgErrorForbidden" = "Not allowed";
@@ -4679,7 +4679,7 @@
 "PxgErrorBusy" = "This is already in progress on another device. Finish it there or try again in a few minutes.";
 "PxgErrorNotRegistered" = "This person has not signed in to Proxygram yet";
 "PxgErrorGeneric" = "Something went wrong";
-"PxgErrorUsername" = "Enter a username (5–32 letters, digits or underscores) or a phone number with the country code";
+"PxgErrorUsername" = "Enter a username starting with a letter (5–32 letters, digits or underscores), or a phone number with the country code";
 "PxgMenuSharing" = "Share chats";
 "PxgMenuSharingOn" = "on";
 "PxgSettingsTitle" = "Proxygram settings";

@@ -55,6 +55,11 @@
   color: var(--color-text-secondary);
 }
 
+.error {
+  color: var(--color-error);
+  overflow-wrap: anywhere;
+}
+
 .qr {
   overflow: hidden;
 

@@ -53,24 +53,34 @@ const ConnectServerModal = () => {
   const [isChecking, setIsChecking] = useState(false);
   // Шаги сервера спрашиваются, пока окно открыто
   const isOpenRef = useRef(true);
+  const attemptRef = useRef<string>();
+  const isStartingRef = useRef(false);
+  const isCheckingRef = useRef(false);
 
   useEffect(() => () => {
     isOpenRef.current = false;
+    const id = attemptRef.current;
+    if (id) void pxgRpc.call('accounts.connect.cancel', { attemptId: id }).catch(() => undefined);
   }, []);
 
   // У гостя свои аккаунты заранее не загружены: уже подключённый не предлагаем подключать второй раз
   useEffect(() => {
     if (phase.kind !== 'loading') return;
     void pxgRpc.call<AccountDto[]>('accounts.mine').then((accounts) => {
+      if (!isOpenRef.current) return;
       setPxgState({ accounts });
       setPhase(initialPhase(accounts));
-    }).catch(() => setPhase({ kind: 'consent' }));
+    }).catch(() => {
+      if (isOpenRef.current) setPhase({ kind: 'consent' });
+    });
   }, [phase.kind]);
 
   const close = () => {
     isOpenRef.current = false;
-    if (attemptId && phase.kind !== 'done') {
-      void pxgRpc.call('accounts.connect.cancel', { attemptId }).catch(() => undefined);
+    const id = attemptRef.current;
+    attemptRef.current = undefined;
+    if (id) {
+      void pxgRpc.call('accounts.connect.cancel', { attemptId: id }).catch(() => undefined);
     }
     setPxgState({ isConnectOpen: false });
   };
@@ -82,6 +92,7 @@ const ConnectServerModal = () => {
   };
 
   const showError = (err: unknown) => {
+    if (!isOpenRef.current) return;
     // Сервер отказывает, если код отсканирован другим аккаунтом, чем тот, под которым вход сюда
     const isMismatch = isQr && err instanceof PxgError && err.code === 'forbidden';
     setPhase({ kind: 'error', message: isMismatch ? lang('PxgConnectQrMismatch') : describePxgError(lang, err) });
@@ -92,14 +103,16 @@ const ConnectServerModal = () => {
     let step = first;
     while (isOpenRef.current) {
       if (step.status === 'connected') {
+        if (attemptRef.current === id) attemptRef.current = undefined;
         // Без Telegram на устройстве свои чаты видны только через сервер
         if (isQr) {
           await pxgRpc.call('accounts.setThinMode', { accountId: step.account.id, enabled: true })
             .catch(() => undefined);
         }
+        if (!isOpenRef.current) return;
         setPhase({ kind: 'done' });
         const accounts = await pxgRpc.call<AccountDto[]>('accounts.mine').catch(() => undefined);
-        if (accounts) setPxgState({ accounts });
+        if (accounts && isOpenRef.current) setPxgState({ accounts });
         return;
       }
       if (step.status === 'password') {
@@ -111,20 +124,35 @@ const ConnectServerModal = () => {
         if (isQr) setPhase({ kind: 'qr', token: step.token });
         else await callApi('pxgAcceptLoginToken', step.token);
       }
+      if (!isOpenRef.current) return;
       step = await pxgRpc.call<ConnectStepDto>('accounts.connect.next', { attemptId: id });
     }
   }
 
   const start = async () => {
+    if (isStartingRef.current || !isOpenRef.current) return;
+    isStartingRef.current = true;
     setPhase({ kind: 'working' });
     try {
+      const previous = attemptRef.current;
+      attemptRef.current = undefined;
+      if (previous) await pxgRpc.call('accounts.connect.cancel', { attemptId: previous }).catch(() => undefined);
+      if (!isOpenRef.current) return;
       const { attemptId: id, step } = await pxgRpc.call<{ attemptId: string; step: ConnectStepDto }>(
         'accounts.connect.start',
       );
+      if (!isOpenRef.current) {
+        // Закрытие может прийти раньше ответа start: созданную позже попытку тоже нужно завершить
+        void pxgRpc.call('accounts.connect.cancel', { attemptId: id }).catch(() => undefined);
+        return;
+      }
+      attemptRef.current = id;
       setAttemptId(id);
       await follow(id, step);
     } catch (err) {
       showError(err);
+    } finally {
+      isStartingRef.current = false;
     }
   };
 
@@ -133,14 +161,15 @@ const ConnectServerModal = () => {
     try {
       await pxgRpc.call('accounts.disconnect', { accountId });
       const accounts = await pxgRpc.call<AccountDto[]>('accounts.mine');
-      setPxgState({ accounts, isConnectOpen: false });
+      if (isOpenRef.current) setPxgState({ accounts, isConnectOpen: false });
     } catch (err) {
       showError(err);
     }
   };
 
   const submitPassword = async (password: string) => {
-    if (phase.kind !== 'password' || !attemptId) return;
+    if (phase.kind !== 'password' || !attemptId || !isOpenRef.current || isCheckingRef.current) return;
+    isCheckingRef.current = true;
     setIsChecking(true);
     try {
       // пароль остаётся здесь: на сервер уходит только доказательство SRP
@@ -148,12 +177,14 @@ const ConnectServerModal = () => {
         ? await (await import('../../proxygram/srp')).computeSrpAnswer(phase.challenge, password)
         : await callApi('pxgComputeSrp', phase.challenge, password);
       if (!answer) throw new Error('srp');
+      if (!isOpenRef.current || attemptRef.current !== attemptId) return;
       const step = await pxgRpc.call<ConnectStepDto>('accounts.connect.password', { attemptId, ...answer });
       await follow(attemptId, step);
     } catch (err) {
       showError(err);
     } finally {
-      setIsChecking(false);
+      isCheckingRef.current = false;
+      if (isOpenRef.current) setIsChecking(false);
     }
   };
 
@@ -203,9 +234,9 @@ const ConnectServerModal = () => {
         <>
           <BotLinkQr link={`tg://login?token=${phase.token}`} />
           <ol className={styles.steps}>
-            <li>{lang('LoginQRHelp1')}</li>
-            <li>{lang('LoginQRHelp2', undefined, { withNodes: true, withMarkdown: true })}</li>
-            <li>{lang('LoginQRHelp3')}</li>
+            <li>{lang('PxgLoginQrHelp1')}</li>
+            <li>{lang('PxgLoginQrHelp2', undefined, { withNodes: true, withMarkdown: true })}</li>
+            <li>{lang('PxgLoginQrHelp3')}</li>
           </ol>
           <p className={styles.secondary}>{lang('PxgConnectQrHint')}</p>
         </>

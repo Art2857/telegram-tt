@@ -28,6 +28,7 @@ type OwnProps = {
   maxLengthIndicator?: string;
   tabIndex?: number;
   title?: string;
+  ariaDescribedBy?: string;
   autoFocus?: boolean;
   teactExperimentControlled?: boolean;
   noMargin?: boolean;
@@ -59,6 +60,7 @@ const InputText = ({
   maxLengthIndicator,
   tabIndex,
   title,
+  ariaDescribedBy,
   autoFocus,
   teactExperimentControlled,
   noMargin,
@@ -107,6 +109,8 @@ const InputText = ({
         onBlur={onBlur}
         onPaste={onPaste}
         aria-label={labelText}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={Boolean(error) || undefined}
         title={title}
         teactExperimentControlled={teactExperimentControlled}
         onClick={onClick}

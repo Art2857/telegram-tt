@@ -10,6 +10,7 @@ import { IS_MAC_OS, PLATFORM_ENV } from '../../util/browser/windowEnvironment';
 import { signOutPxg } from '../../proxygram/server/session';
 import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store';
 
+import useAppLayout from '../../hooks/useAppLayout';
 import useCurrentOrPrev from '../../hooks/useCurrentOrPrev';
 import useHistoryBack from '../../hooks/useHistoryBack';
 import useLang from '../../hooks/useLang';
@@ -37,7 +38,8 @@ const Auth = ({
     returnToAuthPhoneNumber, goToAuthQrCode,
   } = getActions();
 
-  const isMobile = PLATFORM_ENV === 'iOS' || PLATFORM_ENV === 'Android';
+  const { isMobile: isCompactLayout } = useAppLayout();
+  const isMobile = isCompactLayout || PLATFORM_ENV === 'iOS' || PLATFORM_ENV === 'Android';
 
   const handleChangeAuthorizationMethod = () => {
     if (!isMobile) {

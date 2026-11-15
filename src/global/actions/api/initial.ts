@@ -58,6 +58,8 @@ import { selectTabState } from '../../selectors';
 import { selectSharedSettings } from '../../selectors/sharedState';
 import { destroySharedStatePort, resetSharedStatePort } from '../../shared/sharedStateConnector';
 
+import { getIsMobile } from '../../../hooks/useAppLayout';
+
 let resetStoragePromise: Promise<boolean> | undefined;
 let isInitializingApi = false;
 
@@ -117,6 +119,7 @@ addActionHandler('initApi', async (global, actions): Promise<void> => {
       isTestServerRequested: hasTestParam,
       accountIds,
       hasPasskeySupport: IS_WEBAUTHN_SUPPORTED,
+      shouldStartWithPhone: getIsMobile(),
     });
 
     void setShouldEnableDebugLog(Boolean(shouldCollectDebugLogs));

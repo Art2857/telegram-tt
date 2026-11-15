@@ -1,16 +1,17 @@
 import type { ChangeEvent, FormEvent } from 'react';
-import { memo, useEffect, useState } from '../../../lib/teact/teact';
+import { memo, useEffect, useRef, useState } from '../../../lib/teact/teact';
 
 import type { LoginStart } from '../../../proxygram/server/types';
 import { PxgError } from '../../../proxygram/server/types';
 
 import buildClassName from '../../../util/buildClassName';
-import { pollLogin, startLogin, verifyLoginCode } from '../../../proxygram/server/http';
+import { logoutSession, pollLogin, startLogin, verifyLoginCode } from '../../../proxygram/server/http';
 import { setPxgSession } from '../../../proxygram/server/session';
 import { setPxgState } from '../../../proxygram/server/store';
 import { describePxgError } from '../helpers';
 
 import useLang from '../../../hooks/useLang';
+import { useStateRef } from '../../../hooks/useStateRef';
 
 import Button from '../../ui/Button';
 import InputText from '../../ui/InputText';
@@ -23,7 +24,7 @@ const POLL_INTERVAL_MS = 2000;
 const CODE_LENGTH = 6;
 // Telegram usernames start with a letter, so digits are always a phone number
 const PHONE_INPUT = /^\+?[\d\s().-]{7,24}$/;
-const USERNAME_INPUT = /^@?\w{5,32}$/;
+const USERNAME_INPUT = /^@?[a-zA-Z]\w{4,31}$/;
 // The server gives a new code no sooner than a minute later
 const RESEND_SECONDS = 60;
 
@@ -32,37 +33,64 @@ type RequestedLogin = { kind: 'username' | 'phone'; value: string };
 /** Вход гостя (PLAN.md, 7.2): ник → код от бота, или Start в боте по ссылке */
 const GuestLogin = () => {
   const lang = useLang();
+  const langRef = useStateRef(lang);
   const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
-  const [request, setRequest] = useState<LoginStart>();
+  const [attempt, setAttempt] = useState<{ request: LoginStart; id: number }>();
+  const request = attempt?.request;
   // What the code was asked for: the bot cannot message an unknown person first, so it falls back to the link
   const [requestedLogin, setRequestedLogin] = useState<RequestedLogin>();
   const [error, setError] = useState<string>();
+  const [errorField, setErrorField] = useState<'username' | 'code'>();
   const [isLoading, setIsLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const attemptRef = useRef(0);
+  const pendingRef = useRef<number>();
+
+  useEffect(() => () => {
+    attemptRef.current++;
+  }, [attemptRef]);
 
   // Подтверждение в боте («Это я» или Start по ссылке) приходит само — опрашиваем сервер
   useEffect(() => {
-    if (!request) return undefined;
+    if (!attempt) return undefined;
+    const { request: activeRequest, id } = attempt;
     let isActive = true;
+    let isPolling = false;
     const timer = window.setInterval(async () => {
+      if (!isActive || isPolling || id !== attemptRef.current || pendingRef.current === id) return;
+      isPolling = true;
       try {
-        const result = await pollLogin(request);
-        if (isActive && 'accessToken' in result) setPxgSession(result);
+        const result = await pollLogin({
+          requestId: activeRequest.requestId, deviceSecret: activeRequest.deviceSecret,
+        });
+        if ('accessToken' in result) {
+          if (!isActive || id !== attemptRef.current) {
+            void logoutSession(result.refreshToken).catch(() => undefined);
+            return;
+          }
+          attemptRef.current++;
+          window.clearInterval(timer);
+          setPxgSession(result);
+        }
       } catch (err) {
-        if (!isActive) return;
+        if (!isActive || id !== attemptRef.current) return;
         // Сеть моргнула — запрос на сервере ещё жив: продолжаем ждать, а не сбрасываем введённый код
-        if (err instanceof PxgError && (err.code === 'network' || err.code.startsWith('http_5'))) return;
+        if (err instanceof PxgError && (err.code === 'network' || err.code === 'rate_limited'
+          || err.code === 'http_429' || err.code.startsWith('http_5'))) return;
         window.clearInterval(timer);
-        setError(describePxgError(lang, err));
-        setRequest(undefined);
+        attemptRef.current++;
+        setError(describePxgError(langRef.current, err));
+        setAttempt(undefined);
+      } finally {
+        isPolling = false;
       }
     }, POLL_INTERVAL_MS);
     return () => {
       isActive = false;
       window.clearInterval(timer);
     };
-  }, [lang, request]);
+  }, [langRef, attempt, attemptRef, pendingRef]);
 
   const isCodeStep = request?.delivery === 'bot';
   useEffect(() => {
@@ -73,7 +101,12 @@ const GuestLogin = () => {
   }, [isCodeStep, request?.requestId]);
 
   async function begin(withLogin: boolean) {
+    if (pendingRef.current === attemptRef.current) return;
+    const id = ++attemptRef.current;
+    pendingRef.current = id;
     setError(undefined);
+    setErrorField(undefined);
+    setCode('');
     setIsLoading(true);
     try {
       const value = username.trim();
@@ -85,28 +118,42 @@ const GuestLogin = () => {
         phone: login?.kind === 'phone' ? login.value : undefined,
         level: 'guest',
       });
-      setRequest(started);
+      if (id !== attemptRef.current) return;
+      setAttempt({ request: started, id });
       setRequestedLogin(login);
-      // A fallback for the entered login explains itself first: the guest's Telegram is often on another device
-      if (started.delivery === 'deeplink' && !login) window.open(started.deeplink, '_blank', 'noopener');
     } catch (err) {
-      setError(describePxgError(lang, err));
+      if (id === attemptRef.current) setError(describePxgError(lang, err));
     } finally {
-      setIsLoading(false);
+      if (id === attemptRef.current) setIsLoading(false);
+      if (pendingRef.current === id) pendingRef.current = undefined;
     }
   }
 
   async function submitCode(value: string) {
-    if (!request) return;
+    if (!attempt || attempt.id !== attemptRef.current || pendingRef.current === attempt.id) return;
+    const { id, request: activeRequest } = attempt;
+    pendingRef.current = id;
     setIsLoading(true);
     setError(undefined);
+    setErrorField(undefined);
     try {
-      setPxgSession(await verifyLoginCode({ ...request, code: value }));
+      const result = await verifyLoginCode({
+        requestId: activeRequest.requestId, deviceSecret: activeRequest.deviceSecret, code: value,
+      });
+      if (id !== attemptRef.current) {
+        void logoutSession(result.refreshToken).catch(() => undefined);
+        return;
+      }
+      attemptRef.current++;
+      setPxgSession(result);
     } catch (err) {
+      if (id !== attemptRef.current) return;
       setError(describePxgError(lang, err));
+      if (err instanceof PxgError && err.code === 'invalid_code') setErrorField('code');
       setCode('');
     } finally {
-      setIsLoading(false);
+      if (id === attemptRef.current) setIsLoading(false);
+      if (pendingRef.current === id) pendingRef.current = undefined;
     }
   }
 
@@ -114,18 +161,27 @@ const GuestLogin = () => {
     e.preventDefault();
     const value = username.trim();
     if (USERNAME_INPUT.test(value) || PHONE_INPUT.test(value)) void begin(true);
-    else setError(lang('PxgErrorUsername'));
+    else {
+      setError(lang('PxgErrorUsername'));
+      setErrorField('username');
+    }
   };
 
   const handleCodeChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH);
+    setError(undefined);
+    setErrorField(undefined);
     setCode(value);
     if (value.length === CODE_LENGTH) void submitCode(value);
   };
 
   const goBack = () => {
+    attemptRef.current++;
+    setIsLoading(false);
+    setCode('');
     setError(undefined);
-    if (request) setRequest(undefined);
+    setErrorField(undefined);
+    if (request) setAttempt(undefined);
     else setPxgState({ authChoice: undefined });
   };
 
@@ -139,15 +195,22 @@ const GuestLogin = () => {
             id="pxg-guest-username"
             label={lang('PxgGuestUsername')}
             value={username}
-            error={error}
+            error={errorField === 'username' ? lang('PxgGuestUsername') : undefined}
+            ariaDescribedBy={error ? 'pxg-guest-error' : undefined}
+            disabled={isLoading}
             autoComplete="username"
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setError(undefined);
+              setErrorField(undefined);
+            }}
           />
+          {error && <p id="pxg-guest-error" className={styles.error} role="alert">{error}</p>}
           <Button type="submit" className="auth-button" isLoading={isLoading} disabled={!username.trim()}>
             {lang('PxgGuestGetCode')}
           </Button>
         </form>
-        <Button className="auth-button" color="translucent" onClick={() => void begin(false)}>
+        <Button className="auth-button" color="translucent" disabled={isLoading} onClick={() => void begin(false)}>
           {lang('PxgGuestViaBot')}
         </Button>
       </>
@@ -163,13 +226,16 @@ const GuestLogin = () => {
           id="pxg-guest-code"
           label={lang('PxgGuestCode')}
           value={code}
-          error={error}
+          error={errorField === 'code' ? lang('PxgGuestCode') : undefined}
+          ariaDescribedBy={error ? 'pxg-guest-error' : undefined}
+          disabled={isLoading}
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={CODE_LENGTH}
           autoFocus
           onChange={handleCodeChange}
         />
+        {error && <p id="pxg-guest-error" className={styles.error} role="alert">{error}</p>}
         {isLoading && <p className={styles.hint}>{lang('PxgGuestWaiting')}</p>}
         <Button
           className="auth-button"
@@ -184,7 +250,6 @@ const GuestLogin = () => {
             className="auth-button"
             isText
             href={request.botLink}
-            onClick={() => window.open(request.botLink, '_blank', 'noopener')}
           >
             {lang('PxgGuestOpenBot')}
           </Button>
@@ -203,11 +268,11 @@ const GuestLogin = () => {
           {requestedLogin?.kind === 'phone' && lang('PxgGuestDeeplinkPhone', { phone: requestedLogin.value })}
           {!requestedLogin && lang('PxgGuestDeeplinkNote')}
         </p>
-        <BotLinkQr link={deeplink} />
-        <p className={styles.hint}>{lang('PxgGuestDeeplinkScan')}</p>
-        <Button className="auth-button" href={deeplink} onClick={() => window.open(deeplink, '_blank', 'noopener')}>
+        <Button className="auth-button" href={deeplink}>
           {lang('PxgGuestOpenBot')}
         </Button>
+        <BotLinkQr link={deeplink} />
+        <p className={styles.hint}>{lang('PxgGuestDeeplinkScan')}</p>
         <p className={buildClassName(styles.hint, styles.link)}>{deeplink}</p>
         <p className="note">{error ?? lang('PxgGuestWaiting')}</p>
       </>

@@ -104,7 +104,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
     userAgent, platform, sessionData, isWebmSupported, maxBufferSize, webAuthToken, dcId,
     shouldForceHttpTransport, shouldAllowHttpTransport,
     shouldDebugExportedSenders, langCode, isTestServerRequested, accountIds,
-    hasPasskeySupport, webAuthUserId, pxgTelegramRelayUrl,
+    hasPasskeySupport, webAuthUserId, pxgTelegramRelayUrl, shouldStartWithPhone,
   } = initialArgs;
 
   setWebSocketRelay(pxgTelegramRelayUrl);
@@ -157,7 +157,7 @@ export async function init(initialArgs: ApiInitialArgs, onConnected?: NoneToVoid
         onPasskeyOption,
         qrCode: onRequestQrCode,
         onError: onAuthError,
-        initialMethod: platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
+        initialMethod: shouldStartWithPhone || platform === 'iOS' || platform === 'Android' ? 'phoneNumber' : 'qrCode',
         shouldThrowIfUnauthorized: Object.values(sessionData?.keys || {}).length > 0,
         webAuthToken,
         webAuthUserId,
