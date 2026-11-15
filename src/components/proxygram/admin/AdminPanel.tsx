@@ -1860,7 +1860,7 @@ const SystemTab = memo(({ lang, topics }: TabProps) => {
                 </Badge>
                 {' '}
                 {vpn.active ?? '—'}
-                {vpn.activeRttMs ? ` · ${vpn.activeRttMs} ms` : ''}
+                {vpn.activeRttMs ? ` · ${t(lang, 'PxgAdminVpnMs', { value: vpn.activeRttMs })}` : ''}
                 {` · ${t(lang, 'PxgAdminVpnNodes', { answering: vpn.answering ?? 0, total: vpn.total ?? 0 })}`}
               </p>
               {Boolean(vpn.switches?.length) && (

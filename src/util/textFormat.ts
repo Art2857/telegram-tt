@@ -54,7 +54,8 @@ export function formatFileSize(lang: LangFn, bytes: number, decimals = 1): strin
   }
 
   const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  // PXG: a disk of a terabyte or more stays in the largest unit instead of an unknown one
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), FILE_SIZE_UNITS.length - 1);
   const v = (bytes / (k ** i));
   const value = v.toFixed(Math.max(decimals, 0));
 
