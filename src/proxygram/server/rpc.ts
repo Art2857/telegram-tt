@@ -1,4 +1,4 @@
-import type { ServerEvent, SessionUser } from './types';
+import type { AccessChat, ServerEvent, SessionUser } from './types';
 import { PxgError } from './types';
 
 import { registerProxyResult } from '../../api/proxy';
@@ -30,6 +30,7 @@ class PxgRpc {
   #refreshTimer: number | undefined;
   #connectionGeneration = 0;
   #accessGeneration = 0;
+  #accessList: { userId: string; hash: string; data: AccessChat[]; requestId: number } | undefined;
 
   start() {
     if (!this.#isStopped) return;
@@ -41,6 +42,7 @@ class PxgRpc {
     this.#isStopped = true;
     this.#isReady = false;
     this.#connectionGeneration++;
+    this.#accessList = undefined;
     window.clearTimeout(this.#reconnectTimer);
     window.clearTimeout(this.#refreshTimer);
     this.#ws?.close(1000);
@@ -60,6 +62,9 @@ class PxgRpc {
     const userId = getPxgState().session?.user.id;
     const connectionGeneration = this.#connectionGeneration;
     const accessGeneration = this.#accessGeneration;
+    const knownAccess = method === 'access.chats' && this.#accessList?.userId === userId
+      ? this.#accessList : undefined;
+    const requestParams = method === 'access.chats' ? { hash: knownAccess?.hash ?? '' } : params;
     await this.#whenReady();
     if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
       throw new PxgError('unauthorized');
@@ -71,18 +76,32 @@ class PxgRpc {
         reject(new PxgError('timeout'));
       }, CALL_TIMEOUT_MS);
       this.#pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
-      this.#ws!.send(JSON.stringify({ t: 'req', id, m: method, p: params }));
+      this.#ws!.send(JSON.stringify({ t: 'req', id, m: method, p: requestParams }));
     }).then(async (result) => {
-      if (getPxgState().session?.user.id !== userId) throw new PxgError('unauthorized');
+      if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
+        throw new PxgError('unauthorized');
+      }
       if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
         throw new PxgError('access_changed');
       }
-      await registerProxyResult(method, result);
-      if (getPxgState().session?.user.id !== userId) throw new PxgError('unauthorized');
+      let data: unknown = result;
+      // Старый сервер отдаёт массив; новый — только изменившийся список
+      if (method === 'access.chats' && !Array.isArray(result)) {
+        const response = result as { hash: string; data?: AccessChat[] };
+        data = response.data ?? (response.hash === knownAccess?.hash ? knownAccess.data : undefined);
+        if (!data) throw new PxgError('access_changed');
+        if (userId && (!this.#accessList || id >= this.#accessList.requestId)) {
+          this.#accessList = { userId, hash: response.hash, data: data as AccessChat[], requestId: id };
+        }
+      }
+      await registerProxyResult(method, data);
+      if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
+        throw new PxgError('unauthorized');
+      }
       if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
         throw new PxgError('access_changed');
       }
-      return result;
+      return data as T;
     });
   }
 
@@ -177,7 +196,10 @@ class PxgRpc {
 
   #emit(event: ServerEvent) {
     // A late history response cannot restore data cleared by an access change
-    if (event.e === 'access.changed') this.#accessGeneration++;
+    if (event.e === 'access.changed') {
+      this.#accessGeneration++;
+      this.#accessList = undefined;
+    }
     this.#listeners.forEach((listener) => listener(event));
   }
 
