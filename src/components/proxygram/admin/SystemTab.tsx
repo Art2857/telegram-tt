@@ -59,6 +59,41 @@ export const SystemTab = memo(({ lang, topics }: TabProps) => {
         )}
       </div>
 
+      {data.connections && (
+        <>
+          <h3 className={styles.sectionTitle}>
+            {t(lang, 'PxgAdminConnectedAccounts', {
+              connected: data.connections.connected, total: data.connections.total,
+            })}
+          </h3>
+          {data.connections.connected < data.connections.total && (
+            <p className={styles.warning}>{lang('PxgAdminAccountsDisconnected')}</p>
+          )}
+          <div className={buildClassName(styles.stats, styles.userCards)}>
+            {data.connections.accounts.map((account) => (
+              <div key={account.id} className={styles.stat}>
+                <strong>{account.displayName ?? account.id}</strong>
+                <Badge tone={account.isConnected ? 'green' : 'gray'}>
+                  {account.isConnected
+                    ? lang(account.state === 'updating' ? 'Updating' : 'PxgAdminConnectionOnline')
+                    : lang(account.state === 'connecting' ? 'Connecting' : 'PxgAdminConnectionOffline')}
+                </Badge>
+                <div className={styles.secondary}>
+                  {lang('PxgAdminConnectionChecked')}
+                  {': '}
+                  {formatDateTime(account.checkedAt)}
+                </div>
+                <div className={styles.secondary}>
+                  {lang('PxgAdminConnectionUpdate')}
+                  {': '}
+                  {formatDateTime(account.lastUpdateAt)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <h3 className={styles.sectionTitle}>{lang('PxgAdminWorkers')}</h3>
       {data.workers.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (
         <table className={buildClassName(styles.table, styles.stacked)}>

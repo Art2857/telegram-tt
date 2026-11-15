@@ -5321,6 +5321,12 @@
 "PxgAdminRestartPending" = "Restart requested";
 "PxgAdminConnected" = "Connected";
 "PxgAdminLastEvent" = "Last archive update";
+"PxgAdminConnectedAccounts" = "Connected to Telegram: {connected} of {total}";
+"PxgAdminAccountsDisconnected" = "Some accounts have no confirmed connection to Telegram. Check workers and the network. Quiet chats alone do not mean a lost connection.";
+"PxgAdminConnectionOnline" = "Connected";
+"PxgAdminConnectionOffline" = "No confirmed connection";
+"PxgAdminConnectionChecked" = "Connection checked";
+"PxgAdminConnectionUpdate" = "Last Telegram update";
 "PxgAdminRevokeConfirm" = "Revoke access for {name}?";
 "PxgAdminShareTarget" = "Access target";
 "PxgAdminChooseTarget" = "Choose a folder or topic";

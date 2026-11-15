@@ -43,6 +43,18 @@ export type SystemInfo = {
   memory: { rssBytes: number; heapUsedBytes: number; accounts: number; perAccountBytes: number };
   storage: { disk: { totalBytes: number; freeBytes: number } | null };
   workers: { workerId: string | null; accounts: number; leaseUntil: string | null; stale: number }[];
+  connections?: {
+    total: number;
+    connected: number;
+    accounts: {
+      id: string;
+      displayName: string | null;
+      state: 'offline' | 'connecting' | 'updating' | 'connected' | null;
+      checkedAt: string | null;
+      lastUpdateAt: string | null;
+      isConnected: boolean;
+    }[];
+  };
   vpn: {
     isReachable: boolean;
     isHealthy?: boolean;

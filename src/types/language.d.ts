@@ -4074,6 +4074,11 @@ export interface LangPair {
   'PxgAdminRestartPending': undefined;
   'PxgAdminConnected': undefined;
   'PxgAdminLastEvent': undefined;
+  'PxgAdminAccountsDisconnected': undefined;
+  'PxgAdminConnectionOnline': undefined;
+  'PxgAdminConnectionOffline': undefined;
+  'PxgAdminConnectionChecked': undefined;
+  'PxgAdminConnectionUpdate': undefined;
   'PxgAdminShareTarget': undefined;
   'PxgAdminChooseTarget': undefined;
   'PxgAdminGuestFilter': undefined;
@@ -6903,6 +6908,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminArchiveChoice': {
     'name': V;
   };
+  'PxgAdminConnectedAccounts': {
+    'connected': V;
+    'total': V;
+  };
   'PxgAdminRevokeConfirm': {
     'name': V;
   };
@@ -9476,6 +9485,11 @@ export interface LangKeyGroups {
       | 'PxgAdminEndSessionsConfirm'
       | 'PxgSharedForMany';
     variables: 'count' | 'name';
+  };
+  'connected,total': {
+    keys:
+      | 'PxgAdminConnectedAccounts';
+    variables: 'connected' | 'total';
   };
   'target,time': {
     keys:

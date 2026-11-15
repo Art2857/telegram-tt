@@ -810,6 +810,12 @@
 "PxgAdminRestartPending" = "Перезапуск запрошен";
 "PxgAdminConnected" = "Подключён";
 "PxgAdminLastEvent" = "Последнее изменение архива";
+"PxgAdminConnectedAccounts" = "На связи с Telegram: {connected} из {total}";
+"PxgAdminAccountsDisconnected" = "У части аккаунтов нет подтверждённой связи с Telegram. Проверьте воркеры и сеть. Тишина в чатах сама по себе не означает обрыв связи.";
+"PxgAdminConnectionOnline" = "На связи";
+"PxgAdminConnectionOffline" = "Связь не подтверждена";
+"PxgAdminConnectionChecked" = "Проверка связи";
+"PxgAdminConnectionUpdate" = "Последний апдейт Telegram";
 "PxgAdminRevokeConfirm" = "Отозвать доступ у {name}?";
 "PxgAdminShareTarget" = "Объект доступа";
 "PxgAdminChooseTarget" = "Выберите папку или тему";
