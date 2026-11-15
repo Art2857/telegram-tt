@@ -5224,7 +5224,7 @@
 "PxgAdminVpnSwitches" = "Switches";
 "PxgAdminVpnMs" = "{value} ms";
 "PxgAdminVpnKbps" = "{value} KB/s";
-"PxgAdminWarnQueue" = "Failed actions in the queue: {count}";
+"PxgAdminWarnQueue" = "Failed actions in the last 24 hours: {count}";
 "PxgAdminColWho" = "Who";
 "PxgAdminColChat" = "Chat";
 "PxgAdminColAccount" = "Account";

@@ -711,7 +711,7 @@
 "PxgAdminVpnSwitches" = "Переключения";
 "PxgAdminVpnMs" = "{value} мс";
 "PxgAdminVpnKbps" = "{value} КБ/с";
-"PxgAdminWarnQueue" = "Действий с ошибкой в очереди: {count}";
+"PxgAdminWarnQueue" = "Действий с ошибкой за сутки: {count}";
 "PxgAdminColWho" = "Кто";
 "PxgAdminColChat" = "Чат";
 "PxgAdminColAccount" = "Аккаунт";

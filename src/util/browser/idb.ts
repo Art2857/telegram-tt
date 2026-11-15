@@ -75,3 +75,5 @@ export const PXG_ARCHIVE_IDB_STORE = new IdbStore('pxg-local-archive');
 export const PXG_CATALOG_IDB_STORE = new IdbStore('pxg-catalog');
 // PXG: the guest's chat history on the device — the feed opens offline and at once after a reload (docs/spec/11 C6)
 export const PXG_MESSAGES_IDB_STORE = new IdbStore('pxg-messages');
+// PXG: the guest's sends waiting for the server, with their files — they outlive closing the tab (docs/spec/11 C9)
+export const PXG_SEND_QUEUE_IDB_STORE = new IdbStore('pxg-send-queue');

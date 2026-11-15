@@ -1,3 +1,5 @@
+import { getGlobal } from '../../global';
+
 import type {
   AccessChat, DraftDto, InlineButtonDto, MessageDto, PeerBadgesDto, ReactionCountDto, SponsoredMessageDto, TopicDto,
   UserStatusDto,
@@ -284,11 +286,13 @@ export function buildProxyUser(
   accountId: string, userId: number, name?: string, photoId?: string | null, badges?: PeerBadgesDto | null,
 ): ApiUser {
   const id = getProxyPeerId(accountId, userId);
+  // A reply without the name must not turn a known person into a number: the name already on screen stays
+  const known = name ? undefined : getGlobal().users.byId[id];
   const user: ApiUser = {
     id,
     type: 'userTypeRegular',
     isMin: false,
-    firstName: name || String(userId),
+    firstName: name || known?.firstName || String(userId),
     phoneNumber: phoneByUserId.get(id) || '',
     noStatus: true,
     paidMessagesStars: paidStarsByUserId.get(id),

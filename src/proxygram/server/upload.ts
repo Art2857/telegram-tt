@@ -30,13 +30,21 @@ export async function uploadFile(
   target: { accountId: string; peerId: number },
   maxBytes: number,
   onProgress?: (fraction: number) => void,
+  options?: ResumeOptions,
 ): Promise<UploadResult> {
   return sendResumableUpload(
     file, '/upload', new URLSearchParams({
       accountId: target.accountId, peerId: String(target.peerId), name: file.name.slice(0, 255),
-    }), maxBytes, onProgress,
+    }), maxBytes, onProgress, options,
   );
 }
+
+/** An upload of a message waiting on the device: it continues the started one, also after a reload */
+export type ResumeOptions = {
+  resumeUploadId?: string;
+  onStarted?: (uploadId: string) => void;
+  isCanceled?: () => boolean;
+};
 
 /** Personal files need no shared chat or owner's Telegram account */
 export function uploadSavedFile(file: File, maxBytes: number, onProgress?: (fraction: number) => void) {
@@ -47,21 +55,23 @@ export function uploadSavedFile(file: File, maxBytes: number, onProgress?: (frac
 
 async function sendResumableUpload(
   file: File, path: string, query: URLSearchParams, maxBytes: number, onProgress?: (fraction: number) => void,
+  options?: ResumeOptions,
 ): Promise<UploadResult> {
   // Checked here too, so a file over the limit does not travel to the server for nothing
   if (file.size > maxBytes) throw new PxgError('too_large');
   const token = await getAccessToken();
   if (!token) throw new PxgError('unauthorized');
 
-  const initQuery = new URLSearchParams(query);
-  initQuery.set('totalSize', String(file.size));
-  const started = await startUpload(path, initQuery, token);
+  const started = await resumeUpload(options?.resumeUploadId, file.size, token)
+    ?? await startUpload(path, withTotalSize(query, file.size), token, file.type);
+  options?.onStarted?.(started.uploadId);
   let offset = started.offset;
   let complete = started.complete;
   let attempts = 0;
 
   while (!complete) {
     if (offset >= file.size) break;
+    if (options?.isCanceled?.()) throw new PxgError('canceled');
     try {
       const chunk = file.slice(offset);
       const chunkQuery = new URLSearchParams(query);
@@ -95,20 +105,54 @@ async function sendResumableUpload(
   };
 }
 
+function withTotalSize(query: URLSearchParams, size: number) {
+  const result = new URLSearchParams(query);
+  result.set('totalSize', String(size));
+  return result;
+}
+
+/**
+ * The upload started before: the server tells how much it has. A network failure is passed on (the message keeps
+ * waiting); an upload the server no longer knows starts anew
+ */
+async function resumeUpload(uploadId: string | undefined, size: number, token: string) {
+  if (!uploadId) return undefined;
+  try {
+    const status = await fetchUploadStatus(uploadId, token);
+    // A draft knows its size; a different one is another file under the same key
+    return !status.totalSize || status.totalSize === size ? status : undefined;
+  } catch (err) {
+    if (err instanceof PxgError && err.code === 'network') throw err;
+    return undefined;
+  }
+}
+
 /** Первый запрос создаёт черновик и ничего не отправляет: id нужен до первого куска */
-async function startUpload(path: string, query: URLSearchParams, token: string): Promise<UploadChunkResult> {
-  const response = await fetch(`${PXG_SERVER_URL}${path}?${query.toString()}`, {
+async function startUpload(
+  path: string, query: URLSearchParams, token: string, mimeType: string,
+): Promise<UploadChunkResult> {
+  // The type goes with the draft: by it the server sends a picture as a photo, not as a file
+  const response = await fetchOrNetworkError(`${PXG_SERVER_URL}${path}?${query.toString()}`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, 'content-type': mimeType || 'application/octet-stream' },
   });
   return parseUploadResponse(response);
 }
 
 async function fetchUploadStatus(uploadId: string, token: string): Promise<UploadChunkResult> {
-  const response = await fetch(`${PXG_SERVER_URL}/upload/${uploadId}`, {
+  const response = await fetchOrNetworkError(`${PXG_SERVER_URL}/upload/${uploadId}`, {
     headers: { authorization: `Bearer ${token}` },
   });
   return parseUploadResponse(response);
+}
+
+/** No connection is a network failure, not an unknown error: the send waits for the network */
+async function fetchOrNetworkError(url: string, init: RequestInit) {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new PxgError('network');
+  }
 }
 
 async function parseUploadResponse(response: Response): Promise<UploadChunkResult> {

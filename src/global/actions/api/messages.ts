@@ -69,6 +69,7 @@ import { formatStarsAsText } from '../../../util/localization/format';
 import { debounce, onTickEnd, rafPromise } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { callApi, cancelApiProgress } from '../../../api/gramjs';
+import { forgetLocalSends } from '../../../api/proxy/writes';
 import buildAttachment from '../../../components/middle/composer/helpers/buildAttachment';
 import { getIsSavedDialog, getUserFullName, groupMessageIdsByThreadId, isChatChannel, isChatSuperGroup,
   isDeletedUser, isEphemeralSendSupported, isMessageLocal, isServiceNotificationMessage, isUserBot,
@@ -1284,6 +1285,8 @@ addActionHandler('deleteMessages', (global, actions, payload): ActionReturnType 
   }
   const { chatId, threadId } = messageList;
   const chat = selectChat(global, chatId)!;
+  // PXG: a waiting or failed message of a shared chat lives in the device's queue too: deleted, it is never sent
+  if (chat?.pxgProxy) forgetLocalSends(chatId, messageIds);
   const messageIdsToDelete = messageIds.filter((id) => {
     const message = selectChatMessage(global, chatId, id);
     return message && !isMessageLocal(message);

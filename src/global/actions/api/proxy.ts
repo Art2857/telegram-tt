@@ -4,6 +4,7 @@ import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { MAIN_THREAD_ID } from '../../../api/types';
+import { PxgError } from '../../../proxygram/server/types';
 import { LoadMoreDirection } from '../../../types';
 
 import { ARCHIVED_FOLDER_ID } from '../../../config';
@@ -25,7 +26,9 @@ import {
   buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
 } from '../../../api/proxy/methods';
 import { buildSavedChat } from '../../../api/proxy/saved';
+import { forgetUserSends } from '../../../api/proxy/sendQueue';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
+import { showQueuedSends, startSendQueue } from '../../../api/proxy/writes';
 import { buildDownloadedChatState } from '../../../proxygram/downloadedChatChat';
 import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
 import { resolvePermissions } from '../../../proxygram/permissions';
@@ -172,6 +175,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
   if (IS_SHARED_WORKER_SUPPORTED) initSharedState(global.sharedState);
   // Telegram's peer colors never reach a guest, so avatar placeholders and names use the built-in palette
   if (!global.peerColors) updatePeerColors({});
+  // Messages written without the server show with their clock at once, also offline (docs/spec/11 C9)
+  void showQueuedSends();
   actions.loadProxyChats();
   actions.loadChatFolders();
   actions.loadSavedReactionTags();
@@ -184,6 +189,7 @@ addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   if (syncCursor) {
     void forgetUserHistory(syncCursor.userId);
     void forgetProxyFiles(syncCursor.userId);
+    void forgetUserSends(syncCursor.userId);
   }
   setSyncCursor(undefined);
   global = clearProxyChats({ ...global, currentUserId: undefined });
@@ -319,6 +325,8 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       if (!allowedIds.has(message.chatId) || keptChatIds?.has(message.chatId)) return;
       actions.apiUpdate({ '@type': 'newMessage', id: message.id, chatId: message.chatId, message });
     });
+    // The device's queue goes out now that the chats are known; sends to chats no longer shared are dropped
+    void startSendQueue(allowedIds);
     if (isReconnect) {
       actions.syncProxyChanges();
     } else if (syncCursor?.userId !== userId) {
@@ -360,6 +368,9 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       },
     };
     setGlobal(global);
+    // No connection is not a refusal: the header says «Waiting for network», the saved chats stay, and the list
+    // reloads by itself once the server answers
+    if (err instanceof PxgError && CONNECTION_ERRORS.has(err.code)) return;
     actions.showNotification({
       message: getPxgErrorMessage(getTranslationFn(), err),
       actionText: { key: 'Retry' },
@@ -368,6 +379,9 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     });
   }
 });
+
+/** Failures that pass when the connection comes back */
+const CONNECTION_ERRORS = new Set(['disconnected', 'timeout', 'network', 'unauthorized']);
 
 /** The same permissions and the same grants: what the guest already sees of this chat stays valid */
 function isSameProxyAccess(previous: ApiChat['pxgProxy'], next: ApiChat['pxgProxy']) {

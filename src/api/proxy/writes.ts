@@ -6,16 +6,19 @@ import type {
   ApiAttachment, ApiChat, ApiMessage, ApiMessageEntity, ApiOnProgress, ApiPeer,
 } from '../types';
 import type { SavedNoteInput } from './saved';
+import type { QueuedSend, SendRequest } from './sendQueue';
 import { PxgError } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../types';
 
 import { ARCHIVED_FOLDER_ID, LOCAL_MESSAGES_LIMIT } from '../../config';
+import buildUploadingMedia from '../../util/buildUploadingMedia';
+import { getMessageKey } from '../../util/keys/messageKey';
 import { getTranslationFn } from '../../util/localization';
 import { pause } from '../../util/schedulers';
 import { getServerTime } from '../../util/serverTime';
 import { getPxgErrorMessage } from '../../proxygram/errorReasons';
 import { pxgRpc } from '../../proxygram/server/rpc';
-import { getPxgState } from '../../proxygram/server/store';
+import { getPxgState, subscribePxg } from '../../proxygram/server/store';
 import { uploadFile, uploadSavedFile } from '../../proxygram/server/upload';
 import { buildProxyMessage, buildProxyPoll, setProxyUserPaidStars } from './builders';
 import { buildProxyEntities, buildProxyInputEntities } from './entities';
@@ -25,6 +28,10 @@ import { runProxyJob } from './outbox';
 import {
   deleteSaved, editSavedNote, isSavedPeer, pinSaved, saveToSaved, sendSavedNote, tagSaved,
 } from './saved';
+import {
+  dropQueuedSend, findQueuedSendByLocalId, getQueuedSend, getQueuedSends, loadSendQueue, putQueuedSend,
+  restoreAttachment, storeDraft, updateQueuedSend,
+} from './sendQueue';
 
 const DELETE_BATCH_SIZE = 20;
 const MAX_WAVEFORM_LENGTH = 100;
@@ -38,26 +45,39 @@ const COPY_WAIT_BACKOFF = 1.5;
 let localCounter = 0;
 
 type SendParams = MethodArgs<'sendMessage'>[0];
-type SendRequest = NonNullable<ApiMessage['pxgSendRequest']>;
+type SendChat = NonNullable<SendParams['chat']>;
+type SendPeer = NonNullable<ReturnType<typeof resolveProxyPeer>>;
 
-/** Sends that failed before their request was fixed, e.g. during the upload: a retry needs the file again */
-const unsentParams = new Map<string, SendParams>();
-/** Local message id → request id so deleting a failed message frees its file too */
-const unsentMessageIds = new Map<number, string>();
+/** Parameters of the sends started in this tab: a retry needs the file again, and the page still holds it */
+const paramsByRequestId = new Map<string, SendParams>();
+/** Sends being delivered now, by this tab's composer or by the queue: nobody starts them a second time */
+const inFlight = new Set<string>();
 
 type AlbumPart = { localMessage: ApiMessage; request: SendRequest };
 /** Albums being uploaded: how many parts Web A has started and which of them are ready */
 const albums = new Map<string, { expected: number; parts: Map<number, AlbumPart> }>();
 
+/** A failure that passes by itself: the message keeps its clock and goes when the server is reachable again */
+const TRANSIENT_ERRORS = new Set([
+  'disconnected', 'timeout', 'network', 'unauthorized', 'rate_limited', 'access_changed', 'http_0', 'http_408',
+  'http_429', 'http_500', 'http_502', 'http_503', 'http_504',
+]);
+const PUMP_RETRY_MIN_MS = 2000;
+const PUMP_RETRY_MAX_MS = 60_000;
+
 /** The message the guest sees until the server confirms it; the same one waits for a paid send to start */
 function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string): ApiMessage {
   const {
     attachment, text, entities, replyInfo, sticker, gif, poll, todo, dice, scheduledAt, scheduleRepeatPeriod, effectId,
-    sendAs,
+    sendAs, groupedId,
   } = params;
   const isScheduled = Boolean(scheduledAt);
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
   const topicId = chat.isForum ? messageReply?.replyToTopId : undefined;
+  // The file shows at once with its upload progress, as in Telegram
+  const media = attachment && !attachment.ttlSeconds ? buildUploadingMedia(attachment) : undefined;
+  const caption = poll?.summary.question.text || todo?.todo.title.text || dice || text
+    || (media ? '' : attachment?.filename) || '';
   return {
     id: (params.lastMessageId || 0) + (++localCounter / LOCAL_MESSAGES_LIMIT),
     chatId: chat.id, date: scheduledAt || getServerTime(), isOutgoing: true,
@@ -66,21 +86,20 @@ function buildLocalMessage(params: SendParams, chat: ApiChat, requestId: string)
     pxgSentByUserId: getPxgState().session?.user.id,
     pxgIsOwn: true,
     content: sticker ? { sticker } : gif ? { video: gif } : {
+      ...media,
       // A poll, a checklist, a rich message and a dice appear as they are once Telegram has them; until then text stands in
       richMessage: params.richMessage && {
         blocks: params.richMessage.blocks,
         isRtl: params.richMessage.isRtl,
       },
-      text: {
-        text: poll?.summary.question.text || todo?.todo.title.text || dice || text || attachment?.filename || '',
-        entities,
-      },
+      text: caption ? { text: caption, entities } : undefined,
       todo: todo && { mediaType: 'todo', todo: todo.todo },
     },
     sendingState: 'messageSendingStatePending',
     replyInfo: messageReply && { ...messageReply, isForumTopic: topicId ? true : undefined },
     effectId,
     senderId: sendAs?.id,
+    ...(groupedId && { groupedId, ...(media && (media.photo || media.video) && { isInAlbum: true }) }),
     pxgSendRequest: { id: requestId },
   };
 }
@@ -103,19 +122,110 @@ export function sendMessageLocal(params: SendParams) {
   return Promise.resolve(localMessage) as ReturnType<Methods['sendMessageLocal']>;
 }
 
+/**
+ * The guest's send (docs/spec/11 C9): the message shows at once and is kept on the device until the server confirms
+ * it. Without the server it waits with the clock, outlives a reload and goes by itself in the order it was written
+ */
 export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress): Promise<void> {
-  const {
-    chat, attachment, text, entities, replyInfo, sticker, gif, poll, todo, dice, scheduledAt, scheduleRepeatPeriod,
-    effectId, sendAs,
-  } = params;
+  const { chat } = params;
   const peer = chat && resolveProxyPeer(chat.id);
   if (!chat || !peer) return;
-  // Web A starts every part of an album at once; the slot is taken before any of them uploads
-  const albumSlot = !isSavedPeer(peer) && params.groupedId && attachment && !params.localMessage
-    ? reserveAlbumSlot(params.groupedId) : undefined;
-  const isScheduled = Boolean(scheduledAt);
   // The key stays with the local message: the server sends one message per key however often it is repeated
   const requestId = params.localMessage?.pxgSendRequest?.id || crypto.randomUUID();
+  const localMessage: ApiMessage = params.localMessage || buildLocalMessage(params, chat, requestId);
+  if (!params.localMessage) {
+    emitProxyUpdate({
+      '@type': localMessage.isScheduled ? 'newScheduledMessage' : 'newMessage',
+      id: localMessage.id,
+      chatId: chat.id,
+      message: localMessage,
+    });
+  } else if (!params.localMessage.pxgSendRequest) {
+    updateLocalMessage(localMessage, { pxgSendRequest: { id: requestId } });
+  }
+  paramsByRequestId.set(requestId, params);
+  queueSend(params, chat, localMessage, requestId);
+  // An earlier message of this chat still waits, or there is no connection: the queue keeps the order
+  if (!pxgRpc.isConnected || hasEarlierWaiting(chat.id, requestId)) {
+    void pumpQueue();
+    return;
+  }
+  await deliverSend(params, chat, peer, localMessage, requestId, onProgress);
+}
+
+/** The send goes to the device's queue first: closing the tab does not lose it */
+function queueSend(params: SendParams, chat: ApiChat, localMessage: ApiMessage, requestId: string) {
+  const userId = getPxgState().session?.user.id;
+  if (!userId || getQueuedSend(requestId) || (params.attachment && params.attachment.ttlSeconds)) return;
+  putQueuedSend({
+    userId,
+    requestId,
+    chatId: chat.id,
+    createdAt: Date.now(),
+    localMessage: omitBlobUrls(localMessage),
+    groupedId: params.groupedId,
+  });
+  void storeDraft(params).then((draft) => {
+    if (draft) updateQueuedSend(requestId, { draft });
+  });
+}
+
+function hasEarlierWaiting(chatId: string, requestId: string) {
+  const own = getQueuedSend(requestId);
+  return getQueuedSends().some((item) => (
+    item.chatId === chatId && item.requestId !== requestId && !item.error && !inFlight.has(item.requestId)
+    && (!own || item.createdAt <= own.createdAt)
+  ));
+}
+
+/** Blob URLs die with the page: the stored message gets its media back from the stored file */
+function omitBlobUrls(message: ApiMessage): ApiMessage {
+  const { photo, video, document, audio, voice } = message.content;
+  if (!photo && !video && !document && !audio && !voice) return message;
+  const {
+    photo: _photo, video: _video, document: _document, audio: _audio, voice: _voice, ...content
+  } = message.content;
+  return { ...message, content };
+}
+
+async function deliverSend(
+  params: SendParams, chat: SendChat, peer: SendPeer, localMessage: ApiMessage, requestId: string,
+  onProgress?: ApiOnProgress, isRetry?: boolean,
+): Promise<string | undefined> {
+  // Web A starts every part of an album at once; the slot is taken before any of them uploads
+  const albumSlot = !isSavedPeer(peer) && params.groupedId && params.attachment
+    ? reserveAlbumSlot(params.groupedId) : undefined;
+  inFlight.add(requestId);
+  let request: SendRequest | undefined;
+  try {
+    request = await buildSendRequest(params, chat, peer, localMessage, requestId, onProgress);
+    if (albumSlot !== undefined) {
+      await joinAlbum(chat, params.groupedId!, albumSlot, { localMessage, request });
+      return undefined;
+    }
+    await completeSend(chat, localMessage, request, isRetry);
+    return undefined;
+  } catch (err) {
+    // A part that did not upload leaves the album; the rest still go together
+    if (albumSlot !== undefined && !request) void joinAlbum(chat, params.groupedId!, albumSlot);
+    return failSend(chat, localMessage, requestId, err);
+  } finally {
+    inFlight.delete(requestId);
+  }
+}
+
+/** Uploads the file and fixes the request: from now on a retry repeats it byte for byte */
+async function buildSendRequest(
+  params: SendParams, chat: SendChat, peer: SendPeer, localMessage: ApiMessage, requestId: string,
+  onProgress?: ApiOnProgress,
+): Promise<SendRequest> {
+  const {
+    attachment, text, entities, replyInfo, sticker, gif, poll, todo, dice, scheduledAt, scheduleRepeatPeriod,
+    effectId, sendAs,
+  } = params;
+  const isScheduled = Boolean(scheduledAt);
+  const queued = getQueuedSend(requestId);
+  if (queued?.request?.params) return queued.request;
   // In a forum topic Web A replies to the topic's first message: that is the topic, not a quoted reply
   const messageReply = replyInfo?.type === 'message' ? replyInfo : undefined;
   // "Reply in another chat": the replied message lives in that chat. Its `replyToTopId` is a topic of the SOURCE
@@ -135,118 +245,89 @@ export async function sendMessage(params: SendParams, onProgress?: ApiOnProgress
     entities: buildProxyInputEntities(quoteText.entities, (replyToPeer ?? peer).accountId, true),
     offset: messageReply?.quoteOffset,
   } : undefined;
-  const localMessage: ApiMessage = params.localMessage || buildLocalMessage(params, chat, requestId);
-  if (!params.localMessage) {
-    emitProxyUpdate({
-      '@type': isScheduled ? 'newScheduledMessage' : 'newMessage',
-      id: localMessage.id,
-      chatId: chat.id,
-      message: localMessage,
-    });
-  } else if (!params.localMessage.pxgSendRequest) {
-    updateLocalMessage(localMessage, { pxgSendRequest: { id: requestId } });
+  if (isSavedPeer(peer) && (isScheduled || poll || dice || params.todo || params.richMessage)) {
+    throw new PxgError('unsupported');
   }
-  let request: SendRequest | undefined;
-  try {
-    if (isSavedPeer(peer)
-      && (isScheduled || poll || dice || params.todo || params.richMessage)) {
-      throw new PxgError('unsupported');
-    }
-    // The owner's sticker or GIF must come from the catalog of the chat's provider account; Saved Messages take one
-    // from the catalog of any owner who lets the guest use stickers, and the server checks that right
-    const catalogItem = sticker || gif ? parseProxyCatalogId((sticker || gif)!.id) : undefined;
-    if ((sticker || gif) && (!catalogItem || (!isSavedPeer(peer) && catalogItem.accountId !== peer.accountId))) {
-      throw new PxgError('unsupported');
-    }
-    let file: Record<string, unknown> | undefined;
-    if (attachment) {
-      // Self-destructing media is never sent through the server: the archive could not honor the timer
-      if (attachment.ttlSeconds) throw new PxgError('unsupported');
-      const uploaded = await uploadAttachment(chat, attachment, onProgress);
-      const { voice, quick, isRoundVideo } = attachment;
-      file = {
-        uploadId: uploaded.uploadId,
-        kind: isSavedPeer(peer) ? getSavedFileKind(attachment) : voice ? 'voice' : isRoundVideo ? 'round' : undefined,
-        duration: voice?.duration ?? attachment.audio?.duration ?? quick?.duration,
-        waveform: voice?.waveform.slice(0, MAX_WAVEFORM_LENGTH),
-        width: isRoundVideo || isSavedPeer(peer) ? quick?.width : undefined,
-        height: isRoundVideo || isSavedPeer(peer) ? quick?.height : undefined,
-      };
-    }
-    if (onProgress?.isCanceled) throw new PxgError('canceled');
-    request = {
-      id: requestId,
-      params: {
-        ...peer,
-        text: text || '',
-        entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
-        richMessage: params.richMessage && {
-          blocks: params.richMessage.blocks,
-          isRtl: params.richMessage.isRtl,
-        },
-        file,
-        groupedId: isSavedPeer(peer) ? params.groupedId : undefined,
-        document: catalogItem && !isSavedPeer(peer) ? { documentId: catalogItem.documentId } : undefined,
-        sticker: catalogItem && isSavedPeer(peer)
-          ? { accountId: catalogItem.accountId, documentId: catalogItem.documentId } : undefined,
-        poll: poll && {
-          question: poll.summary.question.text,
-          answers: poll.summary.answers.map(({ text: answer }) => answer.text),
-          isPublic: poll.summary.isPublic,
-          isMultipleChoice: poll.summary.isMultipleChoice,
-          canAddAnswers: poll.summary.canAddAnswers,
-          isRevoteDisabled: poll.summary.isRevoteDisabled,
-          shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
-          shouldHideResults: poll.summary.shouldHideResultsUntilClose,
-          // Telegram 2026: несколько правильных ответов, срок закрытия, только подписчики, страны
-          correctAnswers: poll.correctAnswers,
-          correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
-          solution: poll.solution,
-          closePeriod: poll.summary.closePeriod,
-          closeDate: poll.summary.closeDate,
-          subscribersOnly: poll.summary.isRestrictedToSubscribers,
-          countriesIso2: poll.summary.allowedCountryCodes,
-        },
-        todo: todo && {
-          title: todo.todo.title.text,
-          items: todo.todo.items.map(({ id, title }) => ({ id, title: title.text })),
-          othersCanAppend: todo.todo.othersCanAppend,
-          othersCanComplete: todo.todo.othersCanComplete,
-        },
-        dice,
-        replyToMsgId,
-        replyToPeer,
-        quote,
-        topicId,
-        threadId,
-        silent: params.isSilent,
-        scheduleDate: scheduledAt,
-        scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
-        effectId,
-        sendAsPeerId: getSendAsPeerId(sendAs),
-        // The price the guest confirmed: the server spends no more of the owner's Stars than this
-        paidStars: isSavedPeer(peer) ? undefined : params.messagePriceInStars,
-      },
+  // The owner's sticker or GIF must come from the catalog of the chat's provider account; Saved Messages take one
+  // from the catalog of any owner who lets the guest use stickers, and the server checks that right
+  const catalogItem = sticker || gif ? parseProxyCatalogId((sticker || gif)!.id) : undefined;
+  if ((sticker || gif) && (!catalogItem || (!isSavedPeer(peer) && catalogItem.accountId !== peer.accountId))) {
+    throw new PxgError('unsupported');
+  }
+  let file: Record<string, unknown> | undefined;
+  if (attachment) {
+    // Self-destructing media is never sent through the server: the archive could not honor the timer
+    if (attachment.ttlSeconds) throw new PxgError('unsupported');
+    const uploaded = await uploadAttachment(chat, attachment, { localMessage, requestId }, onProgress);
+    const { voice, quick, isRoundVideo } = attachment;
+    file = {
+      uploadId: uploaded.uploadId,
+      kind: isSavedPeer(peer) ? getSavedFileKind(attachment) : voice ? 'voice' : isRoundVideo ? 'round' : undefined,
+      duration: voice?.duration ?? attachment.audio?.duration ?? quick?.duration,
+      waveform: voice?.waveform.slice(0, MAX_WAVEFORM_LENGTH),
+      width: isRoundVideo || isSavedPeer(peer) ? quick?.width : undefined,
+      height: isRoundVideo || isSavedPeer(peer) ? quick?.height : undefined,
     };
-    unsentParams.delete(requestId);
-    unsentMessageIds.delete(localMessage.id);
-    if (albumSlot !== undefined) {
-      await joinAlbum(chat, params.groupedId!, albumSlot, { localMessage, request });
-      return;
-    }
-    // The exact request survives a reload: a retry repeats it byte for byte, so the server recognizes the key
-    updateLocalMessage(localMessage, { pxgSendRequest: request });
-    await completeSend(chat, localMessage, request);
-  } catch (err) {
-    // A part that did not upload leaves the album; the rest still go together
-    if (albumSlot !== undefined && !request) void joinAlbum(chat, params.groupedId!, albumSlot);
-    const isFinal = err instanceof PxgError && (err.code === 'unsupported' || err.code === 'canceled');
-    if (!request && !isFinal) {
-      unsentParams.set(requestId, params);
-      unsentMessageIds.set(localMessage.id, requestId);
-    }
-    emitSendFailed(chat, localMessage, err);
   }
+  if (onProgress?.isCanceled) throw new PxgError('canceled');
+  const request: SendRequest = {
+    id: requestId,
+    params: {
+      ...peer,
+      text: text || '',
+      entities: buildProxyInputEntities(entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers),
+      richMessage: params.richMessage && {
+        blocks: params.richMessage.blocks,
+        isRtl: params.richMessage.isRtl,
+      },
+      file,
+      groupedId: isSavedPeer(peer) ? params.groupedId : undefined,
+      document: catalogItem && !isSavedPeer(peer) ? { documentId: catalogItem.documentId } : undefined,
+      sticker: catalogItem && isSavedPeer(peer)
+        ? { accountId: catalogItem.accountId, documentId: catalogItem.documentId } : undefined,
+      poll: poll && {
+        question: poll.summary.question.text,
+        answers: poll.summary.answers.map(({ text: answer }) => answer.text),
+        isPublic: poll.summary.isPublic,
+        isMultipleChoice: poll.summary.isMultipleChoice,
+        canAddAnswers: poll.summary.canAddAnswers,
+        isRevoteDisabled: poll.summary.isRevoteDisabled,
+        shouldShuffleAnswers: poll.summary.shouldShuffleAnswers,
+        shouldHideResults: poll.summary.shouldHideResultsUntilClose,
+        // Telegram 2026: несколько правильных ответов, срок закрытия, только подписчики, страны
+        correctAnswers: poll.correctAnswers,
+        correctAnswer: poll.summary.isQuiz ? poll.correctAnswers?.[0] : undefined,
+        solution: poll.solution,
+        closePeriod: poll.summary.closePeriod,
+        closeDate: poll.summary.closeDate,
+        subscribersOnly: poll.summary.isRestrictedToSubscribers,
+        countriesIso2: poll.summary.allowedCountryCodes,
+      },
+      todo: todo && {
+        title: todo.todo.title.text,
+        items: todo.todo.items.map(({ id, title }) => ({ id, title: title.text })),
+        othersCanAppend: todo.todo.othersCanAppend,
+        othersCanComplete: todo.todo.othersCanComplete,
+      },
+      dice,
+      replyToMsgId,
+      replyToPeer,
+      quote,
+      topicId,
+      threadId,
+      silent: params.isSilent,
+      scheduleDate: scheduledAt,
+      scheduleRepeatPeriod: isScheduled ? scheduleRepeatPeriod : undefined,
+      effectId,
+      sendAsPeerId: getSendAsPeerId(sendAs),
+      // The price the guest confirmed: the server spends no more of the owner's Stars than this
+      paidStars: isSavedPeer(peer) ? undefined : params.messagePriceInStars,
+    },
+  };
+  // The exact request survives a reload: a retry repeats it byte for byte, so the server recognizes the key
+  updateQueuedSend(requestId, { request });
+  updateLocalMessage(localMessage, { pxgSendRequest: request });
+  return request;
 }
 
 function reserveAlbumSlot(groupedId: string) {
@@ -259,7 +340,7 @@ function reserveAlbumSlot(groupedId: string) {
  * The last part of an album to finish its upload sends all of them as one Telegram message, as GramJS does.
  * A failed album fails every part; a single part left goes as an ordinary message
  */
-async function joinAlbum(chat: ApiChat, groupedId: string, slot: number, part?: AlbumPart) {
+async function joinAlbum(chat: SendChat, groupedId: string, slot: number, part?: AlbumPart) {
   const album = albums.get(groupedId);
   if (!album) return;
   if (part) album.parts.set(slot, part);
@@ -267,18 +348,30 @@ async function joinAlbum(chat: ApiChat, groupedId: string, slot: number, part?: 
   if (album.parts.size < album.expected) return;
   albums.delete(groupedId);
   const parts = [...album.parts].sort(([a], [b]) => a - b).map(([, ready]) => ready);
+  await sendAlbumParts(chat, parts);
+}
+
+/** Returns the error of a final failure; a transient one leaves the parts waiting in the queue */
+async function sendAlbumParts(chat: SendChat, parts: AlbumPart[], isRetry?: boolean): Promise<string | undefined> {
+  if (!parts.length) return undefined;
   if (parts.length === 1) {
     const [{ localMessage, request }] = parts;
-    updateLocalMessage(localMessage, { pxgSendRequest: request });
-    await completeSend(chat, localMessage, request).catch((err) => emitSendFailed(chat, localMessage, err));
-    return;
+    inFlight.add(request.id);
+    try {
+      await completeSend(chat, localMessage, request, isRetry);
+      return undefined;
+    } catch (err) {
+      return failSend(chat, localMessage, request.id, err);
+    } finally {
+      inFlight.delete(request.id);
+    }
   }
-  if (!parts.length) return;
   const {
     text: firstText, entities: firstEntities, file: firstFile, paidStars: firstPaidStars, ...common
   } = parts[0].request.params!;
   // Telegram charges every part of a paid album
   const paidStars = parts.reduce((sum, { request }) => sum + (Number(request.params!.paidStars) || 0), 0);
+  parts.forEach(({ request }) => inFlight.add(request.id));
   try {
     const { msgIds } = await runProxyJob('messages.send', {
       ...common,
@@ -289,12 +382,19 @@ async function joinAlbum(chat: ApiChat, groupedId: string, slot: number, part?: 
         return { file, text, entities };
       }),
       clientRequestId: parts[0].request.id,
+      retry: isRetry,
     }) as { msgIds: number[] };
-    for (const [index, { localMessage }] of parts.entries()) {
+    for (const [index, { localMessage, request }] of parts.entries()) {
       await emitSent(chat, localMessage, msgIds[index]);
+      forgetSend(request.id);
     }
+    return undefined;
   } catch (err) {
-    parts.forEach(({ localMessage }) => emitSendFailed(chat, localMessage, err));
+    return parts.reduce<string | undefined>((error, { localMessage, request }) => (
+      failSend(chat, localMessage, request.id, err) ?? error
+    ), undefined);
+  } finally {
+    parts.forEach(({ request }) => inFlight.delete(request.id));
   }
 }
 
@@ -307,10 +407,15 @@ export async function retrySendMessage(chat: ApiChat, message: ApiMessage): Prom
   if (!request || !canRetrySendMessage(message)) return undefined;
   updateLocalMessage(message, { sendingState: 'messageSendingStatePending' });
   const pending = { ...message, sendingState: 'messageSendingStatePending' as const };
-  if (!request.params) {
-    // The upload did not finish: send the retained file again under the same key
-    await sendMessage({ ...unsentParams.get(request.id)!, localMessage: pending });
-    return undefined;
+  const queued = getQueuedSend(request.id);
+  if (queued) {
+    updateQueuedSend(request.id, { error: undefined, isRetry: true, localMessage: omitBlobUrls(pending) });
+    // An earlier message of this chat still waits: this one goes after it
+    if (!pxgRpc.isConnected || hasEarlierWaiting(chat.id, request.id)) {
+      void pumpQueue();
+      return undefined;
+    }
+    return deliverQueued(getQueuedSend(request.id)!);
   }
   try {
     await completeSend(chat, pending, request, true);
@@ -321,13 +426,15 @@ export async function retrySendMessage(chat: ApiChat, message: ApiMessage): Prom
   }
 }
 
-/** Without the fixed request only a file still held by this page can be sent again */
+/** Without the fixed request only a file still held by this page or the device's queue can be sent again */
 export function canRetrySendMessage(message: ApiMessage) {
   const request = message.pxgSendRequest;
-  return Boolean(request && (request.params || unsentParams.has(request.id)));
+  if (!request) return false;
+  const queued = getQueuedSend(request.id);
+  return Boolean(request.params || paramsByRequestId.has(request.id) || queued?.request || queued?.draft);
 }
 
-async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: SendRequest, isRetry?: boolean) {
+async function completeSend(chat: SendChat, localMessage: ApiMessage, request: SendRequest, isRetry?: boolean) {
   // A note in one's own Saved Messages goes to the server, not to anybody's Telegram
   if (isSavedPeer(chat.pxgProxy)) {
     const params = request.params as SavedNoteInput;
@@ -338,16 +445,241 @@ async function completeSend(chat: ApiChat, localMessage: ApiMessage, request: Se
     emitProxyUpdate({
       '@type': 'updateMessageSendSucceeded', chatId: chat.id, localId: localMessage.id, message: note,
     });
+    forgetSend(request.id);
     return;
   }
   const result = await runProxyJob('messages.send', {
     ...request.params, clientRequestId: request.id, retry: isRetry,
   }) as { msgId: number };
   await emitSent(chat, localMessage, result.msgId);
+  forgetSend(request.id);
 }
 
+/** Sent or given up: nothing of it stays on the device */
+function forgetSend(requestId: string) {
+  paramsByRequestId.delete(requestId);
+  dropQueuedSend(requestId);
+}
+
+/**
+ * A transient failure keeps the message pending in the queue; a refusal marks it failed with its reason and
+ * "Retry". Returns the error shown for a final failure
+ */
+function failSend(chat: SendChat, localMessage: ApiMessage, requestId: string, err: unknown): string | undefined {
+  const code = err instanceof PxgError ? err.code : undefined;
+  const reason = getErrorMessage(err);
+  const queued = getQueuedSend(requestId);
+  if (code === 'canceled' || code === 'unsupported') {
+    forgetSend(requestId);
+    emitSendFailed(chat, localMessage, err);
+    return reason;
+  }
+  // The server dropped the unfinished upload: the stored file is uploaded again
+  if (reason === 'upload_missing' && queued?.draft) {
+    updateQueuedSend(requestId, { request: undefined, uploadId: undefined });
+    schedulePump();
+    return undefined;
+  }
+  if (queued && code && TRANSIENT_ERRORS.has(code) && getPxgState().session?.user.id === queued.userId) {
+    schedulePump();
+    return undefined;
+  }
+  updateQueuedSend(requestId, { error: reason, isRetry: undefined });
+  emitSendFailed(chat, localMessage, err);
+  return reason;
+}
+
+let isPumping = false;
+let pumpTimer: ReturnType<typeof setTimeout> | undefined;
+let pumpDelay = PUMP_RETRY_MIN_MS;
+let isQueueStarted = false;
+
+/** The queue goes when the server answers: right away after a reconnect, otherwise with a growing pause */
+function schedulePump() {
+  if (pumpTimer) return;
+  pumpTimer = setTimeout(() => {
+    pumpTimer = undefined;
+    void pumpQueue();
+  }, pumpDelay);
+  pumpDelay = Math.min(pumpDelay * 2, PUMP_RETRY_MAX_MS);
+}
+
+/** Waiting sends go one by one in the order they were written; an album goes as one message */
+async function pumpQueue() {
+  if (isPumping || !isQueueStarted) return;
+  isPumping = true;
+  try {
+    while (pxgRpc.isConnected) {
+      const next = getQueuedSends().find((item) => !item.error && !inFlight.has(item.requestId));
+      if (!next) {
+        pumpDelay = PUMP_RETRY_MIN_MS;
+        break;
+      }
+      await deliverQueued(next);
+      // Still waiting after the attempt: the server is not answering, the timer brings the next attempt
+      if (getQueuedSend(next.requestId) && !getQueuedSend(next.requestId)!.error) break;
+    }
+  } finally {
+    isPumping = false;
+  }
+}
+
+/** One waiting send, or the whole album it belongs to. Returns the error of a final failure */
+async function deliverQueued(item: QueuedSend): Promise<string | undefined> {
+  const chat = getGlobal().chats.byId[item.chatId];
+  const peer = chat && resolveProxyPeer(chat.id);
+  if (!chat || !peer) {
+    // The chat is gone with its access: there is nobody to send it to
+    forgetSend(item.requestId);
+    return undefined;
+  }
+  const group = item.groupedId && !isSavedPeer(peer)
+    ? getQueuedSends().filter((part) => (
+      part.groupedId === item.groupedId && part.chatId === item.chatId && !part.error && !inFlight.has(part.requestId)
+    ))
+    : [item];
+  if (group.length === 1 && !item.groupedId) {
+    const params = getSendParams(item, chat);
+    if (!item.request?.params && !params) {
+      forgetSend(item.requestId);
+      emitSendFailed(chat, item.localMessage, new PxgError('upload_missing', undefined, 'upload_missing'));
+      return 'upload_missing';
+    }
+    const localMessage = item.localMessage;
+    if (item.request?.params) {
+      inFlight.add(item.requestId);
+      try {
+        await completeSend(chat, localMessage, item.request, item.isRetry);
+        return undefined;
+      } catch (err) {
+        return failSend(chat, localMessage, item.requestId, err);
+      } finally {
+        inFlight.delete(item.requestId);
+      }
+    }
+    return deliverSend(params!, chat, peer, localMessage, item.requestId, undefined, item.isRetry);
+  }
+  // Every part uploads first, then the album goes as one message, as in the composer
+  const parts: AlbumPart[] = [];
+  for (const part of group) {
+    if (part.request?.params) {
+      parts.push({ localMessage: part.localMessage, request: part.request });
+      continue;
+    }
+    const params = getSendParams(part, chat);
+    if (!params) {
+      forgetSend(part.requestId);
+      emitSendFailed(chat, part.localMessage, new PxgError('upload_missing', undefined, 'upload_missing'));
+      continue;
+    }
+    inFlight.add(part.requestId);
+    try {
+      const request = await buildSendRequest(params, chat, peer, part.localMessage, part.requestId);
+      parts.push({ localMessage: part.localMessage, request });
+    } catch (err) {
+      const error = failSend(chat, part.localMessage, part.requestId, err);
+      // Not uploaded for now: the album waits for this part rather than going without it
+      if (!error) return undefined;
+    } finally {
+      inFlight.delete(part.requestId);
+    }
+  }
+  return sendAlbumParts(chat, parts, group.some((part) => part.isRetry));
+}
+
+/** The parameters of a send: the page's own, or the stored ones with the file read back from the device */
+function getSendParams(item: QueuedSend, chat: ApiChat): SendParams | undefined {
+  const own = paramsByRequestId.get(item.requestId);
+  if (own) return { ...own, chat, localMessage: item.localMessage };
+  if (!item.draft) return undefined;
+  const { attachment, ...rest } = item.draft;
+  const params = {
+    ...rest, chat, localMessage: item.localMessage, attachment: attachment && restoreAttachment(attachment),
+  } as SendParams;
+  paramsByRequestId.set(item.requestId, params);
+  return params;
+}
+
+/**
+ * The queue of the previous session shows in the feed: waiting messages with the clock, refused ones with their
+ * reason. Called once the chats are on screen, also without a connection
+ */
+export async function showQueuedSends() {
+  const userId = getPxgState().session?.user.id;
+  if (!userId) return;
+  await loadSendQueue(userId);
+  if (getPxgState().session?.user.id !== userId) return;
+  const global = getGlobal();
+  getQueuedSends().forEach((item) => {
+    const chat = global.chats.byId[item.chatId];
+    if (!chat || inFlight.has(item.requestId)) return;
+    const localId = item.localMessage.id;
+    // Local IDs of this page must not collide with the restored ones
+    localCounter = Math.max(localCounter, Math.round((localId % 1) * LOCAL_MESSAGES_LIMIT));
+    const params = getSendParams(item, chat);
+    const media = params?.attachment && buildUploadingMedia(params.attachment);
+    const message: ApiMessage = {
+      ...item.localMessage,
+      content: media ? { ...item.localMessage.content, ...media } : item.localMessage.content,
+      sendingState: item.error ? 'messageSendingStateFailed' : 'messageSendingStatePending',
+      pxgSendRequest: item.request ?? { id: item.requestId },
+    };
+    emitProxyUpdate({
+      '@type': message.isScheduled ? 'newScheduledMessage' : 'newMessage',
+      id: message.id,
+      chatId: chat.id,
+      message,
+    });
+    if (item.error) {
+      emitProxyUpdate({
+        '@type': message.isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
+        chatId: chat.id,
+        localId: message.id,
+        error: item.error,
+      });
+    }
+  });
+}
+
+/**
+ * The chats came from the server: sends to chats that are no longer shared are dropped, the rest go out.
+ * From now on a reconnect sends the queue by itself
+ */
+export async function startSendQueue(allowedChatIds: Set<string>) {
+  const userId = getPxgState().session?.user.id;
+  if (!userId) return;
+  await loadSendQueue(userId);
+  if (getPxgState().session?.user.id !== userId) return;
+  if (!isQueueStarted) await showQueuedSends();
+  getQueuedSends().forEach((item) => {
+    if (!allowedChatIds.has(item.chatId)) forgetSend(item.requestId);
+  });
+  isQueueStarted = true;
+  void pumpQueue();
+}
+
+/** A failed or waiting message deleted by the guest is never sent */
+export function forgetLocalSends(chatId: string, messageIds: number[]) {
+  messageIds.forEach((id) => {
+    const queued = findQueuedSendByLocalId(chatId, id);
+    if (queued) forgetSend(queued.requestId);
+  });
+}
+
+subscribePxg(() => {
+  const { connection, session } = getPxgState();
+  if (!session) {
+    isQueueStarted = false;
+    return;
+  }
+  if (connection === 'online') {
+    pumpDelay = PUMP_RETRY_MIN_MS;
+    void pumpQueue();
+  }
+});
+
 /** The local message gives way to the one Telegram has */
-async function emitSent(chat: ApiChat, localMessage: ApiMessage, msgId: number | undefined) {
+async function emitSent(chat: SendChat, localMessage: ApiMessage, msgId: number | undefined) {
   if (msgId === undefined) throw new PxgError('not_found');
   if (localMessage.isScheduled) {
     // A scheduled message reaches the archive when Telegram sends it
@@ -399,15 +731,28 @@ export function updateProxyPaidStars(chatId: string, stars?: number) {
 /** A refusal of the server travels as its reason: the failed message shows it in the interface language */
 function getErrorMessage(err: unknown) {
   if (err instanceof PxgError && err.reason) return err.reason;
+  if (err instanceof PxgError) return err.code;
   return err instanceof Error ? err.message : 'Send failed';
 }
 
-async function uploadAttachment(chat: ApiChat, attachment: ApiAttachment, onProgress?: ApiOnProgress) {
+/** The upload continues where the previous attempt stopped, also after a reload */
+async function uploadAttachment(
+  chat: ApiChat, attachment: ApiAttachment, send?: { localMessage: ApiMessage; requestId: string },
+  onProgress?: ApiOnProgress,
+) {
   const blob = attachment.blob || await (await fetch(attachment.compressedBlobUrl || attachment.blobUrl)).blob();
   const upload = new File([blob], attachment.filename, { type: blob.type || attachment.mimeType });
   const maxBytes = chat.pxgProxy?.maxUploadBytes ?? 0;
-  if (isSavedPeer(chat.pxgProxy)) return uploadSavedFile(upload, maxBytes, (fraction) => onProgress?.(fraction));
-  return uploadFile(upload, resolveProxyPeer(chat.id)!, maxBytes, (fraction) => onProgress?.(fraction));
+  // Web A finds the upload by the message: its progress shows on the message and "Cancel" stops it
+  const messageKey = send && getMessageKey(send.localMessage);
+  const report = (fraction: number) => onProgress?.(fraction, messageKey);
+  if (isSavedPeer(chat.pxgProxy)) return uploadSavedFile(upload, maxBytes, report);
+  const requestId = send?.requestId;
+  return uploadFile(upload, resolveProxyPeer(chat.id)!, maxBytes, report, requestId ? {
+    resumeUploadId: getQueuedSend(requestId)?.uploadId,
+    onStarted: (uploadId) => updateQueuedSend(requestId, { uploadId }),
+    isCanceled: () => Boolean(onProgress?.isCanceled),
+  } : undefined);
 }
 
 function getSavedFileKind(attachment: ApiAttachment) {
@@ -550,13 +895,8 @@ async function editScheduledMessage(
 export async function deleteMessages({ chat, messageIds }: MethodArgs<'deleteMessages'>[0]): Promise<void> {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return;
-  // A failed message that is deleted will never be retried: do not keep its file in memory
-  for (const id of messageIds) {
-    const requestId = unsentMessageIds.get(id);
-    if (!requestId) continue;
-    unsentParams.delete(requestId);
-    unsentMessageIds.delete(id);
-  }
+  // A failed message that is deleted will never be retried: its file leaves the page and the device
+  forgetLocalSends(chat.id, messageIds);
   try {
     if (isSavedPeer(peer)) {
       for (let offset = 0; offset < messageIds.length; offset += DELETE_BATCH_SIZE) {
