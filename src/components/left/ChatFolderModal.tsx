@@ -47,7 +47,9 @@ const ChatFolderModal = ({
     }
 
     return Object.keys(foldersById).reduce((result, folderId) => {
-      const { includedChatIds, pinnedChatIds } = foldersById[Number(folderId)];
+      const { includedChatIds, pinnedChatIds, pxgLocal } = foldersById[Number(folderId)];
+      // PXG: a tab of chats shared with the guest is filled by the server, not by hand
+      if (pxgLocal) return result;
       if (includedChatIds.includes(chatId) || pinnedChatIds?.includes(chatId)) {
         result.push(folderId);
       }
@@ -59,7 +61,7 @@ const ChatFolderModal = ({
   const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>(initialSelectedFolderIds);
 
   const folders = useMemo(() => {
-    return folderOrderedIds?.filter((folderId) => folderId !== ALL_FOLDER_ID)
+    return folderOrderedIds?.filter((folderId) => folderId !== ALL_FOLDER_ID && !foldersById?.[folderId]?.pxgLocal)
       .map((folderId) => {
         const folder = foldersById ? foldersById[folderId] : undefined;
         const label = folder ? renderTextWithEntities({
