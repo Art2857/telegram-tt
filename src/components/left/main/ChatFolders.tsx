@@ -15,6 +15,7 @@ import buildClassName from '../../../util/buildClassName';
 import captureEscKeyListener from '../../../util/captureEscKeyListener';
 import { captureEvents, SwipeDirection } from '../../../util/captureEvents';
 import { resolveTransitionName } from '../../../util/resolveTransitionName';
+import { selectVisibleFolderIds } from '../../../proxygram/hiddenFolders';
 
 import useDerivedState from '../../../hooks/useDerivedState';
 import useFolderTabs from '../../../hooks/useFolderTabs';
@@ -297,7 +298,6 @@ export default memo(withGlobal<OwnProps>(
     const {
       chatFolders: {
         byId: chatFoldersById,
-        orderedIds: orderedFolderIds,
         invites: folderInvitesById,
       },
       chats: {
@@ -313,6 +313,8 @@ export default memo(withGlobal<OwnProps>(
       currentUserId,
       archiveSettings,
     } = global;
+    // Proxygram: hidden folders of one's own leave the strip (docs/spec/13 §8)
+    const orderedFolderIds = selectVisibleFolderIds(global);
     const { animationLevel } = selectSharedSettings(global);
     const { shouldSkipHistoryAnimations, activeChatFolder } = selectTabState(global);
     const { storyViewer: { isRibbonShown: isStoryRibbonShown } } = selectTabState(global);

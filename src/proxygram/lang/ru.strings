@@ -235,6 +235,8 @@
 "PxgFolderHide" = "Скрыть";
 "PxgFolderShow" = "Показать";
 "PxgFolderHidden" = "скрыта";
+"PxgFolderHiddenTapToShow" = "Скрыта — нажмите, чтобы вкладка снова появилась";
+"PxgFolderShownTapToHide" = "Видна — нажмите, чтобы скрыть вкладку";
 "PxgFolderCustomMark" = "своё название";
 "PxgFolderKindAccesses" = "все открытые чаты";
 "PxgFolderKindOwner" = "чаты владельца";

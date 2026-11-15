@@ -4748,6 +4748,8 @@
 "PxgFolderHide" = "Hide";
 "PxgFolderShow" = "Show";
 "PxgFolderHidden" = "hidden";
+"PxgFolderHiddenTapToShow" = "Hidden — tap to show the tab again";
+"PxgFolderShownTapToHide" = "Shown — tap to hide the tab";
 "PxgFolderCustomMark" = "custom name";
 "PxgFolderKindAccesses" = "all shared chats";
 "PxgFolderKindOwner" = "owner's chats";

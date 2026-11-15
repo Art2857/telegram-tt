@@ -69,8 +69,12 @@ const TabList = ({
   useHorizontalScroll(containerRef, !tabs.length, true);
 
   const updateClipPath = useLastCallback(() => {
-    const clipPathContainer = clipPathContainerRef.current;
-    const activeTabEl = activeTab >= 0 && clipPathContainer?.childNodes[activeTab] as HTMLElement | undefined;
+    // Proxygram: after a tab is removed from the middle Teact leaves this ref empty while the element stays,
+    // and the highlight kept the old position (docs/spec/13 §8) — the indicator is then found in the list
+    const clipPathContainer = clipPathContainerRef.current
+      || containerRef.current?.querySelector<HTMLDivElement>(`:scope > .${styles.activeIndicator}`)
+      || undefined;
+    const activeTabEl = activeTab >= 0 && clipPathContainer?.children[activeTab] as HTMLElement | undefined;
 
     if (clipPathContainer && activeTabEl && clipPathContainer.offsetWidth > 0) {
       const { offsetLeft, offsetWidth } = activeTabEl;

@@ -16,9 +16,11 @@ import buildClassName from '../../../../util/buildClassName';
 import { isBetween } from '../../../../util/math';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import { throttle } from '../../../../util/schedulers';
+import { canHideFolders, ownFolderKey, setFolderHidden } from '../../../../proxygram/hiddenFolders';
 import { LOCAL_TGS_URLS } from '../../../common/helpers/animatedAssets';
 import { renderTextWithEntities } from '../../../common/helpers/renderTextWithEntities';
 
+import useSelector from '../../../../hooks/data/useSelector';
 import { useFolderManagerForChatsCount } from '../../../../hooks/useFolderManager';
 import useHistoryBack from '../../../../hooks/useHistoryBack';
 import useLang from '../../../../hooks/useLang';
@@ -30,6 +32,7 @@ import AnimatedIconWithPreview from '../../../common/AnimatedIconWithPreview';
 import Icon from '../../../common/icons/Icon';
 import Island, { IslandOutside, IslandTitle } from '../../../gili/layout/Island';
 import Surface from '../../../gili/layout/Surface';
+import FoldersFromOthersIsland from '../../../proxygram/settings/FoldersFromOthersIsland';
 import Button from '../../../ui/Button';
 import Checkbox from '../../../ui/Checkbox';
 import Draggable from '../../../ui/Draggable';
@@ -143,6 +146,8 @@ const SettingsFoldersMain = ({
   });
 
   const chatsCountByFolderId = useFolderManagerForChatsCount();
+  // Proxygram: a hidden folder of one's own stays in this list with a mark and «Show» (docs/spec/13 §8)
+  const folderPrefs = useSelector((global) => global.chatFolders.pxgPrefs);
   const userFolders = useMemo(() => {
     if (!folderIds) {
       return undefined;
@@ -172,9 +177,10 @@ const SettingsFoldersMain = ({
         isChatList: folder.isChatList,
         color: folder.color,
         noTitleAnimations: folder.noTitleAnimations,
+        isHidden: Boolean(folderPrefs?.[ownFolderKey(folder.id)]?.hidden),
       };
     });
-  }, [folderIds, foldersById, lang, chatsCountByFolderId]);
+  }, [folderIds, foldersById, lang, chatsCountByFolderId, folderPrefs]);
 
   const handleCreateFolderFromRecommended = useCallback((folder: ApiChatFolder) => {
     if (telegramFolderCount >= maxFolders - 1) {
@@ -263,7 +269,11 @@ const SettingsFoldersMain = ({
 
       <IslandTitle dir={lang.isRtl ? 'rtl' : undefined}>{lang('Filters')}</IslandTitle>
       <Island>
-        <div className="settings-sortable-container" style={`height: ${(folderIds?.length || 0) * FOLDER_HEIGHT_PX}px`}>
+        {/* Proxygram: folders from others are listed below, not in this list — an empty row was left for them */}
+        <div
+          className="settings-sortable-container"
+          style={`height: ${(userFolders?.length || 0) * FOLDER_HEIGHT_PX}px`}
+        >
           {userFolders?.length ? userFolders.map((folder, i) => {
             const isBlocked = i > maxFolders - 1;
             const isDragged = state.draggedIndex === i;
@@ -321,6 +331,11 @@ const SettingsFoldersMain = ({
                   secondaryIcon="more"
                   multiline
                   contextActions={[
+                    ...(canHideFolders() ? [{
+                      handler: () => void setFolderHidden(ownFolderKey(folder.id), !folder.isHidden, folder.id),
+                      title: lang(folder.isHidden ? 'PxgFolderShow' : 'PxgFolderHide'),
+                      icon: folder.isHidden ? 'eye' as const : 'eye-crossed' as const,
+                    }] : []),
                     {
                       handler: () => {
                         openDeleteChatFolderModal({ folderId: folder.id });
@@ -352,6 +367,7 @@ const SettingsFoldersMain = ({
                   <span className="subtitle">
                     {folder.isChatList && <Icon name="link" className="mr-1" />}
                     {folder.subtitle}
+                    {folder.isHidden && ` · ${lang('PxgFolderHidden')}`}
                   </span>
 
                   {
@@ -374,6 +390,8 @@ const SettingsFoldersMain = ({
           ) : <Loading />}
         </div>
       </Island>
+
+      <FoldersFromOthersIsland />
 
       {(recommendedChatFolders && Boolean(recommendedChatFolders.length)) && (
         <>

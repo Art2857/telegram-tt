@@ -10,6 +10,7 @@ import { selectCurrentLimit } from '../../global/selectors/limits';
 import { IS_TAURI } from '../../util/browser/globalEnvironment';
 import { IS_MAC_OS } from '../../util/browser/windowEnvironment';
 import buildClassName from '../../util/buildClassName';
+import { selectVisibleFolderIds } from '../../proxygram/hiddenFolders';
 
 import useFolderTabs from '../../hooks/useFolderTabs';
 import useLang from '../../hooks/useLang';
@@ -215,10 +216,11 @@ export default memo(withGlobal(
     const {
       chatFolders: {
         byId: chatFoldersById,
-        orderedIds: orderedFolderIds,
         invites: folderInvitesById,
       },
     } = global;
+    // Proxygram: hidden folders of one's own leave the strip (docs/spec/13 §8)
+    const orderedFolderIds = selectVisibleFolderIds(global);
     const { activeChatFolder } = selectTabState(global);
 
     return {

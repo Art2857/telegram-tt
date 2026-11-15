@@ -16,6 +16,7 @@ import { ALL_FOLDER_ID } from '../config';
 import { selectCanShareFolder } from '../global/selectors';
 import { MEMO_EMPTY_ARRAY } from '../util/memo';
 import { renderTextWithEntities } from '../components/common/helpers/renderTextWithEntities';
+import { canHideFolders, ownFolderKey, setFolderHidden } from '../proxygram/hiddenFolders';
 import { getPxgState, setPxgState } from '../proxygram/server/store';
 import { openSharedFolderEditor, prefsByKey, saveSharedFolder } from '../proxygram/sharedFolders';
 import useAppLayout from './useAppLayout';
@@ -148,11 +149,7 @@ const useFolderTabs = (params: Params) => {
         contextActions.push({
           title: lang('PxgFolderHide'),
           icon: 'eye-crossed',
-          handler: () => {
-            void saveSharedFolder(folder.pxgLocalKey!, { hidden: true })
-              .then(({ prefs }) => applyProxyFolderPrefs({ prefs: prefsByKey(prefs) }))
-              .catch(() => showNotification({ message: { key: 'PxgErrorGeneric' } }));
-          },
+          handler: () => void setFolderHidden(folder.pxgLocalKey!, true, id),
         });
       }
 
@@ -227,6 +224,15 @@ const useFolderTabs = (params: Params) => {
               title: lang('ChatListMarkAllAsRead'),
               icon: 'readchats',
               handler: () => handleReadAllChats(folder.id),
+            });
+          }
+
+          // Proxygram: a folder of one's own can be hidden too; «Settings → Chat Folders» brings it back
+          if (canHideFolders()) {
+            contextActions.push({
+              title: lang('PxgFolderHide'),
+              icon: 'eye-crossed',
+              handler: () => void setFolderHidden(ownFolderKey(id), true, id),
             });
           }
 

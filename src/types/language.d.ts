@@ -3581,6 +3581,8 @@ export interface LangPair {
   'PxgFolderHide': undefined;
   'PxgFolderShow': undefined;
   'PxgFolderHidden': undefined;
+  'PxgFolderHiddenTapToShow': undefined;
+  'PxgFolderShownTapToHide': undefined;
   'PxgFolderCustomMark': undefined;
   'PxgFolderKindAccesses': undefined;
   'PxgFolderKindOwner': undefined;
