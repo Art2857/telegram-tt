@@ -20,10 +20,14 @@ import { isSavedPeer } from './saved';
 const DEFAULT_MEDIA_SIZE = 512;
 const ANIMATED_STICKER_MIME = 'application/x-tgsticker';
 const UNREGISTERED_CONTACT_ID = '0';
-// After a server restart the worker takes the account in ~40 s: waiting less leaves media empty until a reload
-const MEDIA_WAIT_MS = 120_000;
-const MEDIA_WAIT_INTERVAL_MS = 2000;
+// The server keeps fetching a file while it is wanted: after a restart, a VPN switch or a FLOOD_WAIT of the owner's
+// account it may take minutes, and giving up earlier leaves the picture empty until a reload
+const MEDIA_WAIT_MS = 10 * 60_000;
+const MEDIA_WAIT_INTERVAL_MS = 1000;
 const MEDIA_WAIT_MAX_INTERVAL_MS = 8000;
+/** Signed links live 10 minutes on the server (MEDIA_TOKEN_TTL_MS): reuse them a bit less */
+const SIGNED_LINK_TTL_MS = 8 * 60_000;
+const SIGNED_LINKS_LIMIT = 2000;
 /** 1×1 transparent PNG: an animated sticker has no static thumbnail, its animation replaces the placeholder */
 const EMPTY_THUMBNAIL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
@@ -168,36 +172,25 @@ export async function downloadMedia(
   const catalog = parseProxyCatalogHash(url);
   const request = userId && buildMediaRequest(url, userId, catalog);
   if (!request) return undefined;
-  let signed: { url: string; mimeType: string; size?: number } | undefined;
-  const deadline = Date.now() + MEDIA_WAIT_MS;
-  let interval = MEDIA_WAIT_INTERVAL_MS;
-  while (!signed) {
-    if (onProgress?.isCanceled || userId !== getPxgState().session?.user.id) return undefined;
-    try {
-      signed = await pxgRpc.call(...request);
-    } catch (err) {
-      // A document without a Telegram thumbnail gets an empty preview, so Web A keeps the emoji fallback
-      if (catalog?.isThumbnail && err instanceof PxgError && err.code === 'not_found') return buildEmptyPreview();
-      if (!(err instanceof PxgError) || err.code !== 'media_pending' || Date.now() + interval > deadline) throw err;
-      await pause(interval);
-      interval = Math.min(interval * 1.5, MEDIA_WAIT_MAX_INTERVAL_MS);
-    }
-  }
-  if (!signed) return undefined;
-  // The server has only the sticker's animation for a message: it is no picture, and it plays over the placeholder
   const fileHash = parseProxyMediaHash(url) || parseProxyArchiveHash(url);
-  if (signed.mimeType === ANIMATED_STICKER_MIME && fileHash?.isPreview) return buildEmptyPreview();
-  const headers: Record<string, string> = {};
-  if (start !== undefined || end !== undefined) {
-    headers.Range = `bytes=${start || 0}-${end ?? ''}`;
+  // A video or GIF has no picture of its own on the server yet: its preview would be the whole file
+  if (fileHash?.isPreview && isDocumentHash(url)) return buildEmptyPreview();
+  const isCanceled = () => Boolean(onProgress?.isCanceled) || userId !== getPxgState().session?.user.id;
+  const range = start !== undefined || end !== undefined ? `bytes=${start || 0}-${end ?? ''}` : undefined;
+  let loaded: LoadedFile | undefined;
+  try {
+    loaded = await loadFile(request, range, onProgress, isCanceled);
+  } catch (err) {
+    // A document without a Telegram thumbnail gets an empty preview, so Web A keeps the emoji fallback
+    if (catalog?.isThumbnail && err instanceof PxgError && err.code === 'not_found') return buildEmptyPreview();
+    throw err;
   }
-  const response = await fetch(`${PXG_SERVER_URL}${signed.url}`, { headers });
-  if (!response.ok) throw new PxgError(`http_${response.status}`);
-  // Files outside the archive arrive while the server is still fetching them from Telegram
-  const buffer = await readResponse(response, Number(response.headers.get('content-length')), onProgress);
-  if (!buffer || onProgress?.isCanceled || userId !== getPxgState().session?.user.id) return undefined;
+  if (!loaded || isCanceled()) return undefined;
+  const { signed, buffer, contentType } = loaded;
+  // The server has only the sticker's animation for a message: it is no picture, and it plays over the placeholder
+  if (signed.mimeType === ANIMATED_STICKER_MIME && fileHash?.isPreview) return buildEmptyPreview();
   onProgress?.(1);
-  const mimeType = signed.mimeType || response.headers.get('content-type') || 'application/octet-stream';
+  const mimeType = signed.mimeType || contentType || 'application/octet-stream';
   const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
@@ -210,6 +203,105 @@ export async function downloadMedia(
   return {
     dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size ?? buffer.byteLength,
   };
+}
+
+type MediaRequest = [string, Record<string, unknown>];
+type SignedFile = { url: string; mimeType: string; size?: number };
+type LoadedFile = { signed: SignedFile; buffer: ArrayBuffer; contentType?: string };
+
+/** Errors that pass by themselves: the file is on its way, the network or the server's VPN blinked (docs/spec/11 C1) */
+const TRANSIENT_CODES = new Set(['media_pending', 'rate_limited', 'timeout', 'disconnected', 'internal']);
+const TRANSIENT_HTTP = /^http_(?:5\d\d|408|429)$/;
+/** A link expired or belongs to a previous session: a new one is signed, and the access is checked again */
+const STALE_LINK_HTTP = new Set(['http_403', 'http_410']);
+
+/**
+ * One signed link per file while it lives: the preview, the picture in the feed and the full size of one message ask
+ * for the same link, and the browser takes the bytes from its HTTP cache instead of the server (docs/spec/11 C2)
+ */
+const signedLinks = new Map<string, { signed: SignedFile; until: number }>();
+const signing = new Map<string, Promise<SignedFile>>();
+
+function signFile(request: MediaRequest): Promise<SignedFile> {
+  const key = JSON.stringify(request);
+  const known = signedLinks.get(key);
+  if (known && known.until > Date.now()) return Promise.resolve(known.signed);
+  let promise = signing.get(key);
+  if (!promise) {
+    promise = pxgRpc.call<SignedFile>(...request).then((signed) => {
+      if (signedLinks.size >= SIGNED_LINKS_LIMIT) signedLinks.clear();
+      signedLinks.set(key, { signed, until: Date.now() + SIGNED_LINK_TTL_MS });
+      return signed;
+    }).finally(() => signing.delete(key));
+    signing.set(key, promise);
+  }
+  return promise;
+}
+
+function forgetSignedLink(request: MediaRequest) {
+  signedLinks.delete(JSON.stringify(request));
+}
+
+/**
+ * Waits while the server says the file is on its way and repeats after anything temporary; gives up only on a refusal
+ * (no access, no such file) or after a long time, so a blink of the network does not leave an empty picture
+ */
+async function loadFile(
+  request: MediaRequest, range: string | undefined, onProgress: MethodArgs<'downloadMedia'>[1],
+  isCanceled: () => boolean,
+): Promise<LoadedFile | undefined> {
+  const deadline = Date.now() + MEDIA_WAIT_MS;
+  let interval = MEDIA_WAIT_INTERVAL_MS;
+  for (;;) {
+    if (isCanceled()) return undefined;
+    try {
+      const signed = await signFile(request);
+      if (isCanceled()) return undefined;
+      const response = await fetch(`${PXG_SERVER_URL}${signed.url}`, range ? { headers: { Range: range } } : {});
+      if (!response.ok) {
+        if (STALE_LINK_HTTP.has(`http_${response.status}`)) forgetSignedLink(request);
+        throw new PxgError(`http_${response.status}`);
+      }
+      // Files outside the archive arrive while the server is still fetching them from Telegram
+      const buffer = await readResponse(response, Number(response.headers.get('content-length')), onProgress);
+      if (!buffer) return undefined;
+      return { signed, buffer, contentType: response.headers.get('content-type') || undefined };
+    } catch (err) {
+      if (!isTransientMediaError(err) || Date.now() + interval > deadline) throw err;
+      await waitForRetry(interval);
+      interval = Math.min(interval * 1.5, MEDIA_WAIT_MAX_INTERVAL_MS);
+    }
+  }
+}
+
+function isTransientMediaError(err: unknown) {
+  if (err instanceof PxgError) {
+    return TRANSIENT_CODES.has(err.code) || TRANSIENT_HTTP.test(err.code) || STALE_LINK_HTTP.has(err.code);
+  }
+  // fetch rejects with a TypeError when the network is gone
+  return err instanceof TypeError;
+}
+
+/** Without a network there is nothing to ask: wait for it to come back instead of spinning */
+async function waitForRetry(interval: number) {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false || typeof window === 'undefined') {
+    await pause(interval);
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      window.removeEventListener('online', done);
+      resolve();
+    };
+    window.addEventListener('online', done);
+    setTimeout(done, MEDIA_WAIT_MAX_INTERVAL_MS * 4);
+  });
+}
+
+/** Message media of a video, GIF or file: Web A asks `document…?size=` for its preview picture */
+function isDocumentHash(url: string) {
+  const hash = /^https?:\/\//.test(url) ? url.slice(url.lastIndexOf('/') + 1) : url;
+  return hash.startsWith('documentpxg');
 }
 
 function buildEmptyPreview() {

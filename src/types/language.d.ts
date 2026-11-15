@@ -3974,6 +3974,36 @@ export interface LangPair {
   'PxgAdminVpnHealthy': undefined;
   'PxgAdminVpnDown': undefined;
   'PxgAdminVpnSwitch': undefined;
+  'PxgAdminVpnTab': undefined;
+  'PxgAdminVpnAlertUnreachable': undefined;
+  'PxgAdminVpnAlertDown': undefined;
+  'PxgAdminVpnOpen': undefined;
+  'PxgAdminVpnNotUsed': undefined;
+  'PxgAdminVpnActive': undefined;
+  'PxgAdminVpnCounts': undefined;
+  'PxgAdminVpnBusy': undefined;
+  'PxgAdminVpnCheckNow': undefined;
+  'PxgAdminVpnRefresh': undefined;
+  'PxgAdminVpnReplace': undefined;
+  'PxgAdminVpnRollback': undefined;
+  'PxgAdminVpnNoControl': undefined;
+  'PxgAdminVpnReplaceHint': undefined;
+  'PxgAdminVpnSubscription': undefined;
+  'PxgAdminVpnApply': undefined;
+  'PxgAdminVpnOriginAdmin': undefined;
+  'PxgAdminVpnOriginEnv': undefined;
+  'PxgAdminVpnOriginFile': undefined;
+  'PxgAdminVpnNodesTitle': undefined;
+  'PxgAdminVpnColNode': undefined;
+  'PxgAdminVpnColPing': undefined;
+  'PxgAdminVpnColSpeed': undefined;
+  'PxgAdminVpnColStatus': undefined;
+  'PxgAdminVpnNodeWorking': undefined;
+  'PxgAdminVpnNodeAnswers': undefined;
+  'PxgAdminVpnNodeDown': undefined;
+  'PxgAdminVpnExclude': undefined;
+  'PxgAdminVpnInclude': undefined;
+  'PxgAdminVpnSwitches': undefined;
   'PxgAdminColWho': undefined;
   'PxgAdminColChat': undefined;
   'PxgAdminColAccount': undefined;
@@ -4222,6 +4252,13 @@ export interface LangPair {
   'PxgErrRequestRejectedRecently': undefined;
   'PxgErrRequestNotFound': undefined;
   'PxgErrRequestNotPending': undefined;
+  'PxgErrVpnUnavailable': undefined;
+  'PxgErrVpnControlDisabled': undefined;
+  'PxgErrVpnSubscriptionUnavailable': undefined;
+  'PxgErrVpnNoNodes': undefined;
+  'PxgErrVpnNoWorkingNodes': undefined;
+  'PxgErrVpnNoPrevious': undefined;
+  'PxgErrVpnNoNode': undefined;
   'PxgErrRequestOwnerUnknown': undefined;
   'PxgErrSavedNotFound': undefined;
   'PxgErrSavedNotEditable': undefined;
@@ -6702,6 +6739,55 @@ export interface LangPairWithVariables<V = LangVariable> {
     'answering': V;
     'total': V;
   };
+  'PxgAdminVpnAlertExpiring': {
+    'date': V;
+  };
+  'PxgAdminVpnAlertTraffic': {
+    'used': V;
+    'total': V;
+  };
+  'PxgAdminVpnLastCheck': {
+    'date': V;
+  };
+  'PxgAdminVpnApplied': {
+    'nodes': V;
+    'working': V;
+    'active': V;
+  };
+  'PxgAdminVpnChecked': {
+    'answering': V;
+    'nodes': V;
+    'working': V;
+    'active': V;
+  };
+  'PxgAdminVpnNodesInSubscription': {
+    'count': V;
+  };
+  'PxgAdminVpnRefreshed': {
+    'date': V;
+  };
+  'PxgAdminVpnExpires': {
+    'date': V;
+  };
+  'PxgAdminVpnTraffic': {
+    'used': V;
+    'total': V;
+  };
+  'PxgAdminVpnTrafficUnlimited': {
+    'used': V;
+  };
+  'PxgAdminVpnSubscriptionError': {
+    'error': V;
+  };
+  'PxgAdminVpnNodeExcluded': {
+    'time': V;
+  };
+  'PxgAdminVpnMs': {
+    'value': V;
+  };
+  'PxgAdminVpnKbps': {
+    'value': V;
+  };
   'PxgAdminWarnQueue': {
     'count': V;
   };
@@ -7920,6 +8006,7 @@ export interface LangKeyGroups {
       | 'PxgSettingsLastEvent'
       | 'PxgAdminRegistered'
       | 'PxgAdminLastSeen'
+      | 'PxgAdminVpnNodeExcluded'
       | 'PxgAdminSince';
     variables: 'time';
   };
@@ -8054,7 +8141,8 @@ export interface LangKeyGroups {
   };
   'error': {
     keys:
-      | 'ErrorUnexpectedMessage';
+      | 'ErrorUnexpectedMessage'
+      | 'PxgAdminVpnSubscriptionError';
     variables: 'error';
   };
   'count': {
@@ -8096,6 +8184,7 @@ export interface LangKeyGroups {
       | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnLease'
+      | 'PxgAdminVpnNodesInSubscription'
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
       | 'PxgAdminMessages'
@@ -8141,7 +8230,11 @@ export interface LangKeyGroups {
       | 'StarsSubscriptionRenews'
       | 'PxgInvitePending'
       | 'PxgArchiveDeleted'
-      | 'PxgShareExpires';
+      | 'PxgShareExpires'
+      | 'PxgAdminVpnAlertExpiring'
+      | 'PxgAdminVpnLastCheck'
+      | 'PxgAdminVpnRefreshed'
+      | 'PxgAdminVpnExpires';
     variables: 'date';
   };
   'amount': {
@@ -8234,7 +8327,9 @@ export interface LangKeyGroups {
   };
   'value': {
     keys:
-      | 'ScheduleRepeat';
+      | 'ScheduleRepeat'
+      | 'PxgAdminVpnMs'
+      | 'PxgAdminVpnKbps';
     variables: 'value';
   };
   'logOut': {
@@ -9252,6 +9347,27 @@ export interface LangKeyGroups {
     keys:
       | 'PxgAdminVpnNodes';
     variables: 'answering' | 'total';
+  };
+  'total,used': {
+    keys:
+      | 'PxgAdminVpnAlertTraffic'
+      | 'PxgAdminVpnTraffic';
+    variables: 'total' | 'used';
+  };
+  'active,nodes,working': {
+    keys:
+      | 'PxgAdminVpnApplied';
+    variables: 'active' | 'nodes' | 'working';
+  };
+  'active,answering,nodes,working': {
+    keys:
+      | 'PxgAdminVpnChecked';
+    variables: 'active' | 'answering' | 'nodes' | 'working';
+  };
+  'used': {
+    keys:
+      | 'PxgAdminVpnTrafficUnlimited';
+    variables: 'used';
   };
   'accounts,in,out': {
     keys:

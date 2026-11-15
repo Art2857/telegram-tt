@@ -24,6 +24,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 import InputText from '../../ui/InputText';
 import Modal from '../../ui/Modal';
 import TabList from '../../ui/TabList';
+import { VpnAlert } from '../admin/AdminVpn';
 import ArchiveTools from './ArchiveTools';
 import SharedFoldersTab from './SharedFoldersTab';
 
@@ -306,6 +307,7 @@ const PxgSettingsPanel = () => {
         />
         <h2 className={styles.title}>{lang('PxgSettingsTitle')}</h2>
       </header>
+      <VpnAlert onOpen={() => setPxgState({ isSettingsOpen: false, isAdminOpen: true })} />
       <TabList
         tabs={tabs.map((item) => ({ title: t(item.title) }))}
         activeTab={tab}

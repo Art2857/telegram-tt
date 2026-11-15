@@ -142,6 +142,13 @@ export const PXG_ERROR_REASON_KEYS = {
   cancel_pending_only: 'PxgErrCancelPendingOnly',
   cancelled_by_admin: 'PxgErrCancelledByAdmin',
   export_failed: 'PxgErrExportFailed',
+  vpn_unavailable: 'PxgErrVpnUnavailable',
+  vpn_control_disabled: 'PxgErrVpnControlDisabled',
+  vpn_subscription_unavailable: 'PxgErrVpnSubscriptionUnavailable',
+  vpn_no_nodes: 'PxgErrVpnNoNodes',
+  vpn_no_working_nodes: 'PxgErrVpnNoWorkingNodes',
+  vpn_no_previous: 'PxgErrVpnNoPrevious',
+  vpn_no_node: 'PxgErrVpnNoNode',
 } as const satisfies Record<string, RegularLangKey | RegularLangKeyWithVariables>;
 export type PxgErrorReason = keyof typeof PXG_ERROR_REASON_KEYS;
 

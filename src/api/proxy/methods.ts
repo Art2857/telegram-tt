@@ -461,9 +461,55 @@ async function fetchMessage({ chat, messageId }: MethodArgs<'fetchMessage'>[0]) 
     const [message] = await fetchSavedById(chat, [messageId]);
     return message ? { message } : undefined;
   }
-  const result = await pxgRpc.call<WindowResult>('messages.window', { ...peer, msgIds: [messageId] });
-  result.messages.forEach((dto) => emitRelated(dto));
-  return result.messages[0] ? { message: buildProxyMessage(result.messages[0], chat) } : undefined;
+  const dto = await loadMessageBatched(peer, messageId);
+  return dto ? { message: buildProxyMessage(dto, chat) } : undefined;
+}
+
+/** Ответы, цитаты и закреплённые одного чата Web A просит по одному: десятки вызовов складываются в один */
+const BATCH_DELAY_MS = 15;
+const BATCH_MAX_IDS = 100;
+type MessageBatch = {
+  peer: NonNullable<ReturnType<typeof resolveProxyPeer>>;
+  waiters: Map<number, ((dto: MessageDto | undefined) => void)[]>;
+  timer?: ReturnType<typeof setTimeout>;
+};
+const messageBatches = new Map<string, MessageBatch>();
+
+function loadMessageBatched(peer: NonNullable<ReturnType<typeof resolveProxyPeer>>, msgId: number) {
+  const key = `${peer.accountId}:${peer.peerId}`;
+  let batch = messageBatches.get(key);
+  if (!batch) {
+    batch = { peer, waiters: new Map() };
+    messageBatches.set(key, batch);
+  }
+  const current = batch;
+  const result = new Promise<MessageDto | undefined>((resolve) => {
+    current.waiters.set(msgId, [...(current.waiters.get(msgId) || []), resolve]);
+  });
+  if (current.waiters.size >= BATCH_MAX_IDS) {
+    flushMessageBatch(key);
+  } else {
+    current.timer ??= setTimeout(() => flushMessageBatch(key), BATCH_DELAY_MS);
+  }
+  return result;
+}
+
+function flushMessageBatch(key: string) {
+  const batch = messageBatches.get(key);
+  if (!batch) return;
+  messageBatches.delete(key);
+  if (batch.timer) clearTimeout(batch.timer);
+  const ids = [...batch.waiters.keys()];
+  const settle = (byId: Map<number, MessageDto>) => batch.waiters.forEach((resolvers, id) => {
+    resolvers.forEach((resolve) => resolve(byId.get(id)));
+  });
+  pxgRpc.call<WindowResult>('messages.window', { ...batch.peer, msgIds: ids })
+    .then((result) => {
+      result.messages.forEach((dto) => emitRelated(dto));
+      settle(new Map(result.messages.map((dto) => [dto.msgId, dto])));
+    })
+    // Как и раньше по одному: недоступное сообщение — просто не найдено
+    .catch(() => settle(new Map()));
 }
 
 async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessagesById'>[0]) {

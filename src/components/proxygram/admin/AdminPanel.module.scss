@@ -679,3 +679,43 @@
     max-width: 100%;
   }
 }
+
+// Связь с Telegram (docs/spec/11 §6): предупреждение должно бросаться в глаза в админке и настройках
+.vpnAlert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-default-small);
+
+  font-weight: var(--font-weight-medium);
+  color: var(--color-white);
+
+  background: var(--color-error);
+}
+
+.vpnResult {
+  margin: 0.5rem 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.vpnReplace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+
+  margin: 0.5rem 0 1rem;
+
+  :global(.input-group) {
+    width: 100%;
+  }
+}
+
+.vpnActiveRow td {
+  font-weight: var(--font-weight-medium);
+}

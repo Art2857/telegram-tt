@@ -29,6 +29,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog';
 import InputText from '../../ui/InputText';
 import { HISTORY_KEYS } from '../ShareSettingsFields';
 import AdminShareForm from './AdminShareForm';
+import { VpnAlert, VpnTab } from './AdminVpn';
 
 import styles from './AdminPanel.module.scss';
 
@@ -169,6 +170,7 @@ const TABS = [
   { key: 'audit', title: 'PxgAdminAudit' },
   { key: 'outbox', title: 'PxgAdminQueue' },
   { key: 'exports', title: 'PxgAdminExports' },
+  { key: 'vpn', title: 'PxgAdminVpnTab' },
   { key: 'system', title: 'PxgAdminSystem' },
 ] as const;
 
@@ -183,6 +185,7 @@ const TAB_TOPICS: Record<(typeof TABS)[number]['key'], AdminTopic[]> = {
   audit: ['users', 'sessions', 'accounts', 'shares', 'outbox'],
   outbox: ['outbox'],
   exports: ['exports', 'accounts'],
+  vpn: [],
   system: ['accounts'],
 };
 
@@ -326,6 +329,13 @@ const AdminPanel = () => {
             )}
             <h2 className={styles.title}>{lang(TABS[tab].title)}</h2>
           </header>
+          {tabKey !== 'vpn' && (
+            <VpnAlert onOpen={() => {
+              setTab(TABS.findIndex((item) => item.key === 'vpn'));
+              setIsSectionOpen(true);
+            }}
+            />
+          )}
           {actionError && <div className={styles.actionError}>{actionError}</div>}
           <div className={buildClassName(styles.contentBody, 'custom-scroll')}>
             {tabKey === 'overview' && <OverviewTab {...props} />}
@@ -337,6 +347,7 @@ const AdminPanel = () => {
             {tabKey === 'audit' && <AuditTab {...props} />}
             {tabKey === 'outbox' && <OutboxTab {...props} />}
             {tabKey === 'exports' && <ExportsTab {...props} />}
+            {tabKey === 'vpn' && <VpnTab run={run} />}
             {tabKey === 'system' && <SystemTab {...props} />}
           </div>
         </main>

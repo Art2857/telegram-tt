@@ -8,6 +8,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env APP_ENV=development vite --mode development",
+    "dev:prod": "cross-env APP_ENV=development PXG_GATEWAY_URL=https://proxygram.azhuleev.ru/pxg vite --mode development --port 1236",
     "build:dev": "vite build --mode development",
     "build:staging": "cross-env APP_ENV=staging npm run build:dev",
     "build:production": "cross-env APP_ENV=production vite build",

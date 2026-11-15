@@ -55,10 +55,13 @@ export function formatTime(iso: string) {
 export function formatDateTime(iso?: string | null) {
   if (!iso) return '—';
   const date = new Date(iso);
-  const isToday = date.toDateString() === new Date().toDateString();
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  // Срок подписки, доступа или запись журнала другого года без года читаются как ближайшие
+  const year = date.getFullYear() === now.getFullYear() ? undefined : 'numeric';
   return isToday
     ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    : date.toLocaleString([], { day: '2-digit', month: '2-digit', year, hour: '2-digit', minute: '2-digit' });
 }
 
 export function displayName(user?: { username?: string | null; firstName?: string | null; tgUserId?: number } | null) {
