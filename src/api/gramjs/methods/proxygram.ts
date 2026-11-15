@@ -5,7 +5,14 @@ import { generateRandomBigInt } from '../../../lib/gramjs/Helpers';
 import type { SrpChallengeDto } from '../../../proxygram/server/types';
 
 import { computeSrpAnswer } from '../../../proxygram/srp';
+import { requestDifference } from '../updates/updateManager';
 import { invokeRequest } from './client';
+
+/** Catch up on missed updates now: the app came back to the front, the network returned, a chat turned out stale */
+export function pxgRequestDifference() {
+  requestDifference();
+  return true;
+}
 
 function fromBase64(value: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');

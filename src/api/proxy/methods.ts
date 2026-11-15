@@ -74,6 +74,8 @@ type SyncChangesResult = {
   messages: MessageDto[];
   removed: { accountId: string; peerId: number; msgId: number }[];
   next: string;
+  /** The next page of the same pass (horizon cursors) */
+  after?: string;
   hasMore: boolean;
 };
 /** Chats the guest has open: a channel known only as an author must not overwrite one of them */
@@ -276,6 +278,8 @@ function readAccessChats(isFresh = false): Promise<AccessChat[]> {
 
 export async function fetchProxyChats() {
   const sessionId = getPxgState().session?.user.id;
+  // Before anything is read: a change committed while the chats load is not left behind the cursor
+  const cursor = await fetchSyncCursor();
   const [access, unread, drafts] = await Promise.all([
     readAccessChats(true),
     pxgRpc.call<ChatUnreadDto[]>('chats.unread').catch(() => []),
@@ -361,14 +365,20 @@ export async function fetchProxyChats() {
       .map((item) => item.id) : [],
     totalChatCount: chats.length,
     isFullyLoaded: true as const,
-    // Every later change has a greater sequence number: a reconnect catches up from here
-    changeSeq: getMaxChangeSeq(pages.flatMap((page) => page?.messages.map((dto) => dto.changeSeq) || [])),
+    // The horizon taken before reading: whatever commits later comes with `sync.changes`. An older server without
+    // `sync.cursor` gets the previous cursor, the newest change seen
+    changeSeq: cursor ?? getMaxChangeSeq(pages.flatMap((page) => page?.messages.map((dto) => dto.changeSeq) || [])),
   };
 }
 
+/** Where `sync.changes` continues from: taken before the chats are read (`x…`), undefined on an older server */
+export function fetchSyncCursor() {
+  return pxgRpc.call<{ cursor: string }>('sync.cursor').then(({ cursor }) => cursor, () => undefined);
+}
+
 /** What changed in the open chats after the cursor, built against the chats the client has */
-export async function fetchProxyChanges(since: string, chatsById: Record<string, ApiChat>) {
-  const result = await pxgRpc.call<SyncChangesResult>('sync.changes', { since });
+export async function fetchProxyChanges(since: string, chatsById: Record<string, ApiChat>, after?: string) {
+  const result = await pxgRpc.call<SyncChangesResult>('sync.changes', after ? { since, after } : { since });
   // What changed while the guest was away goes into the device's history as well
   const userId = getPxgState().session?.user.id;
   if (userId) {
@@ -391,6 +401,7 @@ export async function fetchProxyChanges(since: string, chatsById: Record<string,
       chatId: getProxyPeerId(accountId, peerId), msgId,
     })),
     next: result.next,
+    after: result.after,
     hasMore: result.hasMore,
   };
 }

@@ -31,6 +31,7 @@ import DevMessageModal from './DevMessageModal';
 import DownloadedChatModal from './DownloadedChatModal';
 import HiddenMarksLoader from './HiddenMarksLoader';
 import HideFromGuestsModal from './HideFromGuestsModal';
+import HistoryTailChecker from './HistoryTailChecker';
 import LocalArchiveLoader from './LocalArchiveLoader';
 import QrLoginScanner from './QrLoginScanner';
 import ReactionLogModal from './ReactionLogModal';
@@ -309,6 +310,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {hasOwnSession && ownAccountId && connection === 'online' && <TombstonesLoader accountId={ownAccountId} />}
       {hasOwnSession && ownAccountId && connection === 'online' && <HiddenMarksLoader accountId={ownAccountId} />}
       {currentUserId && !isProxyPeerId(currentUserId) && <LocalArchiveLoader ownerId={currentUserId} />}
+      {currentUserId && <HistoryTailChecker />}
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && (
         <ShareChatModal

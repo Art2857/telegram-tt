@@ -61,7 +61,18 @@ addActionHandler('sync', (global, actions): ActionReturnType => {
   }
 
   global = getGlobal();
-  global = { ...global, isSyncing: true };
+  // PXG: A resync reloads the chat list from the top. A list already loaded to the end in this session (or marked so
+  // while the Proxygram server was down) used to skip loading altogether: the resync never finished, and every 30
+  // seconds the API was recreated from a fresh state, dropping whatever came in between (STATUS 2026-11-15)
+  global = {
+    ...global,
+    isSyncing: true,
+    chats: {
+      ...global.chats,
+      isFullyLoaded: { ...global.chats.isFullyLoaded, active: false, archived: false },
+      loadingParameters: { ...global.chats.loadingParameters, active: {}, archived: {} },
+    },
+  };
   setGlobal(global);
 
   const statusTimeout = window.setTimeout(() => {

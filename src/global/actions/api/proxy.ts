@@ -23,7 +23,7 @@ import { isProxyPeerId } from '../../../api/proxy/ids';
 import { forgetProxyFiles } from '../../../api/proxy/media';
 import { forgetUserHistory, keepOnlyChats } from '../../../api/proxy/messageStore';
 import {
-  buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
+  buildProxyReadStates, fetchProxyChanges, fetchProxyChats, fetchSyncCursor, getMaxChangeSeq,
 } from '../../../api/proxy/methods';
 import { buildSavedChat } from '../../../api/proxy/saved';
 import { forgetUserSends } from '../../../api/proxy/sendQueue';
@@ -39,7 +39,9 @@ import { fetchSharedFolderPrefs, prefsByKey } from '../../../proxygram/sharedFol
 import { loadSyncCursor, saveSyncCursor, type SyncCursor } from '../../../proxygram/syncCursor';
 import { isOwnGuestCache, setupCaching } from '../../cache';
 import { getIsChatMuted } from '../../helpers/notifications';
-import { addActionHandler, getGlobal, setGlobal } from '../../index';
+import {
+  addActionHandler, getActions, getGlobal, setGlobal,
+} from '../../index';
 import { INITIAL_GLOBAL_STATE, INITIAL_SHARED_STATE } from '../../initialState';
 import {
   addChatListIds, addNotifyExceptions, addUserStatuses, updateChatFullInfo, updateChats, updateChatsLastMessageId,
@@ -71,6 +73,11 @@ function setSyncCursor(cursor: SyncCursor | undefined) {
 }
 /** Pages of `sync.changes` replayed after a reconnect; beyond that reading everything again is cheaper */
 const MAX_SYNC_PAGES = 10;
+/** Live events are the fast path; a catch-up after them moves the cursor and finds any event lost on the way */
+const SYNC_AFTER_EVENTS_MS = 30_000;
+let isSyncingChanges = false;
+let syncAfterEventsTimer: number | undefined;
+let isSyncRequestedAgain = false;
 
 addActionHandler('openPxgAppDownload', (): ActionReturnType => {
   setPxgState({ isAppUpdateOpen: true });
@@ -360,17 +367,20 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     });
   } catch (err) {
     if (generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
-    // Без этого списка Web A рисовал бы вечную загрузку, а гость не знал бы, что сервер не ответил.
-    // Пустой список — уже не скелетон; рядом показываем причину и даём повторить.
-    global = getGlobal();
-    global = {
-      ...global,
-      chats: {
-        ...global.chats,
-        isFullyLoaded: { ...global.chats.isFullyLoaded, active: true, archived: true },
-      },
-    };
-    setGlobal(global);
+    // Без этого списка Web A рисовал бы гостю вечную загрузку, а гость не знал бы, что сервер не ответил.
+    // Пустой список — уже не скелетон; рядом показываем причину и даём повторить. Список полного входа принадлежит
+    // Telegram: отметка «загружен целиком» остановила бы его синхронизацию (STATUS 2026-11-15)
+    if (isProxyGuest()) {
+      global = getGlobal();
+      global = {
+        ...global,
+        chats: {
+          ...global.chats,
+          isFullyLoaded: { ...global.chats.isFullyLoaded, active: true, archived: true },
+        },
+      };
+      setGlobal(global);
+    }
     // No connection is not a refusal: the header says «Waiting for network», the saved chats stay, and the list
     // reloads by itself once the server answers
     if (err instanceof PxgError && CONNECTION_ERRORS.has(err.code)) return;
@@ -434,10 +444,28 @@ addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
   const userId = getPxgState().session?.user.id;
   const generation = loadGeneration;
   if (!userId || syncCursor?.userId !== userId) return;
+  if (isSyncingChanges) {
+    isSyncRequestedAgain = true;
+    return;
+  }
+  isSyncingChanges = true;
+  isSyncRequestedAgain = false;
   try {
+    const since = syncCursor.seq || '0';
+    const isHorizon = since.startsWith('x');
+    // A cursor of the previous kind (newest change seen) can stand ahead of a change committed later. A server that
+    // gives horizons gets one reload instead: the chats are read anew from a cursor that cannot skip anything
+    if (!isHorizon && await fetchSyncCursor()) {
+      setSyncCursor(undefined);
+      actions.loadProxyChats();
+      return;
+    }
+    let legacySince = since;
+    let after: string | undefined;
+    let nextCursor: string | undefined;
     for (let page = 0; page < MAX_SYNC_PAGES; page++) {
       global = getGlobal();
-      const result = await fetchProxyChanges(syncCursor.seq || '0', global.chats.byId);
+      const result = await fetchProxyChanges(isHorizon ? since : legacySince, global.chats.byId, after);
       if (generation !== loadGeneration || syncCursor?.userId !== userId) return;
       result.messages.forEach((message) => {
         global = getGlobal();
@@ -458,6 +486,17 @@ addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
           emitProxyUpdate({ '@type': 'deleteMessages', chatId, ids: [msgId] });
         }
       });
+      if (isHorizon) {
+        // The horizon of the first page: a write committed between pages may sit below a later one
+        nextCursor ??= result.next;
+        if (!result.hasMore) {
+          setSyncCursor({ userId, seq: nextCursor });
+          return;
+        }
+        after = result.after;
+        continue;
+      }
+      legacySince = result.next;
       setSyncCursor({ userId, seq: result.next });
       if (!result.hasMore) return;
     }
@@ -465,6 +504,12 @@ addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
     actions.loadProxyChats();
   } catch {
     // The next reconnect starts from the same cursor
+  } finally {
+    isSyncingChanges = false;
+    if (isSyncRequestedAgain) {
+      isSyncRequestedAgain = false;
+      actions.syncProxyChanges();
+    }
   }
 });
 
@@ -545,10 +590,23 @@ function applyProxyMessage<T extends GlobalState>(global: T, actions: RequiredGl
   }
 }
 
+/**
+ * A live event of a change. A cursor of the previous kind moves to it at once; a horizon cursor cannot, an earlier
+ * write may still be committing, so a catch-up runs after the events quiet down: it moves the cursor and brings any
+ * event lost on the way
+ */
 function advanceSyncCursor(changeSeq?: string | null) {
   const userId = getPxgState().session?.user.id;
   if (!changeSeq || !userId || syncCursor?.userId !== userId) return;
-  setSyncCursor({ userId, seq: getMaxChangeSeq([syncCursor.seq, changeSeq]) });
+  if (!syncCursor.seq?.startsWith('x')) {
+    setSyncCursor({ userId, seq: getMaxChangeSeq([syncCursor.seq, changeSeq]) });
+    return;
+  }
+  if (syncAfterEventsTimer) return;
+  syncAfterEventsTimer = window.setTimeout(() => {
+    syncAfterEventsTimer = undefined;
+    getActions().syncProxyChanges();
+  }, SYNC_AFTER_EVENTS_MS);
 }
 
 /** The person who shared a chat, in the viewer's own Telegram: by a known dialog, otherwise by username */

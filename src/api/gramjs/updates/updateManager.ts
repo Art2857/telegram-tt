@@ -46,6 +46,11 @@ const SHORTPOLL_DEFAULT_TIMEOUT_MS = 1000;
 const INITIAL_SHORTPOLL_TIMEOUT_MS = 10000;
 const CHANNEL_DIFFERENCE_RETRY_TIMEOUT_MS = 5000;
 const UPDATE_WAIT_TIMEOUT = 500;
+// PXG: A difference request that never answers (connection lost mid-request, relay restarted) must not block the
+// updates forever: it is abandoned and asked again, each time with more patience
+const DIFFERENCE_TIMEOUTS_MS = [30000, 60000, 120000];
+const DIFFERENCE_RETRY_DELAYS_MS = [1000, 3000, 10000, 30000];
+const REMOTE_STATE_RETRY_DELAYS_MS = [1000, 3000, 10000, 30000];
 
 const TERMINAL_CHANNEL_DIFFERENCE_ERRORS = new Set([
   'CHANNEL_INVALID',
@@ -53,9 +58,20 @@ const TERMINAL_CHANNEL_DIFFERENCE_ERRORS = new Set([
 ]);
 
 let invoke: typeof invokeRequest;
+// PXG: The manager can retry on its own only after `init` gave it the way to call Telegram
+let hasInvoke = false;
 let isInited = false;
 
 let seqTimeout: number | undefined;
+// PXG: One difference at a time; a request made while it runs is served right after it
+let isDifferenceInFlight = false;
+let isDifferenceRequestedAgain = false;
+let differenceGeneration = 0;
+let differenceFailures = 0;
+let differenceRetryTimeout: number | undefined;
+let isLoadingRemoteState = false;
+let remoteStateFailures = 0;
+let remoteStateRetryTimeout: number | undefined;
 const CHANNEL_SCHEDULERS = new Map<string, ChannelScheduler>();
 const OPENED_CHANNEL_IDS = new Set<string>();
 
@@ -64,9 +80,19 @@ const PTS_QUEUE = new Map<string, SortedQueue<PtsUpdate>>();
 
 export async function init(invokeReq: typeof invokeRequest) {
   invoke = invokeReq;
+  hasInvoke = true;
 
-  await loadRemoteState();
-  isInited = true;
+  // PXG: The API was recreated within this page (reconnect after a stuck resync, a broken connection): the known state
+  // catches up with everything missed meanwhile. A fresh state from `GetState` would skip it for good
+  const { pts, date } = localDb.commonBoxState;
+  if (pts !== undefined && date) {
+    isInited = true;
+    scheduleGetDifference(0);
+    return;
+  }
+
+  // PXG: Without the remote state nothing is applied; `loadRemoteState` keeps retrying until it gets it
+  if (!await loadRemoteState()) return;
 
   scheduleGetDifference();
 }
@@ -80,8 +106,13 @@ export function applyState(state: State) {
 
 export function processUpdate(update: Update, isFromDifference?: boolean, shouldOnlySave?: boolean) {
   if (update instanceof UpdateConnectionState) {
-    if (update.state === UpdateConnectionState.connected && isInited) {
-      scheduleGetDifference();
+    if (update.state === UpdateConnectionState.connected) {
+      if (isInited) {
+        scheduleGetDifference();
+      } else if (hasInvoke) {
+        // PXG: The state could not be loaded while offline: the connection is back, try at once
+        void loadRemoteState();
+      }
     }
 
     updater(update);
@@ -95,6 +126,7 @@ export function processUpdate(update: Update, isFromDifference?: boolean, should
 
   if (update instanceof UpdateSessionGap) {
     if (isInited) scheduleGetDifference();
+    else if (hasInvoke) void loadRemoteState();
     return;
   }
 
@@ -372,13 +404,58 @@ function restartShortpollFromNow(channelId: string) {
   scheduleChannelDifference(channelId, 'shortpoll', scheduler.shortpollTimeoutMs);
 }
 
-function scheduleGetDifference() {
+function scheduleGetDifference(timeoutMs = UPDATE_WAIT_TIMEOUT) {
   if (seqTimeout) return;
 
-  seqTimeout = setTimeout(async () => {
-    await getDifference();
+  // PXG: The timer only waits for late updates; the request itself runs apart, so a failed or hung request never
+  // leaves the timer set (which used to stop every later difference until reload)
+  seqTimeout = setTimeout(() => {
     seqTimeout = undefined;
-  }, UPDATE_WAIT_TIMEOUT);
+    void getDifference();
+  }, timeoutMs);
+}
+
+/** PXG: The app is back in front, the network returned, or a chat turned out stale: catch up now */
+export function requestDifference() {
+  if (!isInited) {
+    if (hasInvoke) void loadRemoteState();
+    return;
+  }
+
+  clearTimeout(differenceRetryTimeout);
+  differenceRetryTimeout = undefined;
+  if (seqTimeout) {
+    clearTimeout(seqTimeout);
+    seqTimeout = undefined;
+  }
+  void getDifference();
+  OPENED_CHANNEL_IDS.forEach((channelId) => requestChannelDifference(channelId));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('PXG_DIFFERENCE_TIMEOUT')), ms);
+    promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    }, (err: unknown) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+function getDifferenceTimeout() {
+  return DIFFERENCE_TIMEOUTS_MS[Math.min(differenceFailures, DIFFERENCE_TIMEOUTS_MS.length - 1)];
+}
+
+function scheduleDifferenceRetry() {
+  if (differenceRetryTimeout) return;
+  const delay = DIFFERENCE_RETRY_DELAYS_MS[Math.min(differenceFailures - 1, DIFFERENCE_RETRY_DELAYS_MS.length - 1)];
+  differenceRetryTimeout = setTimeout(() => {
+    differenceRetryTimeout = undefined;
+    void getDifference();
+  }, delay);
 }
 
 function getUpdateChannelId(update: Update) {
@@ -396,7 +473,14 @@ function getUpdateChannelId(update: Update) {
 
 export async function getDifference() {
   if (!isInited) {
-    throw new Error('UpdatesManager not initialized');
+    // PXG: Used to throw here and leave the scheduling timer set forever
+    if (hasInvoke) void loadRemoteState();
+    return;
+  }
+
+  if (isDifferenceInFlight) {
+    isDifferenceRequestedAgain = true;
+    return;
   }
 
   if (!localDb.commonBoxState?.date) {
@@ -404,46 +488,100 @@ export async function getDifference() {
     return;
   }
 
+  isDifferenceInFlight = true;
+  isDifferenceRequestedAgain = false;
+  const generation = ++differenceGeneration;
+
   sendApiUpdate({
     '@type': 'updateFetchingDifference',
     isFetching: true,
   });
 
-  const response = await invoke(new GramJs.updates.GetDifference({
-    pts: localDb.commonBoxState.pts,
-    date: localDb.commonBoxState.date,
-    qts: localDb.commonBoxState.qts,
-  }));
+  let isDone: boolean;
+  try {
+    isDone = await fetchDifferenceSlices(generation);
+  } catch (err) {
+    // A broken update must not stop the next ones: the difference is asked again
+    // eslint-disable-next-line no-console
+    console.error('[UpdatesManager] Failed to apply difference', err);
+    isDone = false;
+  } finally {
+    if (generation === differenceGeneration) {
+      isDifferenceInFlight = false;
+      sendApiUpdate({
+        '@type': 'updateFetchingDifference',
+        isFetching: false,
+      });
+    }
+  }
 
-  if (!response || response instanceof GramJs.updates.DifferenceTooLong) {
-    forceSync();
+  if (generation !== differenceGeneration) return;
+
+  if (!isDone) {
+    differenceFailures++;
+    scheduleDifferenceRetry();
     return;
   }
 
-  if (response instanceof GramJs.updates.DifferenceEmpty) {
-    localDb.commonBoxState.seq = response.seq;
-    localDb.commonBoxState.date = response.date;
-    sendApiUpdate({
-      '@type': 'updateFetchingDifference',
-      isFetching: false,
-    });
-    return;
+  differenceFailures = 0;
+  // PXG: Updates that arrived while the difference was running wait in the queues for the next update, which may
+  // never come in a quiet chat: apply what now fits, or ask again for what still does not
+  popSeqQueue();
+  popPtsQueue(COMMON_BOX_QUEUE_ID);
+
+  if (isDifferenceRequestedAgain) {
+    isDifferenceRequestedAgain = false;
+    scheduleGetDifference(0);
+  }
+}
+
+/** `true` — the state is current; `false` — the request failed or timed out and should be repeated */
+async function fetchDifferenceSlices(generation: number): Promise<boolean> {
+  while (generation === differenceGeneration) {
+    let response: GramJs.updates.TypeDifference | undefined;
+    try {
+      response = await withTimeout(invoke(new GramJs.updates.GetDifference({
+        pts: localDb.commonBoxState.pts,
+        date: localDb.commonBoxState.date,
+        qts: localDb.commonBoxState.qts,
+      }), { shouldThrow: true }), getDifferenceTimeout());
+    } catch (err) {
+      if (generation !== differenceGeneration) return true;
+      // Telegram refused the state itself: start over from the current one, as for a too long difference
+      if (err instanceof RPCError) {
+        forceSync();
+        return true;
+      }
+      if (DEBUG) {
+        // eslint-disable-next-line no-console
+        console.warn('[UpdatesManager] Failed to get difference', err);
+      }
+      return false;
+    }
+
+    // Reset while waiting: the answer belongs to the previous state
+    if (generation !== differenceGeneration || !isInited) return true;
+
+    if (!response || response instanceof GramJs.updates.DifferenceTooLong) {
+      forceSync();
+      return true;
+    }
+
+    if (response instanceof GramJs.updates.DifferenceEmpty) {
+      localDb.commonBoxState.seq = response.seq;
+      localDb.commonBoxState.date = response.date;
+      return true;
+    }
+
+    processDifference(response);
+
+    const newState = response instanceof GramJs.updates.DifferenceSlice ? response.intermediateState : response.state;
+    applyState(newState);
+
+    if (!(response instanceof GramJs.updates.DifferenceSlice)) return true;
   }
 
-  processDifference(response);
-
-  const newState = response instanceof GramJs.updates.DifferenceSlice ? response.intermediateState : response.state;
-  applyState(newState);
-
-  if (response instanceof GramJs.updates.DifferenceSlice) {
-    getDifference();
-    return;
-  }
-
-  sendApiUpdate({
-    '@type': 'updateFetchingDifference',
-    isFetching: false,
-  });
+  return true;
 }
 
 async function runChannelDifference(channelId: string, reason: ChannelDifferenceReason) {
@@ -481,14 +619,15 @@ async function requestChannelDifferenceInternal(channelId: string, reason: Chann
   let response: GramJs.updates.TypeChannelDifference;
 
   try {
-    const result = await invoke(new GramJs.updates.GetChannelDifference({
+    // PXG: A request lost with the connection must not keep the channel "in flight" forever
+    const result = await withTimeout(invoke(new GramJs.updates.GetChannelDifference({
       channel: buildInputChannel(channelId, channel.accessHash.toString()),
       pts: localDb.channelPtsById[channelId],
       filter: new GramJs.ChannelMessagesFilterEmpty(),
       limit,
     }), {
       shouldThrow: true,
-    });
+    }), DIFFERENCE_TIMEOUTS_MS[0]);
     if (!result) {
       return;
     }
@@ -567,7 +706,7 @@ function forceSync() {
     '@type': 'requestSync',
   });
 
-  loadRemoteState();
+  void loadRemoteState();
 }
 
 export function reset() {
@@ -576,6 +715,16 @@ export function reset() {
 
   clearTimeout(seqTimeout);
   seqTimeout = undefined;
+  // PXG: A difference still on its way belongs to the old state and is ignored when it answers
+  differenceGeneration++;
+  isDifferenceInFlight = false;
+  isDifferenceRequestedAgain = false;
+  differenceFailures = 0;
+  clearTimeout(differenceRetryTimeout);
+  differenceRetryTimeout = undefined;
+  clearTimeout(remoteStateRetryTimeout);
+  remoteStateRetryTimeout = undefined;
+  remoteStateFailures = 0;
 
   CHANNEL_SCHEDULERS.forEach(({ timeout }) => {
     if (!timeout) {
@@ -587,7 +736,12 @@ export function reset() {
   CHANNEL_SCHEDULERS.clear();
   OPENED_CHANNEL_IDS.clear();
 
-  localDb.commonBoxState = {};
+  // PXG: Cleared in place: the object reports its changes to the page, which hands the state back when the API is
+  // recreated. A new plain object would stop reporting, and the page would keep an outdated state
+  const commonBoxState = localDb.commonBoxState as Record<string, number | undefined>;
+  Object.keys(commonBoxState).forEach((key) => {
+    commonBoxState[key] = undefined;
+  });
 
   Object.keys(localDb.channelPtsById).forEach((channelId) => {
     localDb.channelPtsById[channelId] = 0;
@@ -606,13 +760,44 @@ export function processAffectedHistory(
   processUpdate(update);
 }
 
-async function loadRemoteState() {
-  const remoteState = await invoke(new GramJs.updates.GetState());
-  if (!remoteState) return;
+/**
+ * PXG: The state is retried until it loads. A single failure (the connection was down at that moment) used to leave
+ * the manager uninitialized, dropping every update until the app was restarted
+ */
+async function loadRemoteState(): Promise<boolean> {
+  if (isLoadingRemoteState) return false;
+  isLoadingRemoteState = true;
+  clearTimeout(remoteStateRetryTimeout);
+  remoteStateRetryTimeout = undefined;
 
+  let remoteState: GramJs.updates.State | undefined;
+  try {
+    remoteState = await withTimeout(invoke(new GramJs.updates.GetState()), getDifferenceTimeout());
+  } catch {
+    remoteState = undefined;
+  } finally {
+    isLoadingRemoteState = false;
+  }
+
+  if (!remoteState) {
+    const delay = REMOTE_STATE_RETRY_DELAYS_MS[Math.min(remoteStateFailures, REMOTE_STATE_RETRY_DELAYS_MS.length - 1)];
+    remoteStateFailures++;
+    remoteStateRetryTimeout = setTimeout(() => {
+      remoteStateRetryTimeout = undefined;
+      void loadRemoteState();
+    }, delay);
+    return false;
+  }
+
+  const wasInited = isInited;
+  remoteStateFailures = 0;
   applyState(remoteState);
-
   isInited = true;
+
+  // A state that loaded only on a retry: whatever came meanwhile arrives with the difference
+  if (!wasInited) scheduleGetDifference();
+
+  return true;
 }
 
 function processDifference(

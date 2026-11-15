@@ -612,6 +612,12 @@ addActionHandler('loadAllChats', async (global, actions, payload): Promise<void>
     setGlobal(global);
     global = getGlobal();
   }
+
+  // PXG: The list was already complete, so nothing loaded — the waiting caller (the resync) still has to go on, or it
+  // never finishes and the connection is torn down every 30 seconds (STATUS 2026-11-15)
+  if (!isCallbackFired && i === 0) {
+    await whenFirstBatchDone?.();
+  }
 });
 
 addActionHandler('loadPinnedDialogs', async (global, actions, payload): Promise<void> => {
