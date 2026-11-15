@@ -243,6 +243,8 @@
 "PxgFolderKindShared" = "общая папка";
 "PxgFolderOpen" = "Открыть";
 "PxgFolderMoveUp" = "Выше";
+"PxgFolderMoveLeft" = "Сдвинуть влево";
+"PxgFolderMoveRight" = "Сдвинуть вправо";
 "PxgFolderMoveDown" = "Ниже";
 "PxgFoldersHint" = "Папки от других хранятся на сервере: название, порядок и видимость одинаковы на всех ваших устройствах.";
 "PxgFoldersEmpty" = "Когда с вами поделятся чатом или папкой, папка появится здесь.";
@@ -269,6 +271,10 @@
 "PxgStoragePersistAsk" = "Разрешить";
 "PxgStoragePersistDenied" = "Браузер не разрешил постоянное хранилище — он может очистить кэш сам, когда мало места";
 "PxgStorageLimit" = "Предел кэша файлов";
+"PxgStorageRetention" = "Хранить файлы после последнего открытия";
+"PxgStorageWeek" = "Неделю";
+"PxgStorageMonth" = "Месяц";
+"PxgStorageForever" = "Всегда";
 "PxgStorageLimitDefault" = "Автоматически (до 8 ГБ)";
 "PxgStorageLimitNone" = "Без ограничения";
 "PxgStorageClear" = "Очистить кэш";

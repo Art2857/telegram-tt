@@ -47,6 +47,7 @@ import {
   addChatListIds, addNotifyExceptions, addUserStatuses, updateChatFullInfo, updateChats, updateChatsLastMessageId,
   updateUsers,
 } from '../../reducers';
+import { preserveActiveFolders } from '../../reducers/chatFolders';
 import { replaceChatMessages, replaceMessages, updateListedIds } from '../../reducers/messages';
 import { clearProxyChats, updateProxyFolder } from '../../reducers/proxy';
 import {
@@ -219,29 +220,28 @@ addActionHandler('loadProxyFolderPrefs', async (global): Promise<void> => {
     const prefs = await fetchSharedFolderPrefs();
     if (getPxgState().session?.user.id !== sessionUserId) return;
     global = getGlobal();
+    const previous = global;
     global = {
       ...global,
       chatFolders: { ...global.chatFolders, pxgPrefs: prefsByKey(prefs) },
     };
     global = updateProxyFolder(global);
+    global = preserveActiveFolders(previous, global);
     setGlobal(global);
   } catch {
-    // Список чатов важнее оформления папок: при сбое останутся исходные названия и порядок
-    if (getPxgState().session?.user.id !== sessionUserId) return;
-    global = getGlobal();
-    global = { ...global, chatFolders: { ...global.chatFolders, pxgPrefs: {} } };
-    global = updateProxyFolder(global);
-    setGlobal(global);
+    // Без сети сохраняются закэшированные названия, порядок и скрытие папок
   }
 });
 
 addActionHandler('applyProxyFolderPrefs', (global, actions, { prefs }): void => {
   global = getGlobal();
+  const previous = global;
   global = {
     ...global,
     chatFolders: { ...global.chatFolders, pxgPrefs: prefs },
   };
   global = updateProxyFolder(global);
+  global = preserveActiveFolders(previous, global);
   setGlobal(global);
 });
 
@@ -268,6 +268,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     const unsentMessages = selectProxyUnsentMessages(global);
     const keptChatIds = payload?.shouldKeepUnchanged || isReconnect ? new Set(result.chats.filter((chat) => (
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
+      && Boolean(previousChats[chat.id]?.isProtected) === Boolean(chat.isProtected)
     )).map((chat) => chat.id)) : undefined;
     global = clearProxyChats(global, keptChatIds);
     // The device keeps the history only of chats whose access stayed as it was (docs/spec/11 C6)

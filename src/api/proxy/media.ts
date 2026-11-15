@@ -7,10 +7,13 @@ import { ApiMediaFormat } from '../types';
 import { MEDIA_CACHE_DISABLED, MEDIA_CACHE_MAX_BYTES, MEDIA_CACHE_NAME, MEDIA_CACHE_NAME_AVATARS } from '../../config';
 import * as cacheApi from '../../util/cacheApi';
 import { pause } from '../../util/schedulers';
-import { scheduleTrimProxyFiles } from '../../proxygram/deviceStorage';
+import { FILE_CACHE_MAX_BYTES } from '../../proxygram/fileCachePolicy';
 import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
+import {
+  cacheProxyFile, cacheProxyFilePart, getProxyCacheGeneration, invalidateProxyFileCache, readProxyFileRange,
+} from './fileCache';
 import { resolveProxyPeer } from './index';
 import {
   buildProxyArchiveMediaId, buildProxyMapToken, buildProxyMediaId, parseProxyArchiveHash, parseProxyAvatarHash,
@@ -30,7 +33,6 @@ const MEDIA_WAIT_MAX_INTERVAL_MS = 8000;
  * Files of shared chats stay on the device like in Telegram: a reload and an offline start show them without the server
  * (docs/spec/11 C4). Bigger files and streamed video are fetched again; chats with copying forbidden keep nothing
  */
-const PXG_FILE_CACHE_MAX_BYTES = 20 * 1024 * 1024;
 const protectedChatIds = new Set<string>();
 
 export function setProtectedProxyChats(chatIds: string[]) {
@@ -43,6 +45,7 @@ export function setProtectedProxyChats(chatIds: string[]) {
  * none — every file of this person (signing out)
  */
 export function forgetProxyFiles(userId: string, keepChatIds?: ReadonlySet<string>) {
+  invalidateProxyFileCache(userId, keepChatIds);
   return cacheApi.removeMatching(MEDIA_CACHE_NAME, (url) => {
     const file = parseProxyMediaHash(url);
     return Boolean(file && file.userId === userId && !keepChatIds?.has(file.chatId));
@@ -172,6 +175,7 @@ export async function downloadMedia(
   onProgress?: MethodArgs<'downloadMedia'>[1],
 ) {
   const userId = getPxgState().session?.user.id;
+  const cacheGeneration = userId ? getProxyCacheGeneration(userId) : 0;
   // История приходит с сервера готовой data: URL — качать через RPC нечего
   if (url.startsWith('data:')) {
     const response = await fetch(url);
@@ -180,7 +184,7 @@ export async function downloadMedia(
       dataBlob: new Blob([buffer], { type: response.headers.get('content-type') || 'application/octet-stream' }),
       arrayBuffer: undefined,
       mimeType: response.headers.get('content-type') || 'application/octet-stream',
-      fullSize: buffer.byteLength,
+      fullSize: getResponseFullSize(response) ?? buffer.byteLength,
     };
   }
   // Медиа истории: подписанная ссылка сервера, качать через RPC нечего.
@@ -197,7 +201,7 @@ export async function downloadMedia(
       dataBlob: new Blob([buffer], { type: mimeType }),
       arrayBuffer: undefined,
       mimeType,
-      fullSize: buffer.byteLength,
+      fullSize: getResponseFullSize(response) ?? buffer.byteLength,
     };
   }
   const catalog = parseProxyCatalogHash(url);
@@ -210,8 +214,16 @@ export async function downloadMedia(
     if (request[0] !== 'media.url') return undefined;
     request[1] = { ...request[1], preview: true };
   }
-  const isCanceled = () => Boolean(onProgress?.isCanceled) || userId !== getPxgState().session?.user.id;
+  const isCanceled = () => Boolean(onProgress?.isCanceled) || userId !== getPxgState().session?.user.id
+    || Boolean(userId && getProxyCacheGeneration(userId) !== cacheGeneration);
   const range = start !== undefined || end !== undefined ? `bytes=${start || 0}-${end ?? ''}` : undefined;
+  const messageChatId = parseProxyMediaHash(url)?.chatId;
+  const canKeepMessage = Boolean(messageChatId) && !protectedChatIds.has(messageChatId);
+  const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
+  if (!MEDIA_CACHE_DISABLED && isBuffer && canKeepMessage) {
+    const cached = await readProxyFileRange(url, start, end);
+    if (cached && !isCanceled()) return cached;
+  }
   let loaded: LoadedFile | undefined;
   try {
     loaded = await loadFile(request, range, onProgress, isCanceled);
@@ -224,34 +236,38 @@ export async function downloadMedia(
   }
   if (!loaded || isCanceled()) return undefined;
   const { signed, buffer, contentType } = loaded;
+  const fullSize = loaded.fullSize ?? signed.size ?? buffer.byteLength;
   // The server has only the sticker's animation for a message: it is no picture, and it plays over the placeholder
   if (signed.mimeType === ANIMATED_STICKER_MIME && fileHash?.isPreview) return buildEmptyPreview();
   onProgress?.(1);
   const mimeType = signed.mimeType || contentType || 'application/octet-stream';
-  const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
   // As GramJS does: documents by ID, avatars keyed by photo ID and maps of a point never change, so a reload takes
   // them from the cache instead of asking the server again. Message files are kept too and leave with the access
   const isImmutable = Boolean(catalog) || request[0] === 'media.avatar' || request[0] === 'media.map';
-  const messageChatId = parseProxyMediaHash(url)?.chatId;
-  const isKeptMessageFile = Boolean(messageChatId) && !protectedChatIds.has(messageChatId)
-    && buffer.byteLength <= PXG_FILE_CACHE_MAX_BYTES;
-  const isKeptImmutable = isImmutable && buffer.byteLength <= Math.max(MEDIA_CACHE_MAX_BYTES, PXG_FILE_CACHE_MAX_BYTES);
+  const isKeptMessageFile = canKeepMessage
+    && buffer.byteLength <= FILE_CACHE_MAX_BYTES;
+  const isKeptImmutable = isImmutable && buffer.byteLength <= Math.max(MEDIA_CACHE_MAX_BYTES, FILE_CACHE_MAX_BYTES);
   if (!MEDIA_CACHE_DISABLED && !isBuffer && (isKeptImmutable || isKeptMessageFile)) {
-    void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
-    // The device keeps chat files within the guest's limit: the longest unopened go first (docs/spec/11 C4)
-    const sessionUserId = getPxgState().session?.user.id;
-    if (isKeptMessageFile && sessionUserId) scheduleTrimProxyFiles(sessionUserId);
+    if (isKeptMessageFile && dataBlob instanceof Blob && userId) {
+      void cacheProxyFile(url, dataBlob, userId, cacheGeneration).catch(() => undefined);
+    } else {
+      void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
+    }
+  }
+  if (!MEDIA_CACHE_DISABLED && isBuffer && canKeepMessage && userId) {
+    void cacheProxyFilePart(url, start ?? 0, buffer, fullSize, mimeType, userId, cacheGeneration)
+      .catch(() => undefined);
   }
   return {
-    dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size ?? buffer.byteLength,
+    dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize,
   };
 }
 
 type MediaRequest = [string, Record<string, unknown>];
 type SignedFile = { url: string; mimeType: string; size?: number };
-type LoadedFile = { signed: SignedFile; buffer: ArrayBuffer; contentType?: string };
+type LoadedFile = { signed: SignedFile; buffer: ArrayBuffer; contentType?: string; fullSize?: number };
 
 /** Errors that pass by themselves: the file is on its way, the network or the server's VPN blinked (docs/spec/11 C1) */
 const TRANSIENT_CODES = new Set(['media_pending', 'rate_limited', 'timeout', 'disconnected', 'internal']);
@@ -309,13 +325,22 @@ async function loadFile(
       // Files outside the archive arrive while the server is still fetching them from Telegram
       const buffer = await readResponse(response, Number(response.headers.get('content-length')), onProgress);
       if (!buffer) return undefined;
-      return { signed, buffer, contentType: response.headers.get('content-type') || undefined };
+      return {
+        signed, buffer, contentType: response.headers.get('content-type') || undefined,
+        fullSize: getResponseFullSize(response),
+      };
     } catch (err) {
       if (!isTransientMediaError(err) || Date.now() + interval > deadline) throw err;
       await waitForRetry(interval);
       interval = Math.min(interval * 1.5, MEDIA_WAIT_MAX_INTERVAL_MS);
     }
   }
+}
+
+function getResponseFullSize(response: Response) {
+  const rangeSize = response.headers.get('content-range')?.match(/\/(\d+)$/)?.[1];
+  const size = Number(rangeSize ?? response.headers.get('content-length'));
+  return Number.isSafeInteger(size) && size > 0 ? size : undefined;
 }
 
 function isTransientMediaError(err: unknown) {

@@ -4,6 +4,8 @@ import {
   MEDIA_CACHE_NAME_AVATARS,
   MEDIA_PROGRESSIVE_CACHE_NAME,
 } from '../config';
+import { parseProxyMediaHash } from '../api/proxy/mediaIds';
+import { getFileCacheRetentionMs } from '../proxygram/fileCachePolicy';
 import { yieldToMain } from './browser/scheduler';
 import { loadPasscodeMeta, requestPasscodeStateLock } from './passcode/meta';
 import { ACCOUNT_SLOT } from './multiaccount';
@@ -167,6 +169,9 @@ async function saveToCache(
       : JSON.stringify(data);
     const request = buildCacheRequest(key);
     const response = new Response(cacheData);
+    const size = cacheData instanceof Blob ? cacheData.size
+      : cacheData instanceof ArrayBuffer ? cacheData.byteLength : new TextEncoder().encode(cacheData).byteLength;
+    response.headers.set('Content-Length', String(size));
     response.headers.set(LAST_ACCESS_HEADER, Date.now().toString());
     const cache = await cacheApi.open(resolvedCacheName);
     await cache.put(request, response);
@@ -296,7 +301,8 @@ export async function cleanup(cacheNames: string[]) {
         if (!response) continue;
 
         const lastAccess = Number(response.headers.get(LAST_ACCESS_HEADER));
-        if (lastAccess && now - lastAccess > CACHE_TTL) {
+        const ttl = parseProxyMediaHash(request.url) ? getFileCacheRetentionMs() : CACHE_TTL;
+        if (ttl && lastAccess && now - lastAccess > ttl) {
           await cache.delete(request);
         }
       }

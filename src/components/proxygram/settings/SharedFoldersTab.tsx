@@ -5,6 +5,7 @@ import type { ApiChatFolder } from '../../../api/types';
 
 import buildClassName from '../../../util/buildClassName';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
+import { selectVisibleFolderIds } from '../../../proxygram/hiddenFolders';
 import { setPxgState } from '../../../proxygram/server/store';
 import {
   openSharedFolderEditor, prefsByKey, reorderSharedFolders, saveSharedFolder,
@@ -23,7 +24,7 @@ const SharedFoldersTab = () => {
   const { loadProxyFolderPrefs, setActiveChatFolder, showNotification, applyProxyFolderPrefs } = getActions();
   const lang = useLang();
   const localFolders = useSelector((global) => global.chatFolders.pxgLocalFolders);
-  const orderedIds = useSelector((global) => global.chatFolders.orderedIds);
+  const orderedIds = useSelector(selectVisibleFolderIds);
   const [draggingKey, setDraggingKey] = useState<string>();
   const [overKey, setOverKey] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);

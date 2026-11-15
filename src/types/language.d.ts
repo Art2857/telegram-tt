@@ -3589,6 +3589,8 @@ export interface LangPair {
   'PxgFolderKindShared': undefined;
   'PxgFolderOpen': undefined;
   'PxgFolderMoveUp': undefined;
+  'PxgFolderMoveLeft': undefined;
+  'PxgFolderMoveRight': undefined;
   'PxgFolderMoveDown': undefined;
   'PxgFoldersHint': undefined;
   'PxgFoldersEmpty': undefined;
@@ -3609,6 +3611,10 @@ export interface LangPair {
   'PxgStoragePersistAsk': undefined;
   'PxgStoragePersistDenied': undefined;
   'PxgStorageLimit': undefined;
+  'PxgStorageRetention': undefined;
+  'PxgStorageWeek': undefined;
+  'PxgStorageMonth': undefined;
+  'PxgStorageForever': undefined;
   'PxgStorageLimitDefault': undefined;
   'PxgStorageLimitNone': undefined;
   'PxgStorageClear': undefined;

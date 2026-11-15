@@ -98,7 +98,9 @@ export default defineConfig(({ mode }): UserConfig => {
       rootDir: DIR_NAME,
     }),
     // PXG: входы для разработки — в папке вне git (docs/TESTING.md)
-    isDevelopmentMode && buildDevSessionsPlugin({ filePath: resolve(DIR_NAME, '../../.dev-sessions/browser.json') }),
+    isDevelopmentMode && buildDevSessionsPlugin({
+      filePath: resolve(DIR_NAME, '../../.dev-sessions', process.env.PXG_DEV_SESSIONS_FILE || 'browser.json'),
+    }),
     viteStaticCopy({ targets: WATCHED_STATIC_COPY_TARGETS }),
     viteStaticCopy({
       targets: UNWATCHED_STATIC_COPY_TARGETS,

@@ -146,6 +146,13 @@
   margin-bottom: 1.5rem;
 }
 
+.pagination {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
 .stat {
   display: flex;
   flex-direction: column;
@@ -165,9 +172,79 @@
   }
 }
 
+.userNameButton {
+  cursor: pointer;
+
+  min-width: 0;
+  padding: 0;
+  border: 0;
+
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  text-align: start;
+  overflow-wrap: anywhere;
+
+  background: none;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--color-primary);
+    outline-offset: 0.25rem;
+  }
+}
+
+.userActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem;
+
+  :global(.Button) {
+    flex: 0 1 auto;
+
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+
+    text-align: start;
+    text-transform: none;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 700px) {
+  .table.stacked.userTable .userRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 0.5rem;
+
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--color-borders);
+    border-radius: 0.75rem;
+  }
+
+  .table.stacked.userTable .userRow td {
+    grid-column: 1;
+    min-width: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table.stacked.userTable .userRow .actions {
+    grid-column: 2;
+    grid-row: 1 / 5;
+    align-self: center;
+  }
+}
+
 .statValue {
   font-size: 1.5rem;
   font-weight: var(--font-weight-semibold);
+}
+
+.statText {
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
 }
 
 .statLabel {

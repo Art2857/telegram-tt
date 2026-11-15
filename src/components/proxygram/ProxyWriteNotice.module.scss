@@ -22,11 +22,13 @@
 // Inside the composer pill: its own row above the input (the pill wraps full-width children), without a second card
 .inComposer {
   flex-basis: 100%;
+
   min-width: 0;
   margin-bottom: 0.25rem;
   padding-left: 0.25rem;
-  box-shadow: none;
+
   background: transparent;
+  box-shadow: none;
 }
 
 .icon {

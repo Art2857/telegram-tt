@@ -161,6 +161,7 @@ const Menu = ({
       )}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
+      inert={!isOpen || undefined}
       role={ariaLabel || ariaLabelledBy ? 'menu' : undefined}
       onKeyDown={isOpen ? handleKeyDown : undefined}
       onMouseEnter={onMouseEnter}

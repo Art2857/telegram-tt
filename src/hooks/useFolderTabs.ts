@@ -13,12 +13,15 @@ import {
 import { SettingsScreens } from '../types';
 
 import { ALL_FOLDER_ID } from '../config';
-import { selectCanShareFolder } from '../global/selectors';
+import { selectCanShareFolder, selectIsCurrentUserPremium } from '../global/selectors';
 import { MEMO_EMPTY_ARRAY } from '../util/memo';
+import { isProxyPeerId } from '../api/proxy/ids';
 import { renderTextWithEntities } from '../components/common/helpers/renderTextWithEntities';
+import { moveFolder } from '../proxygram/folderOrder';
 import { canHideFolders, ownFolderKey, setFolderHidden } from '../proxygram/hiddenFolders';
 import { getPxgState, setPxgState } from '../proxygram/server/store';
 import { openSharedFolderEditor, prefsByKey, saveSharedFolder } from '../proxygram/sharedFolders';
+import useSelector from './data/useSelector';
 import useAppLayout from './useAppLayout';
 import { useFolderManagerForUnreadChatsByFolder, useFolderManagerForUnreadCounters } from './useFolderManager';
 import useLang from './useLang';
@@ -64,6 +67,9 @@ const useFolderTabs = (params: Params) => {
 
   const lang = useLang();
   const { isMobile } = useAppLayout();
+  const canMoveAllFolder = useSelector((global) => (
+    !isProxyPeerId(global.currentUserId) && selectIsCurrentUserPremium(global)
+  ));
 
   const {
     openShareChatFolderModal,
@@ -89,13 +95,13 @@ const useFolderTabs = (params: Params) => {
 
   const displayedFolders = useMemo(() => {
     return orderedFolderIds
-      ? orderedFolderIds.map((id) => {
+      ? orderedFolderIds.filter((id) => id === ALL_FOLDER_ID || chatFoldersById[id]).map((id) => {
         if (id === ALL_FOLDER_ID) {
           return allChatsFolder;
         }
 
-        return chatFoldersById[id] || {};
-      }).filter(Boolean)
+        return chatFoldersById[id];
+      })
       : undefined;
   }, [chatFoldersById, allChatsFolder, orderedFolderIds]);
 
@@ -128,6 +134,21 @@ const useFolderTabs = (params: Params) => {
       const isBlocked = !folder.pxgLocal && id !== ALL_FOLDER_ID && i > maxFolders - 1;
       const canShareFolder = selectCanShareFolder(getGlobal(), id);
       const contextActions: MenuItemContextAction[] = [];
+      const canReorder = !isReadOnly && !isBlocked && (folder.pxgLocal || id !== ALL_FOLDER_ID || canMoveAllFolder);
+      const reorderGroup = canReorder ? (folder.pxgLocal ? 'shared' : 'own') : undefined;
+      if (canReorder) {
+        [-1, 1].forEach((delta) => {
+          const target = displayedFolders[i + delta];
+          if (!target || Boolean(target.pxgLocal) !== Boolean(folder.pxgLocal)
+            || (!canMoveAllFolder && target.id === ALL_FOLDER_ID)
+            || (!target.pxgLocal && i + delta > maxFolders - 1)) return;
+          contextActions.push({
+            title: lang(delta < 0 ? 'PxgFolderMoveLeft' : 'PxgFolderMoveRight'),
+            icon: delta < 0 ? 'previous' : 'next',
+            handler: () => void moveFolder(id, target.id),
+          });
+        });
+      }
 
       if (!isReadOnly && folder.pxgLocal) {
         contextActions.push({
@@ -294,6 +315,7 @@ const useFolderTabs = (params: Params) => {
         badgeCount: folderCountersById[id]?.chatsCount,
         isBadgeActive: Boolean(folderCountersById[id]?.notificationsCount),
         isBlocked,
+        reorderGroup,
         contextActions: contextActions.length ? contextActions : undefined,
         emoticon: noEmoticons ? undefined : folderIcon,
         noTitleAnimations: folder.noTitleAnimations,
@@ -305,7 +327,7 @@ const useFolderTabs = (params: Params) => {
     });
   }, [
     displayedFolders, maxFolders, folderCountersById, lang, chatFoldersById, maxChatLists, folderInvitesById,
-    maxFolderInvites, folderUnreadChatsCountersById, isReadOnly, sidebarMode, isMobile, noEmoticons,
+    maxFolderInvites, folderUnreadChatsCountersById, isReadOnly, sidebarMode, isMobile, noEmoticons, canMoveAllFolder,
   ]);
 
   return {

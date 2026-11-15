@@ -48,6 +48,7 @@ import { debounce, pause, throttle } from '../../../util/schedulers';
 import { extractCurrentThemeParams } from '../../../util/themeStyle';
 import { callApi } from '../../../api/gramjs';
 import { isProxyPeerId } from '../../../api/proxy/ids';
+import { selectVisibleFolderIds } from '../../../proxygram/hiddenFolders';
 import {
   getIsSavedDialog,
   isChatArchived,
@@ -102,6 +103,7 @@ import {
   updateUsers,
 } from '../../reducers';
 import { updateGroupCall } from '../../reducers/calls';
+import { preserveActiveFolders } from '../../reducers/chatFolders';
 import { updateProxyFolder } from '../../reducers/proxy';
 import { updateTabState } from '../../reducers/tabs';
 import {
@@ -1326,6 +1328,7 @@ addActionHandler('loadChatFolders', async (global): Promise<void> => {
 
   if (chatFolders) {
     global = getGlobal();
+    const previous = global;
 
     global = {
       ...global,
@@ -1336,6 +1339,7 @@ addActionHandler('loadChatFolders', async (global): Promise<void> => {
     };
     // PXG: Server folder refreshes preserve the local accesses folder
     global = updateProxyFolder(global);
+    global = preserveActiveFolders(previous, global);
     setGlobal(global);
   }
 });
@@ -1505,6 +1509,7 @@ addActionHandler('sortChatFolders', async (global, actions, payload): Promise<vo
   const result = await callApi('sortChatFolders', folderIds);
   if (result) {
     global = getGlobal();
+    const previous = global;
     global = {
       ...global,
       chatFolders: {
@@ -1512,6 +1517,7 @@ addActionHandler('sortChatFolders', async (global, actions, payload): Promise<vo
         orderedIds: folderIds,
       },
     };
+    global = preserveActiveFolders(previous, global);
     setGlobal(global);
   }
 });
@@ -2529,7 +2535,9 @@ addActionHandler('setActiveChatFolder', (global, actions, payload): ActionReturn
   const { activeChatFolder, tabId = getCurrentTabId() } = payload;
   const maxFolders = selectCurrentLimit(global, 'dialogFilters');
 
-  const isBlocked = activeChatFolder + 1 > maxFolders;
+  const folderId = selectVisibleFolderIds(global)?.[activeChatFolder];
+  const isLocalFolder = folderId !== undefined && global.chatFolders.byId[folderId]?.pxgLocal;
+  const isBlocked = !isLocalFolder && activeChatFolder + 1 > maxFolders;
 
   if (isBlocked) {
     actions.openLimitReachedModal({

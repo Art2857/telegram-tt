@@ -123,6 +123,15 @@
     font-size: 0.875rem;
   }
 
+  .dragging {
+    cursor: grabbing;
+    opacity: 0.5;
+  }
+
+  .dropTarget {
+    box-shadow: inset 0 0 0 0.125rem var(--color-primary);
+  }
+
   .withFadeMask {
     position: relative;
     z-index: 10;

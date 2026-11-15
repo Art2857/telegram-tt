@@ -2,6 +2,8 @@ import type { ElementRef } from '../lib/teact/teact';
 import { useEffect } from '../lib/teact/teact';
 
 import animateHorizontalScroll from '../util/animateHorizontalScroll';
+import useLastCallback from './useLastCallback';
+import useResizeObserver from './useResizeObserver';
 
 const TAB_SCROLL_THRESHOLD_PX = 16;
 const SCROLL_DURATION = 300;
@@ -10,7 +12,7 @@ export default function useScrollToActiveTab(
   containerRef: ElementRef<HTMLDivElement>,
   activeTab: number,
 ) {
-  useEffect(() => {
+  const scrollToActiveTab = useLastCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -26,5 +28,8 @@ export default function useScrollToActiveTab(
     if (Math.abs(newLeft - scrollLeft) < TAB_SCROLL_THRESHOLD_PX) return;
 
     animateHorizontalScroll(container, newLeft, SCROLL_DURATION);
-  }, [activeTab, containerRef]);
+  });
+
+  useEffect(scrollToActiveTab, [activeTab, containerRef, scrollToActiveTab]);
+  useResizeObserver(containerRef, scrollToActiveTab);
 }

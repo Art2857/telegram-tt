@@ -35,15 +35,17 @@ const CLIENT_SCRIPT = `(function () {
   }
 
   if (url.searchParams.has(${JSON.stringify(LINK_QUERY)})) {
+    var shouldRestore = url.searchParams.get(${JSON.stringify(LINK_QUERY)}) === 'restore';
     url.searchParams.delete(${JSON.stringify(LINK_QUERY)});
     history.replaceState(history.state, '', url.toString());
     localStorage.setItem(${JSON.stringify(LINK_STORAGE_KEY)}, '1');
-    if (!Object.keys(collect()).length) {
+    if (shouldRestore || !Object.keys(collect()).length) {
       var request = new XMLHttpRequest();
       request.open('GET', ${JSON.stringify(ENDPOINT)}, false);
       request.send();
       if (request.status === 200) {
         var saved = JSON.parse(request.responseText);
+        if (shouldRestore) Object.keys(collect()).forEach(function (key) { localStorage.removeItem(key); });
         Object.keys(saved).forEach(function (key) { localStorage.setItem(key, saved[key]); });
         lastSaved = JSON.stringify(collect());
       }

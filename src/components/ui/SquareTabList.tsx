@@ -30,6 +30,7 @@ export type TabWithProperties = {
   /** Локальная папка доступа: на вкладке показываем, что она пришла от другого человека */
   isPxgShared?: boolean;
   pxgSharedTitle?: string;
+  reorderGroup?: 'own' | 'shared';
 };
 
 type OwnProps = {

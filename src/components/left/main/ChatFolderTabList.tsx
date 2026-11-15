@@ -17,6 +17,7 @@ type OwnProps = {
   className?: string;
   onSwitchTab: (index: number) => void;
   onFileHoverOpen: (index: number) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
 };
 
 const ChatFolderTabList = ({
@@ -25,6 +26,7 @@ const ChatFolderTabList = ({
   className,
   onSwitchTab,
   onFileHoverOpen,
+  onReorder,
 }: OwnProps) => {
   const renderExtra = useLastCallback((tab: TabWithProperties) => {
     if (!tab.isPxgShared && !tab.badgeCount) return undefined;
@@ -54,6 +56,7 @@ const ChatFolderTabList = ({
         className={buildClassName(styles.tabList, className)}
         onSwitchTab={onSwitchTab}
         onFileHoverOpen={onFileHoverOpen}
+        onReorder={onReorder}
       />
     </div>
   );

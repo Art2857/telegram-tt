@@ -2,6 +2,7 @@ import { MEDIA_CACHE_NAME } from '../config';
 import { listMatching, removeRequests } from '../util/cacheApi';
 import { parseProxyMediaHash } from '../api/proxy/mediaIds';
 import { forgetUserHistory } from '../api/proxy/messageStore';
+import { getFileCacheRetentionMs } from './fileCachePolicy';
 
 /**
  * Files and history of shared chats on this device (docs/spec/11 C4): how much they take, how much they may take,
@@ -87,35 +88,44 @@ export async function requestPersistentStorage(): Promise<boolean> {
 }
 
 /** Beyond the limit the files opened longest ago go first */
-export async function trimProxyFiles(userId: string) {
+export async function trimProxyFiles(userId: string, bytesToFree = 0) {
   const limit = await getEffectiveFileCacheLimit();
   const files = await listMatching(MEDIA_CACHE_NAME, isOwnFile(userId));
   let total = files.reduce((sum, file) => sum + file.size, 0);
-  if (total <= limit) return 0;
+  const ttl = getFileCacheRetentionMs();
+  const expiresBefore = ttl ? Date.now() - ttl : 0;
   const byAge = [...files].sort((a, b) => a.lastAccess - b.lastAccess);
   const removed = [];
+  let freedBytes = 0;
   for (const file of byAge) {
-    if (total <= limit) break;
+    if (total <= limit && file.lastAccess >= expiresBefore && freedBytes >= bytesToFree) break;
     removed.push(file.request);
     total -= file.size;
+    freedBytes += file.size;
   }
   await removeRequests(MEDIA_CACHE_NAME, removed);
   return removed.length;
 }
 
 let trimTimer: ReturnType<typeof setTimeout> | undefined;
+const pendingTrimUsers = new Set<string>();
 
 /** After new files the cache is checked against its limit, not after every one of them */
 export function scheduleTrimProxyFiles(userId: string) {
+  pendingTrimUsers.add(userId);
   if (trimTimer) return;
   trimTimer = setTimeout(() => {
     trimTimer = undefined;
-    void trimProxyFiles(userId);
+    const userIds = [...pendingTrimUsers];
+    pendingTrimUsers.clear();
+    void Promise.allSettled(userIds.map((id) => trimProxyFiles(id)));
   }, TRIM_DELAY_MS);
 }
 
 /** "Clear cache": files and saved history of this person leave the device; the server gives them again */
 export async function clearProxyDeviceCache(userId: string) {
+  const { invalidateProxyFileCache } = await import('../api/proxy/fileCache');
+  invalidateProxyFileCache(userId);
   await removeRequests(
     MEDIA_CACHE_NAME, (await listMatching(MEDIA_CACHE_NAME, isOwnFile(userId))).map((file) => file.request),
   );

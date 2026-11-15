@@ -8,6 +8,10 @@ import {
   clearProxyDeviceCache, FILE_CACHE_LIMITS, getStoredFileCacheLimit, measureDeviceStorage, requestPersistentStorage,
   setStoredFileCacheLimit, trimProxyFiles,
 } from '../../../proxygram/deviceStorage';
+import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
+import {
+  FILE_CACHE_RETENTION_DAYS, getFileCacheRetentionDays, setFileCacheRetentionDays,
+} from '../../../proxygram/fileCachePolicy';
 import { getPxgState } from '../../../proxygram/server/store';
 
 import useLang from '../../../hooks/useLang';
@@ -31,15 +35,17 @@ const StorageTab = () => {
   const userId = getPxgState().session?.user.id;
   const [usage, setUsage] = useState<DeviceStorageUsage>();
   const [limit, setLimit] = useState<number | undefined>(getStoredFileCacheLimit);
+  const [retentionDays, setRetentionDays] = useState(getFileCacheRetentionDays);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
 
   const reload = () => {
     if (!userId) return;
-    void measureDeviceStorage(userId).then(setUsage);
+    void measureDeviceStorage(userId).then(setUsage)
+      .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
   };
 
-  useEffect(reload, [userId]);
+  useEffect(reload, [userId, lang]);
 
   if (!userId) return undefined;
 
@@ -56,6 +62,8 @@ const StorageTab = () => {
     try {
       await clearProxyDeviceCache(userId);
       showNotification({ message: { key: 'PxgStorageCleared' } });
+    } catch (err: unknown) {
+      showNotification({ message: getPxgErrorMessage(lang, err) });
     } finally {
       setIsBusy(false);
       reload();
@@ -120,6 +128,21 @@ const StorageTab = () => {
         options={options}
         selected={limit === undefined ? DEFAULT_VALUE : String(limit)}
         onChange={handleLimit}
+      />
+      <h3 className={styles.secondary}>{lang('PxgStorageRetention')}</h3>
+      <RadioGroup
+        name="pxg-file-cache-retention"
+        options={FILE_CACHE_RETENTION_DAYS.map((days) => ({
+          value: String(days),
+          label: lang(days === 7 ? 'PxgStorageWeek' : days === 30 ? 'PxgStorageMonth' : 'PxgStorageForever'),
+        }))}
+        selected={String(retentionDays)}
+        onChange={(value) => {
+          const days = Number(value);
+          setRetentionDays(days);
+          setFileCacheRetentionDays(days);
+          void trimProxyFiles(userId).then(reload);
+        }}
       />
       <Button color="danger" isText disabled={isBusy} onClick={() => setIsConfirmOpen(true)}>
         {lang('PxgStorageClear')}

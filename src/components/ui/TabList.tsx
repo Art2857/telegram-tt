@@ -16,6 +16,7 @@ import useHorizontalScroll from '../../hooks/useHorizontalScroll';
 import useLastCallback from '../../hooks/useLastCallback';
 import useResizeObserver from '../../hooks/useResizeObserver';
 import useScrollToActiveTab from '../../hooks/useScrollToActiveTab';
+import useTabReorder from '../../hooks/useTabReorder';
 
 import CustomEmoji from '../common/CustomEmoji';
 import Icon from '../common/icons/Icon';
@@ -41,6 +42,7 @@ type OwnProps = {
   onSwitchTab: (index: number) => void;
   renderExtra?: (tab: TabWithProperties, index: number) => TeactNode;
   onFileHoverOpen?: (index: number) => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
 };
 
 const TabList = ({
@@ -57,6 +59,7 @@ const TabList = ({
   renderExtra,
   onSwitchTab,
   onFileHoverOpen,
+  onReorder,
 }: OwnProps) => {
   const containerRef = useRef<HTMLDivElement>();
   const clipPathContainerRef = useRef<HTMLDivElement>();
@@ -104,14 +107,22 @@ const TabList = ({
     handleFileHoverOpenEvent(e, () => onFileHoverOpen!(index));
   });
 
-  const handleContextMenu = useLastCallback((index: number, e: React.MouseEvent) => {
+  const openTabMenu = useLastCallback((index: number, element: HTMLElement, x: number, y: number) => {
     const actions = tabs[index]?.contextActions;
     if (!actions?.length) return;
-    e.preventDefault();
-    menuTargetRef.current = e.currentTarget as HTMLElement;
+    menuTargetRef.current = element;
     setMenuTabIndex(index);
-    setMenuAnchor({ x: e.clientX, y: e.clientY });
+    setMenuAnchor({ x, y });
     openMenu();
+  });
+
+  const handleContextMenu = useLastCallback((index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    openTabMenu(index, e.currentTarget as HTMLElement, e.clientX, e.clientY);
+  });
+
+  const { draggingIndex, dropIndex } = useTabReorder({
+    containerRef, tabs, onReorder, onContextMenu: openTabMenu, onDragStart: closeMenu,
   });
 
   const handleMenuClose = useLastCallback(() => {
@@ -134,7 +145,7 @@ const TabList = ({
 
   const hasContextActions = tabs.some((tab) => tab.contextActions?.length);
 
-  const renderTab = (tab: TabWithProperties, index: number) => {
+  const renderTab = (tab: TabWithProperties, index: number, isIndicator = false) => {
     const customEmojiId = tab.customEmojiDocumentId
       || (typeof tab.emoticon === 'object' ? tab.emoticon.documentId : undefined);
     const stringEmoticon = typeof tab.emoticon === 'string' ? tab.emoticon : undefined;
@@ -147,7 +158,10 @@ const TabList = ({
           tabClassName,
           itemAlignment === 'vertical' && styles.vertical,
           stretched && styles.stretched,
+          draggingIndex === index && styles.dragging,
+          draggingIndex !== undefined && dropIndex === index && dropIndex !== draggingIndex && styles.dropTarget,
         )}
+        data-tab-index={isIndicator ? undefined : index}
         onClick={() => handleTabClick(index)}
         data-file-hover-open={onFileHoverOpen ? true : undefined}
         onFileHoverOpen={onFileHoverOpen ? (e) => handleFileHoverOpen(index, e) : undefined}
@@ -185,7 +199,7 @@ const TabList = ({
         clipPath && styles.ready,
       )}
     >
-      {tabs.map(renderTab)}
+      {tabs.map((tab, index) => renderTab(tab, index))}
 
       <div
         ref={clipPathContainerRef}
@@ -196,7 +210,7 @@ const TabList = ({
         style={clipPath ? `clip-path: ${clipPath}` : undefined}
         aria-hidden
       >
-        {tabs.map(renderTab)}
+        {tabs.map((tab, index) => renderTab(tab, index, true))}
       </div>
     </div>
   );

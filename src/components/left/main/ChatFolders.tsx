@@ -15,6 +15,7 @@ import buildClassName from '../../../util/buildClassName';
 import captureEscKeyListener from '../../../util/captureEscKeyListener';
 import { captureEvents, SwipeDirection } from '../../../util/captureEvents';
 import { resolveTransitionName } from '../../../util/resolveTransitionName';
+import { moveFolder } from '../../../proxygram/folderOrder';
 import { selectVisibleFolderIds } from '../../../proxygram/hiddenFolders';
 
 import useDerivedState from '../../../hooks/useDerivedState';
@@ -127,6 +128,11 @@ const ChatFolders = ({
   });
 
   const allChatsFolderIndex = displayedFolders?.findIndex((folder) => folder.id === ALL_FOLDER_ID);
+  const handleReorder = useLastCallback((fromIndex: number, toIndex: number) => {
+    const from = displayedFolders?.[fromIndex];
+    const to = displayedFolders?.[toIndex];
+    if (from && to) void moveFolder(from.id, to.id);
+  });
   const isInAllChatsFolder = allChatsFolderIndex === activeChatFolder;
   const isInFirstFolder = FIRST_FOLDER_INDEX === activeChatFolder;
 
@@ -276,6 +282,7 @@ const ChatFolders = ({
             activeTab={activeChatFolder}
             onSwitchTab={handleSwitchTab}
             onFileHoverOpen={openFolder}
+            onReorder={handleReorder}
           />
         ) : shouldRenderPlaceholder ? (
           <div ref={placeholderRef} className="tabs-placeholder" />

@@ -4756,6 +4756,8 @@
 "PxgFolderKindShared" = "shared folder";
 "PxgFolderOpen" = "Open";
 "PxgFolderMoveUp" = "Move up";
+"PxgFolderMoveLeft" = "Move left";
+"PxgFolderMoveRight" = "Move right";
 "PxgFolderMoveDown" = "Move down";
 "PxgFoldersHint" = "Shared folders are stored on the server: the name, order and visibility are the same on all your devices.";
 "PxgFoldersEmpty" = "When someone shares a chat or a folder with you, its folder appears here.";
@@ -4780,6 +4782,10 @@
 "PxgStoragePersistAsk" = "Allow";
 "PxgStoragePersistDenied" = "The browser did not allow persistent storage — it may clear the cache itself when space runs low";
 "PxgStorageLimit" = "File cache limit";
+"PxgStorageRetention" = "Keep files since last opened";
+"PxgStorageWeek" = "One week";
+"PxgStorageMonth" = "One month";
+"PxgStorageForever" = "Forever";
 "PxgStorageLimitDefault" = "Automatic (up to 8 GB)";
 "PxgStorageLimitNone" = "No limit";
 "PxgStorageClear" = "Clear cache";
