@@ -1,4 +1,4 @@
-import type { AccessRestriction, Permissions } from '../../proxygram/server/types';
+import type { AccessRestriction, Permissions, ProviderAccountState } from '../../proxygram/server/types';
 
 export type ProxyChatInfo = {
   accountId: string;
@@ -16,6 +16,8 @@ export type ProxyChatInfo = {
   isSavedMessages?: boolean;
   /** The owner's account the guest writes on behalf of */
   providerName?: string;
+  /** The owner's account is off the server since then: no updates arrive until the owner connects it again */
+  providerState?: { status: ProviderAccountState; since?: number };
   /** Папки владельца, через которые открыт чат: отдельные вкладки «папка от …» */
   sharedFolders?: { id: number; title: string | null }[];
   /** Who shared the chat: a full login goes to this person in their own Telegram */

@@ -97,6 +97,10 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       isOwn: chat.isOwn || undefined,
       isSavedMessages: chat.isSavedMessages || undefined,
       providerName: (!chat.isOwn && chat.providerName) || undefined,
+      providerState: chat.providerState ? {
+        status: chat.providerState.status,
+        since: chat.providerState.since ? Math.round(Date.parse(chat.providerState.since) / 1000) : undefined,
+      } : undefined,
       sharedFolders: chat.sharedFolders?.length ? chat.sharedFolders : undefined,
       providerUserId: chat.providerUserId || undefined,
       providerUsername: chat.providerUsername || undefined,

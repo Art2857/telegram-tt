@@ -3474,6 +3474,7 @@ export interface LangPair {
   'PxgGuestReadOnly': undefined;
   'PxgRestrictedSourceLost': undefined;
   'PxgRestrictedAccount': undefined;
+  'PxgOwnerOfflineShort': undefined;
   'PxgRestrictedFlood': undefined;
   'PxgGuestSelectChat': undefined;
   'PxgGuestViaProxy': undefined;
@@ -6563,6 +6564,18 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgGuestNoChats': {
     'username': V;
   };
+  'PxgOwnerOfflineAuthLost': {
+    'name': V;
+  };
+  'PxgOwnerOfflineRevoked': {
+    'name': V;
+  };
+  'PxgOwnerOfflinePaused': {
+    'name': V;
+  };
+  'PxgOwnerOfflineConnecting': {
+    'name': V;
+  };
   'PxgGuestMedia': {
     'type': V;
   };
@@ -7934,6 +7947,10 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppExpired'
       | 'WalletConnectSignTitle'
       | 'PxgGuestSignedInAs'
+      | 'PxgOwnerOfflineAuthLost'
+      | 'PxgOwnerOfflineRevoked'
+      | 'PxgOwnerOfflinePaused'
+      | 'PxgOwnerOfflineConnecting'
       | 'PxgSharesEffectiveTitle'
       | 'PxgRequestAskWhom'
       | 'PxgFolderFrom'

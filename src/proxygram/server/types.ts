@@ -85,6 +85,8 @@ export interface AccessChat {
   coverageSourceTitle?: string | null;
   /** Имя аккаунта владельца: гость пишет от его имени */
   providerName: string | null;
+  /** The owner's account is not connected to the server: no new messages arrive, and the guest sees why */
+  providerState?: { status: ProviderAccountState; since: string | null } | null;
   /** Расшаренные папки владельца, через которые открыт чат */
   sharedFolders?: { id: number; title: string | null }[];
   /** Кто поделился: по ним полный вход переходит к этому человеку в своём Telegram */
@@ -234,6 +236,8 @@ export type ChatStateDto = Pick<
 >;
 
 export type AccessRestriction = 'source_lost' | 'account_unavailable' | 'flood';
+/** Why the owner's account is off the server: session lost, disconnected by the owner, paused, being connected */
+export type ProviderAccountState = 'auth_lost' | 'revoked' | 'paused' | 'connecting';
 export type GuestBurstReason = 'burst' | 'rate_limited' | 'account_limit';
 
 export type InlineButtonDto = (

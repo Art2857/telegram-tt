@@ -298,6 +298,8 @@ const MiddleHeader = ({
     const proxyStatus = chat?.pxgProxy?.providerName && threadId === MAIN_THREAD_ID
       ? [
         lang('PxgFromOwner', { name: chat.pxgProxy.providerName }),
+        // The owner's account is off the server: nothing new arrives until the owner connects it again
+        chat.pxgProxy.providerState ? lang('PxgOwnerOfflineShort') : undefined,
         chat.pxgProxy.label,
         chat.pxgProxy.coverageSourceTitle
           ? lang('PxgCoverageMember', { title: chat.pxgProxy.coverageSourceTitle })

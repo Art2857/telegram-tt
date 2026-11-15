@@ -272,13 +272,28 @@ function getProxyUnpaidPrice(chat: ApiChat, topic?: ApiTopic) {
   return chat.paidMessagesStars;
 }
 
+/**
+ * Why nothing new arrives in a shared chat: the owner's session on the server is lost, the owner disconnected or
+ * paused the account. Names the owner, so the guest knows whom to ask (docs/spec/13 §10)
+ */
+export function getProxyOwnerOfflineText(lang: LangFn, proxy: NonNullable<ApiChat['pxgProxy']>) {
+  const name = proxy.providerName || '';
+  switch (proxy.providerState?.status) {
+    case 'auth_lost': return lang('PxgOwnerOfflineAuthLost', { name });
+    case 'revoked': return lang('PxgOwnerOfflineRevoked', { name });
+    case 'paused': return lang('PxgOwnerOfflinePaused', { name });
+    case 'connecting': return lang('PxgOwnerOfflineConnecting', { name });
+    default: return lang('PxgRestrictedAccount');
+  }
+}
+
 export function getProxySendingRestrictionReason(lang: LangFn, chat?: ApiChat, topic?: ApiTopic) {
   const proxy = chat?.pxgProxy;
   const unpaidPrice = chat && getProxyUnpaidPrice(chat, topic);
   if (unpaidPrice) return lang('PxgPaidNoSpendStars', { stars: unpaidPrice });
   if (!proxy || (topic?.pxgPermissions || proxy.permissions).write) return undefined;
   if (proxy.restricted === 'source_lost') return lang('PxgRestrictedSourceLost');
-  if (proxy.restricted === 'account_unavailable') return lang('PxgRestrictedAccount');
+  if (proxy.restricted === 'account_unavailable') return getProxyOwnerOfflineText(lang, proxy);
   if (proxy.restricted === 'flood') return lang('PxgRestrictedFlood');
   if (topic?.isClosed && proxy.permissions.write) return lang('TopicClosedByAdmin');
   return lang('PxgGuestReadOnly');

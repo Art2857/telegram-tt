@@ -4624,6 +4624,11 @@
 "PxgGuestReadOnly" = "Read only";
 "PxgRestrictedSourceLost" = "The owner is no longer in this chat. Only the archive is available";
 "PxgRestrictedAccount" = "The owner's account is temporarily unavailable. Only the archive is available";
+"PxgOwnerOfflineShort" = "updates paused";
+"PxgOwnerOfflineAuthLost" = "{name}'s session on the Proxygram server is lost — new messages don't arrive, only the archive is available. Ask {name} to connect the account again";
+"PxgOwnerOfflineRevoked" = "{name} disconnected the account from the Proxygram server — new messages don't arrive, only the archive is available";
+"PxgOwnerOfflinePaused" = "{name} paused the account on the Proxygram server — new messages don't arrive, only the archive is available";
+"PxgOwnerOfflineConnecting" = "{name}'s account is connecting to the Proxygram server — new messages will arrive soon";
 "PxgRestrictedFlood" = "Telegram temporarily limited sending from the owner's account";
 "PxgGuestSelectChat" = "Select a chat";
 "PxgGuestViaProxy" = "via Proxygram";

@@ -111,6 +111,11 @@
 "PxgGuestReadOnly" = "Только чтение";
 "PxgRestrictedSourceLost" = "Владелец больше не состоит в этом чате. Доступен только архив";
 "PxgRestrictedAccount" = "Аккаунт владельца временно недоступен. Доступен только архив";
+"PxgOwnerOfflineShort" = "обновления остановлены";
+"PxgOwnerOfflineAuthLost" = "Сессия аккаунта {name} на сервере Proxygram потеряна — новые сообщения не приходят, доступен только архив. Попросите {name} снова подключить аккаунт";
+"PxgOwnerOfflineRevoked" = "Аккаунт {name} отключён от сервера Proxygram — новые сообщения не приходят, доступен только архив";
+"PxgOwnerOfflinePaused" = "Аккаунт {name} приостановлен на сервере Proxygram — новые сообщения не приходят, доступен только архив";
+"PxgOwnerOfflineConnecting" = "Аккаунт {name} подключается к серверу Proxygram — новые сообщения скоро придут";
 "PxgRestrictedFlood" = "Telegram временно ограничил отправку от имени владельца";
 "PxgGuestSelectChat" = "Выберите чат";
 "PxgGuestViaProxy" = "через Proxygram";
