@@ -8,6 +8,8 @@ import { formatFileSize } from '../../../util/textFormat';
 import { formatDateTime } from '../helpers';
 import { Badge, Loading, SYSTEM_REFRESH_MS, t, useAdminData } from './adminShared';
 
+import { TrafficPanel } from './TrafficPanel';
+
 import styles from './AdminPanel.module.scss';
 
 export const SystemTab = memo(({ lang, topics }: TabProps) => {
@@ -93,6 +95,8 @@ export const SystemTab = memo(({ lang, topics }: TabProps) => {
           </div>
         </>
       )}
+
+      {data.traffic && <TrafficPanel lang={lang} traffic={data.traffic} mediaBytes={data.storage.mediaBytes} />}
 
       <h3 className={styles.sectionTitle}>{lang('PxgAdminWorkers')}</h3>
       {data.workers.length === 0 ? <p className={styles.empty}>{lang('PxgAdminEmpty')}</p> : (

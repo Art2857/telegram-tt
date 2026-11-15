@@ -4079,6 +4079,18 @@ export interface LangPair {
   'PxgAdminConnectionOffline': undefined;
   'PxgAdminConnectionChecked': undefined;
   'PxgAdminConnectionUpdate': undefined;
+  'PxgAdminTraffic': undefined;
+  'PxgAdminTrafficHint': undefined;
+  'PxgAdminTrafficHits': undefined;
+  'PxgAdminTrafficIn': undefined;
+  'PxgAdminTrafficOut': undefined;
+  'PxgAdminTrafficStored': undefined;
+  'PxgAdminTrafficEvicted': undefined;
+  'PxgAdminTrafficFlood': undefined;
+  'PxgAdminTrafficMethods': undefined;
+  'PxgAdminTrafficMethod': undefined;
+  'PxgAdminTrafficSource': undefined;
+  'PxgAdminTrafficCount': undefined;
   'PxgAdminShareTarget': undefined;
   'PxgAdminChooseTarget': undefined;
   'PxgAdminGuestFilter': undefined;
@@ -6912,6 +6924,23 @@ export interface LangPairWithVariables<V = LangVariable> {
     'connected': V;
     'total': V;
   };
+  'PxgAdminTrafficRequests': {
+    'hit': V;
+    'pending': V;
+    'miss': V;
+    'forbidden': V;
+  };
+  'PxgAdminTrafficQueue': {
+    'small': V;
+    'big': V;
+    'background': V;
+    'active': V;
+  };
+  'PxgAdminTrafficLocations': {
+    'saved': V;
+    'update': V;
+    'refresh': V;
+  };
   'PxgAdminRevokeConfirm': {
     'name': V;
   };
@@ -9490,6 +9519,21 @@ export interface LangKeyGroups {
     keys:
       | 'PxgAdminConnectedAccounts';
     variables: 'connected' | 'total';
+  };
+  'forbidden,hit,miss,pending': {
+    keys:
+      | 'PxgAdminTrafficRequests';
+    variables: 'forbidden' | 'hit' | 'miss' | 'pending';
+  };
+  'active,background,big,small': {
+    keys:
+      | 'PxgAdminTrafficQueue';
+    variables: 'active' | 'background' | 'big' | 'small';
+  };
+  'refresh,saved,update': {
+    keys:
+      | 'PxgAdminTrafficLocations';
+    variables: 'refresh' | 'saved' | 'update';
   };
   'target,time': {
     keys:

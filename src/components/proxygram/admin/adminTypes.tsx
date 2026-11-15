@@ -41,7 +41,18 @@ export type SystemInfo = {
   uptimeSeconds: number;
   migrations: number | null;
   memory: { rssBytes: number; heapUsedBytes: number; accounts: number; perAccountBytes: number };
-  storage: { disk: { totalBytes: number; freeBytes: number } | null };
+  storage: { disk: { totalBytes: number; freeBytes: number } | null; mediaBytes?: number };
+  traffic?: {
+    calls: { method: string; source: string; result: string; count: number }[];
+    requests: { hit: number; pending: number; miss: number; forbidden: number };
+    locations: { saved: number; refresh: number; update: number };
+    queue: { background: number; small: number; big: number; active: number };
+    telegramBytes: number;
+    servedBytes: number;
+    floodSeconds: number;
+    evictedFiles: number;
+    evictedBytes: number;
+  };
   workers: { workerId: string | null; accounts: number; leaseUntil: string | null; stale: number }[];
   connections?: {
     total: number;

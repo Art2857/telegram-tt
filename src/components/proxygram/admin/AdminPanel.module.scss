@@ -280,6 +280,22 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.trafficDetails {
+  margin-block: 1rem 1.5rem;
+}
+
+.trafficSummary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+  border-radius: 0.25rem;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--color-primary);
+    outline-offset: 0.125rem;
+  }
+}
+
 .empty {
   margin: 2rem 0;
   color: var(--color-text-secondary);
