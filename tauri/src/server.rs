@@ -36,6 +36,12 @@ const PERMISSIONS: &[&str] = &[
   "notification:allow-notify",
   "notification:allow-request-permission",
   "shell:default",
+  // A tap on a notification opens its chat and brings the window out of the tray
+  "core:window:allow-show",
+  "core:window:allow-set-focus",
+  "core:window:allow-unminimize",
+  "notification:allow-register-listener",
+  "notification:allow-remove-active",
 ];
 
 #[cfg(desktop)]

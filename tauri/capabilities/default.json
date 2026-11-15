@@ -26,6 +26,11 @@
     "notification:allow-is-permission-granted",
     "notification:allow-notify",
     "notification:allow-request-permission",
-    "shell:default"
+    "shell:default",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
+    "notification:allow-register-listener",
+    "notification:allow-remove-active"
   ]
 }

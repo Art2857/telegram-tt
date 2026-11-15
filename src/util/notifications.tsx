@@ -35,6 +35,9 @@ import {
 } from '../global/selectors';
 import { callApi } from '../api/gramjs';
 import { isProxyGuest } from '../api/proxy'; // PXG
+import {
+  clearNativeChatNotifications, isNativeNotifications, showNativeMessageNotification,
+} from '../proxygram/nativeNotifications'; // PXG
 import { subscribePxgPush } from '../proxygram/push'; // PXG
 import { IS_TAURI } from './browser/globalEnvironment';
 import { IS_SERVICE_WORKER_SUPPORTED, IS_TOUCH_ENV } from './browser/windowEnvironment';
@@ -332,7 +335,8 @@ function checkIfShouldNotify(chat: ApiChat, message: Partial<ApiMessage>) {
       chatId,
       type,
     } = selectCurrentMessageList(global) || {};
-    return !(chatId === chat.id && type === 'thread');
+    // PXG: The app in the background with this chat open still notifies, as Telegram does
+    return !(chatId === chat.id && type === 'thread') || document.visibilityState === 'hidden';
   }
   // On desktop show notifications when window is not focused
   return !document.hasFocus();
@@ -477,12 +481,20 @@ export async function notifyAboutMessage({
     await loadCustomEmoji(activeReaction.reaction.documentId);
   }
 
-  const icon = await getAvatar(chat);
-
   const {
     title,
     body,
   } = getNotificationContent(chat, message as ApiMessage, activeReaction);
+
+  // PXG: The app (Android, Windows) shows one notification per chat that opens it, through the plugin directly
+  if (isNativeNotifications()) {
+    void showNativeMessageNotification({
+      chatId: chat.id, messageId: message.id, title, body, isSilent: isSilent || message.isSilent,
+    }).catch(() => undefined);
+    return;
+  }
+
+  const icon = await getAvatar(chat);
 
   if (checkIfPushSupported()) {
     if (navigator.serviceWorker?.controller) {
@@ -539,6 +551,7 @@ export async function notifyAboutMessage({
 }
 
 export function closeMessageNotifications(payload: { chatId: string; lastReadInboxMessageId?: number }) {
+  clearNativeChatNotifications(payload.chatId, payload.lastReadInboxMessageId); // PXG
   if (IS_TEST || !navigator.serviceWorker?.controller) return;
   navigator.serviceWorker.controller.postMessage({
     type: 'closeMessageNotifications',

@@ -1,4 +1,4 @@
-import { getAccountsInfo } from '../util/multiaccount';
+import { ACCOUNT_SLOT, getAccountsInfo } from '../util/multiaccount';
 import { pxgRpc } from './server/rpc';
 
 /**
@@ -23,6 +23,8 @@ export async function subscribePxgPush(): Promise<boolean> {
   }
   const { endpoint, keys } = subscription.toJSON();
   await pxgRpc.call('push.subscribe', { endpoint, keys });
+  // A tap on a push opens this slot: the service worker serves every slot of the site
+  registration.active?.postMessage({ type: 'pxgPushSlot', payload: { slot: ACCOUNT_SLOT || 1 } });
   return true;
 }
 

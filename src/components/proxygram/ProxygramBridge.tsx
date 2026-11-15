@@ -16,6 +16,7 @@ import { isProxyPeerId } from '../../api/proxy/ids';
 import { isSavedPeer } from '../../api/proxy/saved';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
+import { listenNativeNotificationClicks } from '../../proxygram/nativeNotifications';
 import { syncSavedMessages } from '../../proxygram/savedSync';
 import { canSendBotStart, clearBotStarts, noteUnconfirmedBotStart } from '../../proxygram/server/botStarts';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
@@ -96,6 +97,15 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     session && session.level === 'client' && currentUserId && String(session.user.tgUserId) === currentUserId,
   );
   const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
+
+  // A tap on a notification of the app (Android, Windows) opens its chat (2026-11-15)
+  useEffect(() => {
+    void listenNativeNotificationClicks(({ chatId, messageId }) => {
+      const { focusMessage, openChat } = getActions();
+      if (messageId) focusMessage({ chatId, messageId, shouldReplaceHistory: true });
+      else openChat({ id: chatId, shouldReplaceHistory: true });
+    });
+  }, []);
 
   // The web client updates with the server; only the Android shell itself needs a new APK now and then
   useEffect(() => {

@@ -266,10 +266,61 @@ async function focusChatMessage(client: WindowClient, data: FocusMessageData) {
   }
 }
 
+// PXG: Pushes of the Proxygram server belong to the guest's account slot. The click opens that slot only: other slots
+// do not have the chat, and the site root is slot 1
+const PXG_META_CACHE = 'pxg-meta';
+const PXG_PUSH_SLOT_KEY = '/pxg/push-slot';
+
+async function savePxgPushSlot(slot: number) {
+  const cache = await self.caches.open(PXG_META_CACHE);
+  await cache.put(PXG_PUSH_SLOT_KEY, new Response(String(slot)));
+}
+
+async function loadPxgPushSlot() {
+  try {
+    const response = await (await self.caches.open(PXG_META_CACHE)).match(PXG_PUSH_SLOT_KEY);
+    return response ? Number(await response.text()) || 1 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function getClientSlot(client: WindowClient) {
+  return Number(new URL(client.url).searchParams.get('account')) || 1;
+}
+
+async function openPxgNotification(data: NotificationData) {
+  const slot = await loadPxgPushSlot();
+  const clients = await getClients();
+  const target = slot === undefined ? clients[0] : clients.find((client) => getClientSlot(client) === slot);
+  if (target) {
+    clickBuffer[target.id] = data;
+    await focusChatMessage(target, data);
+    return;
+  }
+  if (!self.clients.openWindow) return;
+  const url = new URL(self.registration.scope);
+  if (slot && slot > 1) url.searchParams.set('account', String(slot));
+  clickBuffer[0] = data;
+  try {
+    const newClient = await self.clients.openWindow(url.toString());
+    if (newClient) clickBuffer[newClient.id] = data;
+  } catch (error) {
+    if (DEBUG) {
+      // eslint-disable-next-line no-console
+      console.warn('[SW] ', error);
+    }
+  }
+}
+
 export function handleNotificationClick(e: NotificationEvent) {
   const appUrl = self.registration.scope;
   e.notification.close(); // Android needs explicit close.
   const { data } = e.notification;
+  if (data?.pxg) {
+    e.waitUntil(openPxgNotification(data));
+    return;
+  }
   const notifyClients = async () => {
     const clients = await getClients();
     await Promise.all(clients.map((client) => {
@@ -304,6 +355,10 @@ export function handleClientMessage(e: ExtendableMessageEvent) {
   }
   if (!e.data) return;
   const source = e.source as WindowClient;
+  if (e.data.type === 'pxgPushSlot') {
+    e.waitUntil(savePxgPushSlot(Number(e.data.payload?.slot) || 1).catch(() => undefined));
+    return;
+  }
   if (e.data.type === 'clientReady') {
     // focus on chat message when client is fully ready
     const data = clickBuffer[source.id] || clickBuffer[0];
