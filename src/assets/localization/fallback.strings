@@ -4541,6 +4541,9 @@
 "PxgAppDownloadWindows" = "Download the app for Windows";
 "PxgAppUpdateAvailable" = "Proxygram {version} is available";
 "PxgAppUpdateDownload" = "Download";
+"PxgFileSaved" = "Saved to Downloads: {name}";
+"PxgFileSaveFailed" = "Could not save the file";
+"PxgFileSavePermission" = "Allow Proxygram to save files, then download again";
 "PxgAppUpdates" = "App updates";
 "PxgAppUpdateInstalled" = "Installed version: {version}";
 "PxgAppUpdateLatest" = "Latest version: {version}";

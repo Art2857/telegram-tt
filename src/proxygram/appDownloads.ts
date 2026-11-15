@@ -1,5 +1,6 @@
 import { IS_TAURI } from '../util/browser/globalEnvironment';
 import { IS_ANDROID, IS_WINDOWS } from '../util/browser/windowEnvironment';
+import { openUrlNatively } from './nativeBridge';
 
 /**
  * One manifest for every server: the apps are the same everywhere and only open the chosen server's client.
@@ -62,6 +63,7 @@ export async function getAndroidAppUpdate(currentVersion?: string) {
 /** Open the external browser; downloading and installation are handled there */
 export async function openAppDownload(url: string) {
   if (new URL(url).protocol !== 'https:') throw new Error('Invalid download URL');
+  if (openUrlNatively(url)) return;
   const { open } = await import('@tauri-apps/plugin-shell');
   await open(url);
 }

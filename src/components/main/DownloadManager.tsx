@@ -9,6 +9,7 @@ import { IS_OPFS_SUPPORTED, IS_SERVICE_WORKER_SUPPORTED, MAX_BUFFER_SIZE } from 
 import download from '../../util/download';
 import generateUniqueId from '../../util/generateUniqueId';
 import * as mediaLoader from '../../util/mediaLoader';
+import { getNativeBridge, saveFileNatively } from '../../proxygram/nativeBridge';
 
 import useLastCallback from '../../hooks/useLastCallback';
 import useRunDebounced from '../../hooks/useRunDebounced';
@@ -80,6 +81,12 @@ const DownloadManager = ({
         if (mediaFormat === ApiMediaFormat.DownloadUrl) {
           const url = new URL(result, window.document.baseURI);
           url.searchParams.set('filename', encodeURIComponent(filename));
+          // Proxygram: the Android app has no second window; the service worker streams the file to the app
+          if (getNativeBridge()) {
+            void saveFileNatively(url.toString(), filename);
+            handleMediaDownloaded(mediaHash);
+            return;
+          }
           const downloadWindow = window.open(url.toString());
 
           downloadWindow?.addEventListener('beforeunload', () => {

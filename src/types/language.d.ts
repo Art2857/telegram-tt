@@ -3401,6 +3401,8 @@ export interface LangPair {
   'PxgAuthChoiceNote': undefined;
   'PxgAppDownloadWindows': undefined;
   'PxgAppUpdateDownload': undefined;
+  'PxgFileSaveFailed': undefined;
+  'PxgFileSavePermission': undefined;
   'PxgAppUpdates': undefined;
   'PxgAppUpdateHint': undefined;
   'PxgAppUpdateBrowserHint': undefined;
@@ -6552,6 +6554,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAppUpdateAvailable': {
     'version': V;
   };
+  'PxgFileSaved': {
+    'name': V;
+  };
   'PxgAppUpdateInstalled': {
     'version': V;
   };
@@ -7983,6 +7988,7 @@ export interface LangKeyGroups {
       | 'WalletConnectRequestAppDeclined'
       | 'WalletConnectRequestAppExpired'
       | 'WalletConnectSignTitle'
+      | 'PxgFileSaved'
       | 'PxgGuestSignedInAs'
       | 'PxgOwnerOfflineAuthLost'
       | 'PxgOwnerOfflineRevoked'

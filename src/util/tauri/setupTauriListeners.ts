@@ -1,6 +1,7 @@
 import { getActions } from '../../global';
 
 import { DEBUG } from '../../config';
+import { openUrlNatively } from '../../proxygram/nativeBridge';
 import { IS_ANDROID, MouseButton } from '../browser/windowEnvironment';
 
 type DownloadFinishedEvent = {
@@ -85,6 +86,8 @@ async function openLink(url: string | URL) {
     const isAppPage = window.location.origin === urlObject.origin && !urlObject.pathname.startsWith('/downloads/');
     if (isAppPage && !IS_ANDROID) {
       await window.tauri.openNewWindow(urlObject.toString());
+    } else if (IS_ANDROID && openUrlNatively(urlObject.toString())) {
+      // Tauri's shell.open cannot reach a browser on Android: the app's own bridge opens it
     } else {
       const shellPlugin = await import('@tauri-apps/plugin-shell');
       await shellPlugin.open(urlObject.toString());

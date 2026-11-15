@@ -3,6 +3,9 @@
 "PxgAppDownloadWindows" = "Скачать приложение для Windows";
 "PxgAppUpdateAvailable" = "Доступен Proxygram {version}";
 "PxgAppUpdateDownload" = "Скачать";
+"PxgFileSaved" = "Сохранено в «Загрузки»: {name}";
+"PxgFileSaveFailed" = "Не удалось сохранить файл";
+"PxgFileSavePermission" = "Разрешите Proxygram сохранять файлы и скачайте ещё раз";
 "PxgAppUpdates" = "Обновления приложения";
 "PxgAppUpdateInstalled" = "Установленная версия: {version}";
 "PxgAppUpdateLatest" = "Последняя версия: {version}";

@@ -1,3 +1,4 @@
+import { getNativeBridge, saveFileNatively } from '../proxygram/nativeBridge';
 import { pause } from './schedulers';
 
 type PendingDownload = {
@@ -37,6 +38,11 @@ async function processQueue() {
 }
 
 function downloadOne({ url, filename }: PendingDownload) {
+  // Proxygram: the Android app's web view ignores `<a download>` — the file goes to Downloads through the app
+  if (getNativeBridge()) {
+    void saveFileNatively(url, filename);
+    return;
+  }
   const link = document.createElement('a');
   link.href = url;
   link.target = '_blank';

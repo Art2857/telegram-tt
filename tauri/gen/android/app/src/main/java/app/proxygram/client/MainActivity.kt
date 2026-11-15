@@ -35,6 +35,8 @@ class MainActivity : TauriActivity() {
     // The page reports the color of its theme (`src/proxygram/androidSystemBars.ts`)
     webView.addJavascriptInterface(SystemBars(), "PxgSystemBars")
     webView.addJavascriptInterface(AppUpdater(this), "PxgAppUpdater")
+    // Links to the system browser and files to Downloads (`src/proxygram/nativeBridge.ts`)
+    webView.addJavascriptInterface(NativeBridge(this), "PxgNative")
   }
 
   private fun setBarsColor(color: Int, isDark: Boolean) {
