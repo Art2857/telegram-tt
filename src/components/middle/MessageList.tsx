@@ -345,6 +345,7 @@ const MessageList = ({
   const liveTailReleaseTimerRef = useRef<number>();
   const liveTailStartOriginalIdRef = useRef<number>();
   const scrollTopBeforeUpdateRef = useRef<number>();
+  const scrollBottomBeforeUpdateRef = useRef<number>();
   const [releasedLiveTailStartOriginalId, setReleasedLiveTailStartOriginalId] = useState<number>();
 
   const isSavedDialog = getIsSavedDialog(chatId, threadId, currentUserId);
@@ -881,7 +882,13 @@ const MessageList = ({
     () => {
       isReplacingHistoryRef.current = true;
       forceMeasure(() => {
-        scrollTopBeforeUpdateRef.current = containerRef.current?.scrollTop;
+        const container = containerRef.current;
+        scrollTopBeforeUpdateRef.current = container?.scrollTop;
+        // Во время анимации сохраняем её цель; иначе берём положение до изменения DOM,
+        // а не отложенный на 200 мс снимок обработчика прокрутки.
+        scrollBottomBeforeUpdateRef.current = container && !isAnimatingScroll(container)
+          ? container.scrollHeight - container.scrollTop - container.offsetHeight
+          : undefined;
         rememberScrollPositionRef.current();
       });
     },
@@ -1048,7 +1055,10 @@ const MessageList = ({
       if (wasMessageAdded) {
         bottomOffset -= addedTailHeight;
       }
-      const isAtBottom = isViewportNewest && prevIsViewportNewest && bottomOffset <= BOTTOM_THRESHOLD;
+      const scrollBottomBeforeUpdate = renderMessageIds !== prevRenderMessageIds
+        ? scrollBottomBeforeUpdateRef.current : undefined;
+      const isAtBottom = isViewportNewest && prevIsViewportNewest
+        && (scrollBottomBeforeUpdate ?? bottomOffset) <= BOTTOM_THRESHOLD;
       const wasAtBottomBeforeTypingDraft = Boolean(
         shouldRevealLiveTailTypingDraft
         && isViewportNewest
@@ -1175,6 +1185,11 @@ const MessageList = ({
 
       let newScrollTop!: number;
       let isParkedForSendCollapse = false;
+      // Подтверждение отправки и обновление уже показанных сообщений не должны
+      // заменять удержание низа привязкой к старому сообщению выше в истории.
+      const shouldKeepAtBottom = isAtBottom && (
+        isResized || isInSendCollapsePhase || (!wasMessageAdded && !hasLiveTail)
+      );
       if (liveTailElement) {
         const liveTailOffset = getOffsetToContainer(liveTailElement, container).top;
         newScrollTop = liveTailOffset + liveTailElement.offsetHeight - offsetHeight;
@@ -1184,7 +1199,7 @@ const MessageList = ({
         newScrollTop = typingDraftScrollTop;
       } else if (shouldRevealTypingDraft) {
         newScrollTop = scrollTop;
-      } else if (isAtBottom && (isResized || isInSendCollapsePhase)) {
+      } else if (shouldKeepAtBottom) {
         newScrollTop = scrollHeight - offsetHeight;
         if (isInSendCollapsePhase) {
           isParkedForSendCollapse = true;
@@ -1206,7 +1221,7 @@ const MessageList = ({
       }
 
       const isBottomAnchored = !liveTailElement && !shouldFocusLiveTail && typingDraftScrollTop === undefined
-        && !shouldRevealTypingDraft && !anchor && !unreadDivider;
+        && !shouldRevealTypingDraft && (shouldKeepAtBottom || (!anchor && !unreadDivider));
       if (isBottomAnchored || isParkedForSendCollapse) {
         newScrollTop += reserveDelta;
       }
