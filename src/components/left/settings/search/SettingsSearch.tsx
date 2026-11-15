@@ -2,6 +2,7 @@ import { memo, useMemo, useRef } from '../../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../../global';
 
 import type { Signal } from '../../../../util/signals';
+import type { AccountRow } from '../../../proxygram/settings/settingsTypes';
 import type { MenuItemContextAction } from '../../../ui/ListItem';
 import type { SettingsSearchItem } from './searchSettings';
 
@@ -9,6 +10,8 @@ import { selectSettingsSearchFlags } from '../../../../global/selectors';
 import { IS_MOBILE } from '../../../../util/browser/windowEnvironment';
 import buildClassName from '../../../../util/buildClassName';
 import { copyTextToClipboard } from '../../../../util/clipboard';
+import { usePxgState } from '../../../../proxygram/server/store';
+import { usePxgData } from '../../../proxygram/settings/settingsShared';
 import { buildSettingsSearchIndex, searchSettings } from './searchSettings';
 
 import { useShallowSelector } from '../../../../hooks/data/useSelector';
@@ -50,6 +53,11 @@ const SettingsSearch = ({
   const lang = useLang();
   const { isMobile } = useAppLayout();
   const stateFlags = useShallowSelector(selectSettingsSearchFlags);
+  const pxgSession = usePxgState((state) => state.session);
+  const { data: pxgAccounts } = usePxgData<AccountRow[]>('accounts.mine', {}, ['accounts.changed']);
+  const hasProxygramSession = Boolean(pxgSession);
+  const hasProxygramAccount = Boolean(pxgSession && (pxgSession.level === 'client'
+    || pxgAccounts?.some((account) => account.status !== 'revoked')));
   const containerRef = useRef<HTMLDivElement>();
   const shownRecentIdsRef = useRef(recentIds || []);
 
@@ -64,7 +72,8 @@ const SettingsSearch = ({
     ...stateFlags,
     isDesktopLayout: !isMobile,
     canSendWithKeyboard: !isMobile || !IS_MOBILE,
-  }), [lang, isMobile, stateFlags]);
+    hasProxygramSession, hasProxygramAccount,
+  }), [lang, isMobile, stateFlags, hasProxygramSession, hasProxygramAccount]);
 
   const hasQuery = Boolean(query.trim());
 

@@ -10,6 +10,7 @@ import { SettingsScreens } from '../../../types';
 
 import { selectTabState } from '../../../global/selectors';
 import { resolveTransitionName } from '../../../util/resolveTransitionName';
+import { setPxgState } from '../../../proxygram/server/store';
 
 import useTwoFaReducer from '../../../hooks/reducers/useTwoFaReducer';
 import useLastCallback from '../../../hooks/useLastCallback';
@@ -259,6 +260,10 @@ const Settings = ({
     if (currentScreen !== SettingsScreens.Search) return;
 
     addRecentlyFoundSettingId({ id: item.id });
+    if (item.proxygramTab) {
+      setPxgState({ isSettingsOpen: true, settingsTarget: { tab: item.proxygramTab, highlight: item.highlight } });
+      return;
+    }
     openSettingsScreen({ screen: item.screen, highlight: item.highlight });
   });
 

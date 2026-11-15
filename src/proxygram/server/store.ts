@@ -1,7 +1,8 @@
 import { useEffect, useRef } from '../../lib/teact/teact';
 
+import type { SettingsHighlight } from '../../types';
 import type { DownloadedChat } from '../downloadedChat';
-import type { AccountDto, StoredSession } from './types';
+import type { AccountDto, PxgSettingsTab, StoredSession } from './types';
 
 import { ACCOUNT_SLOT } from '../../util/multiaccount';
 
@@ -20,6 +21,7 @@ export interface PxgState {
   isAdminOpen: boolean;
   /** «Настройки Proxygram»: сервер, доступы, архив, журнал, устройства */
   isSettingsOpen: boolean;
+  settingsTarget?: { tab: PxgSettingsTab; highlight?: SettingsHighlight };
   isAppUpdateOpen?: boolean;
   isQrScannerOpen?: boolean;
   isConnectOpen: boolean;
@@ -94,10 +96,11 @@ export function setPxgState(patch: Partial<PxgState>) {
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
       downloadedChat: undefined, sharedFolderEdit: undefined,
-      isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false,
+      isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false, settingsTarget: undefined,
     };
   }
   state = { ...state, ...(patch.session ? { ...patch, isSessionRevoked: false } : patch) };
+  if (patch.isSettingsOpen === false) state.settingsTarget = undefined;
   if ('session' in patch) writeStoredSession(patch.session);
   listeners.forEach((listener) => listener());
 }

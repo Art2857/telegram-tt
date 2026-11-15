@@ -5342,6 +5342,8 @@
 "PxgAdminTrafficMethod" = "Method";
 "PxgAdminTrafficSource" = "Source";
 "PxgAdminTrafficCount" = "Calls";
+"PxgPolicyWarmVideo" = "Preload videos up to (MB)";
+"PxgPolicyWarmHint" = "Shared and recently opened chats. 0 means thumbnails only. Background preloading pauses when the disk budget is reached.";
 "PxgAdminRevokeConfirm" = "Revoke access for {name}?";
 "PxgAdminShareTarget" = "Access target";
 "PxgAdminChooseTarget" = "Choose a folder or topic";

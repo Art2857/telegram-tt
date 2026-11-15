@@ -24,7 +24,9 @@ const FIELD_INPUT_SELECTOR = '.form-control';
 const CONTROL_SELECTOR = `${ROW_SELECTOR}, ${FIELD_SELECTOR}`;
 const SCROLL_CONTAINER_SELECTOR = '.custom-scroll';
 
-export default function useSettingsHighlight(containerRef: ElementRef<HTMLDivElement>, highlight?: SettingsHighlight) {
+export default function useSettingsHighlight(
+  containerRef: ElementRef<HTMLDivElement>, highlight?: SettingsHighlight, isStandalone = false,
+) {
   const { clearSettingsHighlight } = getActions();
 
   const lang = useLang();
@@ -67,7 +69,7 @@ export default function useSettingsHighlight(containerRef: ElementRef<HTMLDivEle
     function tryHighlight() {
       if (isCancelled) return;
 
-      const slide = findCurrentSlide(containerRef.current!);
+      const slide = isStandalone ? containerRef.current : findCurrentSlide(containerRef.current!);
       if (!slide) return;
 
       const element = slide.querySelector<HTMLElement>(`[${ANCHOR_ATTRIBUTE}="${langKey}"]`)
@@ -77,13 +79,15 @@ export default function useSettingsHighlight(containerRef: ElementRef<HTMLDivEle
 
         observer = new MutationObserver(() => requestMeasure(tryHighlight));
         observer.observe(slide, { childList: true, subtree: true, characterData: true });
-        waitTimeout = window.setTimeout(() => {
-          stopWaiting();
-          if (DEBUG) {
-            // eslint-disable-next-line no-console
-            console.warn('[Settings] Highlight target not found on screen', highlight);
-          }
-        }, WAIT_TIMEOUT);
+        if (!isStandalone) {
+          waitTimeout = window.setTimeout(() => {
+            stopWaiting();
+            if (DEBUG) {
+              // eslint-disable-next-line no-console
+              console.warn('[Settings] Highlight target not found on screen', highlight);
+            }
+          }, WAIT_TIMEOUT);
+        }
         return;
       }
 
@@ -93,16 +97,14 @@ export default function useSettingsHighlight(containerRef: ElementRef<HTMLDivEle
       const anchor = field || element.closest<HTMLElement>(ROW_SELECTOR) || element;
       const scrollContainer = anchor.closest<HTMLElement>(SCROLL_CONTAINER_SELECTOR);
       const scrollTop = scrollContainer && getCenteredScrollTop(scrollContainer, anchor);
+      if (field) focusNoScroll(field);
 
       requestMutation(() => {
         if (isCancelled) return;
 
         if (scrollContainer) scrollContainer.scrollTop = scrollTop!;
 
-        if (field) {
-          focusNoScroll(field);
-          return;
-        }
+        if (field) return;
 
         highlightedElement = anchor;
         addExtraClass(anchor, HIGHLIGHT_CLASS_NAME);
@@ -118,7 +120,7 @@ export default function useSettingsHighlight(containerRef: ElementRef<HTMLDivEle
       window.clearTimeout(highlightTimeout);
       removeHighlight();
     };
-  }, [containerRef, highlight, langRef]);
+  }, [containerRef, highlight, langRef, isStandalone]);
 }
 
 function findCurrentSlide(container: HTMLElement) {

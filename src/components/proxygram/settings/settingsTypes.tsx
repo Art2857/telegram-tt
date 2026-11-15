@@ -67,6 +67,7 @@ export type Policy = {
     maxBytes: number;
     includeVideo: boolean;
     includeDocuments: boolean;
+    sharedVideoMaxBytes?: number;
     onDemand: boolean;
     onDemandKeepDays: number;
     keepDays: number;

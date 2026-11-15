@@ -41,6 +41,7 @@ export const ArchiveTab = memo(({
   const connection = usePxgState((state) => state.connection);
   const [error, setError] = useState<unknown>();
   const [maxMegabytes, setMaxMegabytes] = useState('');
+  const [sharedVideoMegabytes, setSharedVideoMegabytes] = useState('');
   const [keepDays, setKeepDays] = useState('');
   const [perChat, setPerChat] = useState('');
   const [maxMembers, setMaxMembers] = useState('');
@@ -65,6 +66,7 @@ export const ArchiveTab = memo(({
         setFilesDays(String(result.media.keepDays));
         setDeletedDays(String(result.retention.deletedDays));
         setMaxMegabytes(String(Math.round(result.media.maxBytes / MB)));
+        setSharedVideoMegabytes(String(Math.round((result.media.sharedVideoMaxBytes ?? 50 * MB) / MB)));
         setKeepDays(String(result.media.onDemandKeepDays));
         setPerChat(String(result.import.perChat));
         setMaxMembers(String(result.chats.maxMembers));
@@ -111,6 +113,7 @@ export const ArchiveTab = memo(({
         maxBytes: Math.max(0, Number(maxMegabytes) || 0) * MB,
         includeVideo: policy.media.includeVideo,
         includeDocuments: policy.media.includeDocuments,
+        sharedVideoMaxBytes: Math.min(2_000_000_000, Math.max(0, Number(sharedVideoMegabytes) || 0) * MB),
         onDemand: policy.media.onDemand,
         onDemandKeepDays: Math.max(1, Number(keepDays) || 1),
         keepDays: Number(filesDays) || 0,
@@ -127,6 +130,7 @@ export const ArchiveTab = memo(({
     });
     if (!isCurrentAccount(account.id)) return;
     setPolicy(result);
+    setSharedVideoMegabytes(String(Math.round((result.media.sharedVideoMaxBytes ?? 50 * MB) / MB)));
     setIsSaved(true);
   });
   const resetException = (peerId: number) => run(async () => {
@@ -228,6 +232,13 @@ export const ArchiveTab = memo(({
           checked={policy.media.onDemand}
           onCheck={(value) => toggleMedia('onDemand', value)}
         />
+        <InputText
+          label={lang('PxgPolicyWarmVideo')}
+          inputMode="numeric"
+          value={sharedVideoMegabytes}
+          onChange={onDigits(setSharedVideoMegabytes)}
+        />
+        <p className={styles.secondary}>{lang('PxgPolicyWarmHint')}</p>
         <InputText
           label={lang('PxgPolicyKeepDays')}
           inputMode="numeric"

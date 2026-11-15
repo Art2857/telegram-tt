@@ -831,6 +831,8 @@
 "PxgAdminTrafficMethod" = "Метод";
 "PxgAdminTrafficSource" = "Источник";
 "PxgAdminTrafficCount" = "Вызовов";
+"PxgPolicyWarmVideo" = "Прогревать видео до, МБ";
+"PxgPolicyWarmHint" = "В открытых гостям и недавно просмотренных чатах. 0 — только превью. При превышении бюджета диска прогрев приостанавливается.";
 "PxgAdminRevokeConfirm" = "Отозвать доступ у {name}?";
 "PxgAdminShareTarget" = "Объект доступа";
 "PxgAdminChooseTarget" = "Выберите папку или тему";

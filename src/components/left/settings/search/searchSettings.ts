@@ -1,3 +1,4 @@
+import type { PxgSettingsTab } from '../../../../proxygram/server/types';
 import type { IconName } from '../../../../types/icons';
 import type { LangFn } from '../../../../util/localization';
 import type { IconBackdropColor } from '../../../gili/primitives/IconBackdrop';
@@ -11,11 +12,15 @@ import {
   type SettingsSearchSection,
 } from './registry';
 
-type SettingsSearchFlags = Record<SettingsSearchFlag, boolean | undefined>;
+type SettingsSearchFlags = Record<
+  Exclude<SettingsSearchFlag, 'hasProxygramSession' | 'hasProxygramAccount'>, boolean | undefined
+>
+& { hasProxygramSession?: boolean; hasProxygramAccount?: boolean };
 
 export type SettingsSearchItem = {
   id: string;
   screen: SettingsScreens;
+  proxygramTab?: PxgSettingsTab;
   title: string;
   path: string;
   depth: number;
@@ -103,6 +108,7 @@ export function buildSettingsSearchIndex(lang: LangFn, flags: SettingsSearchFlag
       screen: section.screenWhen && flags[section.screenWhen.flag] ? section.screenWhen.screen : section.screen,
       title,
       path: buildPath(chain.slice(0, -1)),
+      proxygramTab: section.proxygramTab,
       depth: chain.length,
       categoryScreen: topSection.screen,
       icon: topSection.icon,
@@ -131,13 +137,17 @@ export function buildSettingsSearchIndex(lang: LangFn, flags: SettingsSearchFlag
     items.push({
       id: `${SettingsScreens[entry.screen]}/${entry.titleKey}`,
       screen: entry.screen,
+      proxygramTab: entry.proxygramTab,
       title,
       path: buildPath(chain),
       depth: chain.length,
       categoryScreen: topSection?.screen,
       icon: topSection ? topSection.icon : entry.icon,
       iconBg: topSection ? topSection.iconBg : entry.iconBg,
-      highlight: { langKey: entry.titleKey, isInHeaderMenu: entry.isInHeaderMenu },
+      highlight: entry.isProxygramSection ? undefined : {
+        langKey: entry.titleKey, isInHeaderMenu: entry.isInHeaderMenu,
+      },
+      isSection: entry.isProxygramSection,
       link: getSettingsLink(entry.screen, entry.titleKey) || (section && getSettingsLink(section.screen)),
       titleVariants: [normalizedTitle],
       titleWords,

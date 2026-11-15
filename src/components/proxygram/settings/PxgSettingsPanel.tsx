@@ -1,4 +1,4 @@
-import { memo, useState } from '../../../lib/teact/teact';
+import { memo, useRef, useState } from '../../../lib/teact/teact';
 
 import type { AccountRow, Confirm, Translate } from './settingsTypes';
 
@@ -11,6 +11,7 @@ import { usePxgData } from './settingsShared';
 import useAppLayout from '../../../hooks/useAppLayout';
 import useFlag from '../../../hooks/useFlag';
 import useLang from '../../../hooks/useLang';
+import useSettingsHighlight from '../../left/settings/hooks/useSettingsHighlight';
 
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
@@ -34,7 +35,9 @@ import styles from '../admin/AdminPanel.module.scss';
 const PxgSettingsPanel = () => {
   const lang = useLang();
   const { isMobile } = useAppLayout();
-  const [isSectionOpen, openSection, closeSection] = useFlag();
+  const target = usePxgState((state) => state.settingsTarget);
+  const [isSectionOpen, openSection, closeSection] = useFlag(Boolean(target));
+  const contentRef = useRef<HTMLDivElement>();
   const session = usePxgState((state) => state.session);
   // Managing shares needs only the server session: an owner signed in as a guest keeps these tabs
   const { data: accounts, error: accountsError, reload: reloadAccounts } = usePxgData<AccountRow[]>(
@@ -44,12 +47,14 @@ const PxgSettingsPanel = () => {
   const isOwner = session?.level === 'client' || Boolean(ownAccounts?.length);
   const tabs = TABS.filter((item) => isOwner || !item.isOwnerOnly);
   const [selectedTabKey, setSelectedTabKey] = useState<typeof TABS[number]['key']>(
-    session?.level === 'client' ? 'server' : 'incoming',
+    target?.tab ?? (session?.level === 'client' ? 'server' : 'incoming'),
   );
   const [confirm, setConfirm] = useState<Confirm>();
   const [actionError, setActionError] = useState<{ tab: string; message: string }>();
   const tab = Math.max(0, tabs.findIndex((item) => item.key === selectedTabKey));
   const tabKey = tabs[tab].key;
+  const highlight = tabKey === target?.tab && (!isMobile || isSectionOpen) ? target?.highlight : undefined;
+  useSettingsHighlight(contentRef, highlight, true);
   const t = lang as unknown as Translate;
 
   const close = () => setPxgState({ isSettingsOpen: false });
@@ -89,6 +94,7 @@ const PxgSettingsPanel = () => {
                 className={buildClassName(styles.navItem, index === tab && styles.navItemActive)}
                 aria-current={index === tab ? 'page' : undefined}
                 onClick={() => {
+                  setPxgState({ settingsTarget: undefined });
                   setSelectedTabKey(item.key);
                   openSection();
                 }}
@@ -117,7 +123,7 @@ const PxgSettingsPanel = () => {
           </header>
           <VpnAlert onOpen={() => setPxgState({ isSettingsOpen: false, isAdminOpen: true })} />
           {actionError?.tab === tabKey && <div className={styles.actionError}>{actionError.message}</div>}
-          <div className={buildClassName(styles.contentBody, 'custom-scroll')}>
+          <div ref={contentRef} className={buildClassName(styles.contentBody, 'custom-scroll')}>
             {tabKey === 'server' && <ServerTab {...props} />}
             {tabKey === 'outgoing' && <OutgoingTab {...props} />}
             {tabKey === 'incoming' && <IncomingTab {...props} />}

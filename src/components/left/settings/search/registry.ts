@@ -1,4 +1,5 @@
 import type { selectSettingsSearchFlags } from '../../../../global/selectors';
+import type { PxgSettingsTab } from '../../../../proxygram/server/types';
 import type { IconName } from '../../../../types/icons';
 import type { RegularLangKey } from '../../../../types/language';
 import type { IconBackdropColor } from '../../../gili/primitives/IconBackdrop';
@@ -7,11 +8,13 @@ import { SettingsScreens } from '../../../../types';
 import { IS_IOS, IS_MAC_OS } from '../../../../util/browser/windowEnvironment';
 
 export type SettingsSearchFlag =
-  'isDesktopLayout' | 'canSendWithKeyboard' | keyof ReturnType<typeof selectSettingsSearchFlags>;
+  'isDesktopLayout' | 'canSendWithKeyboard' | 'hasProxygramSession' | 'hasProxygramAccount'
+  | keyof ReturnType<typeof selectSettingsSearchFlags>;
 
 export type SettingsSearchSection = {
   screen: SettingsScreens;
   parent: SettingsScreens;
+  proxygramTab?: PxgSettingsTab;
   titleKey: RegularLangKey;
   aliasKey?: RegularLangKey;
   keywordsKey?: RegularLangKey;
@@ -26,6 +29,8 @@ export type SettingsSearchSection = {
 
 type SettingsSearchEntry = {
   screen: SettingsScreens;
+  proxygramTab?: PxgSettingsTab;
+  isProxygramSection?: boolean;
   titleKey: RegularLangKey;
   keywordsKey?: RegularLangKey;
   icon?: IconName;
@@ -51,6 +56,8 @@ const PRIVACY_VISIBILITY_SCREENS = [
 ];
 
 export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
+  { screen: SettingsScreens.Proxygram, parent: SettingsScreens.Main, titleKey: 'PxgSettingsTitle',
+    proxygramTab: 'incoming', requires: 'hasProxygramSession', icon: 'settings-filled', iconBg: 'blue' },
   {
     screen: SettingsScreens.EditProfile,
     parent: SettingsScreens.Main,
@@ -286,6 +293,30 @@ export const SETTINGS_SEARCH_SECTIONS: SettingsSearchSection[] = [
 ];
 
 export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
+  ...([
+    ['incoming', 'PxgSettingsIncoming'], ['folders', 'PxgSettingsFolders'],
+    ['requests', 'PxgSettingsMyRequests'], ['contacts', 'PxgSettingsContacts'],
+    ['downloaded', 'PxgSettingsDownloaded'], ['devices', 'PxgSettingsDevices'], ['storage', 'PxgSettingsStorage'],
+  ] as const).map(([proxygramTab, titleKey]) => ({ screen: SettingsScreens.Proxygram, titleKey, proxygramTab,
+    requires: 'hasProxygramSession' as const, isProxygramSection: true })),
+  ...([
+    ['server', 'PxgSettingsServer'], ['outgoing', 'PxgSettingsOutgoing'],
+    ['archive', 'PxgSettingsArchive'], ['audit', 'PxgSettingsAudit'],
+  ] as const).map(([proxygramTab, titleKey]) => ({ screen: SettingsScreens.Proxygram, titleKey, proxygramTab,
+    requires: 'hasProxygramAccount' as const, isProxygramSection: true })),
+  ...buildEntries(SettingsScreens.Proxygram, [
+    'PxgSettingsHideDeleted', 'PxgPolicyChannels', 'PxgPolicyMaxMembers', 'PxgPolicyMaxSize',
+    'PxgPolicyVideo', 'PxgPolicyDocuments', 'PxgPolicyOnDemand', 'PxgPolicyWarmVideo',
+    'PxgPolicyKeepDays', 'PxgPolicyImport', 'PxgPolicyPerChat', 'PxgPolicyDeletedDays', 'PxgPolicyFilesDays',
+  ], {
+    proxygramTab: 'archive', requires: 'hasProxygramAccount',
+  }),
+  ...buildEntries(SettingsScreens.Proxygram, ['PxgStorageLimit', 'PxgStorageRetention', 'PxgStorageClear'], {
+    proxygramTab: 'storage', requires: 'hasProxygramSession',
+  }),
+  ...buildEntries(SettingsScreens.Proxygram, ['PxgThinMode'], {
+    proxygramTab: 'server', requires: 'hasProxygramAccount',
+  }),
   ...buildEntries(SettingsScreens.Main, ['TelegramPremium'], {
     requires: 'canBuyPremium', icon: 'star', iconBg: 'premium',
   }),

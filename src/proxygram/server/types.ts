@@ -3,6 +3,8 @@
 import type { ApiMessageEntity, ApiTypingStatus } from '../../api/types';
 
 export type SessionLevel = 'guest' | 'client';
+export type PxgSettingsTab = 'server' | 'outgoing' | 'incoming' | 'folders' | 'requests' | 'contacts'
+  | 'downloaded' | 'archive' | 'audit' | 'devices' | 'storage';
 
 export interface SessionUser {
   id: string;

@@ -4091,6 +4091,8 @@ export interface LangPair {
   'PxgAdminTrafficMethod': undefined;
   'PxgAdminTrafficSource': undefined;
   'PxgAdminTrafficCount': undefined;
+  'PxgPolicyWarmVideo': undefined;
+  'PxgPolicyWarmHint': undefined;
   'PxgAdminShareTarget': undefined;
   'PxgAdminChooseTarget': undefined;
   'PxgAdminGuestFilter': undefined;
