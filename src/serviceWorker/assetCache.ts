@@ -7,7 +7,11 @@ declare const self: ServiceWorkerGlobalScope;
 const TIMEOUT = 3000;
 const CACHE_UPDATE_TIMEOUT = 30000;
 
-export async function respondWithCacheNetworkFirst(e: FetchEvent) {
+/**
+ * `ignoreSearch` — the app page itself: every account slot (`?account=2`) gets the same `index.html`, so offline
+ * a slot not opened since the last update still starts from the page cached for another slot
+ */
+export async function respondWithCacheNetworkFirst(e: FetchEvent, ignoreSearch = false) {
   const abortController = new AbortController();
   const cachePromise = self.caches.open(ASSET_CACHE_NAME);
   const remotePromise = fetchAsset(e.request, abortController.signal);
@@ -19,13 +23,52 @@ export async function respondWithCacheNetworkFirst(e: FetchEvent) {
     return remote.response;
   }
 
-  const cached = await resolveCachedResponse(e.request, cachePromise);
+  const cached = await resolveCachedResponse(e.request, cachePromise)
+    || (ignoreSearch ? await resolveCachedResponse(e.request, cachePromise, true) : undefined);
   if (cached) {
     abortController.abort();
     return cached;
   }
 
   return remote ? remote.response : (await remotePromise).response;
+}
+
+/**
+ * Proxygram: hashed files never change, so an update no longer wipes the cache — the app must start offline right
+ * after a new version arrived (the wiped cache left a white page). Only entries untouched for a month go
+ */
+export async function pruneAssetCache(maxAgeMs: number) {
+  const cache = await self.caches.open(ASSET_CACHE_NAME);
+  const now = Date.now();
+  await Promise.all((await cache.keys()).map(async (request) => {
+    const response = await cache.match(request);
+    const date = Date.parse(response?.headers.get('date') || '');
+    if (!response || !Number.isFinite(date) || now - date > maxAgeMs) await cache.delete(request);
+  }));
+}
+
+/**
+ * Proxygram: the page and every file it names (`compatTest.js` above all — without it Web A does not start) are
+ * cached as soon as a new version installs, not only once something requests them
+ */
+export async function precacheAppShell(scope: string) {
+  const cache = await self.caches.open(ASSET_CACHE_NAME);
+  const page = await fetch(scope, { cache: 'no-store' });
+  if (!page.ok) return;
+  const html = await page.clone().text();
+  await cache.put(scope, page);
+  const files = new Set<string>();
+  for (const [, path] of html.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
+    if (!path.endsWith('.html')) files.add(new URL(path, scope).href);
+  }
+  await Promise.all([...files].map(async (url) => {
+    try {
+      const response = await fetch(url);
+      if (response.ok) await cache.put(url, response);
+    } catch {
+      // The next start fetches it again
+    }
+  }));
 }
 
 export function respondWithCache(e: FetchEvent) {
@@ -58,9 +101,9 @@ async function resolveCacheFirst(
   return fetchAsset(request, abortSignal);
 }
 
-async function resolveCachedResponse(request: Request, cachePromise: Promise<Cache>) {
+async function resolveCachedResponse(request: Request, cachePromise: Promise<Cache>, ignoreSearch = false) {
   const cached = await resolveWithTimeout(
-    cachePromise.then((cache) => cache.match(request)),
+    cachePromise.then((cache) => cache.match(request, ignoreSearch ? { ignoreSearch } : undefined)),
     TIMEOUT,
   );
 

@@ -118,6 +118,7 @@ const methods = {
   updateTopicMutedState,
   fetchChats,
   fetchChat,
+  requestChatUpdate,
   searchChats,
   searchMessagesInChat,
   searchMessagesGlobal,
@@ -1178,6 +1179,19 @@ async function fetchChat({ user, type }: MethodArgs<'fetchChat'>[0]) {
   const chat = buildProxyChat(current);
   emitProxyUpdate({ '@type': 'updateChat', id: chat.id, chat });
   return { chatId: chat.id };
+}
+
+/**
+ * Web A asks for it when an open chat has no main thread yet — an empty Saved Messages of a guest is not in the chat
+ * list. Telegram answers with the thread; without it the empty feed is never stored and its spinner never stops
+ */
+function requestChatUpdate({ chat }: MethodArgs<'requestChatUpdate'>[0]) {
+  if (!resolveProxyPeer(chat.id)) return Promise.resolve(undefined);
+  emitProxyUpdate({
+    '@type': 'updateThreadInfo',
+    threadInfo: { isCommentsInfo: false, chatId: chat.id, threadId: MAIN_THREAD_ID },
+  });
+  return Promise.resolve(undefined);
 }
 
 async function searchChats({ query }: MethodArgs<'searchChats'>[0]) {
