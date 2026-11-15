@@ -109,6 +109,12 @@ function AppUpdateModal() {
     }
   });
 
+  // The app's WebView neither opens new windows nor downloads files: a plain link to the APK does nothing there
+  const handleLinkClick = useLastCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    void openBrowser();
+  });
+
   const copyLink = useLastCallback(() => {
     if (!apk) return;
     setHasActionError(false);
@@ -186,7 +192,17 @@ function AppUpdateModal() {
           {apk && <Button color="translucent" onClick={copyLink}>{lang(isCopied ? 'LinkCopied' : 'CopyLink')}</Button>}
           <Button color="translucent" disabled={isLoading} onClick={check}>{lang('PxgAppUpdateCheck')}</Button>
         </div>
-        {apk && <a className={styles.link} href={apk.url} target="_blank" rel="noopener noreferrer">{apk.url}</a>}
+        {apk && (
+          <a
+            className={styles.link}
+            href={apk.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleLinkClick}
+          >
+            {apk.url}
+          </a>
+        )}
       </div>
     </Modal>
   );

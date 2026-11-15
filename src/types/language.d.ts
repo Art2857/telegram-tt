@@ -3973,6 +3973,11 @@ export interface LangPair {
   'PxgAdminStatShares': undefined;
   'PxgAdminStatArchive': undefined;
   'PxgAdminStatQueue': undefined;
+  'PxgAdminWarnStorage': undefined;
+  'PxgAdminWarnAccountLostHint': undefined;
+  'PxgAdminWarnAccountFloodHint': undefined;
+  'PxgAdminOpenAccounts': undefined;
+  'PxgAdminOpenQueue': undefined;
   'PxgAdminSystem': undefined;
   'PxgAdminAuditChat': undefined;
   'PxgAdminAuditFrom': undefined;
@@ -6763,6 +6768,16 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminWarnAccounts': {
     'count': V;
   };
+  'PxgAdminWarnAccountLost': {
+    'name': V;
+    'owner': V;
+    'date': V;
+  };
+  'PxgAdminWarnAccountFlood': {
+    'name': V;
+    'owner': V;
+    'date': V;
+  };
   'PxgAdminWarnLease': {
     'count': V;
   };
@@ -9386,6 +9401,12 @@ export interface LangKeyGroups {
     keys:
       | 'PxgAdminExportsCounts';
     variables: 'files' | 'messages';
+  };
+  'date,name,owner': {
+    keys:
+      | 'PxgAdminWarnAccountLost'
+      | 'PxgAdminWarnAccountFlood';
+    variables: 'date' | 'name' | 'owner';
   };
   'answering,total': {
     keys:

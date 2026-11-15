@@ -1,7 +1,7 @@
 import { getActions } from '../../global';
 
 import { DEBUG } from '../../config';
-import { MouseButton } from '../browser/windowEnvironment';
+import { IS_ANDROID, MouseButton } from '../browser/windowEnvironment';
 
 type DownloadFinishedEvent = {
   success: boolean;
@@ -79,7 +79,11 @@ export default function setupTauriListeners() {
 async function openLink(url: string | URL) {
   try {
     const urlObject = url instanceof URL ? url : new URL(url, window.location.href);
-    if (window.location.origin === urlObject.origin) {
+    // A second app window only makes sense for the client itself and only on desktop: Android has no extra
+    // windows (the tap was silently lost), and app files (/downloads/: APK, installer, release notes) are for
+    // the system browser to download
+    const isAppPage = window.location.origin === urlObject.origin && !urlObject.pathname.startsWith('/downloads/');
+    if (isAppPage && !IS_ANDROID) {
       await window.tauri.openNewWindow(urlObject.toString());
     } else {
       const shellPlugin = await import('@tauri-apps/plugin-shell');

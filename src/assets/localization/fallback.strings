@@ -5184,6 +5184,13 @@
 "PxgAdminStatArchive" = "Archived in 24 h";
 "PxgAdminStatQueue" = "Queued actions";
 "PxgAdminWarnAccounts" = "Accounts need attention: {count} (session lost or flood wait)";
+"PxgAdminWarnStorage" = "The server cannot save files: the archive, photos for guests and guests' uploads are not working. Check the permissions of the media folder on the server";
+"PxgAdminWarnAccountLost" = "{name} ({owner}): the session on the server was lost {date}";
+"PxgAdminWarnAccountLostHint" = "Telegram ended the session (logged out on another device or the session was terminated). The owner signs in to this account in Proxygram and connects it to the server again in Proxygram settings. If the account is no longer needed, disconnect it on the Accounts tab";
+"PxgAdminWarnAccountFlood" = "{name} ({owner}): Telegram asked to wait since {date}";
+"PxgAdminWarnAccountFloodHint" = "The account resumes by itself when the wait ends, nothing needs to be done";
+"PxgAdminOpenAccounts" = "Open accounts";
+"PxgAdminOpenQueue" = "Open the queue";
 "PxgAdminWarnLease" = "Worker is not renewing the lease of accounts: {count}";
 "PxgAdminSystem" = "System";
 "PxgAdminAuditChat" = "Chat ID";

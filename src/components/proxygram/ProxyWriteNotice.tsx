@@ -1,5 +1,6 @@
 import { memo, useState } from '../../lib/teact/teact';
 
+import buildClassName from '../../util/buildClassName';
 import { getPxgState } from '../../proxygram/server/store';
 
 import useLang from '../../hooks/useLang';
@@ -35,7 +36,7 @@ const ProxyWriteNotice = ({ accountId, providerName }: OwnProps) => {
   if (dismissedAccountId === accountId || readDismissed(storageKey).includes(accountId)) return undefined;
 
   return (
-    <div className={styles.root}>
+    <div className={buildClassName(styles.root, styles.inComposer)}>
       <Icon name="info-filled" className={styles.icon} />
       <span className={styles.text}>
         {providerName ? lang('PxgWriteAsOwner', { name: providerName }) : lang('PxgGuestWriteNotice')}

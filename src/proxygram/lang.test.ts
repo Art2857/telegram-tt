@@ -69,7 +69,12 @@ describe('Proxygram strings', () => {
 
   it('has a Russian translation for every English string and nothing extra', () => {
     expect([...englishByKey.keys()].filter((key) => !russianByKey.has(key))).toEqual([]);
-    expect([...russianByKey.keys()].filter((key) => !englishByKey.has(key))).toEqual([]);
+    // Russian plurals have forms English lacks: `_few` and `_many` next to the English `_one` / `_other`
+    const isRussianPluralForm = (key: string) => (
+      /_(few|many)$/.test(key) && englishByKey.has(key.replace(/_(few|many)$/, '_other'))
+    );
+    expect([...russianByKey.keys()].filter((key) => !englishByKey.has(key) && !isRussianPluralForm(key)))
+      .toEqual([]);
   });
 
   it('keeps the same placeholders in both languages', () => {

@@ -43,7 +43,21 @@ type Overview = {
   shares: Partial<Record<string, number>>;
   outbox: Partial<Record<string, number>>;
   archive: { messagesEstimate: number; messagesLastDay: number };
-  storage: { mediaBytes: number; disk: { totalBytes: number; freeBytes: number } | null };
+  storage: {
+    mediaBytes: number;
+    disk: { totalBytes: number; freeBytes: number } | null;
+    /** The server cannot write files: the archive, guests' photo cache and guests' uploads stop */
+    writeError?: string | null;
+  };
+  attentionAccounts?: {
+    id: string;
+    displayName: string | null;
+    tgUserId: number | null;
+    status: string;
+    statusReason: string | null;
+    statusChangedAt: string | null;
+    owner: string | null;
+  }[];
   staleLeases: number;
 };
 
@@ -279,7 +293,11 @@ const AdminPanel = () => {
     }
   };
 
-  const props = { lang, ask, run, selfId: session?.user.id, topics: TAB_TOPICS[tabKey] };
+  const openTab = (key: (typeof TABS)[number]['key']) => {
+    setTab(TABS.findIndex((item) => item.key === key));
+    setIsSectionOpen(true);
+  };
+  const props = { lang, ask, run, selfId: session?.user.id, topics: TAB_TOPICS[tabKey], openTab };
 
   return (
     <div className={styles.root}>
@@ -375,6 +393,7 @@ type TabProps = {
   run: (action: () => Promise<unknown>) => Promise<void>;
   selfId?: string;
   topics: AdminTopic[];
+  openTab?: (key: (typeof TABS)[number]['key']) => void;
 };
 
 const call = (method: string, params?: unknown) => () => pxgRpc.call(method, params);
@@ -435,7 +454,7 @@ const t = (lang: TabProps['lang'], key: string, vars?: Record<string, string | n
 
 // ─── Обзор ──────────────────────────────────────────────────────────────────
 
-const OverviewTab = memo(({ lang, topics }: TabProps) => {
+const OverviewTab = memo(({ lang, topics, openTab }: TabProps) => {
   const { data, error } = useAdminData<Overview>('admin.overview', {}, topics, SYSTEM_REFRESH_MS);
   const presence = useAdminData<PresenceRow[]>('admin.presence', {}, ['presence']);
 
@@ -446,6 +465,8 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
   const { disk } = data.storage;
   const diskPercent = disk?.totalBytes ? Math.round((1 - disk.freeBytes / disk.totalBytes) * 100) : undefined;
   const isDiskFull = diskPercent !== undefined && diskPercent >= DISK_WARNING_PERCENT;
+  const writeError = data.storage.writeError;
+  const attention = data.attentionAccounts;
 
   const stats: [string, number | string, string?][] = [
     [lang('PxgAdminStatUsers'), data.users.total],
@@ -462,13 +483,45 @@ const OverviewTab = memo(({ lang, topics }: TabProps) => {
 
   return (
     <>
-      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0 || isDiskFull || data.staleLeases > 0) && (
+      {(brokenAccounts > 0 || (data.outbox.failed ?? 0) > 0 || isDiskFull || data.staleLeases > 0
+        || writeError) && (
         <div className={styles.warning}>
+          {writeError && (
+            <div>
+              {lang('PxgAdminWarnStorage')}
+              <div className={styles.secondary}>{writeError}</div>
+            </div>
+          )}
           {data.staleLeases > 0 && <div>{t(lang, 'PxgAdminWarnLease', { count: data.staleLeases })}</div>}
           {isDiskFull && <div>{t(lang, 'PxgAdminWarnDisk', { percent: diskPercent })}</div>}
-          {brokenAccounts > 0 && <div>{t(lang, 'PxgAdminWarnAccounts', { count: brokenAccounts })}</div>}
+          {brokenAccounts > 0 && !attention?.length && (
+            <div>{t(lang, 'PxgAdminWarnAccounts', { count: brokenAccounts })}</div>
+          )}
+          {attention?.map((account) => (
+            <div key={account.id}>
+              {t(lang, account.status === 'flood' ? 'PxgAdminWarnAccountFlood' : 'PxgAdminWarnAccountLost', {
+                name: account.displayName ?? String(account.tgUserId ?? '—'),
+                owner: account.owner ?? '—',
+                date: account.statusChangedAt ? formatDateTime(account.statusChangedAt) : '—',
+              })}
+              <div className={styles.secondary}>
+                {lang(account.status === 'flood' ? 'PxgAdminWarnAccountFloodHint' : 'PxgAdminWarnAccountLostHint')}
+              </div>
+            </div>
+          ))}
+          {Boolean(attention?.length) && (
+            <Button size="tiny" color="translucent" isText onClick={() => openTab?.('accounts')}>
+              {lang('PxgAdminOpenAccounts')}
+            </Button>
+          )}
           {(data.outbox.failed ?? 0) > 0 && (
-            <div>{t(lang, 'PxgAdminWarnQueue', { count: data.outbox.failed ?? 0 })}</div>
+            <div>
+              {t(lang, 'PxgAdminWarnQueue', { count: data.outbox.failed ?? 0 })}
+              {' '}
+              <Button size="tiny" color="translucent" isText onClick={() => openTab?.('outbox')}>
+                {lang('PxgAdminOpenQueue')}
+              </Button>
+            </div>
           )}
         </div>
       )}

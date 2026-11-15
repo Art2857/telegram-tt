@@ -673,6 +673,13 @@
 "PxgAdminStatArchive" = "В архиве за сутки";
 "PxgAdminStatQueue" = "Действий в очереди";
 "PxgAdminWarnAccounts" = "Аккаунтам нужно внимание: {count} (потеряна сессия или flood)";
+"PxgAdminWarnStorage" = "Сервер не может сохранять файлы: архив, фото для гостей и загрузки гостей не работают. Проверьте права на папку медиа на сервере";
+"PxgAdminWarnAccountLost" = "{name} ({owner}): сессия на сервере потеряна {date}";
+"PxgAdminWarnAccountLostHint" = "Telegram завершил сессию (выход на другом устройстве или сессию завершили вручную). Владелец входит в этот аккаунт в Proxygram и снова подключает его к серверу в настройках Proxygram. Если аккаунт больше не нужен, отключите его во вкладке «Аккаунты»";
+"PxgAdminWarnAccountFlood" = "{name} ({owner}): Telegram попросил подождать, с {date}";
+"PxgAdminWarnAccountFloodHint" = "Аккаунт продолжит сам, когда ожидание закончится, делать ничего не нужно";
+"PxgAdminOpenAccounts" = "Открыть аккаунты";
+"PxgAdminOpenQueue" = "Открыть очередь";
 "PxgAdminWarnLease" = "Воркер не продлевает аренду аккаунтов: {count}";
 "PxgAdminSystem" = "Система";
 "PxgAdminAuditChat" = "ID чата";
