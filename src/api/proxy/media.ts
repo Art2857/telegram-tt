@@ -50,11 +50,12 @@ function buildMediaContent(
   const height = media.height || DEFAULT_MEDIA_SIZE;
   const size = media.size || 0;
   const duration = media.duration || 0;
+  const thumbnail = buildStrippedThumbnail(media.strippedThumb, width, height);
   switch (media.kind) {
     case 'photo':
       return { photo: {
         mediaType: 'photo', id, date: Math.floor(Date.parse(dto.date) / 1000),
-        sizes: [{ type: 'x', width, height }],
+        sizes: [{ type: 'x', width, height }], thumbnail,
       } };
     case 'sticker':
       return { sticker: {
@@ -68,7 +69,7 @@ function buildMediaContent(
       return { video: {
         mediaType: 'video', id, width, height, size, duration,
         mimeType: media.mimeType || 'video/mp4', fileName: media.fileName || 'video.mp4',
-        isRound: media.kind === 'round', isGif: media.kind === 'gif', supportsStreaming: true,
+        isRound: media.kind === 'round', isGif: media.kind === 'gif', supportsStreaming: true, thumbnail,
       } };
     case 'voice':
       return { voice: { mediaType: 'voice', id, duration, size } };
@@ -85,6 +86,12 @@ function buildMediaContent(
     default:
       return undefined;
   }
+}
+
+/** The blurred picture Telegram keeps in the message itself: Web A shows it until the file arrives (docs/spec/11 S4) */
+function buildStrippedThumbnail(stripped: string | undefined, width: number, height: number) {
+  // The server sends a complete JPEG: the header Telegram strips is added there, not in the bundle
+  return stripped ? { dataUri: `data:image/jpeg;base64,${stripped}`, width, height } : undefined;
 }
 
 /**
@@ -173,8 +180,12 @@ export async function downloadMedia(
   const request = userId && buildMediaRequest(url, userId, catalog);
   if (!request) return undefined;
   const fileHash = parseProxyMediaHash(url) || parseProxyArchiveHash(url);
-  // A video or GIF has no picture of its own on the server yet: its preview would be the whole file
-  if (fileHash?.isPreview && isDocumentHash(url)) return buildEmptyPreview();
+  // The preview of a video, GIF or file is Telegram's own small picture of it, never the whole file (spec/11 S4)
+  const isCover = Boolean(fileHash?.isPreview && isDocumentHash(url));
+  if (isCover) {
+    if (request[0] !== 'media.url') return undefined;
+    request[1] = { ...request[1], preview: true };
+  }
   const isCanceled = () => Boolean(onProgress?.isCanceled) || userId !== getPxgState().session?.user.id;
   const range = start !== undefined || end !== undefined ? `bytes=${start || 0}-${end ?? ''}` : undefined;
   let loaded: LoadedFile | undefined;
@@ -183,6 +194,8 @@ export async function downloadMedia(
   } catch (err) {
     // A document without a Telegram thumbnail gets an empty preview, so Web A keeps the emoji fallback
     if (catalog?.isThumbnail && err instanceof PxgError && err.code === 'not_found') return buildEmptyPreview();
+    // No cover in Telegram: Web A keeps the blurred thumbnail that came with the message
+    if (isCover && err instanceof PxgError && err.code === 'not_found') return undefined;
     throw err;
   }
   if (!loaded || isCanceled()) return undefined;

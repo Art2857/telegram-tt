@@ -49,8 +49,8 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   const [username, setUsername] = useState('');
   const [guest, setGuest] = useState<UserLookup>();
   const [settings, setSettings] = useState<ShareSettings>(() => ({
-    preset: share?.preset ?? 'assistant',
-    permissions: resolvePermissions(share?.preset ?? 'assistant', share?.permissions),
+    preset: share?.preset ?? 'full',
+    permissions: resolvePermissions(share?.preset ?? 'full', share?.permissions),
     isCustomizing: Boolean(share && Object.keys(share.permissions).length),
     historyMode: share?.historyMode ?? 'all',
     historyLimit: String(share?.historyLimit ?? DEFAULT_HISTORY_LIMIT),

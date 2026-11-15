@@ -115,8 +115,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [username, setUsername] = useState('');
   const [guest, setGuest] = useState<UserLookup>();
   const [editing, setEditing] = useState<OutgoingShare>();
-  const [preset, setPreset] = useState<PresetKey>('assistant');
-  const [permissions, setPermissions] = useState<Permissions>(() => resolvePermissions('assistant'));
+  const [preset, setPreset] = useState<PresetKey>('full');
+  const [permissions, setPermissions] = useState<Permissions>(() => resolvePermissions('full'));
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [historyMode, setHistoryMode] = useState<HistoryMode>('all');
   const [historyLimit, setHistoryLimit] = useState(String(DEFAULT_HISTORY_LIMIT));
@@ -233,8 +233,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setEditing(undefined);
     setGuest(undefined);
     setUsername('');
-    setPreset('assistant');
-    setPermissions(resolvePermissions('assistant'));
+    setPreset('full');
+    setPermissions(resolvePermissions('full'));
     setIsCustomizing(false);
     setHistoryMode('all');
     setHistoryLimit(String(DEFAULT_HISTORY_LIMIT));

@@ -25,6 +25,7 @@ import {
   buildProxyMessage, buildProxyPoll, buildProxyReaction, buildProxySponsoredMessage, buildProxyTopic, buildProxyUser,
   buildProxyUserStatus,
   buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPaidStars, setProxyUserPhone,
+  setProxyUserUsername,
 } from './builders';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
@@ -248,10 +249,31 @@ export async function callProxyApi<T extends keyof Methods>(
   }
 }
 
+/**
+ * The list of accesses is read by the chat list and again by every profile, search and discussion that needs one chat
+ * of it. Calls a moment apart share one answer; loading the chats and every access change read it anew
+ */
+const ACCESS_REUSE_MS = 3000;
+let accessRead: { at: number; userId?: string; promise: Promise<AccessChat[]> } | undefined;
+
+function readAccessChats(isFresh = false): Promise<AccessChat[]> {
+  const userId = getPxgState().session?.user.id;
+  if (!isFresh && accessRead && accessRead.userId === userId && Date.now() - accessRead.at < ACCESS_REUSE_MS) {
+    return accessRead.promise;
+  }
+  const promise = pxgRpc.call<AccessChat[]>('access.chats');
+  const read = { at: Date.now(), userId, promise };
+  accessRead = read;
+  promise.catch(() => {
+    if (accessRead === read) accessRead = undefined;
+  });
+  return promise;
+}
+
 export async function fetchProxyChats() {
   const sessionId = getPxgState().session?.user.id;
   const [access, unread, drafts] = await Promise.all([
-    pxgRpc.call<AccessChat[]>('access.chats'),
+    readAccessChats(true),
     pxgRpc.call<ChatUnreadDto[]>('chats.unread').catch(() => []),
     pxgRpc.call<DraftDto[]>('drafts.list').catch(() => []),
   ]);
@@ -264,6 +286,7 @@ export async function fetchProxyChats() {
   access.forEach((chat) => {
     if (chat.peerId <= 0) return;
     setProxyUserPhone(chat.accountId, chat.peerId, chat.phone);
+    setProxyUserUsername(chat.accountId, chat.peerId, chat.username);
     setProxyUserPaidStars(chat.accountId, chat.peerId, chat.info?.paidMessagesStars);
   });
   // Telegram-wide sticker and GIF search borrows an open chat: the owner's account answers there
@@ -547,7 +570,7 @@ async function fetchDiscussionMessage({ chat, messageId }: MethodArgs<'fetchDisc
     discussion = await pxgRpc.call<DiscussionDto | null>('messages.discussion', params);
   }
   if (!discussion) return undefined;
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const access = await readAccessChats();
   const groupAccess = access.find((item) => item.accountId === peer.accountId && item.peerId === discussion.peerId);
   if (!groupAccess) return undefined;
   const group = buildProxyChat(groupAccess);
@@ -1048,7 +1071,7 @@ async function fetchFullChat(chat: ApiChat) {
   const peer = resolveProxyPeer(chat.id);
   if (!peer) return undefined;
   // Revalidate access before exposing even minimal profile data
-  const chats = await pxgRpc.call<AccessChat[]>('access.chats');
+  const chats = await readAccessChats();
   const current = chats.find((item) => item.accountId === peer.accountId && item.peerId === peer.peerId);
   if (!current) return undefined;
   return {
@@ -1060,7 +1083,7 @@ async function fetchFullChat(chat: ApiChat) {
 async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
   const peer = resolveProxyPeer(id);
   if (!peer) return undefined;
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const access = await readAccessChats();
   const chat = access.find((item) => getProxyPeerId(item.accountId, item.peerId) === id);
   if (!chat) return undefined;
   const paidStars = chat.info?.paidMessagesStars;
@@ -1092,7 +1115,7 @@ async function fetchChat({ user, type }: MethodArgs<'fetchChat'>[0]) {
   if (type !== 'user' || !user) return undefined;
   const peer = resolveProxyPeer(user.id);
   if (!peer) return undefined;
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const access = await readAccessChats();
   const current = access.find((chat) => chat.accountId === peer.accountId && chat.peerId === peer.peerId);
   if (!current) return undefined;
   const chat = buildProxyChat(current);
@@ -1101,7 +1124,7 @@ async function fetchChat({ user, type }: MethodArgs<'fetchChat'>[0]) {
 }
 
 async function searchChats({ query }: MethodArgs<'searchChats'>[0]) {
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const access = await readAccessChats();
   const search = query.trim().toLocaleLowerCase();
   const chats = access.filter((chat) => [chat.title, chat.username].some((value) => (
     value?.toLocaleLowerCase().includes(search)
@@ -1155,7 +1178,7 @@ async function searchMessagesGlobal({
 }
 
 async function buildSearchResult(result: WindowResult) {
-  const access = await pxgRpc.call<AccessChat[]>('access.chats');
+  const access = await readAccessChats();
   const chats = access.map(buildProxyChat);
   const byId = new Map(chats.map((chat) => [chat.id, chat]));
   const messages = result.messages.flatMap((dto): ApiMessage[] => {

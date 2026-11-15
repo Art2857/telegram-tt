@@ -621,6 +621,8 @@ export interface MediaSummaryDto {
   width?: number;
   height?: number;
   duration?: number;
+  /** Blurred preview of a photo, video or GIF: a small JPEG in base64 from Telegram's photoStrippedSize */
+  strippedThumb?: string;
 }
 
 export interface ReactionCountDto {

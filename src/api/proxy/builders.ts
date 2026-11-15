@@ -262,9 +262,22 @@ export function setProxyUserPaidStars(accountId: string, userId: number, stars?:
   else paidStarsByUserId.delete(id);
 }
 
+/**
+ * The public username of the other side of a private chat: the profile shows it as in Telegram (owner's wish
+ * 2026-11-15). A rebuild of the user from a message keeps it, like the phone
+ */
+const usernameByUserId = new Map<string, string>();
+
+export function setProxyUserUsername(accountId: string, userId: number, username?: string | null) {
+  const id = getProxyPeerId(accountId, userId);
+  if (username) usernameByUserId.set(id, username);
+  else usernameByUserId.delete(id);
+}
+
 export function clearProxyUserPhones() {
   phoneByUserId.clear();
   paidStarsByUserId.clear();
+  usernameByUserId.clear();
 }
 
 export function buildProxyUser(
@@ -280,6 +293,8 @@ export function buildProxyUser(
     noStatus: true,
     paidMessagesStars: paidStarsByUserId.get(id),
   };
+  const username = usernameByUserId.get(id);
+  if (username) user.usernames = [{ username, isActive: true }];
   if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;
   if (badges !== undefined) Object.assign(user, buildProxyBadges(accountId, badges), { isPremium: badges?.premium });
   return user;
