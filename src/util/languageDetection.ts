@@ -26,9 +26,12 @@ async function initLanguageDetection() {
   if (isInitialized()) return;
   if (IS_TRANSLATION_DETECTOR_SUPPORTED) {
     try {
-      languageDetector = await LanguageDetector.create();
-      initializationDeferred.resolve();
-      return;
+      // Фоновая инициализация не запрашивает загрузку модели, которой нужен жест пользователя
+      if (await LanguageDetector.availability() === 'available') {
+        languageDetector = await LanguageDetector.create();
+        initializationDeferred.resolve();
+        return;
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       if (DEBUG) console.error('Failed to initialize language detector: ', error);

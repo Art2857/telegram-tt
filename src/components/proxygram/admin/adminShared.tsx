@@ -68,7 +68,14 @@ export function useAdminData<T>(method: string, params: unknown, topics: AdminTo
 export const call = (method: string, params?: unknown) => () => pxgRpc.call(method, params);
 
 export function Loading({ error, lang }: { error: unknown; lang: TabProps['lang'] }) {
-  return <p className={styles.empty}>{error ? describePxgError(lang, error) : lang('PxgAdminLoading')}</p>;
+  const connection = usePxgState((state) => state.connection);
+  const message = connection !== 'online' ? lang('WaitingForNetwork')
+    : error ? describePxgError(lang, error) : lang('PxgAdminLoading');
+  return (
+    <p className={styles.empty}>
+      {message}
+    </p>
+  );
 }
 
 export function Badge({ children, tone }: { children: TeactNode; tone?: 'green' | 'red' | 'blue' | 'gray' }) {

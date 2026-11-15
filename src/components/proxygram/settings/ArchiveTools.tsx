@@ -129,9 +129,10 @@ const ArchiveTools = ({
     <>
       <div className={styles.form}>
         <h3 className={styles.name}>{lang('PxgArchiveSearch')}</h3>
+        <p className={styles.secondary}>{lang('PxgArchiveSearchLabel')}</p>
         <form onSubmit={handleSubmit}>
           <InputText
-            label={lang('PxgArchiveSearchLabel')}
+            label={lang('Search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

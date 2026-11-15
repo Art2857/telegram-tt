@@ -13,13 +13,13 @@ import {
   FILE_CACHE_RETENTION_DAYS, getFileCacheRetentionDays, setFileCacheRetentionDays,
 } from '../../../proxygram/fileCachePolicy';
 import { getPxgState } from '../../../proxygram/server/store';
+import { Loading } from './settingsShared';
 
 import useLang from '../../../hooks/useLang';
 
 import Button from '../../ui/Button';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import RadioGroup from '../../ui/RadioGroup';
-import Spinner from '../../ui/Spinner';
 
 import styles from '../admin/AdminPanel.module.scss';
 
@@ -34,6 +34,7 @@ const StorageTab = () => {
   const lang = useLang();
   const userId = getPxgState().session?.user.id;
   const [usage, setUsage] = useState<DeviceStorageUsage>();
+  const [error, setError] = useState<unknown>();
   const [limit, setLimit] = useState<number | undefined>(getStoredFileCacheLimit);
   const [retentionDays, setRetentionDays] = useState(getFileCacheRetentionDays);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -41,8 +42,12 @@ const StorageTab = () => {
 
   const reload = () => {
     if (!userId) return;
+    setError(undefined);
     void measureDeviceStorage(userId).then(setUsage)
-      .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
+      .catch((err: unknown) => {
+        setUsage(undefined);
+        setError(err);
+      });
   };
 
   useEffect(reload, [userId, lang]);
@@ -53,7 +58,8 @@ const StorageTab = () => {
     const bytes = value === DEFAULT_VALUE ? undefined : Number(value);
     setLimit(bytes);
     setStoredFileCacheLimit(bytes);
-    void trimProxyFiles(userId).then(reload);
+    void trimProxyFiles(userId).then(reload)
+      .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
   };
 
   const handleClear = async () => {
@@ -87,7 +93,7 @@ const StorageTab = () => {
   return (
     <div>
       <p className={styles.secondary}>{lang('PxgStorageAbout')}</p>
-      {!usage ? <Spinner /> : (
+      {!usage ? <Loading error={error} lang={lang} isLocal onRetry={reload} /> : (
         <table className={styles.table}>
           <tbody>
             <tr>
@@ -141,7 +147,8 @@ const StorageTab = () => {
           const days = Number(value);
           setRetentionDays(days);
           setFileCacheRetentionDays(days);
-          void trimProxyFiles(userId).then(reload);
+          void trimProxyFiles(userId).then(reload)
+            .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
         }}
       />
       <Button color="danger" isText disabled={isBusy} onClick={() => setIsConfirmOpen(true)}>

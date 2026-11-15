@@ -74,6 +74,11 @@
   &:hover {
     background: var(--color-chat-hover);
   }
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--color-primary);
+    outline-offset: -0.125rem;
+  }
 }
 
 .navItemActive {
@@ -104,6 +109,23 @@
   max-width: 75rem;
   margin: 0 auto;
   padding: 1rem;
+
+  :global(.Button) {
+    text-transform: none;
+  }
+
+  :global(.input-group > label) {
+    overflow: hidden;
+    max-width: calc(100% - 2rem);
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 600px) {
+    :global(.Button) {
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+    }
+  }
 }
 
 /* Порог совпадает с isMobile (600 px): при 601–720 px работают оба столбца, и контент не должен сжиматься в 0 */

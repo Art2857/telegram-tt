@@ -77,6 +77,7 @@ const AdminPanel = () => {
                 key={item.key}
                 type="button"
                 className={buildClassName(styles.navItem, index === tab && styles.navItemActive)}
+                aria-current={index === tab ? 'page' : undefined}
                 onClick={() => {
                   setTab(index);
                   setIsSectionOpen(true);
