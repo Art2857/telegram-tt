@@ -86,6 +86,11 @@ class PxgRpc {
     });
   }
 
+  /** Connected and signed in: a call goes out at once instead of waiting for the connection */
+  get isConnected() {
+    return this.#isReady;
+  }
+
   #whenReady(): Promise<void> {
     if (this.#isReady) return Promise.resolve();
     if (this.#isStopped) return Promise.reject(new PxgError('unauthorized'));

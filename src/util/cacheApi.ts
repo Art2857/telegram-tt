@@ -207,6 +207,20 @@ async function removeFromCache(resolvedCacheName: string, key: string) {
   }
 }
 
+/** PXG: removes the slot's entries whose key matches — a guest's files of chats that are no longer shared */
+export async function removeMatching(cacheName: string, isMatch: (url: string) => boolean) {
+  if (!cacheApi) return;
+  try {
+    const cache = await cacheApi.open(getAccountScopedCacheName(cacheName));
+    for (const request of await cache.keys()) {
+      if (isMatch(request.url)) await cache.delete(request);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(err);
+  }
+}
+
 export async function clear(cacheName: string) {
   return clearCache(getAccountScopedCacheName(cacheName));
 }

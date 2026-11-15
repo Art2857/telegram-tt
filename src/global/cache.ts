@@ -52,6 +52,7 @@ import { getSystemTheme } from '../util/systemTheme';
 import { getDefaultPatternColor } from '../util/wallpaper';
 import { migrateLegacyWallpaperBlobs, prefetchWallpaperUrl } from '../util/wallpaperStorage';
 import { getPxgState } from '../proxygram/server/store';
+import { loadSyncCursor } from '../proxygram/syncCursor';
 import { buildPageAudioById } from './helpers/buildPageAudioById';
 import { clearProxyChats } from './reducers/proxy';
 import { selectSharedSettings } from './selectors/sharedState';
@@ -181,7 +182,8 @@ export async function loadCache(initialState: GlobalState): Promise<GlobalState 
 
   const cache = await readCache(initialState);
 
-  if (cache.passcode.hasPasscode || hasStoredSession()) {
+  // PXG: a guest slot has no Telegram session, but its own saved chats are worth showing at once (docs/spec/11 C5)
+  if (cache.passcode.hasPasscode || hasStoredSession() || isOwnGuestCache()) {
     // Start resolving the wallpaper early without delaying the initial render
     void prefetchCurrentWallpaperUrl(cache);
 
@@ -191,6 +193,12 @@ export async function loadCache(initialState: GlobalState): Promise<GlobalState 
 
     return undefined;
   }
+}
+
+/** The slot's cache was written by the same guest who is signed in now: their chats, not a previous login's */
+export function isOwnGuestCache() {
+  const session = getPxgState().session;
+  return session?.level === 'guest' && loadSyncCursor()?.userId === session.user.id;
 }
 
 export function setupCaching() {
@@ -312,8 +320,12 @@ export function migrateCache(cached: GlobalState, initialState: GlobalState) {
     unsafeMigrateCache(cached, initialState);
     pruneExpiredEphemeralMessages(cached);
     clearCachedDraftLocalFlags(cached);
-    // PXG: Revalidate accesses before restoring any proxy history from disk
-    Object.assign(cached, clearProxyChats(cached));
+    // PXG: The guest's saved chats show at once when this device knows where their history stopped; the start then
+    // goes as a reconnect — changed accesses are dropped, the rest catches up (docs/spec/11 C5). Otherwise start clean
+    const cursor = loadSyncCursor();
+    if (!cursor || cursor.userId !== getPxgState().session?.user.id) {
+      Object.assign(cached, clearProxyChats(cached));
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);

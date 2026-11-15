@@ -19,7 +19,17 @@ export function setProxyUpdateHandler(handler: OnApiUpdate) {
 }
 
 export function emitProxyUpdate(update: ApiUpdate) {
+  // A deleted or hidden message leaves the device's history too (docs/spec/11 C6)
+  if (update['@type'] === 'deleteMessages' && update.chatId) {
+    const peer = resolveProxyPeer(update.chatId);
+    const userId = getPxgState().session?.user.id;
+    if (peer && userId) void forgetDeletedHistory(userId, peer.accountId, peer.peerId, update.ids);
+  }
   updateHandler?.(update);
+}
+
+function forgetDeletedHistory(userId: string, accountId: string, peerId: number, ids: number[]) {
+  return import('./messageStore').then(({ forgetMessages }) => forgetMessages(userId, accountId, peerId, ids));
 }
 
 /** Returns a promise for intercepted calls, including unsupported methods */

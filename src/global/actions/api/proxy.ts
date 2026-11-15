@@ -19,6 +19,8 @@ import {
 } from '../../../api/proxy';
 import { buildProxyChat, buildProxyUser } from '../../../api/proxy/builders';
 import { isProxyPeerId } from '../../../api/proxy/ids';
+import { forgetProxyFiles } from '../../../api/proxy/media';
+import { forgetUserHistory, keepOnlyChats } from '../../../api/proxy/messageStore';
 import {
   buildProxyReadStates, fetchProxyChanges, fetchProxyChats, getMaxChangeSeq,
 } from '../../../api/proxy/methods';
@@ -30,6 +32,8 @@ import { resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { getPxgState, setPxgState } from '../../../proxygram/server/store';
 import { fetchSharedFolderPrefs, prefsByKey } from '../../../proxygram/sharedFolders';
+import { loadSyncCursor, saveSyncCursor, type SyncCursor } from '../../../proxygram/syncCursor';
+import { isOwnGuestCache, setupCaching } from '../../cache';
 import { getIsChatMuted } from '../../helpers/notifications';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
 import { INITIAL_GLOBAL_STATE, INITIAL_SHARED_STATE } from '../../initialState';
@@ -55,7 +59,12 @@ let mentionGeneration = 0;
  * The newest archive change this session has (`change_seq`, one sequence for the whole archive). A reconnect
  * keeps what is loaded and asks `sync.changes` only for what came after it
  */
-let syncCursor: { userId: string; seq?: string } | undefined;
+let syncCursor: SyncCursor | undefined = loadSyncCursor();
+
+function setSyncCursor(cursor: SyncCursor | undefined) {
+  syncCursor = cursor;
+  saveSyncCursor(cursor);
+}
 /** Pages of `sync.changes` replayed after a reconnect; beyond that reading everything again is cheaper */
 const MAX_SYNC_PAGES = 10;
 
@@ -123,13 +132,16 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     if (chatId && !isProxyPeerId(chatId)) actions.openChat({ id: undefined, tabId });
     actions.closeMediaViewer({ tabId });
   });
-  // A guest slot never inherits Telegram data cached by a previous full login
+  // A guest slot never inherits Telegram data cached by a previous full login; its own saved chats stay and show
+  // at once, the reconnect start below drops what changed (docs/spec/11 C5)
   global = getGlobal();
-  global = {
-    ...global, chats: INITIAL_GLOBAL_STATE.chats, users: INITIAL_GLOBAL_STATE.users,
-    messages: INITIAL_GLOBAL_STATE.messages, chatFolders: INITIAL_GLOBAL_STATE.chatFolders,
-    contactList: { ...INITIAL_GLOBAL_STATE.contactList, userIds: [] },
-  };
+  if (!isOwnGuestCache()) {
+    global = {
+      ...global, chats: INITIAL_GLOBAL_STATE.chats, users: INITIAL_GLOBAL_STATE.users,
+      messages: INITIAL_GLOBAL_STATE.messages, chatFolders: INITIAL_GLOBAL_STATE.chatFolders,
+      contactList: { ...INITIAL_GLOBAL_STATE.contactList, userIds: [] },
+    };
+  }
   const accountId = `self:${session.user.id}`;
   const id = getProxyPeerId(accountId, session.user.tgUserId);
   const user = buildProxyUser(accountId, session.user.tgUserId,
@@ -155,6 +167,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
     },
   };
   setGlobal(global);
+  // Web A writes its state to the device only for a Telegram session: a guest's chats are kept too
+  setupCaching();
   if (IS_SHARED_WORKER_SUPPORTED) initSharedState(global.sharedState);
   // Telegram's peer colors never reach a guest, so avatar placeholders and names use the built-in palette
   if (!global.peerColors) updatePeerColors({});
@@ -166,7 +180,12 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
 addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   if (!global.currentUserId || !isProxyPeerId(global.currentUserId)) return;
   loadGeneration++;
-  syncCursor = undefined;
+  // Signing out takes this person's history off the device
+  if (syncCursor) {
+    void forgetUserHistory(syncCursor.userId);
+    void forgetProxyFiles(syncCursor.userId);
+  }
+  setSyncCursor(undefined);
   global = clearProxyChats({ ...global, currentUserId: undefined });
   global = {
     ...global, auth: { ...global.auth, state: 'authorizationStateWaitPhoneNumber' },
@@ -235,6 +254,12 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
       isSameProxyAccess(previousChats[chat.id]?.pxgProxy, chat.pxgProxy)
     )).map((chat) => chat.id)) : undefined;
     global = clearProxyChats(global, keptChatIds);
+    // The device keeps the history only of chats whose access stayed as it was (docs/spec/11 C6)
+    void keepOnlyChats(userId, new Set([...keptChatIds || []].map((id) => {
+      const peer = resolveProxyPeer(id);
+      return peer ? `${peer.accountId}:${peer.peerId}` : id;
+    })));
+    void forgetProxyFiles(userId, keptChatIds);
     global = updateChats(global, buildCollectionByKey(
       [...result.authorChats, ...result.chats, ...(result.savedChat ? [result.savedChat] : [])], 'id',
     ));
@@ -297,7 +322,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     if (isReconnect) {
       actions.syncProxyChanges();
     } else if (syncCursor?.userId !== userId) {
-      syncCursor = { userId, seq: result.changeSeq };
+      setSyncCursor({ userId, seq: result.changeSeq });
     }
     setPxgState({ sharedCount: result.chats.length });
     if (isProxyGuest()) {
@@ -416,10 +441,10 @@ addActionHandler('syncProxyChanges', async (global, actions): Promise<void> => {
           emitProxyUpdate({ '@type': 'deleteMessages', chatId, ids: [msgId] });
         }
       });
-      syncCursor = { userId, seq: result.next };
+      setSyncCursor({ userId, seq: result.next });
       if (!result.hasMore) return;
     }
-    syncCursor = undefined;
+    setSyncCursor(undefined);
     actions.loadProxyChats();
   } catch {
     // The next reconnect starts from the same cursor
@@ -506,7 +531,7 @@ function applyProxyMessage<T extends GlobalState>(global: T, actions: RequiredGl
 function advanceSyncCursor(changeSeq?: string | null) {
   const userId = getPxgState().session?.user.id;
   if (!changeSeq || !userId || syncCursor?.userId !== userId) return;
-  syncCursor = { userId, seq: getMaxChangeSeq([syncCursor.seq, changeSeq]) };
+  setSyncCursor({ userId, seq: getMaxChangeSeq([syncCursor.seq, changeSeq]) });
 }
 
 /** The person who shared a chat, in the viewer's own Telegram: by a known dialog, otherwise by username */

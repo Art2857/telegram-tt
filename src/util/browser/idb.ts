@@ -73,3 +73,5 @@ export const WALLET_IDB_STORE = new IdbStore('tt-wallet');
 export const PXG_ARCHIVE_IDB_STORE = new IdbStore('pxg-local-archive');
 // PXG: the owner's sticker catalog, set contents and Telegram's reactions and effects of a guest, until their hash changes
 export const PXG_CATALOG_IDB_STORE = new IdbStore('pxg-catalog');
+// PXG: the guest's chat history on the device — the feed opens offline and at once after a reload (docs/spec/11 C6)
+export const PXG_MESSAGES_IDB_STORE = new IdbStore('pxg-messages');

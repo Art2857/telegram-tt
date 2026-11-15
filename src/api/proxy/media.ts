@@ -25,6 +25,29 @@ const UNREGISTERED_CONTACT_ID = '0';
 const MEDIA_WAIT_MS = 10 * 60_000;
 const MEDIA_WAIT_INTERVAL_MS = 1000;
 const MEDIA_WAIT_MAX_INTERVAL_MS = 8000;
+/**
+ * Files of shared chats stay on the device like in Telegram: a reload and an offline start show them without the server
+ * (docs/spec/11 C4). Bigger files and streamed video are fetched again; chats with copying forbidden keep nothing
+ */
+const PXG_FILE_CACHE_MAX_BYTES = 20 * 1024 * 1024;
+const protectedChatIds = new Set<string>();
+
+export function setProtectedProxyChats(chatIds: string[]) {
+  protectedChatIds.clear();
+  chatIds.forEach((id) => protectedChatIds.add(id));
+}
+
+/**
+ * A chat whose access ended or changed takes its files off the device; `keepChatIds` — chats that stay as they were,
+ * none — every file of this person (signing out)
+ */
+export function forgetProxyFiles(userId: string, keepChatIds?: ReadonlySet<string>) {
+  return cacheApi.removeMatching(MEDIA_CACHE_NAME, (url) => {
+    const file = parseProxyMediaHash(url);
+    return Boolean(file && file.userId === userId && !keepChatIds?.has(file.chatId));
+  });
+}
+
 /** Signed links live 10 minutes on the server (MEDIA_TOKEN_TTL_MS): reuse them a bit less */
 const SIGNED_LINK_TTL_MS = 8 * 60_000;
 const SIGNED_LINKS_LIMIT = 2000;
@@ -208,9 +231,13 @@ export async function downloadMedia(
   const dataBlob = mediaFormat === ApiMediaFormat.Text ? new TextDecoder().decode(buffer)
     : isBuffer ? '' : new Blob([buffer], { type: mimeType });
   // As GramJS does: documents by ID, avatars keyed by photo ID and maps of a point never change, so a reload takes
-  // them from the cache instead of asking the server again. Message files are not kept — the access can be revoked
+  // them from the cache instead of asking the server again. Message files are kept too and leave with the access
   const isImmutable = Boolean(catalog) || request[0] === 'media.avatar' || request[0] === 'media.map';
-  if (!MEDIA_CACHE_DISABLED && isImmutable && !isBuffer && buffer.byteLength <= MEDIA_CACHE_MAX_BYTES) {
+  const messageChatId = parseProxyMediaHash(url)?.chatId;
+  const isKeptMessageFile = Boolean(messageChatId) && !protectedChatIds.has(messageChatId)
+    && buffer.byteLength <= PXG_FILE_CACHE_MAX_BYTES;
+  const isKeptImmutable = isImmutable && buffer.byteLength <= Math.max(MEDIA_CACHE_MAX_BYTES, PXG_FILE_CACHE_MAX_BYTES);
+  if (!MEDIA_CACHE_DISABLED && !isBuffer && (isKeptImmutable || isKeptMessageFile)) {
     void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
   }
   return {

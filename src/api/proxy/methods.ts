@@ -34,8 +34,11 @@ import {
 import { parseProxySponsoredId } from './ids';
 import { emitProxyUpdate, getProxyPeerId, isProxyGuest, resolveProxyPeer } from './index';
 import { fetchLangDifference, fetchLangPack, fetchLanguage, fetchLanguages } from './langpacks';
-import { downloadMedia } from './media';
+import { downloadMedia, setProtectedProxyChats } from './media';
 import { buildProxyProfilePhotoId, parseProxyCatalogId } from './mediaIds';
+import {
+  historyKey, readHistory, readMessage, rememberMessages,
+} from './messageStore';
 import { runProxyJob } from './outbox';
 import {
   buildGuestSavedChat, fetchSavedById, fetchSavedChats, fetchSavedHistory, fetchSavedTags, getSavedOrigin, isSavedPeer,
@@ -289,6 +292,9 @@ export async function fetchProxyChats() {
     setProxyUserUsername(chat.accountId, chat.peerId, chat.username);
     setProxyUserPaidStars(chat.accountId, chat.peerId, chat.info?.paidMessagesStars);
   });
+  setProtectedProxyChats(access.filter((chat) => chat.isProtected).map((chat) => (
+    getProxyPeerId(chat.accountId, chat.peerId)
+  )));
   // Telegram-wide sticker and GIF search borrows an open chat: the owner's account answers there
   resetSearchChats();
   chats.forEach(rememberSearchChat);
@@ -362,6 +368,15 @@ export async function fetchProxyChats() {
 /** What changed in the open chats after the cursor, built against the chats the client has */
 export async function fetchProxyChanges(since: string, chatsById: Record<string, ApiChat>) {
   const result = await pxgRpc.call<SyncChangesResult>('sync.changes', { since });
+  // What changed while the guest was away goes into the device's history as well
+  const userId = getPxgState().session?.user.id;
+  if (userId) {
+    result.messages.forEach((dto) => {
+      if (chatsById[getProxyPeerId(dto.accountId, dto.peerId)]?.pxgProxy) {
+        rememberMessages(historyKey(userId, dto.accountId, dto.peerId), [dto]);
+      }
+    });
+  }
   const messages = result.messages.flatMap((dto) => {
     const chat = chatsById[getProxyPeerId(dto.accountId, dto.peerId)];
     if (!chat?.pxgProxy) return [];
@@ -453,9 +468,23 @@ async function fetchMessages({
   // Only a guest who may write pays, and only to a person: a group's price comes with the chat
   if (chat.pxgProxy?.permissions.write) prefetchProxyPaidPrice(peer.accountId, peer.peerId);
   const thread = { topicId: getTopicId(chat, threadId), threadId: getReplyThreadId(chat, threadId) };
-  let result = await pxgRpc.call<WindowResult>('messages.window', {
-    ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
-  });
+  const historyId = sessionHistoryKey(peer, thread.topicId ?? thread.threadId);
+  // Without a connection a call waits for it: the feed comes from the device at once, the sync catches up later
+  const offline = historyId && !pxgRpc.isConnected
+    ? await readHistory(historyId, offsetId, addOffset, limit) : undefined;
+  if (offline?.length) return buildHistoryPage(offline, offline.length, chat);
+  let result: WindowResult;
+  try {
+    result = await pxgRpc.call<WindowResult>('messages.window', {
+      ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
+    });
+  } catch (err) {
+    // No server: the feed scrolls through what this device already has (docs/spec/11 C6)
+    const saved = historyId && isOfflineError(err)
+      ? await readHistory(historyId, offsetId, addOffset, limit) : undefined;
+    if (!saved) throw err;
+    result = { messages: saved, count: saved.length };
+  }
   const oldestId = result.messages.at(-1)?.msgId;
   // count — сколько сообщений вообще видно в этом окне: если страница уже покрыла всё, импорт не нужен
   if (result.messages.length < result.count && result.messages.length < limit
@@ -467,14 +496,30 @@ async function fetchMessages({
       ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
     });
   }
-  const users = result.messages.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
+  if (historyId) rememberMessages(historyId, result.messages);
+  return buildHistoryPage(result.messages, result.count, chat);
+}
+
+function buildHistoryPage(dtos: MessageDto[], count: number, chat: ApiChat) {
+  const users = dtos.filter((dto) => dto.senderId && dto.senderId > 0).map((dto) => (
     buildProxyUser(dto.accountId, dto.senderId!, dto.senderName || undefined, dto.senderPhotoId, dto.senderBadges)
   ));
-  result.messages.forEach((dto) => emitRelated(dto));
+  dtos.forEach((dto) => emitRelated(dto));
   return {
-    messages: result.messages.map((dto) => buildProxyMessage(dto, chat)),
-    users, chats: [], count: result.count, topics: [],
+    messages: dtos.map((dto) => buildProxyMessage(dto, chat)),
+    users, chats: [], count, topics: [],
   };
+}
+
+/** The device keeps the history of this guest only: another person in the same slot starts clean */
+function sessionHistoryKey(peer: { accountId: string; peerId: number }, topicId?: number) {
+  const userId = getPxgState().session?.user.id;
+  return userId ? historyKey(userId, peer.accountId, peer.peerId, topicId) : undefined;
+}
+
+/** The server or the network is gone, not a refusal: show what the device has */
+function isOfflineError(err: unknown) {
+  return err instanceof Error && ['disconnected', 'timeout'].includes((err as { code?: string }).code || '');
 }
 
 async function fetchMessage({ chat, messageId }: MethodArgs<'fetchMessage'>[0]) {
@@ -526,13 +571,25 @@ function flushMessageBatch(key: string) {
   const settle = (byId: Map<number, MessageDto>) => batch.waiters.forEach((resolvers, id) => {
     resolvers.forEach((resolve) => resolve(byId.get(id)));
   });
+  const historyId = sessionHistoryKey(batch.peer);
+  if (historyId && !pxgRpc.isConnected) {
+    void Promise.all(ids.map((id) => readMessage(historyId, id))).then((saved) => {
+      settle(new Map(saved.filter(Boolean).map((dto) => [dto.msgId, dto])));
+    });
+    return;
+  }
   pxgRpc.call<WindowResult>('messages.window', { ...batch.peer, msgIds: ids })
     .then((result) => {
       result.messages.forEach((dto) => emitRelated(dto));
+      if (historyId) rememberMessages(historyId, result.messages);
       settle(new Map(result.messages.map((dto) => [dto.msgId, dto])));
     })
-    // Как и раньше по одному: недоступное сообщение — просто не найдено
-    .catch(() => settle(new Map()));
+    // Без сервера — то, что есть на устройстве; иначе, как и раньше по одному, недоступное просто не найдено
+    .catch(async (err: unknown) => {
+      const saved = historyId && isOfflineError(err)
+        ? await Promise.all(ids.map((id) => readMessage(historyId, id))) : [];
+      settle(new Map(saved.filter(Boolean).map((dto) => [dto.msgId, dto])));
+    });
 }
 
 async function fetchMessagesById({ chat, messageIds }: MethodArgs<'fetchMessagesById'>[0]) {
