@@ -221,6 +221,38 @@ export async function removeMatching(cacheName: string, isMatch: (url: string) =
   }
 }
 
+/** PXG: the slot's entries whose key matches, with their size and last access — for the guest's storage settings */
+export async function listMatching(cacheName: string, isMatch: (url: string) => boolean) {
+  const result: { request: Request; size: number; lastAccess: number }[] = [];
+  if (!cacheApi) return result;
+  try {
+    const cache = await cacheApi.open(getAccountScopedCacheName(cacheName));
+    for (const request of await cache.keys()) {
+      if (!isMatch(request.url)) continue;
+      const response = await cache.match(request);
+      if (!response) continue;
+      const size = Number(response.headers.get('Content-Length')) || (await response.blob()).size;
+      result.push({ request, size, lastAccess: Number(response.headers.get(LAST_ACCESS_HEADER)) || 0 });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(err);
+  }
+  return result;
+}
+
+/** PXG: removes the given entries of the slot's cache */
+export async function removeRequests(cacheName: string, requests: Request[]) {
+  if (!cacheApi || !requests.length) return;
+  try {
+    const cache = await cacheApi.open(getAccountScopedCacheName(cacheName));
+    for (const request of requests) await cache.delete(request);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(err);
+  }
+}
+
 export async function clear(cacheName: string) {
   return clearCache(getAccountScopedCacheName(cacheName));
 }

@@ -7,6 +7,7 @@ import { ApiMediaFormat } from '../types';
 import { MEDIA_CACHE_DISABLED, MEDIA_CACHE_MAX_BYTES, MEDIA_CACHE_NAME, MEDIA_CACHE_NAME_AVATARS } from '../../config';
 import * as cacheApi from '../../util/cacheApi';
 import { pause } from '../../util/schedulers';
+import { scheduleTrimProxyFiles } from '../../proxygram/deviceStorage';
 import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
@@ -239,6 +240,9 @@ export async function downloadMedia(
   const isKeptImmutable = isImmutable && buffer.byteLength <= Math.max(MEDIA_CACHE_MAX_BYTES, PXG_FILE_CACHE_MAX_BYTES);
   if (!MEDIA_CACHE_DISABLED && !isBuffer && (isKeptImmutable || isKeptMessageFile)) {
     void cacheApi.save(url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME, url, dataBlob);
+    // The device keeps chat files within the guest's limit: the longest unopened go first (docs/spec/11 C4)
+    const sessionUserId = getPxgState().session?.user.id;
+    if (isKeptMessageFile && sessionUserId) scheduleTrimProxyFiles(sessionUserId);
   }
   return {
     dataBlob, arrayBuffer: isBuffer ? buffer : undefined, mimeType, fullSize: signed.size ?? buffer.byteLength,

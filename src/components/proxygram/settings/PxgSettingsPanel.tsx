@@ -27,6 +27,7 @@ import TabList from '../../ui/TabList';
 import { VpnAlert } from '../admin/AdminVpn';
 import ArchiveTools from './ArchiveTools';
 import SharedFoldersTab from './SharedFoldersTab';
+import StorageTab from './StorageTab';
 
 import styles from '../admin/AdminPanel.module.scss';
 
@@ -134,6 +135,7 @@ const TABS = [
   { key: 'archive', title: 'PxgSettingsArchive', isOwnerOnly: true },
   { key: 'audit', title: 'PxgSettingsAudit', isOwnerOnly: true },
   { key: 'devices', title: 'PxgSettingsDevices', isOwnerOnly: false },
+  { key: 'storage', title: 'PxgSettingsStorage', isOwnerOnly: false },
 ] as const;
 
 const MB = 1024 * 1024;
@@ -327,6 +329,7 @@ const PxgSettingsPanel = () => {
         {tabKey === 'archive' && <ArchiveTab {...props} />}
         {tabKey === 'audit' && <AuditTab {...props} />}
         {tabKey === 'devices' && <DevicesTab {...props} />}
+        {tabKey === 'storage' && <StorageTab />}
       </div>
       <ConfirmDialog
         isOpen={Boolean(confirm)}

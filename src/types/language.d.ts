@@ -3596,6 +3596,20 @@ export interface LangPair {
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
   'PxgSettingsDevices': undefined;
+  'PxgSettingsStorage': undefined;
+  'PxgStorageAbout': undefined;
+  'PxgStorageChatFiles': undefined;
+  'PxgStorageSite': undefined;
+  'PxgStoragePersist': undefined;
+  'PxgStoragePersistOn': undefined;
+  'PxgStoragePersistAsk': undefined;
+  'PxgStoragePersistDenied': undefined;
+  'PxgStorageLimit': undefined;
+  'PxgStorageLimitDefault': undefined;
+  'PxgStorageLimitNone': undefined;
+  'PxgStorageClear': undefined;
+  'PxgStorageClearConfirm': undefined;
+  'PxgStorageCleared': undefined;
   'PxgSettingsNoAccounts': undefined;
   'PxgSettingsChat': undefined;
   'PxgSettingsLeave': undefined;
@@ -6616,6 +6630,10 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgFolderOriginal': {
     'title': V;
   };
+  'PxgStorageOf': {
+    'used': V;
+    'quota': V;
+  };
   'PxgSettingsMedia': {
     'size': V;
   };
@@ -7689,6 +7707,10 @@ export interface LangPairPluralWithVariables<V = LangVariable> {
   };
   'PageTitleNotifications': {
     'count': V;
+  };
+  'PxgStorageFiles': {
+    'count': V;
+    'size': V;
   };
 }
 
@@ -9318,6 +9340,11 @@ export interface LangKeyGroups {
       | 'PxgDownloadedMedia';
     variables: 'kind';
   };
+  'quota,used': {
+    keys:
+      | 'PxgStorageOf';
+    variables: 'quota' | 'used';
+  };
   'size': {
     keys:
       | 'PxgSettingsMedia';
@@ -9781,6 +9808,11 @@ export interface LangPluralKeyGroups {
       | 'BoostingStarsGiveawayHowItWorksText'
       | 'BoostingStarsGiveawayHowItWorksTextEnd';
     variables: 'chat' | 'count';
+  };
+  'count,size': {
+    keys:
+      | 'PxgStorageFiles';
+    variables: 'count' | 'size';
   };
 }
 

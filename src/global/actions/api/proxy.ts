@@ -29,6 +29,7 @@ import { buildSavedChat } from '../../../api/proxy/saved';
 import { forgetUserSends } from '../../../api/proxy/sendQueue';
 import { buildFallbackReactions } from '../../../api/proxy/stickers';
 import { showQueuedSends, startSendQueue } from '../../../api/proxy/writes';
+import { requestPersistentStorage } from '../../../proxygram/deviceStorage';
 import { buildDownloadedChatState } from '../../../proxygram/downloadedChatChat';
 import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
 import { resolvePermissions } from '../../../proxygram/permissions';
@@ -177,6 +178,8 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
   if (!global.peerColors) updatePeerColors({});
   // Messages written without the server show with their clock at once, also offline (docs/spec/11 C9)
   void showQueuedSends();
+  // The browser must not clear the guest's chats and files by itself (docs/spec/11 C4)
+  void requestPersistentStorage();
   actions.loadProxyChats();
   actions.loadChatFolders();
   actions.loadSavedReactionTags();
