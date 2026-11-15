@@ -1,4 +1,4 @@
-import { memo, useState } from '../../../lib/teact/teact';
+import { memo, useEffect, useRef, useState } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
 import type { ArchiveSearchResult } from '../../../proxygram/server/types';
@@ -55,21 +55,31 @@ const ArchiveTools = ({
   const [withFiles, setWithFiles] = useState(false);
   const [chat, setChat] = useState<ChatFilter>();
   const [cleared, setCleared] = useState<number>();
+  const requestRef = useRef(0);
 
-  const load = useLastCallback(async (searched: string, offset: number, peerId = chat?.peerId) => {
+  useEffect(() => () => {
+    // Ответ закрытого раздела не применяется после смены аккаунта
+    requestRef.current++;
+  }, [accountId, requestRef]);
+
+  const load = useLastCallback(async (searched: string, offset: number, peerId?: number) => {
+    const request = ++requestRef.current;
     setIsLoading(true);
     setError(undefined);
+    if (!offset) setResult(undefined);
     try {
       const page = await pxgRpc.call<ArchiveSearchResult>('archive.search', {
         accountId, query: searched, peerId, limit: SEARCH_PAGE, offset,
       });
+      if (request !== requestRef.current) return;
       setResult((current) => (
         offset && current ? { ...page, messages: [...current.messages, ...page.messages] } : page
       ));
     } catch (err) {
-      setError(describePxgError(lang, err));
+      if (request === requestRef.current) setError(describePxgError(lang, err));
+    } finally {
+      if (request === requestRef.current) setIsLoading(false);
     }
-    setIsLoading(false);
   });
 
   const handleSubmit = useLastCallback((e: React.FormEvent) => {
@@ -77,7 +87,7 @@ const ArchiveTools = ({
     const trimmed = query.trim();
     if (!trimmed) return;
     setSubmittedQuery(trimmed);
-    void load(trimmed, 0);
+    void load(trimmed, 0, chat?.peerId);
   });
 
   const handleChatFilter = useLastCallback((filter?: ChatFilter) => {
@@ -118,6 +128,9 @@ const ArchiveTools = ({
         const removed = await pxgRpc.call<{ messages: number }>('archive.clear', {
           accountId, peerId: target?.peerId,
         });
+        requestRef.current++;
+        setIsLoading(false);
+        setError(undefined);
         setCleared(removed.messages);
         setResult(undefined);
         onCleared();
@@ -199,7 +212,7 @@ const ArchiveTools = ({
           size="smaller"
           isText
           disabled={isLoading}
-          onClick={() => void load(submittedQuery, result.messages.length)}
+          onClick={() => void load(submittedQuery, result.messages.length, chat?.peerId)}
         >
           {lang('PxgArchiveMore')}
         </Button>
