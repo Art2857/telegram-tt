@@ -6,7 +6,7 @@ import type { DeviceStorageUsage } from '../../../proxygram/deviceStorage';
 import { formatFileSize } from '../../../util/textFormat';
 import {
   clearProxyDeviceCache, FILE_CACHE_LIMITS, getStoredFileCacheLimit, measureDeviceStorage, requestPersistentStorage,
-  setStoredFileCacheLimit, trimProxyFiles,
+  setStoredFileCacheLimit, trimDeviceFiles,
 } from '../../../proxygram/deviceStorage';
 import { getPxgErrorMessage } from '../../../proxygram/errorReasons';
 import {
@@ -58,7 +58,7 @@ const StorageTab = () => {
     const bytes = value === DEFAULT_VALUE ? undefined : Number(value);
     setLimit(bytes);
     setStoredFileCacheLimit(bytes);
-    void trimProxyFiles(userId).then(reload)
+    void trimDeviceFiles().then(reload)
       .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
   };
 
@@ -104,6 +104,10 @@ const StorageTab = () => {
                 })}
               </td>
             </tr>
+            <tr>
+              <td>{lang('PxgStorageAllProfiles')}</td>
+              <td>{formatFileSize(lang, usage.allFileBytes)}</td>
+            </tr>
             {usage.usageBytes !== undefined && (
               <tr>
                 <td>{lang('PxgStorageSite')}</td>
@@ -147,7 +151,7 @@ const StorageTab = () => {
           const days = Number(value);
           setRetentionDays(days);
           setFileCacheRetentionDays(days);
-          void trimProxyFiles(userId).then(reload)
+          void trimDeviceFiles().then(reload)
             .catch((err: unknown) => showNotification({ message: getPxgErrorMessage(lang, err) }));
         }}
       />

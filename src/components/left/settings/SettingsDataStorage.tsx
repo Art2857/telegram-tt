@@ -1,4 +1,4 @@
-import { memo } from '../../../lib/teact/teact';
+import { memo, useState } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
 import type { AccountSettings } from '../../../types';
@@ -57,6 +57,7 @@ const SettingsDataStorage = ({
   const { setSettingOption, showNotification } = getActions();
 
   const lang = useLang();
+  const [isPurging, setIsPurging] = useState(false);
 
   useHistoryBack({
     isActive,
@@ -74,11 +75,17 @@ const SettingsDataStorage = ({
     setSettingOption({ autoLoadFileMaxSizeMb: AUTODOWNLOAD_FILESIZE_MB_LIMITS[value] });
   });
 
-  const handlePurge = useLastCallback(() => {
-    purgeClearableCache();
-    showNotification({
-      message: { key: 'SettingsDataClearMediaDone' },
-    });
+  const handlePurge = useLastCallback(async () => {
+    if (isPurging) return;
+    setIsPurging(true);
+    try {
+      await purgeClearableCache();
+      showNotification({ message: { key: 'SettingsDataClearMediaDone' } });
+    } catch {
+      showNotification({ message: { key: 'ErrorUnspecified' } });
+    } finally {
+      setIsPurging(false);
+    }
   });
 
   function renderContentSizeSlider() {
@@ -166,6 +173,7 @@ const SettingsDataStorage = ({
       <Island>
         <ListItem
           onClick={handlePurge}
+          disabled={isPurging}
           icon="delete"
           multiline
         >

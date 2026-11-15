@@ -1,6 +1,6 @@
 import { MEDIA_CACHE_NAME } from '../../config';
 import * as cacheApi from '../../util/cacheApi';
-import { scheduleTrimProxyFiles, trimProxyFiles } from '../../proxygram/deviceStorage';
+import { scheduleTrimDeviceFiles, trimDeviceFiles } from '../../proxygram/deviceStorage';
 import { FILE_CACHE_MAX_BYTES } from '../../proxygram/fileCachePolicy';
 import { parseProxyMediaHash } from './mediaIds';
 
@@ -53,7 +53,7 @@ export async function cacheProxyFile(key: string, blob: Blob, userId: string, ge
   if (getProxyCacheGeneration(userId) !== generation) return;
   let isSaved = await cacheApi.save(MEDIA_CACHE_NAME, key, blob);
   if (!isSaved && getProxyCacheGeneration(userId) === generation) {
-    await trimProxyFiles(userId, blob.size);
+    await trimDeviceFiles(blob.size);
     if (getProxyCacheGeneration(userId) !== generation) return;
     isSaved = await cacheApi.save(MEDIA_CACHE_NAME, key, blob);
   }
@@ -61,7 +61,7 @@ export async function cacheProxyFile(key: string, blob: Blob, userId: string, ge
     await cacheApi.remove(MEDIA_CACHE_NAME, key);
     return;
   }
-  if (isSaved) scheduleTrimProxyFiles(userId);
+  if (isSaved) scheduleTrimDeviceFiles();
 }
 
 /** Только уже полученные части; полное покрытие файла превращается в обычную запись кэша */

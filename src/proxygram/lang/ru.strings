@@ -263,6 +263,7 @@
 "PxgSettingsStorage" = "Хранилище";
 "PxgStorageAbout" = "Файлы и переписка открытых вам чатов хранятся на этом устройстве, как в Telegram: после перезахода и без сети всё уже на месте. Очистка ничего не теряет — сервер отдаст всё снова.";
 "PxgStorageChatFiles" = "Файлы чатов";
+"PxgStorageAllProfiles" = "Кэш файлов всех профилей";
 "PxgStorageFiles_one" = "{count} файл, {size}";
 "PxgStorageFiles_few" = "{count} файла, {size}";
 "PxgStorageFiles_many" = "{count} файлов, {size}";
@@ -273,7 +274,7 @@
 "PxgStoragePersistOn" = "Да";
 "PxgStoragePersistAsk" = "Разрешить";
 "PxgStoragePersistDenied" = "Браузер не разрешил постоянное хранилище — он может очистить кэш сам, когда мало места";
-"PxgStorageLimit" = "Предел кэша файлов";
+"PxgStorageLimit" = "Общий предел кэша файлов";
 "PxgStorageRetention" = "Хранить файлы после последнего открытия";
 "PxgStorageWeek" = "Неделю";
 "PxgStorageMonth" = "Месяц";

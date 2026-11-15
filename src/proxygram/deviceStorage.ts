@@ -1,5 +1,5 @@
-import { MEDIA_CACHE_NAME } from '../config';
-import { listMatching, removeRequests } from '../util/cacheApi';
+import { FILE_CACHE_WRITE_CHANNEL, MEDIA_CACHE_NAME } from '../config';
+import { listFilesFromAllAccounts, listMatching, removeCachedFiles, removeRequests } from '../util/cacheApi';
 import { parseProxyMediaHash } from '../api/proxy/mediaIds';
 import { forgetUserHistory } from '../api/proxy/messageStore';
 import { getFileCacheRetentionMs } from './fileCachePolicy';
@@ -24,6 +24,7 @@ export type DeviceStorageUsage = {
   /** Files of shared chats of this person */
   files: number;
   fileBytes: number;
+  allFileBytes: number;
   isPersisted?: boolean;
 };
 
@@ -62,16 +63,18 @@ export async function getEffectiveFileCacheLimit(): Promise<number> {
 }
 
 export async function measureDeviceStorage(userId: string): Promise<DeviceStorageUsage> {
-  const [estimate, isPersisted, files] = await Promise.all([
+  const [estimate, isPersisted, files, allFiles] = await Promise.all([
     navigator.storage?.estimate?.().catch(() => undefined),
     navigator.storage?.persisted?.().catch(() => undefined),
     listMatching(MEDIA_CACHE_NAME, isOwnFile(userId)),
+    listFilesFromAllAccounts(),
   ]);
   return {
     usageBytes: estimate?.usage,
     quotaBytes: estimate?.quota,
     files: files.length,
     fileBytes: files.reduce((sum, file) => sum + file.size, 0),
+    allFileBytes: allFiles.reduce((sum, file) => sum + file.size, 0),
     isPersisted,
   };
 }
@@ -88,9 +91,15 @@ export async function requestPersistentStorage(): Promise<boolean> {
 }
 
 /** Beyond the limit the files opened longest ago go first */
-export async function trimProxyFiles(userId: string, bytesToFree = 0) {
+export async function trimDeviceFiles(bytesToFree = 0): Promise<number> {
+  if (!navigator.locks) return trimDeviceFilesNow(bytesToFree);
+  return navigator.locks.request('pxg-file-cache-trim', bytesToFree ? {} : { ifAvailable: true },
+    (lock) => (lock ? trimDeviceFilesNow(bytesToFree) : 0));
+}
+
+async function trimDeviceFilesNow(bytesToFree: number) {
   const limit = await getEffectiveFileCacheLimit();
-  const files = await listMatching(MEDIA_CACHE_NAME, isOwnFile(userId));
+  const files = await listFilesFromAllAccounts();
   let total = files.reduce((sum, file) => sum + file.size, 0);
   const ttl = getFileCacheRetentionMs();
   const expiresBefore = ttl ? Date.now() - ttl : 0;
@@ -99,27 +108,28 @@ export async function trimProxyFiles(userId: string, bytesToFree = 0) {
   let freedBytes = 0;
   for (const file of byAge) {
     if (total <= limit && file.lastAccess >= expiresBefore && freedBytes >= bytesToFree) break;
-    removed.push(file.request);
+    removed.push(file);
     total -= file.size;
     freedBytes += file.size;
   }
-  await removeRequests(MEDIA_CACHE_NAME, removed);
-  return removed.length;
+  return removeCachedFiles(removed);
 }
 
 let trimTimer: ReturnType<typeof setTimeout> | undefined;
-const pendingTrimUsers = new Set<string>();
 
 /** After new files the cache is checked against its limit, not after every one of them */
-export function scheduleTrimProxyFiles(userId: string) {
-  pendingTrimUsers.add(userId);
+export function scheduleTrimDeviceFiles() {
   if (trimTimer) return;
   trimTimer = setTimeout(() => {
     trimTimer = undefined;
-    const userIds = [...pendingTrimUsers];
-    pendingTrimUsers.clear();
-    void Promise.allSettled(userIds.map((id) => trimProxyFiles(id)));
+    void trimDeviceFiles().catch(() => undefined);
   }, TRIM_DELAY_MS);
+}
+
+if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+  const cacheWrites = new BroadcastChannel(FILE_CACHE_WRITE_CHANNEL);
+  cacheWrites.onmessage = scheduleTrimDeviceFiles;
+  scheduleTrimDeviceFiles();
 }
 
 /** "Clear cache": files and saved history of this person leave the device; the server gives them again */

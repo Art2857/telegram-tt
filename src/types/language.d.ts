@@ -3608,6 +3608,7 @@ export interface LangPair {
   'PxgSettingsStorage': undefined;
   'PxgStorageAbout': undefined;
   'PxgStorageChatFiles': undefined;
+  'PxgStorageAllProfiles': undefined;
   'PxgStorageSite': undefined;
   'PxgStoragePersist': undefined;
   'PxgStoragePersistOn': undefined;

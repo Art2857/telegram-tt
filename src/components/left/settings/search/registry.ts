@@ -311,7 +311,9 @@ export const SETTINGS_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   ], {
     proxygramTab: 'archive', requires: 'hasProxygramAccount',
   }),
-  ...buildEntries(SettingsScreens.Proxygram, ['PxgStorageLimit', 'PxgStorageRetention', 'PxgStorageClear'], {
+  ...buildEntries(SettingsScreens.Proxygram, [
+    'PxgStorageLimit', 'PxgStorageRetention', 'PxgStorageClear', 'PxgStorageAllProfiles',
+  ], {
     proxygramTab: 'storage', requires: 'hasProxygramSession',
   }),
   ...buildEntries(SettingsScreens.Proxygram, ['PxgThinMode'], {

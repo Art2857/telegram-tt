@@ -1,16 +1,20 @@
 import {
   CUSTOM_BG_CACHE_NAME,
+  FILE_CACHE_WRITE_CHANNEL,
   MEDIA_CACHE_NAME,
   MEDIA_CACHE_NAME_AVATARS,
   MEDIA_PROGRESSIVE_CACHE_NAME,
 } from '../config';
-import { parseProxyMediaHash } from '../api/proxy/mediaIds';
 import { getFileCacheRetentionMs } from '../proxygram/fileCachePolicy';
 import { yieldToMain } from './browser/scheduler';
 import { loadPasscodeMeta, requestPasscodeStateLock } from './passcode/meta';
 import { ACCOUNT_SLOT } from './multiaccount';
 
 const cacheApi = self.caches;
+const cacheWrites = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel(FILE_CACHE_WRITE_CHANNEL) : undefined;
+
+export type CachedFile = { cacheName: string; request: Request; size: number; lastAccess: number };
 
 const LAST_ACCESS_HEADER = 'X-Last-Access';
 const CACHE_TTL = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -20,10 +24,13 @@ const CLEANUP_INTERVAL = 1 * 60 * 60 * 1000; // 1 hour
 const CLEARABLE_CACHE_NAMES = [MEDIA_CACHE_NAME, MEDIA_CACHE_NAME_AVATARS, MEDIA_PROGRESSIVE_CACHE_NAME];
 const CACHE_KEY_BASE = `${self.location.origin}/`;
 
-void cleanup(CLEARABLE_CACHE_NAMES).catch(() => undefined);
-setInterval(() => {
+// Выбранный срок читается из localStorage страницы; worker не заменяет «Всегда» своим сроком по умолчанию
+if (typeof window !== 'undefined') {
   void cleanup(CLEARABLE_CACHE_NAMES).catch(() => undefined);
-}, CLEANUP_INTERVAL);
+  setInterval(() => {
+    void cleanup(CLEARABLE_CACHE_NAMES).catch(() => undefined);
+  }, CLEANUP_INTERVAL);
+}
 
 let isSupported: boolean | undefined;
 
@@ -175,6 +182,7 @@ async function saveToCache(
     response.headers.set(LAST_ACCESS_HEADER, Date.now().toString());
     const cache = await cacheApi.open(resolvedCacheName);
     await cache.put(request, response);
+    if (isFileCache(resolvedCacheName)) cacheWrites?.postMessage('saved');
 
     return true;
   } catch (err) {
@@ -228,22 +236,59 @@ export async function removeMatching(cacheName: string, isMatch: (url: string) =
 
 /** PXG: the slot's entries whose key matches, with their size and last access — for the guest's storage settings */
 export async function listMatching(cacheName: string, isMatch: (url: string) => boolean) {
-  const result: { request: Request; size: number; lastAccess: number }[] = [];
+  return listMatchingFromCache(getAccountScopedCacheName(cacheName), isMatch);
+}
+
+/** Общий бюджет устройства учитывает файлы каждого профиля, включая прежний кэш без суффикса */
+export async function listFilesFromAllAccounts() {
+  if (!cacheApi) return [];
+  const names = (await cacheApi.keys()).filter(isFileCache);
+  return (await Promise.all(names.map((name) => listMatchingFromCache(name, () => true)))).flat();
+}
+
+async function listMatchingFromCache(resolvedCacheName: string, isMatch: (url: string) => boolean) {
+  const result: CachedFile[] = [];
   if (!cacheApi) return result;
   try {
-    const cache = await cacheApi.open(getAccountScopedCacheName(cacheName));
+    const cache = await cacheApi.open(resolvedCacheName);
     for (const request of await cache.keys()) {
       if (!isMatch(request.url)) continue;
       const response = await cache.match(request);
       if (!response) continue;
-      const size = Number(response.headers.get('Content-Length')) || (await response.blob()).size;
-      result.push({ request, size, lastAccess: Number(response.headers.get(LAST_ACCESS_HEADER)) || 0 });
+      const declaredSize = Number(response.headers.get('Content-Length'));
+      const size = response.headers.has('Content-Length') && Number.isFinite(declaredSize) && declaredSize >= 0
+        ? declaredSize : (await response.blob()).size;
+      result.push({
+        cacheName: resolvedCacheName, request, size, lastAccess: Number(response.headers.get(LAST_ACCESS_HEADER)) || 0,
+      });
     }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn(err);
   }
   return result;
+}
+
+export async function removeCachedFiles(files: CachedFile[]) {
+  if (!cacheApi || !files.length) return 0;
+  let removed = 0;
+  const names = new Set(files.map((file) => file.cacheName));
+  for (const name of names) {
+    const cache = await cacheApi.open(name);
+    for (const file of files) {
+      if (file.cacheName !== name) continue;
+      if (await cache.delete(file.request)) removed++;
+      if (name === MEDIA_PROGRESSIVE_CACHE_NAME || name.startsWith(`${MEDIA_PROGRESSIVE_CACHE_NAME}_`)) {
+        const url = new URL(file.request.url);
+        const type = url.searchParams.get('type');
+        if (type === 'headers' || type === 'arrayBuffer') {
+          url.searchParams.set('type', type === 'headers' ? 'arrayBuffer' : 'headers');
+          if (await cache.delete(url)) removed++;
+        }
+      }
+    }
+  }
+  return removed;
 }
 
 /** PXG: removes the given entries of the slot's cache */
@@ -301,7 +346,7 @@ export async function cleanup(cacheNames: string[]) {
         if (!response) continue;
 
         const lastAccess = Number(response.headers.get(LAST_ACCESS_HEADER));
-        const ttl = parseProxyMediaHash(request.url) ? getFileCacheRetentionMs() : CACHE_TTL;
+        const ttl = isFileCache(getAccountScopedCacheName(cacheName)) ? getFileCacheRetentionMs() : CACHE_TTL;
         if (ttl && lastAccess && now - lastAccess > ttl) {
           await cache.delete(request);
         }
@@ -313,8 +358,9 @@ export async function cleanup(cacheNames: string[]) {
   }
 }
 
-export function purgeClearableCache() {
-  CLEARABLE_CACHE_NAMES.forEach((cacheName) => clear(cacheName));
+export async function purgeClearableCache() {
+  if (!cacheApi) return;
+  await Promise.all(CLEARABLE_CACHE_NAMES.map((cacheName) => cacheApi.delete(getAccountScopedCacheName(cacheName))));
 }
 
 export async function purgePasscodeCaches() {
@@ -334,6 +380,11 @@ async function getAccountScopedCacheNames(cacheName: string) {
     console.warn(err);
     return [];
   }
+}
+
+function isFileCache(cacheName: string) {
+  return [MEDIA_CACHE_NAME, MEDIA_PROGRESSIVE_CACHE_NAME]
+    .some((name) => cacheName === name || cacheName.startsWith(`${name}_`));
 }
 
 function buildCacheRequest(key: string) {

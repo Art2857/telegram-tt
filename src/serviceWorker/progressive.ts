@@ -1,5 +1,6 @@
 import {
   DEBUG,
+  FILE_CACHE_WRITE_CHANNEL,
   MEDIA_CACHE_MAX_BYTES,
   MEDIA_PROGRESSIVE_CACHE_DISABLED,
   MEDIA_PROGRESSIVE_CACHE_NAME,
@@ -28,6 +29,9 @@ const MB = 1024 * 1024;
 const DEFAULT_PART_SIZE = 0.5 * MB;
 const MAX_END_TO_CACHE = 2 * MB - 1; // We only cache the first 2 MB of each file
 const PART_TIMEOUT = 60000;
+const LAST_ACCESS_HEADER = 'X-Last-Access';
+const ACCESS_THROTTLE_MS = 24 * 60 * 60 * 1000;
+const cacheWrites = new BroadcastChannel(FILE_CACHE_WRITE_CHANNEL);
 
 const requestStates = new Map<string, RequestStates>();
 
@@ -82,7 +86,7 @@ export async function respondForProgressive(e: FetchEvent) {
     );
   }
 
-  if (cachedArrayBuffer) {
+  if (cachedArrayBuffer && cachedHeaders) {
     return new Response(cachedArrayBuffer, {
       status: 206,
       statusText: 'Partial Content',
@@ -129,7 +133,7 @@ export async function respondForProgressive(e: FetchEvent) {
     await requestPasscodeStateLock(async () => {
       if (await loadPasscodeMeta()) return;
       await saveToCache(accountSlot, cacheKey, arrayBufferPart, headers);
-    });
+    }).catch(() => undefined);
   }
 
   return new Response(arrayBufferPart, {
@@ -144,10 +148,20 @@ async function fetchFromCache(accountSlot: number | undefined, cacheKey: string)
   const cacheName = !accountSlot ? MEDIA_PROGRESSIVE_CACHE_NAME : `${MEDIA_PROGRESSIVE_CACHE_NAME}_${accountSlot}`;
   const cache = await self.caches.open(cacheName);
 
-  return Promise.all([
-    cache.match(`${cacheKey}&type=arrayBuffer`).then((r) => (r ? r.arrayBuffer() : undefined)),
-    cache.match(`${cacheKey}&type=headers`).then((r) => (r ? r.json() : undefined)),
-  ]);
+  const dataKey = `${cacheKey}&type=arrayBuffer`;
+  const headersKey = `${cacheKey}&type=headers`;
+  const [data, headers] = await Promise.all([cache.match(dataKey), cache.match(headersKey)]);
+  if (!data || !headers) return [];
+  const now = Date.now();
+  if (now - Number(data.headers.get(LAST_ACCESS_HEADER)) > ACCESS_THROTTLE_MS) {
+    const responses: [string, Response][] = [[dataKey, data], [headersKey, headers]];
+    void Promise.all(responses.map(async ([key, response]) => {
+      const updatedHeaders = new Headers(response.headers);
+      updatedHeaders.set(LAST_ACCESS_HEADER, String(now));
+      await cache.put(key, new Response(response.clone().body, { headers: updatedHeaders }));
+    })).catch(() => undefined);
+  }
+  return Promise.all([data.arrayBuffer(), headers.json()]);
 }
 
 async function saveToCache(
@@ -156,10 +170,18 @@ async function saveToCache(
   const cacheName = !accountSlot ? MEDIA_PROGRESSIVE_CACHE_NAME : `${MEDIA_PROGRESSIVE_CACHE_NAME}_${accountSlot}`;
   const cache = await self.caches.open(cacheName);
 
-  return Promise.all([
-    cache.put(new Request(`${cacheKey}&type=arrayBuffer`), new Response(arrayBuffer)),
-    cache.put(new Request(`${cacheKey}&type=headers`), new Response(JSON.stringify(headers))),
+  const metadata = JSON.stringify(headers);
+  const touchedAt = String(Date.now());
+  await Promise.all([
+    cache.put(new Request(`${cacheKey}&type=arrayBuffer`), new Response(arrayBuffer, {
+      headers: { 'Content-Length': String(arrayBuffer.byteLength), [LAST_ACCESS_HEADER]: touchedAt },
+    })),
+    cache.put(new Request(`${cacheKey}&type=headers`), new Response(metadata, {
+      headers: { 'Content-Length': String(new TextEncoder().encode(metadata).byteLength),
+        [LAST_ACCESS_HEADER]: touchedAt },
+    })),
   ]);
+  cacheWrites.postMessage('saved');
 }
 
 export async function requestPart(
