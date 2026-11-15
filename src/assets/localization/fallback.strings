@@ -5300,6 +5300,10 @@
 "PxgAdminTransferConfirm" = "Make {name} the server administrator? There is only one administrator: you will become a regular user and lose access to this panel.";
 "PxgAdminEndSession" = "End session";
 "PxgAdminEndSessionConfirm" = "End this session of {name}?";
+"PxgAdminEndSessions" = "End all";
+"PxgAdminEndSessionsConfirm" = "End all {count} sessions of {name} on this device?";
+"PxgAdminSameDevice" = "and {count} more on this device";
+"PxgAdminSessionsCount" = "sessions: {count}";
 "PxgAdminPause" = "Pause";
 "PxgAdminResume" = "Resume";
 "PxgAdminDisconnect" = "Disconnect";

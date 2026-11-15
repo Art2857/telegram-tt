@@ -4058,6 +4058,7 @@ export interface LangPair {
   'PxgAdminUnblock': undefined;
   'PxgAdminTransfer': undefined;
   'PxgAdminEndSession': undefined;
+  'PxgAdminEndSessions': undefined;
   'PxgAdminPause': undefined;
   'PxgAdminResume': undefined;
   'PxgAdminDisconnect': undefined;
@@ -6880,6 +6881,16 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminEndSessionConfirm': {
     'name': V;
   };
+  'PxgAdminEndSessionsConfirm': {
+    'count': V;
+    'name': V;
+  };
+  'PxgAdminSameDevice': {
+    'count': V;
+  };
+  'PxgAdminSessionsCount': {
+    'count': V;
+  };
   'PxgAdminDisconnectConfirm': {
     'name': V;
   };
@@ -8250,6 +8261,8 @@ export interface LangKeyGroups {
       | 'PxgAdminWarnQueue'
       | 'PxgAdminDevices'
       | 'PxgAdminMessages'
+      | 'PxgAdminSameDevice'
+      | 'PxgAdminSessionsCount'
       | 'PxgAdminBulkRevokeConfirm'
       | 'PxgAdminRevokeSelected'
       | 'PxgCrossForwardSkipped';
@@ -9454,6 +9467,7 @@ export interface LangKeyGroups {
   };
   'count,name': {
     keys:
+      | 'PxgAdminEndSessionsConfirm'
       | 'PxgSharedForMany';
     variables: 'count' | 'name';
   };

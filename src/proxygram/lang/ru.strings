@@ -789,6 +789,10 @@
 "PxgAdminTransferConfirm" = "Сделать {name} администратором сервера? Администратор один: вы станете обычным пользователем и потеряете доступ к админке.";
 "PxgAdminEndSession" = "Завершить";
 "PxgAdminEndSessionConfirm" = "Завершить эту сессию {name}?";
+"PxgAdminEndSessions" = "Завершить все";
+"PxgAdminEndSessionsConfirm" = "Завершить все сессии {name} на этом устройстве ({count})?";
+"PxgAdminSameDevice" = "и ещё {count} на этом устройстве";
+"PxgAdminSessionsCount" = "сессий: {count}";
 "PxgAdminPause" = "Пауза";
 "PxgAdminResume" = "Возобновить";
 "PxgAdminDisconnect" = "Отключить";
