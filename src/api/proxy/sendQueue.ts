@@ -44,6 +44,7 @@ export type QueuedSend = {
 const items = new Map<string, QueuedSend>();
 let loadedUserId: string | undefined;
 let loading: Promise<void> | undefined;
+let loadGeneration = 0;
 
 function storageKey(userId: string, requestId: string) {
   return `${userId}:${requestId}`;
@@ -58,11 +59,14 @@ function persist(item: QueuedSend) {
 
 export function loadSendQueue(userId: string): Promise<void> {
   if (loadedUserId === userId) return loading || Promise.resolve();
+  const generation = ++loadGeneration;
   loadedUserId = userId;
   items.clear();
   loading = (async () => {
     try {
       const entries = await PXG_SEND_QUEUE_IDB_STORE.entries();
+      // Ответ старого чтения не должен заполнять очередь после выхода или смены пользователя.
+      if (loadGeneration !== generation || loadedUserId !== userId) return;
       entries.forEach(([key, value]) => {
         const item = value as QueuedSend;
         if (typeof key !== 'string' || !key.startsWith(`${userId}:`) || item?.userId !== userId) return;
@@ -117,7 +121,12 @@ export function dropQueuedSend(requestId: string) {
 
 /** Signing out takes this person's unsent messages off the device */
 export async function forgetUserSends(userId: string) {
-  if (loadedUserId === userId) items.clear();
+  if (loadedUserId === userId) {
+    loadGeneration++;
+    loadedUserId = undefined;
+    loading = undefined;
+    items.clear();
+  }
   try {
     const keys = (await PXG_SEND_QUEUE_IDB_STORE.keys()) as string[];
     await PXG_SEND_QUEUE_IDB_STORE.delMany(keys.filter((key) => key.startsWith(`${userId}:`)));
