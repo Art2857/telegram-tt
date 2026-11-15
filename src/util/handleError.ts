@@ -1,48 +1,10 @@
-import { DEBUG } from '../config';
-import { isCurrentTabMaster } from './establishMultitabRole';
-import { throttle } from './schedulers';
-
-const DEBUG_ALERT_MSG = 'Shoot!\nSomething went wrong, please see the error details in Dev Tools Console.';
-
-let showError = true;
-let error: Error | undefined;
-
 window.addEventListener('error', handleErrorEvent);
 window.addEventListener('unhandledrejection', handleErrorEvent);
 
-if (DEBUG) {
-  window.addEventListener('focus', () => {
-    if (!isCurrentTabMaster()) {
-      return;
-    }
-    showError = true;
-    if (error) {
-      window.alert(getErrorMessage(error));
-      error = undefined;
-    }
-  });
-  window.addEventListener('blur', () => {
-    if (!isCurrentTabMaster()) {
-      return;
-    }
-    showError = false;
-  });
-}
-
-const throttleError = throttle((err) => {
-  if (showError) {
-    window.alert(getErrorMessage(err));
-  } else {
-    error = err;
-  }
-}, 1500);
-
 export function handleError(err: Error) {
+  // Ошибки остаются в консоли; повторяющиеся фоновые сбои не блокируют интерфейс модальными окнами
   // eslint-disable-next-line no-console
   console.error(err);
-  if (DEBUG) {
-    throttleError(err);
-  }
 }
 
 function handleErrorEvent(e: ErrorEvent | PromiseRejectionEvent) {
@@ -60,8 +22,4 @@ function handleErrorEvent(e: ErrorEvent | PromiseRejectionEvent) {
 
   e.preventDefault();
   handleError(e instanceof ErrorEvent ? (e.error || e.message) : e.reason);
-}
-
-function getErrorMessage(err: Error) {
-  return `${DEBUG_ALERT_MSG}\n\n${(err?.message) || err}\n${err?.stack}`;
 }

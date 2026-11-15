@@ -29,11 +29,11 @@ function checkAutolockAndWriteActivity() {
 }
 
 async function checkAutolock() {
-  const global = getGlobal();
+  const passcode = getGlobal()?.passcode;
   if (
-    !global.passcode.hasPasscode
-    || global.passcode.isScreenLocked
-    || !global.passcode.autolockDuration
+    !passcode?.hasPasscode
+    || passcode.isScreenLocked
+    || !passcode.autolockDuration
   ) return;
 
   const meta = await loadPasscodeMeta();
