@@ -45,13 +45,14 @@ function AppUpdateModal() {
   const apk = manifest?.android;
   const isNewer = manifest && isNewerVersion(manifest.version, currentVersion);
   const isActive = ACTIVE_STATUSES.has(download.status);
-  const hasLatestDownload = download.status === 'ready' && (!manifest || download.version === manifest.version);
+  const hasLatestDownload = download.status === 'ready' && download.version
+    && isNewerVersion(download.version, currentVersion) && (!manifest || download.version === manifest.version);
 
   const check = useLastCallback(async () => {
     setIsLoading(true);
     setHasFetchError(false);
     const result = await fetchReleaseManifest();
-    setManifest(result);
+    if (result?.android) setManifest(result);
     setHasFetchError(!result?.android?.url);
     setIsLoading(false);
   });
@@ -177,6 +178,11 @@ function AppUpdateModal() {
             {download.error === 'SHA256_MISMATCH' && (
               <p className={styles.error}>{lang('PxgAppUpdateInvalidFile')}</p>
             )}
+            {download.error === 'NO_SPACE' && <p className={styles.error}>{lang('PxgAppUpdateDiskFull')}</p>}
+            {download.error === 'RESTART_REQUIRED' && (
+              <p className={styles.error}>{lang('PxgAppUpdateRestartFile')}</p>
+            )}
+            {download.error === 'WAIT_WIFI' && <p className={styles.secondary}>{lang('PxgAppUpdateWaitWifi')}</p>}
           </div>
         )}
         {needsInstallPermission && <p className={styles.secondary}>{lang('PxgAppUpdatePermission')}</p>}
@@ -184,7 +190,7 @@ function AppUpdateModal() {
         {hasActionError && <p className={styles.error} role="alert">{lang('PxgAppUpdateActionFailed')}</p>}
         <div className={styles.buttons}>
           {hasLatestDownload && <Button onClick={install}>{lang('PxgAppUpdateInstall')}</Button>}
-          {apk && !isActive && !hasLatestDownload && (
+          {apk && isNewer && !isActive && !hasLatestDownload && (
             <Button onClick={start}>{lang('PxgAppUpdateDownload')}</Button>
           )}
           {isActive && <Button color="translucent" onClick={cancel}>{lang('Cancel')}</Button>}

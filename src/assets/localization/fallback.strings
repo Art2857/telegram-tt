@@ -4564,6 +4564,12 @@
 "PxgAppUpdateCheckFailed" = "Could not check for updates. Check your connection and try again.";
 "PxgAppUpdateCheck" = "Check for updates";
 "PxgAppUpdateInvalidFile" = "The APK failed its integrity check and was deleted. Download it again.";
+"PxgAppUpdateDiskFull" = "There is not enough space for the APK. Free up space and retry the download.";
+"PxgAppUpdateRestartFile" = "This download cannot be resumed. Check for a newer release and download it again.";
+"PxgAppUpdateWaitWifi" = "Android is waiting for Wi-Fi to resume the download.";
+"PxgWinUpdateDownload" = "Downloading update{progress}…";
+"PxgWinUpdateInstall" = "Installing update…";
+"PxgWinUpdateFailed" = "Could not install the Proxygram update. Check your connection and free space, then click Update again.";
 "PxgSendErrorWrite" = "The owner cannot send messages in this chat. Check the chat's permissions in Telegram.";
 "PxgSendErrorText" = "Text messages are not allowed in this chat.";
 "PxgSendErrorPhotos" = "Photos are not allowed in this chat.";

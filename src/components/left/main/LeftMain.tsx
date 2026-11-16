@@ -10,7 +10,7 @@ import { LeftColumnContent } from '../../../types';
 import { DEBUG } from '../../../config';
 import { selectCommunityPanelId } from '../../../global/selectors';
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
-import { IS_TOUCH_ENV } from '../../../util/browser/windowEnvironment';
+import { IS_TOUCH_ENV, IS_WINDOWS } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
 import { isProxyPeerId } from '../../../api/proxy/ids';
 
@@ -53,6 +53,8 @@ type OwnProps = {
 const TRANSITION_RENDER_COUNT = Object.keys(LeftColumnContent).length / 2;
 const BUTTON_CLOSE_DELAY_MS = 250;
 const TAURI_CHECK_UPDATE_INTERVAL = 10 * 60 * 1000;
+const TAURI_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
+const MAX_PERCENT = 100;
 
 let closeTimeout: number | undefined;
 
@@ -72,11 +74,18 @@ const LeftMain = ({
   isAccountFrozen,
   isFoldersSidebarShown,
 }: OwnProps) => {
-  const { openLeftColumnContent } = getActions();
+  const { openLeftColumnContent, showNotification } = getActions();
+  const lang = useLang();
   const isGuest = useSelector((global) => Boolean(global.currentUserId && isProxyPeerId(global.currentUserId)));
   const [isNewChatButtonShown, setIsNewChatButtonShown] = useState(IS_TOUCH_ENV);
   const [tauriUpdate, setTauriUpdate] = useState<Update>();
   const [isTauriUpdateDownloading, setIsTauriUpdateDownloading] = useState(false);
+  const [updatePercent, setUpdatePercent] = useState<number>();
+  const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+  const updateRef = useRef<Update>();
+  const isCheckingUpdateRef = useRef(false);
+  const isDownloadingUpdateRef = useRef(false);
+  const isMountedUpdateRef = useRef(false);
 
   const {
     shouldRenderForumPanel, handleForumPanelAnimationEnd,
@@ -129,18 +138,37 @@ const LeftMain = ({
   });
 
   const handleUpdateClick = useLastCallback(async () => {
-    if (tauriUpdate) {
+    if (isDownloadingUpdateRef.current) return;
+    const update = updateRef.current;
+    if (update) {
+      isDownloadingUpdateRef.current = true;
+      let length: number | undefined;
+      let received = 0;
       try {
         setIsTauriUpdateDownloading(true);
-        await tauriUpdate.downloadAndInstall();
-        setIsTauriUpdateDownloading(false);
-
-        await window.tauri?.relaunch();
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to download and install Tauri update', e);
+        setUpdatePercent(undefined);
+        setIsInstallingUpdate(false);
+        await update.downloadAndInstall((progress) => {
+          if (!isMountedUpdateRef.current) return;
+          if (progress.event === 'Started') length = progress.data.contentLength;
+          if (progress.event === 'Progress') {
+            received += progress.data.chunkLength;
+            if (length) setUpdatePercent(Math.min(MAX_PERCENT, Math.floor(MAX_PERCENT * received / length)));
+          }
+          if (progress.event === 'Finished') setIsInstallingUpdate(true);
+        }, { timeout: TAURI_DOWNLOAD_TIMEOUT_MS });
+        // Установщик Windows перезапускает приложение сам
+        if (!IS_WINDOWS) await window.tauri?.relaunch();
+      } catch {
+        showNotification({ message: { key: 'PxgWinUpdateFailed' } });
       } finally {
-        setIsTauriUpdateDownloading(false);
+        isDownloadingUpdateRef.current = false;
+        if (isMountedUpdateRef.current) {
+          setIsTauriUpdateDownloading(false);
+          setIsInstallingUpdate(false);
+        } else {
+          void update.close().catch(() => undefined);
+        }
       }
     } else {
       window.location.reload();
@@ -173,17 +201,34 @@ const LeftMain = ({
     };
   }, [content]);
 
-  const checkTauriUpdate = useLastCallback(() => {
-    window.tauri?.checkUpdate()
-      .then((update) => setTauriUpdate(update ?? undefined))
-      .catch((e) => {
-        // eslint-disable-next-line no-console
-        console.error('Tauri update check failed:', e);
-      });
+  const checkTauriUpdate = useLastCallback(async () => {
+    if (!window.tauri || isCheckingUpdateRef.current || isDownloadingUpdateRef.current) return;
+    isCheckingUpdateRef.current = true;
+    try {
+      const update = await window.tauri.checkUpdate();
+      if (!isMountedUpdateRef.current || isDownloadingUpdateRef.current
+        || update?.version === updateRef.current?.version) {
+        void update?.close().catch(() => undefined);
+        return;
+      }
+      void updateRef.current?.close().catch(() => undefined);
+      updateRef.current = update ?? undefined;
+      setTauriUpdate(updateRef.current);
+    } catch {
+      // Фоновая проверка повторится; уже найденный выпуск остаётся доступен
+    } finally {
+      isCheckingUpdateRef.current = false;
+    }
   });
 
   useEffect(() => {
-    checkTauriUpdate();
+    isMountedUpdateRef.current = true;
+    void checkTauriUpdate();
+    return () => {
+      isMountedUpdateRef.current = false;
+      if (!isDownloadingUpdateRef.current) void updateRef.current?.close().catch(() => undefined);
+      updateRef.current = undefined;
+    };
   }, []);
 
   useInterval(
@@ -191,7 +236,9 @@ const LeftMain = ({
     (IS_TAURI && !DEBUG) ? TAURI_CHECK_UPDATE_INTERVAL : undefined,
   );
 
-  const lang = useLang();
+  const updateLabel = isInstallingUpdate ? lang('PxgWinUpdateInstall')
+    : isTauriUpdateDownloading ? lang('PxgWinUpdateDownload', { progress: updatePercent === undefined
+      ? '' : ` ${lang.number(updatePercent)}%` }) : lang('UpdateTelegram');
 
   return (
     <div
@@ -250,9 +297,9 @@ const LeftMain = ({
           badge
           className={buildClassName('btn-update', updateButtonClassNames)}
           onClick={handleUpdateClick}
-          isLoading={isTauriUpdateDownloading}
+          disabled={isTauriUpdateDownloading}
         >
-          {lang('UpdateTelegram')}
+          {updateLabel}
         </Button>
       )}
       {shouldRenderCommunityPanel && (

@@ -3421,6 +3421,11 @@ export interface LangPair {
   'PxgAppUpdateCheckFailed': undefined;
   'PxgAppUpdateCheck': undefined;
   'PxgAppUpdateInvalidFile': undefined;
+  'PxgAppUpdateDiskFull': undefined;
+  'PxgAppUpdateRestartFile': undefined;
+  'PxgAppUpdateWaitWifi': undefined;
+  'PxgWinUpdateInstall': undefined;
+  'PxgWinUpdateFailed': undefined;
   'PxgSendErrorWrite': undefined;
   'PxgSendErrorText': undefined;
   'PxgSendErrorPhotos': undefined;
@@ -6615,6 +6620,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAppUpdateLatest': {
     'version': V;
   };
+  'PxgWinUpdateDownload': {
+    'progress': V;
+  };
   'PxgSendErrorPaidPrice': {
     'stars': V;
   };
@@ -9437,6 +9445,11 @@ export interface LangKeyGroups {
       | 'PxgAppDownloadHint'
       | 'PxgAppDownloadApps';
     variables: 'version';
+  };
+  'progress': {
+    keys:
+      | 'PxgWinUpdateDownload';
+    variables: 'progress';
   };
   'host,version': {
     keys:

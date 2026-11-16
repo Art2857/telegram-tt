@@ -11,6 +11,8 @@ export const RELEASES_URL = import.meta.env.TG_PXG_RELEASES_URL
 export const DEFAULT_SERVER_HOST = new URL(RELEASES_URL).host;
 
 const FETCH_TIMEOUT_MS = 8000;
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+let pendingRelease: Promise<ReleaseManifest | undefined> | undefined;
 
 export type ReleaseManifest = {
   version: string;
@@ -22,12 +24,44 @@ export type ReleaseManifest = {
 export type AppPlatform = 'windows' | 'android';
 export type AppDownload = { platform: AppPlatform; version: string; url: string };
 
-export async function fetchReleaseManifest(): Promise<ReleaseManifest | undefined> {
+export function fetchReleaseManifest(): Promise<ReleaseManifest | undefined> {
+  pendingRelease ??= readReleaseManifest().finally(() => {
+    pendingRelease = undefined;
+  });
+  return pendingRelease;
+}
+
+async function readReleaseManifest(): Promise<ReleaseManifest | undefined> {
   try {
     const response = await fetch(RELEASES_URL, { cache: 'no-store', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    return response.ok ? await response.json() as ReleaseManifest : undefined;
+    if (!response.ok) return undefined;
+    const manifest: ReleaseManifest = await response.json();
+    if (typeof manifest?.version !== 'string' || !VERSION_PATTERN.test(manifest.version)) return undefined;
+    const win = manifest.platforms?.['windows-x86_64'];
+    const apk = manifest.android;
+    const validWindows = win && isReleaseFile(win.url, `Proxygram_${manifest.version}_x64-setup.exe`);
+    const validAndroid = apk && isReleaseFile(apk.url, `Proxygram_${manifest.version}_arm64.apk`)
+      && typeof apk.sha256 === 'string' && /^[\da-f]{64}$/i.test(apk.sha256);
+    if (!validWindows && !validAndroid) return undefined;
+    return {
+      version: manifest.version,
+      notes: typeof manifest.notes === 'string' ? manifest.notes : undefined,
+      platforms: validWindows ? { 'windows-x86_64': win } : undefined,
+      android: validAndroid ? apk : undefined,
+    };
   } catch {
     return undefined;
+  }
+}
+
+function isReleaseFile(value: unknown, filename: string) {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.host === DEFAULT_SERVER_HOST && !url.username && !url.password
+      && !url.hash && !url.search && url.pathname === `/downloads/${filename}`;
+  } catch {
+    return false;
   }
 }
 

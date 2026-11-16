@@ -24,8 +24,9 @@ class AppUpdater(private val activity: MainActivity) {
   fun start(url: String, sha256: String, version: String): String {
     val uri = Uri.parse(url)
     require(uri.scheme == "https" && uri.host == RELEASE_HOST && uri.port in listOf(-1, 443))
-    require(uri.userInfo == null && uri.path?.matches(Regex("/downloads/Proxygram_[0-9.]+_arm64\\.apk")) == true)
     require(sha256.matches(Regex("[a-fA-F0-9]{64}")) && version.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+")))
+    require(uri.userInfo == null && uri.query == null && uri.fragment == null
+      && uri.path == "/downloads/Proxygram_${version}_arm64.apk")
     val previous = JSONObject(getState())
     if (previous.optString("status") in listOf("pending", "running", "paused", "verifying", "ready")
       && saved.getString("sha256", "").equals(sha256, ignoreCase = true)) return previous.toString()
@@ -60,6 +61,7 @@ class AppUpdater(private val activity: MainActivity) {
     result.put("version", saved.getString("version", ""))
     val error = saved.getString("error", "")
     if (!error.isNullOrEmpty()) return result.put("status", "failed").put("error", error).toString()
+    result.put("status", "failed").put("error", "DOWNLOAD_REMOVED")
     manager.query(DownloadManager.Query().setFilterById(id))?.use { cursor ->
       if (!cursor.moveToFirst()) return result.put("status", "failed").put("error", "DOWNLOAD_REMOVED").toString()
       val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
@@ -75,10 +77,21 @@ class AppUpdater(private val activity: MainActivity) {
         else -> "failed"
       }
       result.put("status", state)
+      result.remove("error")
       result.put("downloaded", cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)))
       val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
       if (total > 0) result.put("total", total)
-      if (state == "failed") result.put("error", "DOWNLOAD_${cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))}")
+      val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+      if (state == "failed") result.put("error", when (reason) {
+        DownloadManager.ERROR_INSUFFICIENT_SPACE -> "NO_SPACE"
+        DownloadManager.ERROR_CANNOT_RESUME, 404, 410 -> "RESTART_REQUIRED"
+        else -> "DOWNLOAD_$reason"
+      })
+      if (state == "paused") result.put("error", when (reason) {
+        DownloadManager.PAUSED_QUEUED_FOR_WIFI -> "WAIT_WIFI"
+        DownloadManager.PAUSED_WAITING_FOR_NETWORK -> "WAIT_NETWORK"
+        else -> "WAIT_RETRY"
+      })
     }
     return result.toString()
   }
