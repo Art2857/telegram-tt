@@ -1,10 +1,35 @@
+.dialog {
+  max-height: calc(var(--vh, 1vh) * 100 - 2rem);
+}
+
+.dialog .content {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+}
+
 .body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.75rem;
 
   min-width: 0;
+  min-height: 0;
   padding: 1rem;
+}
+
+.fields {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  min-height: 0;
 }
 
 .hint,
@@ -15,8 +40,27 @@
   overflow-wrap: anywhere;
 }
 
-.note {
+.note :global(.form-control) {
   max-height: 12rem;
+}
+
+.photoAction {
+  max-width: 100%;
+  min-height: 2.75rem;
+  white-space: normal;
+}
+
+.photoEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+
+  min-width: 0;
+}
+
+.photoInput {
+  display: none;
 }
 
 .error {

@@ -1,5 +1,5 @@
 import {
-  memo,
+  memo, useEffect,
 } from '../../lib/teact/teact';
 
 import useImageLoader from '../../hooks/useImageLoader';
@@ -14,14 +14,20 @@ type OwnProps = {
   file?: Blob;
   onChange: (file: File) => void;
   onClose: () => void;
+  onError?: (error: Error) => void;
 };
 
 const MAX_OUTPUT_SIZE = 1024;
 const MIN_OUTPUT_SIZE = 256;
 
-const CropModal = ({ file, onChange, onClose }: OwnProps) => {
+const CropModal = ({ file, onChange, onClose, onError }: OwnProps) => {
   const lang = useLang();
-  const { image } = useImageLoader(file);
+  const { image, error } = useImageLoader(file);
+  useEffect(() => {
+    if (!error) return;
+    onError?.(error);
+    onClose();
+  }, [error, onError, onClose]);
   const isOpen = Boolean(file) && Boolean(image);
   return (
     <Modal

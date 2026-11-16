@@ -1,10 +1,13 @@
-import { getGlobal } from '../../global';
+import { getActions, getGlobal } from '../../global';
 
 import type { PersonalContactDto, PersonalContactNameDto } from '../../proxygram/server/types';
+import type { ApiPhoto } from '../types';
 
+import { forgetPersonalContactPhoto } from '../../proxygram/contactPhotos';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { getPxgState } from '../../proxygram/server/store';
 import { emitProxyUpdate, resolveProxyPeer } from './index';
+import { buildPersonalPhotoId, buildProxyProfilePhotoId } from './mediaIds';
 
 let ownerId: string | undefined;
 let names = new Map<number, PersonalContactNameDto>();
@@ -29,6 +32,23 @@ export function getPersonalContactName(tgUserId: number) {
   // null — сервер подтвердил отсутствие переименования, undefined — пока известен только кэш устройства
   // eslint-disable-next-line no-null/no-null
   return hasLoadedNames ? null : undefined;
+}
+
+export function getPersonalContactPhoto(tgUserId: number) {
+  syncIdentity();
+  const contact = names.get(tgUserId);
+  if (contact) return contact.photo;
+  // eslint-disable-next-line no-null/no-null
+  return hasLoadedNames ? null : undefined;
+}
+
+export function buildPersonalContactPhoto(
+  peerId: string, photo: PersonalContactNameDto['photo'],
+): ApiPhoto | undefined {
+  const userId = getPxgState().session?.user.id;
+  if (!userId || !photo) return undefined;
+  return { mediaType: 'photo', id: buildProxyProfilePhotoId(peerId, buildPersonalPhotoId(userId, photo.id)),
+    sizes: [{ type: 'x', width: photo.width, height: photo.height }], date: 0 };
 }
 
 /** Список не содержит заметок; тексты загружаются только вместе с профилем */
@@ -79,7 +99,7 @@ export function refreshPersonalContact(tgUserId: number) {
 }
 
 export async function savePersonalContact(tgUserId: number, patch: {
-  name?: PersonalContactDto['name']; note?: string;
+  name?: PersonalContactDto['name']; note?: string; photoId?: string | null;
 }) {
   syncIdentity();
   const userId = ownerId;
@@ -100,8 +120,11 @@ function applyContact(contact: PersonalContactDto) {
   const global = getGlobal();
   for (const id of Object.keys(global.users.fullInfoById)) {
     if (resolveProxyPeer(id)?.peerId !== contact.tgUserId) continue;
+    const personalPhoto = buildPersonalContactPhoto(id, contact.photo);
+    const hasChangedPhoto = global.users.fullInfoById[id].personalPhoto?.id !== personalPhoto?.id;
     emitProxyUpdate({ '@type': 'updateUserFullInfo', id,
-      fullInfo: { note: contact.note ? { text: contact.note } : undefined } });
+      fullInfo: { note: contact.note ? { text: contact.note } : undefined, personalPhoto } });
+    if (hasChangedPhoto) getActions().loadMoreProfilePhotos({ peerId: id, shouldInvalidateCache: true });
   }
 }
 
@@ -113,22 +136,35 @@ function applyNames(tgUserId?: number) {
     const name = names.get(peer.peerId)?.name;
     const firstName = name ? name.firstName : user.pxgOriginalName || user.firstName || String(peer.peerId);
     const lastName = name?.lastName || undefined;
+    const photo = names.get(peer.peerId)?.photo;
+    const originalPhotoId = user.pxgOriginalPhotoId || (!user.pxgPersonalPhoto ? user.avatarPhotoId : undefined);
+    const avatarPhotoId = photo && ownerId ? buildPersonalPhotoId(ownerId, photo.id) : originalPhotoId;
+    if (user.pxgPersonalPhoto && user.pxgPersonalPhoto.id !== photo?.id && ownerId) {
+      void forgetPersonalContactPhoto(ownerId, user.pxgPersonalPhoto.id).catch(() => undefined);
+    }
     if (user.firstName !== firstName || user.lastName !== lastName
-      || Boolean(user.pxgPersonalName) !== Boolean(name)) {
+      || Boolean(user.pxgPersonalName) !== Boolean(name) || user.avatarPhotoId !== avatarPhotoId
+      || user.pxgPersonalPhoto?.id !== photo?.id) {
       emitProxyUpdate({ '@type': 'updateUser', id: user.id,
-        user: { firstName, lastName, pxgPersonalName: name || undefined } });
+        user: { firstName, lastName, pxgPersonalName: name || undefined, avatarPhotoId,
+          pxgOriginalPhotoId: originalPhotoId, pxgPersonalPhoto: photo || undefined } });
     }
   }
   for (const chat of Object.values(global.chats.byId)) {
     const peer = chat.pxgProxy;
     if (!peer || peer.peerId <= 0 || (tgUserId !== undefined && tgUserId !== peer.peerId)) continue;
     const name = names.get(peer.peerId)?.name;
+    const photo = names.get(peer.peerId)?.photo;
+    const originalPhotoId = peer.originalPhotoId || (!peer.personalPhoto ? chat.avatarPhotoId : undefined);
+    const avatarPhotoId = photo && ownerId ? buildPersonalPhotoId(ownerId, photo.id) : originalPhotoId;
     const title = name ? [name.firstName, name.lastName].filter(Boolean).join(' ')
       : peer.originalTitle || global.users.byId[chat.id]?.pxgOriginalName || String(peer.peerId);
     if (chat.title !== title || peer.personalName?.firstName !== name?.firstName
-      || peer.personalName?.lastName !== name?.lastName) {
+      || peer.personalName?.lastName !== name?.lastName || chat.avatarPhotoId !== avatarPhotoId
+      || peer.personalPhoto?.id !== photo?.id) {
       emitProxyUpdate({ '@type': 'updateChat', id: chat.id,
-        chat: { title, pxgProxy: { ...peer, personalName: name || undefined } } });
+        chat: { title, avatarPhotoId, pxgProxy: { ...peer, personalName: name || undefined,
+          personalPhoto: photo || undefined, originalPhotoId } } });
     }
   }
 }

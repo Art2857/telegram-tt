@@ -29,7 +29,7 @@ import {
   buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPaidStars, setProxyUserPhone,
   setProxyUserUsername,
 } from './builders';
-import { loadPersonalContact } from './contacts';
+import { buildPersonalContactPhoto, loadPersonalContact } from './contacts';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
   toggleDialogFilterTags,
@@ -1175,6 +1175,8 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
     paidMessagesStars: paidStars,
     note: personalContact ? personalContact.note ? { text: personalContact.note } : undefined
       : getGlobal().users.fullInfoById[id]?.note,
+    personalPhoto: personalContact ? buildPersonalContactPhoto(id, personalContact.photo)
+      : getGlobal().users.fullInfoById[id]?.personalPhoto,
   }, users: [updatedUser], chats: [], userStatusesById: {} };
 }
 

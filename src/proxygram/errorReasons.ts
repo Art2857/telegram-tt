@@ -122,6 +122,8 @@ export const PXG_ERROR_REASON_KEYS = {
   start_chats_limit: 'PxgErrStartChatsLimit',
   folders_limit: 'PxgErrFoldersLimit',
   saved_quota: 'PxgErrSavedQuota',
+  contact_photo_quota: 'PxgErrContactPhotoQuota',
+  contact_photo_invalid: 'PxgErrContactPhotoInvalid',
   requests_limit: 'PxgErrRequestsLimit',
   no_spend_stars: 'PxgErrNoSpendStars',
   stars_limit: 'PxgErrStarsLimit',

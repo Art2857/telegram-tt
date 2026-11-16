@@ -938,6 +938,7 @@ export interface PersonalContactNameDto {
   name: { firstName: string; lastName: string } | null;
   updatedAt: string;
   revision: number;
+  photo: { id: string; width: number; height: number } | null;
 }
 
 export interface PersonalContactDto extends PersonalContactNameDto {

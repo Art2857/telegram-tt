@@ -7,6 +7,7 @@ import { ApiMediaFormat } from '../types';
 import { MEDIA_CACHE_DISABLED, MEDIA_CACHE_MAX_BYTES, MEDIA_CACHE_NAME, MEDIA_CACHE_NAME_AVATARS } from '../../config';
 import * as cacheApi from '../../util/cacheApi';
 import { pause } from '../../util/schedulers';
+import { downloadPersonalContactPhoto } from '../../proxygram/contactPhotos';
 import { FILE_CACHE_MAX_BYTES } from '../../proxygram/fileCachePolicy';
 import { PXG_SERVER_URL } from '../../proxygram/server/http';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -16,7 +17,8 @@ import {
 } from './fileCache';
 import { resolveProxyPeer } from './index';
 import {
-  buildProxyArchiveMediaId, buildProxyMapToken, buildProxyMediaId, parseProxyArchiveHash, parseProxyAvatarHash,
+  buildProxyArchiveMediaId, buildProxyMapToken, buildProxyMediaId, parsePersonalPhotoId,
+  parseProxyArchiveHash, parseProxyAvatarHash,
   parseProxyCatalogHash, parseProxyMapHash, parseProxyMediaHash,
 } from './mediaIds';
 import { isSavedPeer } from './saved';
@@ -46,10 +48,13 @@ export function setProtectedProxyChats(chatIds: string[]) {
  */
 export function forgetProxyFiles(userId: string, keepChatIds?: ReadonlySet<string>) {
   invalidateProxyFileCache(userId, keepChatIds);
-  return cacheApi.removeMatching(MEDIA_CACHE_NAME, (url) => {
+  const removeMessages = cacheApi.removeMatching(MEDIA_CACHE_NAME, (url) => {
     const file = parseProxyMediaHash(url);
     return Boolean(file && file.userId === userId && !keepChatIds?.has(file.chatId));
   });
+  const removePhotos = !keepChatIds ? cacheApi.removeMatching(MEDIA_CACHE_NAME_AVATARS,
+    (url) => url.includes(`pxgcontact_${userId}_`)) : undefined;
+  return Promise.all([removeMessages, removePhotos]);
 }
 
 /** Signed links live 10 minutes on the server (MEDIA_TOKEN_TTL_MS): reuse them a bit less */
@@ -183,6 +188,15 @@ async function downloadProxyMedia(
 ) {
   const userId = getPxgState().session?.user.id;
   const cacheGeneration = userId ? getProxyCacheGeneration(userId) : 0;
+  const personalPhoto = parsePersonalPhotoId(parseProxyAvatarHash(url)?.photoId);
+  if (personalPhoto) {
+    const blob = await downloadPersonalContactPhoto(personalPhoto.userId, personalPhoto.id);
+    if (!blob || onProgress?.isCanceled) return undefined;
+    onProgress?.(1);
+    const isBuffer = mediaFormat === ApiMediaFormat.Progressive || mediaFormat === ApiMediaFormat.DownloadUrl;
+    return { dataBlob: isBuffer ? '' : blob, arrayBuffer: isBuffer ? await blob.arrayBuffer() : undefined,
+      mimeType: 'image/jpeg', fullSize: blob.size };
+  }
   // История приходит с сервера готовой data: URL — качать через RPC нечего
   if (url.startsWith('data:')) {
     const response = await fetch(url);

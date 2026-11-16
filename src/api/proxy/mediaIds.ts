@@ -6,9 +6,10 @@ const MEDIA_HASH = /^(?:photo|document|sticker)pxg_([^_]+)_(-?\d+)_(\d+)(?:[?:]|
 // Reaction animations are requested as `sticker<id>` too
 const CATALOG_HASH = /^(?:document|sticker|photo)pxgs_([^_]+)_([0-9a-f-]{36})_(\d+)(\?size=\w+|\?download)?(?:[?&:]|$)/;
 const ARCHIVE_HASH = /^(?:photo|document|sticker)pxga_([0-9a-f-]{36})_(-?\d+)_(\d+)(?:[?:]|$)/;
-const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?\d+$/;
+const AVATAR_HASH = /^(avatar|profile)(-?\d+)\?(\d+|pxgcontact_[0-9a-f-]{36}_[0-9a-f-]{36})$/;
 /** A profile photo opened in the viewer: `photo<id>` with the size the viewer asks for */
-const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+)(?:\?size=(\w))?$/;
+const PROFILE_PHOTO_HASH = /^photopxgavatar_(-?\d+)_(\d+|pxgcontact_[0-9a-f-]{36}_[0-9a-f-]{36})(?:\?size=(\w))?$/;
+const PERSONAL_PHOTO_ID = /^pxgcontact_([0-9a-f-]{36})_([0-9a-f-]{36})$/;
 /** Sizes small enough for the avatar's small version */
 const SMALL_PHOTO_SIZES = new Set(['a', 'b', 'm', 's']);
 const MAP_HASH = /^staticMap:pxg_(-?\d+)_(\d+)\?(.+)$/;
@@ -63,7 +64,12 @@ export function parseProxyCatalogHash(url: string) {
 export function parseProxyAvatarHash(url: string) {
   const hash = getHash(url);
   const avatar = hash?.match(AVATAR_HASH);
-  if (avatar) return isProxyPeerId(avatar[2]) ? { peerId: avatar[2], isBig: avatar[1] === 'profile' } : undefined;
+  if (avatar) {
+    return isProxyPeerId(avatar[2]) ? {
+      peerId: avatar[2], isBig: avatar[1] === 'profile',
+      photoId: avatar[3].startsWith('pxgcontact_') ? avatar[3] : undefined,
+    } : undefined;
+  }
   const photo = hash?.match(PROFILE_PHOTO_HASH);
   if (!photo || !isProxyPeerId(photo[1])) return undefined;
   return { peerId: photo[1], photoId: photo[2], isBig: !SMALL_PHOTO_SIZES.has(photo[3] || '') };
@@ -95,6 +101,15 @@ export function parseProxyMapHash(url: string) {
 /** A profile photo of a shared chat or user, as Web A's viewer expects it */
 export function buildProxyProfilePhotoId(peerId: string, photoId: string) {
   return `pxgavatar_${peerId}_${photoId}`;
+}
+
+export function buildPersonalPhotoId(userId: string, photoId: string) {
+  return `pxgcontact_${userId}_${photoId}`;
+}
+
+export function parsePersonalPhotoId(photoId: string | undefined) {
+  const match = photoId?.match(PERSONAL_PHOTO_ID);
+  return match ? { userId: match[1], id: match[2] } : undefined;
 }
 
 export function parseProxyCatalogId(id: string) {

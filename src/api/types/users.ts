@@ -28,6 +28,8 @@ export interface ApiUser {
   /** Имя из Telegram до личного переименования гостем */
   pxgOriginalName?: string;
   pxgPersonalName?: { firstName: string; lastName: string };
+  pxgOriginalPhotoId?: string;
+  pxgPersonalPhoto?: { id: string; width: number; height: number };
   noStatus?: boolean;
   usernames?: ApiUsername[];
   hasUsername?: boolean;

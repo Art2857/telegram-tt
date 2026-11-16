@@ -3609,6 +3609,13 @@ export interface LangPair {
   'PxgContactPrivateHint': undefined;
   'PxgContactPrivateNote': undefined;
   'PxgContactResetName': undefined;
+  'PxgContactSetPhoto': undefined;
+  'PxgContactResetPhoto': undefined;
+  'PxgContactCancelPhoto': undefined;
+  'PxgContactPhotoPending': undefined;
+  'PxgContactPhotoResetHint': undefined;
+  'PxgContactWaitConnection': undefined;
+  'PxgErrContactPhotoInvalid': undefined;
   'PxgFolderName': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
@@ -6683,6 +6690,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgContactOriginal': {
     'name': V;
   };
+  'PxgErrContactPhotoQuota': {
+    'mb': V;
+  };
   'PxgFolderOriginal': {
     'title': V;
   };
@@ -9441,6 +9451,13 @@ export interface LangKeyGroups {
       | 'PxgDownloadedMedia';
     variables: 'kind';
   };
+  'mb': {
+    keys:
+      | 'PxgErrContactPhotoQuota'
+      | 'PxgErrFileTooLarge'
+      | 'PxgErrSavedQuota';
+    variables: 'mb';
+  };
   'quota,used': {
     keys:
       | 'PxgStorageOf';
@@ -9565,12 +9582,6 @@ export interface LangKeyGroups {
     keys:
       | 'PxgShareGranted';
     variables: 'name' | 'target';
-  };
-  'mb': {
-    keys:
-      | 'PxgErrFileTooLarge'
-      | 'PxgErrSavedQuota';
-    variables: 'mb';
   };
   'max': {
     keys:

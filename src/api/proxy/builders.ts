@@ -15,12 +15,12 @@ import type { ProxyPeer } from './ids';
 import { ARCHIVED_FOLDER_ID, SPONSORED_MESSAGE_CACHE_MS } from '../../config';
 import { getServerTime } from '../../util/serverTime';
 import { getPxgState } from '../../proxygram/server/store';
-import { getPersonalContactName } from './contacts';
+import { getPersonalContactName, getPersonalContactPhoto } from './contacts';
 import { buildProxyEntities } from './entities';
 import { getProxySponsoredId } from './ids';
 import { getProxyPeerId, isProxyGuest } from './index';
 import { buildProxyAttachment, buildProxyMedia } from './media';
-import { buildProxyCatalogMediaId } from './mediaIds';
+import { buildPersonalPhotoId, buildProxyCatalogMediaId } from './mediaIds';
 
 /** Telegram's blue topic icon, used when the topic has no color */
 const DEFAULT_TOPIC_COLOR = 0x6FB9F0;
@@ -47,6 +47,9 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
   const id = getProxyPeerId(chat.accountId, chat.peerId);
   const storedName = chat.peerId > 0 ? getPersonalContactName(chat.peerId) : undefined;
   const personalName = storedName === undefined ? getGlobal().chats.byId[id]?.pxgProxy?.personalName : storedName;
+  const storedPhoto = chat.peerId > 0 ? getPersonalContactPhoto(chat.peerId) : undefined;
+  const personalPhoto = storedPhoto === undefined ? getGlobal().chats.byId[id]?.pxgProxy?.personalPhoto : storedPhoto;
+  const userId = getPxgState().session?.user.id;
   const usernames = chat.info?.usernames?.length ? chat.info.usernames : chat.username ? [chat.username] : undefined;
   const bans = new Set(chat.telegramBans);
   const hasMediaBan = !chat.permissions.sendMedia || bans.has('sendMedia');
@@ -56,7 +59,7 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       : chat.type === 'channel' ? 'chatTypeChannel' : 'chatTypeSuperGroup',
     title: personalName ? [personalName.firstName, personalName.lastName].filter(Boolean).join(' ')
       : chat.title || chat.username || String(chat.peerId),
-    avatarPhotoId: chat.photoId || undefined,
+    avatarPhotoId: personalPhoto && userId ? buildPersonalPhotoId(userId, personalPhoto.id) : chat.photoId || undefined,
     // The guest's own archive; a full login keeps shared chats in their local folder
     folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
     isForum: chat.type === 'forum' || undefined,
@@ -97,6 +100,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
     pxgProxy: {
       originalTitle: chat.title || chat.username || String(chat.peerId),
       personalName: personalName || undefined,
+      originalPhotoId: chat.photoId || undefined,
+      personalPhoto: personalPhoto || undefined,
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions, shareIds: chat.shareIds,
       restricted: chat.restricted || undefined,
       label: chat.label || undefined,
@@ -302,6 +307,11 @@ export function buildProxyUser(
   const originalName = name || known?.pxgOriginalName || known?.firstName || String(userId);
   const storedName = getPersonalContactName(userId);
   const personalName = storedName === undefined ? known?.pxgPersonalName : storedName;
+  const storedPhoto = getPersonalContactPhoto(userId);
+  const personalPhoto = storedPhoto === undefined ? known?.pxgPersonalPhoto : storedPhoto;
+  const systemUserId = getPxgState().session?.user.id;
+  const originalPhotoId = photoId !== undefined ? photoId || undefined
+    : known?.pxgOriginalPhotoId || (!known?.pxgPersonalPhoto ? known?.avatarPhotoId : undefined);
   const user: ApiUser = {
     id,
     type: 'userTypeRegular',
@@ -310,13 +320,16 @@ export function buildProxyUser(
     lastName: personalName?.lastName || undefined,
     pxgOriginalName: originalName,
     pxgPersonalName: personalName || undefined,
+    pxgOriginalPhotoId: originalPhotoId,
+    pxgPersonalPhoto: personalPhoto || undefined,
+    avatarPhotoId: personalPhoto && systemUserId
+      ? buildPersonalPhotoId(systemUserId, personalPhoto.id) : originalPhotoId,
     phoneNumber: phoneByUserId.get(id) || '',
     noStatus: true,
     paidMessagesStars: paidStarsByUserId.get(id),
   };
   const username = usernameByUserId.get(id);
   if (username) user.usernames = [{ username, isActive: true }];
-  if (photoId !== undefined) user.avatarPhotoId = photoId || undefined;
   if (badges !== undefined) Object.assign(user, buildProxyBadges(accountId, badges), { isPremium: badges?.premium });
   return user;
 }

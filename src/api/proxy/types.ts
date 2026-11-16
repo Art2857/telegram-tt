@@ -6,6 +6,8 @@ export type ProxyChatInfo = {
   /** Имя Telegram до личного переименования собеседника */
   originalTitle?: string;
   personalName?: { firstName: string; lastName: string };
+  originalPhotoId?: string;
+  personalPhoto?: { id: string; width: number; height: number };
   permissions: Permissions;
   shareIds: string[];
   restricted?: AccessRestriction;
