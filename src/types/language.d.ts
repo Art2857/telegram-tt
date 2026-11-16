@@ -3459,6 +3459,7 @@ export interface LangPair {
   'PxgServerInvalid': undefined;
   'PxgServerInsecure': undefined;
   'PxgServerUnreachable': undefined;
+  'PxgServerSwitchFailed': undefined;
   'PxgAuthTelegram': undefined;
   'PxgAuthTelegramHint': undefined;
   'PxgAuthGuest': undefined;

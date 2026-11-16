@@ -174,7 +174,6 @@ function AppUpdateModal() {
                 </p>
               </>
             )}
-            {download.filename && <p className={styles.link}>{download.filename}</p>}
             {download.error === 'SHA256_MISMATCH' && (
               <p className={styles.error}>{lang('PxgAppUpdateInvalidFile')}</p>
             )}

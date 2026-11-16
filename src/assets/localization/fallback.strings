@@ -4608,6 +4608,7 @@
 "PxgServerInvalid" = "Enter a server address, e.g. chat.example.org";
 "PxgServerInsecure" = "The server must use HTTPS";
 "PxgServerUnreachable" = "No Proxygram server answers at this address";
+"PxgServerSwitchFailed" = "Couldn't open the server. Try again.";
 "PxgServerSavedUnreachable" = "Server {host} did not answer, so the default one is open. Try again later or choose another server.";
 "PxgAuthTelegram" = "Sign in to your Telegram";
 "PxgAuthTelegramHint" = "Full client: all your chats plus chats shared with you. You can share your own chats. The Telegram session stays on this device.";

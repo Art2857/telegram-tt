@@ -1,4 +1,4 @@
-import { memo, useState } from '../../../lib/teact/teact';
+import { memo, useEffect, useRef, useState } from '../../../lib/teact/teact';
 
 import {
   checkProxygramServer, getUnreachableServer, parseServerAddress, switchServer,
@@ -26,6 +26,18 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string>();
   const [unreachableServer] = useState(getUnreachableServer);
+  const checkRef = useRef<symbol>();
+
+  useEffect(() => () => {
+    checkRef.current = undefined;
+  }, []);
+
+  const handleCancel = useLastCallback(() => {
+    checkRef.current = undefined;
+    unmarkChecking();
+    setError(undefined);
+    stopEditing();
+  });
 
   const handleChange = useLastCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setAddress(e.currentTarget.value);
@@ -34,6 +46,7 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
 
   const handleSubmit = useLastCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (checkRef.current) return;
     const parsed = parseServerAddress(address);
     if ('error' in parsed) {
       setError(lang(parsed.error === 'insecure' ? 'PxgServerInsecure' : 'PxgServerInvalid'));
@@ -43,14 +56,26 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
       stopEditing();
       return;
     }
+    const check = Symbol();
+    checkRef.current = check;
+    setError(undefined);
     markChecking();
     const isProxygram = await checkProxygramServer(parsed.origin);
+    if (checkRef.current !== check) return;
     if (!isProxygram) {
+      checkRef.current = undefined;
       unmarkChecking();
       setError(lang('PxgServerUnreachable'));
       return;
     }
-    await switchServer(parsed.origin);
+    try {
+      await switchServer(parsed.origin);
+    } catch {
+      if (checkRef.current !== check) return;
+      checkRef.current = undefined;
+      unmarkChecking();
+      setError(lang('PxgServerSwitchFailed'));
+    }
   });
 
   return (
@@ -68,6 +93,7 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
             autoComplete="url"
             error={error}
             autoFocus
+            disabled={isChecking}
             noMargin
             onChange={handleChange}
           />
@@ -75,7 +101,7 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
             <Button type="submit" isLoading={isChecking} disabled={!address.trim()}>
               {lang('PxgServerConnect')}
             </Button>
-            <button type="button" className={styles.change} onClick={stopEditing}>{lang('Cancel')}</button>
+            <button type="button" className={styles.change} onClick={handleCancel}>{lang('Cancel')}</button>
           </div>
         </form>
       ) : (

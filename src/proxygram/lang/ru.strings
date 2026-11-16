@@ -70,6 +70,7 @@
 "PxgServerInvalid" = "Введите адрес сервера, например chat.example.org";
 "PxgServerInsecure" = "Сервер должен работать по HTTPS";
 "PxgServerUnreachable" = "По этому адресу не отвечает сервер Proxygram";
+"PxgServerSwitchFailed" = "Не удалось открыть сервер. Попробуйте ещё раз.";
 "PxgServerSavedUnreachable" = "Сервер {host} не ответил, открыт сервер по умолчанию. Попробуйте позже или выберите другой.";
 "PxgDeleted" = "удалено";
 "PxgDeletedAt" = "Удалено {time}";
