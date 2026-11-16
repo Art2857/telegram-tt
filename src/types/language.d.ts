@@ -3605,6 +3605,10 @@ export interface LangPair {
   'PxgFoldersHiddenTitle': undefined;
   'PxgFolderRenameTitle': undefined;
   'PxgFolderRenameHint': undefined;
+  'PxgContactEdit': undefined;
+  'PxgContactPrivateHint': undefined;
+  'PxgContactPrivateNote': undefined;
+  'PxgContactResetName': undefined;
   'PxgFolderName': undefined;
   'PxgSettingsArchive': undefined;
   'PxgSettingsAudit': undefined;
@@ -6676,6 +6680,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgFolderFrom': {
     'name': V;
   };
+  'PxgContactOriginal': {
+    'name': V;
+  };
   'PxgFolderOriginal': {
     'title': V;
   };
@@ -8067,6 +8074,7 @@ export interface LangKeyGroups {
       | 'PxgSharesEffectiveTitle'
       | 'PxgRequestAskWhom'
       | 'PxgFolderFrom'
+      | 'PxgContactOriginal'
       | 'PxgSettingsFrom'
       | 'PxgServerAdmin'
       | 'PxgArchiveClearConfirm'

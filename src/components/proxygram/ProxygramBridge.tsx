@@ -12,6 +12,7 @@ import { closeMessageNotifications } from '../../util/notifications';
 import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
 import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
+import { loadPersonalContactNames, refreshPersonalContact } from '../../api/proxy/contacts';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { isSavedPeer } from '../../api/proxy/saved';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
@@ -34,6 +35,7 @@ import HiddenMarksLoader from './HiddenMarksLoader';
 import HideFromGuestsModal from './HideFromGuestsModal';
 import HistoryTailChecker from './HistoryTailChecker';
 import LocalArchiveLoader from './LocalArchiveLoader';
+import PersonalContactModal from './PersonalContactModal';
 import QrLoginScanner from './QrLoginScanner';
 import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
@@ -227,9 +229,13 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     if ((!hasOwnSession && !isGuest) || connection !== 'online') return undefined;
     setProxyUpdateHandler(apiUpdate);
     loadProxyChats();
+    void loadPersonalContactNames().catch(() => undefined);
     loadProxyFolderPrefs();
     if (isGuest) loadChatFolders();
     return pxgRpc.on((event) => {
+      if (event.e === 'contacts.changed') {
+        void refreshPersonalContact(event.d.tgUserId).catch(() => undefined);
+      }
       // Sent for a profile change too: only a chat whose access is gone closes
       if (event.e === 'access.changed') loadProxyChats({ shouldKeepUnchanged: true });
       if (event.e === 'requests.changed' && hasOwnSession && event.d.kind === 'new') {
@@ -348,6 +354,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isAdminOpen && <AdminPanel />}
       {isSettingsOpen && <PxgSettingsPanel />}
       <SharedFolderModal />
+      <PersonalContactModal />
       <QrLoginScanner
         isOpen={Boolean(isQrScannerOpen)}
         onClose={() => setPxgState({ isQrScannerOpen: false })}

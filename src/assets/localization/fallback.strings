@@ -4772,6 +4772,11 @@
 "PxgFoldersHiddenTitle" = "Hidden folders";
 "PxgFolderRenameTitle" = "Folder name";
 "PxgFolderRenameHint" = "Only you see this name, the owner's folder in Telegram is not renamed.";
+"PxgContactEdit" = "Edit for yourself";
+"PxgContactPrivateHint" = "Only you can see this name and note, on all your devices. They are not sent to Telegram or the person sharing the chat.";
+"PxgContactOriginal" = "Telegram name: {name}";
+"PxgContactPrivateNote" = "Note · visible only to you";
+"PxgContactResetName" = "Use Telegram name";
 "PxgFolderOriginal" = "Original: {title}";
 "PxgFolderName" = "Folder name";
 "PxgSettingsArchive" = "Archive";

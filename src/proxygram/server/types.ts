@@ -930,7 +930,19 @@ export type ServerEvent =
   | { e: 'share.granted'; d: { accountId: string; peerId: number | null; target: string; from: string } }
   | { e: 'guest.burst'; d: { accountId: string; guestName: string; reason: GuestBurstReason } }
   | { e: 'chats.state'; d: ChatStateDto }
-  | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> };
+  | { e: 'folders.changed' | 'settings.changed' | 'shares.changed'; d: Record<string, never> }
+  | { e: 'contacts.changed'; d: { tgUserId: number } };
+
+export interface PersonalContactNameDto {
+  tgUserId: number;
+  name: { firstName: string; lastName: string } | null;
+  updatedAt: string;
+  revision: number;
+}
+
+export interface PersonalContactDto extends PersonalContactNameDto {
+  note: string;
+}
 
 /** Итог действия из очереди сервера; приходит только тому, кто его запросил */
 export interface OutboxDoneDto {

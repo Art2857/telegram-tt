@@ -3,6 +3,9 @@ import type { AccessRestriction, Permissions, ProviderAccountState } from '../..
 export type ProxyChatInfo = {
   accountId: string;
   peerId: number;
+  /** Имя Telegram до личного переименования собеседника */
+  originalTitle?: string;
+  personalName?: { firstName: string; lastName: string };
   permissions: Permissions;
   shareIds: string[];
   restricted?: AccessRestriction;

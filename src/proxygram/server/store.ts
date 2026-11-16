@@ -24,6 +24,7 @@ export interface PxgState {
   settingsTarget?: { tab: PxgSettingsTab; highlight?: SettingsHighlight };
   isAppUpdateOpen?: boolean;
   isQrScannerOpen?: boolean;
+  personalContactUserId?: string;
   isConnectOpen: boolean;
   /** Восстановление уже разрешённой раздачи после потери серверной сессии */
   connectRecoveryAccountId?: string;
@@ -98,6 +99,7 @@ export function setPxgState(patch: Partial<PxgState>) {
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
       downloadedChat: undefined, sharedFolderEdit: undefined,
+      personalContactUserId: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false, settingsTarget: undefined,
       connectRecoveryAccountId: undefined,
     };

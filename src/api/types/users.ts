@@ -25,6 +25,9 @@ export interface ApiUser {
   type: ApiUserType;
   firstName?: string;
   lastName?: string;
+  /** Имя из Telegram до личного переименования гостем */
+  pxgOriginalName?: string;
+  pxgPersonalName?: { firstName: string; lastName: string };
   noStatus?: boolean;
   usernames?: ApiUsername[];
   hasUsername?: boolean;

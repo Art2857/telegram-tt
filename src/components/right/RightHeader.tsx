@@ -27,6 +27,8 @@ import { IS_TAURI } from '../../util/browser/globalEnvironment';
 import { IS_MAC_OS } from '../../util/browser/windowEnvironment';
 import buildClassName from '../../util/buildClassName';
 import { isUserId } from '../../util/entities/ids';
+import { isProxyPeerId } from '../../api/proxy/ids';
+import { setPxgState } from '../../proxygram/server/store';
 
 import useAppLayout from '../../hooks/useAppLayout';
 import useCurrentOrPrev from '../../hooks/useCurrentOrPrev';
@@ -615,6 +617,16 @@ const RightHeader = ({
                 />
               )}
               {primaryEditButton}
+              {userId && isProxyPeerId(userId) && !isSelf && (
+                <Button
+                  round
+                  color="translucent"
+                  size="smaller"
+                  ariaLabel={lang('PxgContactEdit')}
+                  onClick={() => setPxgState({ personalContactUserId: userId })}
+                  iconName="edit"
+                />
+              )}
               {canViewStatistics && (
                 <Button
                   round

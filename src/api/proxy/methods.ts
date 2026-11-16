@@ -1,3 +1,5 @@
+import { getGlobal } from '../../global';
+
 import type {
   AccessChat, ChatUnreadDto, ContactRequirementsDto, DiscussionDto, DraftDto, InlineBotDto, InlineResultsDto,
   MemberDto, MessageDto, PeerBriefDto, PollVotesDto, ReactorsDto, SeenByDto, SendAsPeerDto, SponsoredMessageDto,
@@ -27,6 +29,7 @@ import {
   buildProxyViaBot, buildProxyWebPage, clearProxyUserPhones, setProxyUserPaidStars, setProxyUserPhone,
   setProxyUserUsername,
 } from './builders';
+import { loadPersonalContact } from './contacts';
 import {
   deleteChatFolder, editChatFolder, fetchChatFolders, fetchRecommendedChatFolders, sortChatFolders,
   toggleDialogFilterTags,
@@ -1157,9 +1160,6 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
   if (!chat) return undefined;
   const paidStars = chat.info?.paidMessagesStars;
   setProxyUserPaidStars(peer.accountId, peer.peerId, paidStars);
-  const user = buildProxyUser(
-    peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges,
-  );
   // What a message to this person costs the owner: Telegram is asked through the owner's queue, once a day.
   // The profile does not wait for it; the price comes as an update
   if (chat.permissions.write && chat.type === 'user' && !chat.isSavedMessages) {
@@ -1167,7 +1167,15 @@ async function fetchFullUser({ id }: MethodArgs<'fetchFullUser'>[0]) {
       if ((fresh ?? undefined) !== paidStars) updateProxyPaidStars(id, fresh ?? undefined);
     }, () => undefined);
   }
-  return { user, fullInfo: { paidMessagesStars: paidStars }, users: [user], chats: [], userStatusesById: {} };
+  const personalContact = await loadPersonalContact(peer.peerId).catch(() => undefined);
+  const updatedUser = buildProxyUser(
+    peer.accountId, peer.peerId, chat.title || chat.username || undefined, chat.photoId, chat.badges,
+  );
+  return { user: updatedUser, fullInfo: {
+    paidMessagesStars: paidStars,
+    note: personalContact ? personalContact.note ? { text: personalContact.note } : undefined
+      : getGlobal().users.fullInfoById[id]?.note,
+  }, users: [updatedUser], chats: [], userStatusesById: {} };
 }
 
 /** Before a send to a person whose profile is not loaded Web A asks the price on its own */
@@ -1208,7 +1216,7 @@ function requestChatUpdate({ chat }: MethodArgs<'requestChatUpdate'>[0]) {
 async function searchChats({ query }: MethodArgs<'searchChats'>[0]) {
   const access = await readAccessChats();
   const search = query.trim().toLocaleLowerCase();
-  const chats = access.filter((chat) => [chat.title, chat.username].some((value) => (
+  const chats = access.filter((chat) => [buildProxyChat(chat).title, chat.username].some((value) => (
     value?.toLocaleLowerCase().includes(search)
   ))).map(buildProxyChat);
   chats.forEach((chat) => emitProxyUpdate({ '@type': 'updateChat', id: chat.id, chat }));

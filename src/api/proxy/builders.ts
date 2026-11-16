@@ -15,6 +15,7 @@ import type { ProxyPeer } from './ids';
 import { ARCHIVED_FOLDER_ID, SPONSORED_MESSAGE_CACHE_MS } from '../../config';
 import { getServerTime } from '../../util/serverTime';
 import { getPxgState } from '../../proxygram/server/store';
+import { getPersonalContactName } from './contacts';
 import { buildProxyEntities } from './entities';
 import { getProxySponsoredId } from './ids';
 import { getProxyPeerId, isProxyGuest } from './index';
@@ -43,14 +44,18 @@ export function buildProxyAuthorChat(
 }
 
 export function buildProxyChat(chat: AccessChat): ApiChat {
+  const id = getProxyPeerId(chat.accountId, chat.peerId);
+  const storedName = chat.peerId > 0 ? getPersonalContactName(chat.peerId) : undefined;
+  const personalName = storedName === undefined ? getGlobal().chats.byId[id]?.pxgProxy?.personalName : storedName;
   const usernames = chat.info?.usernames?.length ? chat.info.usernames : chat.username ? [chat.username] : undefined;
   const bans = new Set(chat.telegramBans);
   const hasMediaBan = !chat.permissions.sendMedia || bans.has('sendMedia');
   return {
-    id: getProxyPeerId(chat.accountId, chat.peerId),
+    id,
     type: chat.peerId > 0 ? 'chatTypePrivate'
       : chat.type === 'channel' ? 'chatTypeChannel' : 'chatTypeSuperGroup',
-    title: chat.title || chat.username || String(chat.peerId),
+    title: personalName ? [personalName.firstName, personalName.lastName].filter(Boolean).join(' ')
+      : chat.title || chat.username || String(chat.peerId),
     avatarPhotoId: chat.photoId || undefined,
     // The guest's own archive; a full login keeps shared chats in their local folder
     folderId: chat.archivedAt && isProxyGuest() ? ARCHIVED_FOLDER_ID : undefined,
@@ -90,6 +95,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       inviteUsers: true,
     },
     pxgProxy: {
+      originalTitle: chat.title || chat.username || String(chat.peerId),
+      personalName: personalName || undefined,
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions, shareIds: chat.shareIds,
       restricted: chat.restricted || undefined,
       label: chat.label || undefined,
@@ -291,12 +298,18 @@ export function buildProxyUser(
 ): ApiUser {
   const id = getProxyPeerId(accountId, userId);
   // A reply without the name must not turn a known person into a number: the name already on screen stays
-  const known = name ? undefined : getGlobal().users.byId[id];
+  const known = getGlobal().users.byId[id];
+  const originalName = name || known?.pxgOriginalName || known?.firstName || String(userId);
+  const storedName = getPersonalContactName(userId);
+  const personalName = storedName === undefined ? known?.pxgPersonalName : storedName;
   const user: ApiUser = {
     id,
     type: 'userTypeRegular',
     isMin: false,
-    firstName: name || known?.firstName || String(userId),
+    firstName: personalName ? personalName.firstName : originalName,
+    lastName: personalName?.lastName || undefined,
+    pxgOriginalName: originalName,
+    pxgPersonalName: personalName || undefined,
     phoneNumber: phoneByUserId.get(id) || '',
     noStatus: true,
     paidMessagesStars: paidStarsByUserId.get(id),
