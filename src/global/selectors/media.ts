@@ -27,7 +27,7 @@ import {
   getWebPageVideo,
 } from '../helpers';
 import { selectChat } from './chats';
-import { selectReplyMessage, selectWebPageFromMessage } from './messages';
+import { selectIsChatProtected, selectReplyMessage, selectWebPageFromMessage } from './messages';
 import { selectSettingsKeys } from './settings';
 import { selectAnimatedEmoji, selectCustomEmoji } from './symbols';
 
@@ -97,7 +97,8 @@ export function selectMessageMediaHash<T extends GlobalState>(
 ) {
   const webPage = selectWebPageFromMessage(global, message);
 
-  return getMessageMediaHash(message, { webPage }, target);
+  return getMessageMediaHash(message, { webPage }, target,
+    message.chatId ? selectIsChatProtected(global, message.chatId) : undefined);
 }
 
 export function selectMessageMediaDuration<T extends GlobalState>(global: T, message: MediaContainer) {

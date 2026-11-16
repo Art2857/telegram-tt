@@ -1257,8 +1257,10 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      const isNativeQueue = Boolean(selectChatMessage(global, chatId, localId)?.nativeSendId);
-      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && error.startsWith('LOCAL_QUEUE_'))) {
+      const currentMessage = selectChatMessage(global, chatId, localId);
+      const isNativeQueue = Boolean(currentMessage?.nativeSendId);
+      const wasAlreadyFailed = currentMessage?.nativeSendError === error;
+      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && !wasAlreadyFailed)) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
         });
@@ -1278,8 +1280,10 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     case 'updateScheduledMessageSendFailed': {
       const { chatId, localId, error } = update;
 
-      const isNativeQueue = Boolean(selectScheduledMessage(global, chatId, localId)?.nativeSendId);
-      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && error.startsWith('LOCAL_QUEUE_'))) {
+      const currentMessage = selectScheduledMessage(global, chatId, localId);
+      const isNativeQueue = Boolean(currentMessage?.nativeSendId);
+      const wasAlreadyFailed = currentMessage?.nativeSendError === error;
+      if (global.chats.byId[chatId]?.pxgProxy || (isNativeQueue && !wasAlreadyFailed)) {
         Object.values(global.byTabId).forEach(({ id: tabId }) => {
           actions.showNotification({ message: getProxySendError(error) || { key: 'PxgSendErrorUnknown' }, tabId });
         });
@@ -1534,25 +1538,29 @@ function updateListedAndViewportIds<T extends GlobalState>(
   global: T, message: ApiMessage,
 ) {
   const { id, chatId } = message;
+  const isNativePending = isMessageLocal(message) && Boolean(message.nativeSendId);
 
   const savedDialogId = selectSavedDialogIdFromMessage(global, message);
   const threadId = savedDialogId || selectThreadIdFromMessage(global, message);
   const threadInfo = selectThreadInfo(global, chatId, threadId);
 
   const mainThreadReadState = selectThreadReadState(global, chatId, MAIN_THREAD_ID);
-  const isUnreadChatNotLoaded = mainThreadReadState?.unreadCount && !selectListedIds(global, chatId, MAIN_THREAD_ID);
+  const isUnreadChatNotLoaded = !isMessageLocal(message)
+    && mainThreadReadState?.unreadCount && !selectListedIds(global, chatId, MAIN_THREAD_ID);
 
   if (threadId) {
     global = updateListedIds(global, chatId, threadId, [id]);
 
     Object.values(global.byTabId).forEach(({ id: tabId }) => {
-      if (selectIsViewportNewest(global, chatId, threadId, tabId)) {
+      const viewportIds = selectViewportIds(global, chatId, threadId, tabId);
+      const canShowPending = isNativePending && (viewportIds?.at(-1) ?? -1) >= Math.floor(id);
+      if (canShowPending || selectIsViewportNewest(global, chatId, threadId, tabId)) {
         // Always keep the first unread message in the viewport list
         const firstUnreadId = selectFirstUnreadId(global, chatId, threadId);
         const candidateGlobal = addViewportId(global, chatId, threadId, id, tabId);
         const newViewportIds = selectViewportIds(candidateGlobal, chatId, threadId, tabId);
 
-        if (!firstUnreadId || newViewportIds!.includes(firstUnreadId)) {
+        if (canShowPending || !firstUnreadId || newViewportIds!.includes(firstUnreadId)) {
           global = candidateGlobal;
         }
       }
@@ -1575,13 +1583,16 @@ function updateListedAndViewportIds<T extends GlobalState>(
   global = updateListedIds(global, chatId, MAIN_THREAD_ID, [id]);
 
   Object.values(global.byTabId).forEach(({ id: tabId }) => {
-    if (selectIsViewportNewest(global, chatId, MAIN_THREAD_ID, tabId)) {
+    // Очередь после запуска возвращается и в уже закэшированный конец диалога
+    const viewportIds = selectViewportIds(global, chatId, MAIN_THREAD_ID, tabId);
+    const canShowPending = isNativePending && (viewportIds?.at(-1) ?? -1) >= Math.floor(id);
+    if (canShowPending || selectIsViewportNewest(global, chatId, MAIN_THREAD_ID, tabId)) {
       // Always keep the first unread message in the viewport list
       const firstUnreadId = selectFirstUnreadId(global, chatId, MAIN_THREAD_ID);
       const candidateGlobal = addViewportId(global, chatId, MAIN_THREAD_ID, id, tabId);
       const newViewportIds = selectViewportIds(candidateGlobal, chatId, MAIN_THREAD_ID, tabId);
 
-      if (!firstUnreadId || newViewportIds!.includes(firstUnreadId)) {
+      if (canShowPending || !firstUnreadId || newViewportIds!.includes(firstUnreadId)) {
         global = candidateGlobal;
       }
     }

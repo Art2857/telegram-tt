@@ -1,5 +1,6 @@
 import { addCallback } from '../../../lib/teact/teactn';
 
+import type { ApiMessage } from '../../../api/types';
 import type { ThreadId } from '../../../types';
 import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
@@ -11,6 +12,7 @@ import { init as initFolderManager } from '../../../util/folderManager';
 import {
   buildCollectionByKey, omitUndefined, pick, pickTruthy, unique,
 } from '../../../util/iteratees';
+import { isLocalMessageId } from '../../../util/keys/messageKey';
 import { finishWebLogin } from '../../../util/webLogin';
 import { callApi, reconnectApi } from '../../../api/gramjs';
 import { getDownloadedChatMessages } from '../../../proxygram/downloadedChatChat';
@@ -42,6 +44,7 @@ import {
 } from '../../selectors';
 import { selectPlaybackMessage } from '../../selectors/audioPlayer';
 import {
+  selectThreadIdFromMessage,
   selectThreadInfo,
   selectThreadReadState,
 } from '../../selectors/threads';
@@ -183,7 +186,9 @@ async function loadAndReplaceMessages<T extends GlobalState>(global: T, actions:
         const currentChatMessages = selectChatMessages(global, currentChatId);
         const localMessages = currentChatId === SERVICE_NOTIFICATIONS_USER_ID
           ? global.serviceNotifications.filter(({ isDeleted }) => !isDeleted).map(({ message }) => message)
-          : [];
+          : getQueuedMessages(currentChatMessages).filter((message) => (
+            activeThreadId === MAIN_THREAD_ID || selectThreadIdFromMessage(global, message) === activeThreadId
+          ));
         const topics = selectTopics(global, currentChatId);
         const topicLastMessages = topics ? Object.values(topics)
           .map(({ id }) => {
@@ -244,6 +249,14 @@ async function loadAndReplaceMessages<T extends GlobalState>(global: T, actions:
               ?.[currentChatId]?.[activeThreadId]?.viewportIds;
             const mergedMessagesById = selectChatMessages(global, currentChatId) || {};
             const nextViewportIds = preservedViewportIds?.filter((id) => Boolean(mergedMessagesById[id]));
+            if (nextViewportIds?.length) {
+              const tailId = nextViewportIds.at(-1)!;
+              localMessages.forEach((message) => {
+                if (tailId >= Math.floor(message.id) && !nextViewportIds.includes(message.id)) {
+                  nextViewportIds.push(message.id);
+                }
+              });
+            }
 
             global = safeReplaceViewportIds(
               global,
@@ -408,9 +421,38 @@ function preserveThreads<T extends GlobalState>(global: T) {
         },
       };
     });
+    const queued = getQueuedMessages(messages.byId);
+    if (!queued.length) return;
+    const preserved = preservedByChatId[chatId];
+    const threadsById = { ...preserved?.threadsById };
+    queued.forEach((message) => {
+      const threadId = selectThreadIdFromMessage(global, message) || MAIN_THREAD_ID;
+      const thread = threadsById[threadId] || messages.threadsById[threadId];
+      if (!thread) return;
+      threadsById[threadId] = {
+        ...thread,
+        localState: {
+          ...thread.localState,
+          listedIds: unique([...(thread.localState.listedIds || []), message.id]),
+        },
+      };
+    });
+    preservedByChatId[chatId] = {
+      byId: { ...preserved?.byId, ...buildCollectionByKey(queued, 'id') },
+      ephemeralById: preserved?.ephemeralById || {},
+      anchoredById: preserved?.anchoredById || {},
+      summaryById: {},
+      threadsById,
+    };
   });
 
   return preservedByChatId;
+}
+
+function getQueuedMessages(byId?: Record<number, ApiMessage>) {
+  return Object.values(byId || {}).filter((message) => (
+    isLocalMessageId(message.id) && message.sendingState && (message.nativeSendId || message.pxgSendRequest)
+  ));
 }
 
 function resolveDiscussionChat<T extends GlobalState>(

@@ -5,12 +5,15 @@ import type {
   ApiWebPage,
 } from '../../types';
 
+import { removePeerFiles } from '../../../util/cacheApi';
 import { buildCollectionByKey } from '../../../util/iteratees';
 import { buildApiChatFromPreview } from '../apiBuilders/chats';
 import { buildMessagePollFromMedia, buildWebPagesFromMedia } from '../apiBuilders/messageContent';
 import { buildApiThreadInfoFromMessage } from '../apiBuilders/messages';
+import { buildApiPeerId } from '../apiBuilders/peers';
 import { buildApiUser } from '../apiBuilders/users';
 import { addChatToLocalDb, addMessageToLocalDb, addUserToLocalDb } from '../helpers/localDb';
+import localDb from '../localDb';
 import { sendImmediateApiUpdate } from './apiUpdateEmitter';
 
 const TYPE_USER = new Set(['User', 'UserEmpty']);
@@ -22,6 +25,15 @@ const TYPE_MESSAGE = new Set(['Message', 'MessageEmpty', 'MessageService']);
 export function processAndUpdateEntities(response?: GramJs.AnyRequest['__response']) {
   if (!response || typeof response !== 'object') return;
   if (!('users' in response || 'chats' in response || 'messages' in response)) return;
+  if ('fullUser' in response && response.fullUser instanceof GramJs.UserFull) {
+    const { id, noforwardsMyEnabled, noforwardsPeerEnabled } = response.fullUser;
+    const peerId = buildApiPeerId(id, 'user');
+    const isRestricted = Boolean(noforwardsMyEnabled || noforwardsPeerEnabled);
+    if (isRestricted && localDb.mediaCacheRestrictions[peerId] !== true) {
+      void removePeerFiles(peerId).catch(() => undefined);
+    }
+    localDb.mediaCacheRestrictions[peerId] = isRestricted;
+  }
 
   let userById: Record<string, ApiUser> | undefined;
   let chatById: Record<string, ApiChat> | undefined;

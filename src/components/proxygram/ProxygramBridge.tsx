@@ -1,4 +1,4 @@
-import { memo, useEffect } from '../../lib/teact/teact';
+import { memo, useEffect, useRef } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
@@ -97,6 +97,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
     session && session.level === 'client' && currentUserId && String(session.user.tgUserId) === currentUserId,
   );
   const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
+  const recoveryAttemptedRef = useRef(new Set<string>());
 
   // A tap on a notification of the app (Android, Windows) opens its chat (2026-11-15)
   useEffect(() => {
@@ -167,25 +168,39 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   // Свои аккаунты на сервере; если раздача не включена — один раз предлагаем
   useEffect(() => {
     if (!hasOwnSession || connection !== 'online' || !currentUserId) return undefined;
-    void pxgRpc.call<AccountDto[]>('accounts.mine').then((accounts) => {
+    let isActive = true;
+    const applyAccounts = (accounts: AccountDto[]) => {
+      if (!isActive) return;
       setPxgState({ accounts });
-      const isSharing = accounts.some((account) => (
-        account.status === 'active' || account.status === 'paused' || account.status === 'flood'
-      ));
-      const isLost = accounts.some((account) => account.status === 'auth_lost');
-      if (!isSharing && !isLost && !localStorage.getItem(connectDismissKey(currentUserId))) {
-        setPxgState({ isConnectOpen: true });
+      const ownAccount = accounts.find((account) => String(account.tgUserId) === currentUserId);
+      const isSharing = ownAccount && (
+        ownAccount.status === 'active' || ownAccount.status === 'paused' || ownAccount.status === 'flood'
+      );
+      const isLost = ownAccount?.status === 'auth_lost';
+      if (ownAccount && isSharing) recoveryAttemptedRef.current.delete(ownAccount.id);
+      if (ownAccount && isLost && !recoveryAttemptedRef.current.has(ownAccount.id)) {
+        recoveryAttemptedRef.current.add(ownAccount.id);
+        if (!getPxgState().isConnectOpen) {
+          setPxgState({ isConnectOpen: true, connectRecoveryAccountId: ownAccount.id });
+        }
       }
-      if (isLost) showNotification({ message: { key: 'PxgAccountAuthLost' } });
-    }).catch(() => undefined);
+      if (!isSharing && !isLost && !localStorage.getItem(connectDismissKey(currentUserId))) {
+        // Отключение и уже идущая попытка не отменяются автоматическим входом
+        if (!ownAccount) setPxgState({ isConnectOpen: true });
+      }
+    };
+    void pxgRpc.call<AccountDto[]>('accounts.mine').then(applyAccounts).catch(() => undefined);
     // Статус аккаунта поменялся на сервере (потеря сессии, флуд) — перечитать и сказать владельцу
-    return pxgRpc.on((event) => {
+    const unsubscribe = pxgRpc.on((event) => {
       if (event.e !== 'accounts.changed') return;
-      void pxgRpc.call<AccountDto[]>('accounts.mine').then((accounts) => setPxgState({ accounts }))
+      void pxgRpc.call<AccountDto[]>('accounts.mine').then(applyAccounts)
         .catch(() => undefined);
-      if (event.d.status === 'auth_lost') showNotification({ message: { key: 'PxgAccountAuthLost' } });
       if (event.d.status === 'flood') showNotification({ message: { key: 'PxgAccountFlood' } });
     });
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
   }, [connection, currentUserId, hasOwnSession, showNotification]);
 
   // Кому открыты свои чаты — для подписи в списке чатов

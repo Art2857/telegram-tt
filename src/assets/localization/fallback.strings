@@ -4581,6 +4581,7 @@
 "PxgQueueSaveFailed" = "Could not save this message on the device. Free some storage and choose Retry in the message menu. It has not been sent and will be lost if you close the app.";
 "PxgQueueFileMissing" = "The file saved for this message is unavailable. Delete the waiting message and attach the file again.";
 "PxgQueueAlbumIncomplete" = "The album is incomplete. Choose Retry in its message menu to send the remaining files, or delete them and attach the album again.";
+"PxgSendPhotoFailed" = "Telegram could not process this photo. Retry later, or attach it again and send it as a file.";
 "PxgForwardCopy" = "Sent as a copy, without the original author.";
 "PxgForwardNative" = "Forwarded with the original author.";
 "PxgForwardPollCopy" = "Poll results are not copied.";
@@ -4977,6 +4978,9 @@
 "PxgConnectButton" = "Allow";
 "PxgConnectLater" = "Not now";
 "PxgConnectProgress" = "Connecting the server…";
+"PxgConnectRestoreTitle" = "Restore chat sharing";
+"PxgConnectRestoreWaiting" = "This account is being connected from another device. Waiting for it to finish…";
+"PxgConnectRestored" = "Sharing restored. Existing access is preserved and guests receive updates again. Missed history is being loaded automatically.";
 "PxgConnectPasswordNote" = "Two-step verification is on. The password is checked on this device and is not sent to the server.";
 "PxgConnectPasswordInvalid" = "Wrong password";
 "PxgConnectDone" = "Done! To share a chat, open it → ⋮ → Share chat.";

@@ -75,22 +75,34 @@ export async function hasNativeSend(key: SendQueueKey, randomId: string) {
 
 export async function storeNativeSendFiles(
   key: SendQueueKey, item: StoredNativeSend, isCurrent: () => boolean,
-): Promise<StoredFiles> {
+): Promise<{ files: StoredFiles; urls: string[] }> {
   const files: StoredFiles = {};
+  const urls: string[] = [];
   try {
     for (const [name, attachment] of getAttachments(item.params)) {
       if (!attachment || attachment.gif) continue;
-      const blob = attachment.blobUrl ? await (await fetch(attachment.blobUrl)).blob() : attachment.blob;
+      const blob = attachment.blob || (attachment.blobUrl ? await (await fetch(attachment.blobUrl)).blob() : undefined);
       if (!blob) throw new Error('LOCAL_QUEUE_FILE_MISSING');
+      attachment.blob = blob;
+      attachment.blobUrl = URL.createObjectURL(blob);
+      urls.push(attachment.blobUrl);
+      attachment.compressedBlob = undefined;
+      attachment.compressedBlobUrl = undefined;
+      const previewBlob = attachment.previewBlob || (attachment.previewBlobUrl
+        ? await (await fetch(attachment.previewBlobUrl)).blob() : undefined);
+      if (previewBlob) {
+        attachment.previewBlob = previewBlob;
+        attachment.previewBlobUrl = URL.createObjectURL(previewBlob);
+        urls.push(attachment.previewBlobUrl);
+      }
       const file = await storeFile(key, `${item.randomId}:${name}`, blob, isCurrent);
-      const preview = attachment.previewBlobUrl
-        ? await storeFile(key, `${item.randomId}:${name}:preview`,
-          await (await fetch(attachment.previewBlobUrl)).blob(), isCurrent)
-        : undefined;
+      const preview = previewBlob
+        ? await storeFile(key, `${item.randomId}:${name}:preview`, previewBlob, isCurrent) : undefined;
       files[name] = { file, preview };
     }
-    return files;
+    return { files, urls };
   } catch (error) {
+    urls.forEach((url) => URL.revokeObjectURL(url));
     await removeNativeSend(key, item.randomId);
     throw error;
   }
@@ -106,7 +118,8 @@ export async function restoreNativeSendFiles(key: SendQueueKey, item: StoredNati
       attachment.blobUrl = URL.createObjectURL(attachment.blob);
       urls.push(attachment.blobUrl);
       if (stored.preview) {
-        attachment.previewBlobUrl = URL.createObjectURL(await restoreFile(key, stored.preview));
+        attachment.previewBlob = await restoreFile(key, stored.preview);
+        attachment.previewBlobUrl = URL.createObjectURL(attachment.previewBlob);
         urls.push(attachment.previewBlobUrl);
       }
     }

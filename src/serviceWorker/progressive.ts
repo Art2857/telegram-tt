@@ -10,14 +10,16 @@ import generateUniqueId from '../util/generateUniqueId';
 import { loadPasscodeMeta, requestPasscodeStateLock } from '../util/passcode/meta';
 import { pause } from '../util/schedulers';
 import { parseProxyMediaHash } from '../api/proxy/mediaIds';
+import { isMediaCacheRestricted } from '../proxygram/fileCachePolicy';
 
 declare const self: ServiceWorkerGlobalScope;
 
 type PartInfo = {
   type: 'PartInfo';
   arrayBuffer: ArrayBuffer;
-  mimeType: 'string';
+  mimeType: string;
   fullSize: number;
+  shouldCache?: boolean;
 };
 
 type RequestStates = {
@@ -30,6 +32,7 @@ const DEFAULT_PART_SIZE = 0.5 * MB;
 const MAX_END_TO_CACHE = 2 * MB - 1; // We only cache the first 2 MB of each file
 const PART_TIMEOUT = 60000;
 const LAST_ACCESS_HEADER = 'X-Last-Access';
+const POLICY_HEADER = 'X-Pxg-Cache-Policy';
 const ACCESS_THROTTLE_MS = 24 * 60 * 60 * 1000;
 const cacheWrites = new BroadcastChannel(FILE_CACHE_WRITE_CHANNEL);
 
@@ -51,6 +54,7 @@ export async function respondForProgressive(e: FetchEvent) {
   const parsedUrl = new URL(url);
   // PXG: Archive media always revalidates access through the page's server adapter
   const isProxyMedia = Boolean(parseProxyMediaHash(parsedUrl.pathname.slice(parsedUrl.pathname.lastIndexOf('/') + 1)));
+  const isCacheRestricted = isMediaCacheRestricted(url);
 
   // Optimization for Safari
   if (start === 0 && end === 1) {
@@ -77,6 +81,7 @@ export async function respondForProgressive(e: FetchEvent) {
   parsedUrl.searchParams.set('end', String(end));
   const cacheKey = parsedUrl.href;
   const [cachedArrayBuffer, cachedHeaders] = !MEDIA_PROGRESSIVE_CACHE_DISABLED && !hasPasscode && !isProxyMedia
+    && !isCacheRestricted
     ? await fetchFromCache(accountSlot, cacheKey) : [];
 
   if (DEBUG) {
@@ -126,6 +131,8 @@ export async function respondForProgressive(e: FetchEvent) {
   if (
     !MEDIA_PROGRESSIVE_CACHE_DISABLED
     && !isProxyMedia
+    && !isCacheRestricted
+    && partInfo.shouldCache === true
     && !hasPasscode
     && partSize <= MEDIA_CACHE_MAX_BYTES
     && end < MAX_END_TO_CACHE
@@ -151,7 +158,7 @@ async function fetchFromCache(accountSlot: number | undefined, cacheKey: string)
   const dataKey = `${cacheKey}&type=arrayBuffer`;
   const headersKey = `${cacheKey}&type=headers`;
   const [data, headers] = await Promise.all([cache.match(dataKey), cache.match(headersKey)]);
-  if (!data || !headers) return [];
+  if (!data || !headers || data.headers.get(POLICY_HEADER) !== '1') return [];
   const now = Date.now();
   if (now - Number(data.headers.get(LAST_ACCESS_HEADER)) > ACCESS_THROTTLE_MS) {
     const responses: [string, Response][] = [[dataKey, data], [headersKey, headers]];
@@ -174,7 +181,9 @@ async function saveToCache(
   const touchedAt = String(Date.now());
   await Promise.all([
     cache.put(new Request(`${cacheKey}&type=arrayBuffer`), new Response(arrayBuffer, {
-      headers: { 'Content-Length': String(arrayBuffer.byteLength), [LAST_ACCESS_HEADER]: touchedAt },
+      headers: {
+        'Content-Length': String(arrayBuffer.byteLength), [LAST_ACCESS_HEADER]: touchedAt, [POLICY_HEADER]: '1',
+      },
     })),
     cache.put(new Request(`${cacheKey}&type=headers`), new Response(metadata, {
       headers: { 'Content-Length': String(new TextEncoder().encode(metadata).byteLength),

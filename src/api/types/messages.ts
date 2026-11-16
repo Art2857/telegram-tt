@@ -771,6 +771,9 @@ export type MediaContent = {
 };
 export type MediaContainer = {
   content: MediaContent;
+  chatId?: string;
+  isProtected?: boolean;
+  ttlPeriod?: number;
 };
 
 export type StatefulMediaContent = {

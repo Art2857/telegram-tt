@@ -3,6 +3,7 @@ import cycleRestrict from './cycleRestrict';
 import { MAX_WORKERS, requestMediaWorker } from './launchMediaWorkers';
 
 const LUMA_THRESHOLD = 240;
+const JPEG_QUALITY = 0.9;
 let lastResizeWorkerIndex = -1;
 
 export async function resizeImageInBackground(
@@ -89,7 +90,7 @@ async function scale(
         } else {
           ctx2D.drawImage(bitmap, 0, 0);
         }
-        canvas.toBlob(res, outputType);
+        canvas.toBlob(res, outputType, outputType === 'image/jpeg' ? JPEG_QUALITY : undefined);
       });
     } catch (e) {
       // Fallback. Firefox below 93 does not recognize `createImageBitmap` with 2 parameters
@@ -142,6 +143,6 @@ async function steppedScale(
   ctx.globalCompositeOperation = 'destination-over';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   return new Promise((resolve) => {
-    canvas.toBlob(resolve, outputType);
+    canvas.toBlob(resolve, outputType, outputType === 'image/jpeg' ? JPEG_QUALITY : undefined);
   });
 }

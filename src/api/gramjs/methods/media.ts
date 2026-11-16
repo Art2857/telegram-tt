@@ -14,10 +14,14 @@ import {
   MEDIA_CACHE_NAME_AVATARS,
 } from '../../../config';
 import * as cacheApi from '../../../util/cacheApi';
+import Deferred from '../../../util/Deferred';
 import { bufferToUtf8 } from '../../../util/encoding/buffer';
 import { toJSNumber } from '../../../util/numbers';
+import { pause } from '../../../util/schedulers';
+import { FILE_CACHE_MAX_BYTES, isMediaCacheRestricted } from '../../../proxygram/fileCachePolicy';
 import { getEntityTypeById } from '../gramjsBuilders';
-import localDb from '../localDb';
+import localDb, { type RepairInfo } from '../localDb';
+import { sendApiUpdate } from '../updates/apiUpdateEmitter';
 
 const MEDIA_ENTITY_TYPES = new Set<EntityType>([
   'sticker', 'wallpaper', 'photo', 'webDocument', 'document',
@@ -25,6 +29,17 @@ const MEDIA_ENTITY_TYPES = new Set<EntityType>([
 
 const JPEG_SIZE_TYPES = new Set(['s', 'm', 'x', 'y', 'w', 'a', 'b', 'c', 'd']);
 const MP4_SIZES_TYPES = new Set(['u', 'v']);
+const CACHE_TRIM_TIMEOUT_MS = 15_000;
+const cacheTrimRequests = new Map<string, Deferred>();
+let cacheGeneration = 0;
+
+export function resetNativeMediaCache() {
+  cacheGeneration++;
+}
+
+export function completeNativeCacheTrim({ requestId }: { requestId: string }) {
+  cacheTrimRequests.get(requestId)?.resolve();
+}
 
 export default async function downloadMedia(
   {
@@ -35,6 +50,7 @@ export default async function downloadMedia(
   client: TelegramClient,
   onProgress?: ApiOnProgress,
 ) {
+  const generation = cacheGeneration;
   const {
     data, mimeType, fullSize,
   } = await download(url, client, onProgress, start, end, isHtmlAllowed) || {};
@@ -48,13 +64,14 @@ export default async function downloadMedia(
     return undefined;
   }
 
-  const canCache = mediaFormat !== ApiMediaFormat.Progressive && (
-    mediaFormat !== ApiMediaFormat.BlobUrl || (parsed as Blob).size <= MEDIA_CACHE_MAX_BYTES
-  );
+  const policy = getNativeCachePolicy(url);
+  const size = parsed instanceof Blob ? parsed.size
+    : parsed instanceof ArrayBuffer ? parsed.byteLength : new TextEncoder().encode(parsed).byteLength;
+  const canCache = mediaFormat !== ApiMediaFormat.Progressive && !policy.isRestricted && size <= policy.maxBytes;
 
   if (!MEDIA_CACHE_DISABLED && cacheApi && canCache) {
     const cacheName = url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME;
-    void cacheApi.save(cacheName, url, parsed);
+    void saveNativeMedia(cacheName, url, parsed, size, generation).catch(() => undefined);
   }
 
   const dataBlob = mediaFormat === ApiMediaFormat.Progressive ? '' : parsed as string | Blob;
@@ -65,7 +82,50 @@ export default async function downloadMedia(
     arrayBuffer,
     mimeType,
     fullSize,
+    shouldCache: !policy.isRestricted && generation === cacheGeneration,
   };
+}
+
+async function saveNativeMedia(
+  cacheName: string, url: string, data: ApiParsedMedia, size: number, generation: number,
+) {
+  if (generation !== cacheGeneration || getNativeCachePolicy(url).isRestricted) return;
+  const metadata = { peerId: getNativeCachePolicy(url).peerId, policyVersion: 1 };
+  let isSaved = await cacheApi.save(cacheName, url, data, metadata);
+  if (!isSaved && generation === cacheGeneration) {
+    const requestId = crypto.randomUUID();
+    const deferred = new Deferred();
+    cacheTrimRequests.set(requestId, deferred);
+    try {
+      sendApiUpdate({ '@type': 'requestDeviceCacheTrim', requestId, bytes: size });
+      await Promise.race([deferred.promise, pause(CACHE_TRIM_TIMEOUT_MS)]);
+    } finally {
+      cacheTrimRequests.delete(requestId);
+    }
+    if (generation !== cacheGeneration || getNativeCachePolicy(url).isRestricted) return;
+    isSaved = await cacheApi.save(cacheName, url, data, metadata);
+  }
+  if (isSaved && (generation !== cacheGeneration || getNativeCachePolicy(url).isRestricted)) {
+    await cacheApi.remove(cacheName, url);
+  }
+}
+
+function getNativeCachePolicy(url: string) {
+  const parsed = parseMediaUrl(url);
+  const entity = parsed?.entityType === 'document' || parsed?.entityType === 'sticker'
+    || parsed?.entityType === 'wallpaper' ? localDb.documents[parsed.entityId]
+    : parsed?.entityType === 'photo' ? localDb.photos[parsed.entityId]
+      : parsed?.entityType === 'webDocument' ? localDb.webDocuments[parsed.entityId] as (
+        GramJs.TypeWebDocument & RepairInfo
+      ) : undefined;
+  const policy = entity?.localCachePolicy;
+  const peerRestriction = policy ? localDb.mediaCacheRestrictions[policy.peerId] : undefined;
+  const isUnknownMessage = entity?.localRepairInfo?.type === 'message' && !policy;
+  const isRestricted = isMediaCacheRestricted(url) || Boolean(policy?.isRestricted) || peerRestriction === true
+    || Boolean(policy && peerRestriction === undefined) || Boolean(isUnknownMessage);
+  const canExpand = !isRestricted && ((policy && peerRestriction === false)
+    || parsed?.entityType === 'sticker' || parsed?.entityType === 'wallpaper' || parsed?.entityType === 'stickerSet');
+  return { isRestricted, peerId: policy?.peerId, maxBytes: canExpand ? FILE_CACHE_MAX_BYTES : MEDIA_CACHE_MAX_BYTES };
 }
 
 export type EntityType = (

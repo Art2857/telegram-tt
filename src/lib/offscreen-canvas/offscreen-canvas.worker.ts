@@ -3,6 +3,7 @@ import fastBlur from '../fastBlur';
 
 const FAST_BLUR_ITERATIONS = 2;
 const LUMA_THRESHOLD = 240;
+const JPEG_QUALITY = 0.9;
 
 export async function blurThumb(canvas: OffscreenCanvas, thumbData: string, radius: number) {
   const imageBitmap = thumbData.startsWith('data:')
@@ -55,7 +56,11 @@ export async function resizeImage(blob: Blob, width: number, height: number, out
   context.drawImage(imageBitmap, 0, 0, width, height);
   imageBitmap.close();
 
-  return { blob: await canvas.convertToBlob({ type: outputType }) };
+  return {
+    blob: await canvas.convertToBlob({
+      type: outputType, quality: outputType === 'image/jpeg' ? JPEG_QUALITY : undefined,
+    }),
+  };
 }
 
 function dataUriToImageBitmap(dataUri: string) {

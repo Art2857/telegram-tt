@@ -1,3 +1,5 @@
+import { getGlobal } from '../global';
+
 import type {
   ApiOnProgress,
   ApiParsedMedia,
@@ -11,7 +13,9 @@ import {
   DEBUG, MEDIA_CACHE_DISABLED, MEDIA_CACHE_NAME,
   MEDIA_CACHE_NAME_AVATARS,
 } from '../config';
+import { selectIsChatProtected } from '../global/selectors/messages';
 import { callApi, cancelApiProgress } from '../api/gramjs';
+import { isMediaCacheRestricted, stripMediaCacheRestriction } from '../proxygram/fileCachePolicy';
 import {
   IS_OPUS_SUPPORTED, IS_PROGRESSIVE_SUPPORTED,
 } from './browser/windowEnvironment';
@@ -159,9 +163,13 @@ async function fetchFromCacheOrRemote(
 ): Promise<string> {
   ensureCurrentMemoryCacheGeneration(generation);
 
-  if (!MEDIA_CACHE_DISABLED) {
+  if (!MEDIA_CACHE_DISABLED && isMediaCacheRestricted(url)) {
+    await cacheApi.remove(MEDIA_CACHE_NAME, stripMediaCacheRestriction(url));
+  }
+  if (!MEDIA_CACHE_DISABLED && !isMediaCacheRestricted(url)) {
     const cacheName = url.startsWith('avatar') ? MEDIA_CACHE_NAME_AVATARS : MEDIA_CACHE_NAME;
-    const cached = await cacheApi.fetch(cacheName, url, asCacheApiType[mediaFormat]!, isHtmlAllowed);
+    const cached = await cacheApi.fetch(cacheName, url, asCacheApiType[mediaFormat]!, isHtmlAllowed,
+      (response) => canReadCachedMedia(url, response));
 
     if (cached) {
       let media = cached;
@@ -210,6 +218,15 @@ async function fetchFromCacheOrRemote(
   memoryCache.set(url, prepared);
 
   return prepared;
+}
+
+function canReadCachedMedia(url: string, response: Response) {
+  // Старые файлы без проверенной политики перечитываются; полученные чаты имеют свой контракт кэша
+  const isNativeFile = /^(photo|document|sticker)-?\d/.test(url);
+  if (isNativeFile && response.headers.get(cacheApi.CACHE_POLICY_HEADER) !== '1') return false;
+  const peerId = response.headers.get(cacheApi.CACHE_PEER_HEADER);
+  const global = getGlobal();
+  return !peerId || (Boolean(global.chats.byId[peerId]) && !selectIsChatProtected(global, peerId));
 }
 
 export async function unload(url: string) {
@@ -294,6 +311,7 @@ if (IS_PROGRESSIVE_SUPPORTED) {
     }
 
     const { arrayBuffer, mimeType, fullSize } = result;
+    const shouldCache = 'shouldCache' in result && result.shouldCache === true;
 
     navigator.serviceWorker.controller!.postMessage({
       type: 'partResponse',
@@ -302,6 +320,7 @@ if (IS_PROGRESSIVE_SUPPORTED) {
         arrayBuffer,
         mimeType,
         fullSize,
+        shouldCache,
       },
     }, [arrayBuffer!]);
   });

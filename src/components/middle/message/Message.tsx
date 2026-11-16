@@ -60,6 +60,7 @@ import {
   getMessageSingleCustomEmoji,
   getMessageSingleRegularEmoji,
   getMessageWebPage,
+  getSendingState,
   hasMessageTtl,
   isAnonymousForwardsChat,
   isAnonymousOwnMessage,
@@ -2398,11 +2399,12 @@ export default memo(withGlobal<OwnProps>(
         && loadingThread?.loadingChatId === repliesThreadInfo?.originChannelId
         && loadingThread?.loadingMessageId === repliesThreadInfo?.originMessageId,
       shouldWarnAboutFiles,
-      outgoingStatus: isOutgoing
-        ? message.isEphemeral
-          ? selectEphemeralOutgoingStatus(global, chatId, message.id)
-          : selectOutgoingStatus(global, chatId, threadId, message.id, messageListType)
-        : undefined,
+      outgoingStatus: message.sendingState && (message.nativeSendId || message.pxgSendRequest)
+        ? getSendingState(message) : isOutgoing
+          ? message.isEphemeral
+            ? selectEphemeralOutgoingStatus(global, chatId, message.id)
+            : selectOutgoingStatus(global, chatId, threadId, message.id, messageListType)
+          : undefined,
       uploadProgress: typeof uploadProgress === 'number' ? uploadProgress : undefined,
       focusDirection: isFocused ? focusDirection : undefined,
       noFocusHighlight: isFocused ? noFocusHighlight : undefined,

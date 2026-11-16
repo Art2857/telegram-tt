@@ -3436,6 +3436,7 @@ export interface LangPair {
   'PxgQueueSaveFailed': undefined;
   'PxgQueueFileMissing': undefined;
   'PxgQueueAlbumIncomplete': undefined;
+  'PxgSendPhotoFailed': undefined;
   'PxgForwardCopy': undefined;
   'PxgForwardNative': undefined;
   'PxgForwardPollCopy': undefined;
@@ -3784,6 +3785,9 @@ export interface LangPair {
   'PxgConnectButton': undefined;
   'PxgConnectLater': undefined;
   'PxgConnectProgress': undefined;
+  'PxgConnectRestoreTitle': undefined;
+  'PxgConnectRestoreWaiting': undefined;
+  'PxgConnectRestored': undefined;
   'PxgConnectPasswordNote': undefined;
   'PxgConnectPasswordInvalid': undefined;
   'PxgConnectDone': undefined;

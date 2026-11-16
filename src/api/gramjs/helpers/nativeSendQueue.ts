@@ -77,7 +77,9 @@ export function initNativeSendQueue(session?: ApiSessionData, cachedUserId?: str
           return;
         }
         items.set(data.randomId, item);
-        if (!data.isAcknowledged) data.message = adapter.restore(data.params, data.message);
+        if (!data.isAcknowledged) {
+          data.message = adapter.restore(data.params, { ...data.message, nativeSendError: data.error });
+        }
         messageGenerations.set(data.message, ownGeneration);
         if (data.error && !data.isAcknowledged) emitFailure(item, data.error);
       }
@@ -278,8 +280,11 @@ function saveItem(item: QueueItem, ownGeneration: number) {
 async function saveItemNow(item: QueueItem, ownGeneration: number) {
   const isCurrent = () => generation === ownGeneration && items.get(item.data.randomId) === item;
   try {
-    item.data.files = await storeNativeSendFiles(item.key, item.data, isCurrent);
+    const { files, urls } = await storeNativeSendFiles(item.key, item.data, isCurrent);
+    item.data.files = files;
+    item.urls.push(...urls);
     if (!isCurrent()) {
+      urls.forEach((url) => URL.revokeObjectURL(url));
       await removeNativeSend(item.key, item.data.randomId);
       return;
     }
@@ -372,6 +377,8 @@ function emitDeletion(item: QueueItem) {
 }
 
 function emitFailure(item: QueueItem, error: string) {
+  item.data.message = { ...item.data.message, nativeSendError: error, sendingState: 'messageSendingStateFailed' };
+  messageGenerations.set(item.data.message, generation);
   sendApiUpdate({
     '@type': item.data.message.isScheduled ? 'updateScheduledMessageSendFailed' : 'updateMessageSendFailed',
     chatId: item.data.message.chatId, localId: item.data.message.id, error,

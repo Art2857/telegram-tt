@@ -2,6 +2,8 @@ import type { ActionReturnType } from '../../types';
 
 import { SERVICE_NOTIFICATIONS_USER_ID } from '../../../config';
 import { applyLangPackDifference, getTranslationFn, requestLangPackDifference } from '../../../util/localization';
+import { callApiLocal } from '../../../api/gramjs';
+import { trimDeviceFiles } from '../../../proxygram/deviceStorage';
 import { isChatChannel, selectTabBrowserState } from '../../helpers';
 import { getPeerTitle } from '../../helpers/peers';
 import { addActionHandler, setGlobal } from '../../index';
@@ -32,6 +34,11 @@ import {
 
 addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
   switch (update['@type']) {
+    case 'requestDeviceCacheTrim':
+      void trimDeviceFiles(update.bytes).catch(() => undefined).finally(() => {
+        void callApiLocal('completeNativeCacheTrim', { requestId: update.requestId }).catch(() => undefined);
+      });
+      break;
     case 'updateEntities': {
       const {
         users, chats, threadInfos, polls, webPages,

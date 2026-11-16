@@ -32,9 +32,10 @@ type EnsurePromise<T> = Promise<Awaited<T>>;
 const HEALTH_CHECK_TIMEOUT = 150;
 const HEALTH_CHECK_MIN_DELAY = 5 * 1000; // 5 sec
 const API_DESTROY_TIMEOUT_MS = 3000; // 3 sec
-const NO_QUEUE_BEFORE_INIT = new Set(['destroy']);
+const NO_QUEUE_BEFORE_INIT = new Set(['destroy', 'resetNativeMediaCache', 'completeNativeCacheTrim']);
 const OFFLINE_METHODS = new Set([
   'sendMessage', 'sendMessageLocal', 'retryQueuedMessage', 'cancelQueuedMessages', 'destroy',
+  'resetNativeMediaCache', 'completeNativeCacheTrim',
 ]);
 
 let worker: Worker | undefined;
@@ -209,6 +210,7 @@ function createSavedLocalDb(): LocalDb {
     webDocuments: {},
     commonBoxState: {},
     channelPtsById: {},
+    mediaCacheRestrictions: {},
   };
 }
 

@@ -59,6 +59,7 @@ export interface ApiAttachment {
   blob?: Blob;
   blobUrl: string;
   compressedBlobUrl?: string;
+  compressedBlob?: Blob;
   filename: string;
   mimeType: string;
   size: number;
@@ -81,6 +82,7 @@ export interface ApiAttachment {
     performer?: string;
   };
   previewBlobUrl?: string;
+  previewBlob?: Blob;
 
   isPreparing?: true;
 

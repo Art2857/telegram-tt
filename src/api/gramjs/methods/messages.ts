@@ -437,7 +437,8 @@ export function restoreQueuedMessage(params: SendMessageParams, savedMessage: Ap
   const { message, poll } = buildLocalMessage({ ...params, chat: params.chat! });
   const restored: ApiMessage = {
     ...message, id: savedMessage.id, date: savedMessage.date, nativeSendId: savedMessage.nativeSendId,
-    sendingState: 'messageSendingStatePending',
+    nativeSendError: savedMessage.nativeSendError,
+    sendingState: savedMessage.nativeSendError ? 'messageSendingStateFailed' : 'messageSendingStatePending',
   };
   sendApiUpdate({
     '@type': restored.isScheduled ? 'newScheduledMessage' : 'newMessage',

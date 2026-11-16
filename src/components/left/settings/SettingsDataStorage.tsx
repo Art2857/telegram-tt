@@ -6,6 +6,7 @@ import type { AccountSettings } from '../../../types';
 import { AUTODOWNLOAD_FILESIZE_MB_LIMITS } from '../../../config';
 import { purgeClearableCache } from '../../../util/cacheApi';
 import { pick } from '../../../util/iteratees';
+import { callApiLocal } from '../../../api/gramjs';
 
 import useHistoryBack from '../../../hooks/useHistoryBack';
 import useLang from '../../../hooks/useLang';
@@ -79,6 +80,7 @@ const SettingsDataStorage = ({
     if (isPurging) return;
     setIsPurging(true);
     try {
+      await callApiLocal('resetNativeMediaCache');
       await purgeClearableCache();
       showNotification({ message: { key: 'SettingsDataClearMediaDone' } });
     } catch {

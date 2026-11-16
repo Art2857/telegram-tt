@@ -1033,7 +1033,10 @@ export type ApiUpdateWebPage = {
   webPage: ApiWebPage;
 };
 
+export type ApiRequestDeviceCacheTrim = { '@type': 'requestDeviceCacheTrim'; requestId: string; bytes: number };
+
 export type ApiUpdate = (
+  ApiRequestDeviceCacheTrim |
   ApiUpdateReady | ApiUpdateSession | ApiUpdateWebAuthTokenFailed | ApiUpdateRequestUserUpdate |
   ApiUpdateAuthorizationState | ApiUpdateAuthorizationError | ApiUpdateConnectionState | ApiUpdateCurrentUser |
   ApiUpdateChat | ApiUpdateChatTypingStatus | ApiUpdateChatFullInfo | ApiUpdatePinnedChatIds |

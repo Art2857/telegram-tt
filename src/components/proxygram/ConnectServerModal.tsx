@@ -10,6 +10,7 @@ import { getPxgState, setPxgState } from '../../proxygram/server/store';
 import { describePxgError } from './helpers';
 
 import useLang from '../../hooks/useLang';
+import useLastCallback from '../../hooks/useLastCallback';
 
 import PasswordForm from '../common/PasswordForm';
 import Button from '../ui/Button';
@@ -25,12 +26,14 @@ type Phase =
   | { kind: 'info'; account: AccountDto }
   | { kind: 'consent' }
   | { kind: 'working' }
+  | { kind: 'waiting' }
   | { kind: 'qr'; token: string }
   | { kind: 'password'; challenge: SrpChallengeDto; invalid: boolean }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
 const SHARING_STATUSES = new Set(['active', 'paused', 'flood']);
+const CONNECT_RETRY_MS = 5000;
 
 /**
  * «Делиться чатами с этого аккаунта» (PLAN.md, 7.4): экран согласия и подключение сервера к аккаунту.
@@ -43,6 +46,8 @@ const ConnectServerModal = () => {
   const lang = useLang();
   // Своей сессии Telegram на устройстве нет — подтвердить вход сервера может только телефон
   const [isQr] = useState(isProxyGuest);
+  const [recoveryAccountId] = useState(() => getPxgState().connectRecoveryAccountId);
+  const hasAutoStartedRef = useRef(false);
   const [disconnectId, setDisconnectId] = useState<string>();
   const [phase, setPhase] = useState<Phase>(() => {
     const { accounts } = getPxgState();
@@ -129,7 +134,7 @@ const ConnectServerModal = () => {
     }
   }
 
-  const start = async () => {
+  const start = useLastCallback(async () => {
     if (isStartingRef.current || !isOpenRef.current) return;
     isStartingRef.current = true;
     setPhase({ kind: 'working' });
@@ -140,6 +145,7 @@ const ConnectServerModal = () => {
       if (!isOpenRef.current) return;
       const { attemptId: id, step } = await pxgRpc.call<{ attemptId: string; step: ConnectStepDto }>(
         'accounts.connect.start',
+        { recover: recoveryAccountId ? true : undefined },
       );
       if (!isOpenRef.current) {
         // Закрытие может прийти раньше ответа start: созданную позже попытку тоже нужно завершить
@@ -150,11 +156,45 @@ const ConnectServerModal = () => {
       setAttemptId(id);
       await follow(id, step);
     } catch (err) {
+      if (!isOpenRef.current) return;
+      if (err instanceof PxgError && err.code === 'busy') {
+        // Другое устройство уже восстанавливает ту же запись: ждём, не отменяя его авторизацию
+        setPhase({ kind: 'waiting' });
+        return;
+      }
+      if (err instanceof PxgError && err.code === 'already_exists') {
+        const accounts = await pxgRpc.call<AccountDto[]>('accounts.mine').catch(() => undefined);
+        if (!isOpenRef.current) return;
+        if (accounts) {
+          setPxgState({ accounts });
+          const restored = accounts.find((account) => account.id === recoveryAccountId && account.status === 'active');
+          setPhase(restored ? { kind: 'done' } : initialPhase(accounts));
+          return;
+        }
+      }
       showError(err);
     } finally {
       isStartingRef.current = false;
     }
-  };
+  });
+
+  useEffect(() => {
+    if (!recoveryAccountId || hasAutoStartedRef.current) return;
+    hasAutoStartedRef.current = true;
+    void start();
+  }, [recoveryAccountId]);
+
+  useEffect(() => {
+    if (phase.kind !== 'waiting') return undefined;
+    const timer = window.setInterval(() => void start(), CONNECT_RETRY_MS);
+    const unsubscribe = pxgRpc.on((event) => {
+      if (event.e === 'accounts.changed' && event.d.status !== 'connecting') void start();
+    });
+    return () => {
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, [phase.kind]);
 
   const disconnect = async (accountId: string) => {
     setPhase({ kind: 'working' });
@@ -191,7 +231,7 @@ const ConnectServerModal = () => {
   return (
     <Modal
       isOpen
-      title={lang(isQr ? 'PxgConnectQrTitle' : 'PxgConnectTitle')}
+      title={lang(recoveryAccountId ? 'PxgConnectRestoreTitle' : isQr ? 'PxgConnectQrTitle' : 'PxgConnectTitle')}
       hasCloseButton
       onClose={close}
       className={styles.root}
@@ -230,6 +270,7 @@ const ConnectServerModal = () => {
         </>
       )}
       {phase.kind === 'working' && <p className={styles.secondary}>{lang('PxgConnectProgress')}</p>}
+      {phase.kind === 'waiting' && <p className={styles.secondary}>{lang('PxgConnectRestoreWaiting')}</p>}
       {phase.kind === 'qr' && (
         <>
           <BotLinkQr link={`tg://login?token=${phase.token}`} />
@@ -259,7 +300,7 @@ const ConnectServerModal = () => {
       )}
       {phase.kind === 'done' && (
         <>
-          <p>{lang(isQr ? 'PxgConnectQrDone' : 'PxgConnectDone')}</p>
+          <p>{lang(recoveryAccountId ? 'PxgConnectRestored' : isQr ? 'PxgConnectQrDone' : 'PxgConnectDone')}</p>
           <div className={styles.buttons}>
             <Button onClick={close}>{lang('PxgConnectOk')}</Button>
           </div>

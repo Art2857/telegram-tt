@@ -171,6 +171,13 @@ function normalizeStoryUrl(url: string) {
 
 /** Byte ranges use the same inclusive end as GramJS and the service worker */
 export async function downloadMedia(
+  params: MethodArgs<'downloadMedia'>[0], onProgress?: MethodArgs<'downloadMedia'>[1],
+) {
+  const result = await downloadProxyMedia(params, onProgress);
+  return result && { ...result, shouldCache: false };
+}
+
+async function downloadProxyMedia(
   { url, mediaFormat, start, end }: MethodArgs<'downloadMedia'>[0],
   onProgress?: MethodArgs<'downloadMedia'>[1],
 ) {

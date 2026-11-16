@@ -74,7 +74,7 @@ import {
   onRequestRegistration,
   onWebAuthTokenFailed,
 } from './auth';
-import downloadMediaWithClient, { parseMediaUrl } from './media';
+import downloadMediaWithClient, { parseMediaUrl, resetNativeMediaCache } from './media';
 
 import { ChatAbortController } from '../ChatAbortController';
 
@@ -214,6 +214,7 @@ export function setIsPremium({ isPremium }: { isPremium: boolean }) {
 const LOG_OUT_TIMEOUT = 2500;
 export async function destroy(noLogOut = false, noClearLocalDb = false) {
   isClientDestroyed = true;
+  resetNativeMediaCache();
   const session = (client.session as sessions.CallbackSession).getSessionData();
   const clearingQueue = stopNativeSendQueue(!noClearLocalDb, session);
   if (!noLogOut && client.isConnected()) {

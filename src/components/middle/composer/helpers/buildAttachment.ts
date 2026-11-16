@@ -17,6 +17,7 @@ import { resizeImageInBackground } from '../../../../util/imageResize';
 const MAX_STANDARD_QUALITY_IMG_SIZE = 1280; // px
 const MAX_HIGH_QUALITY_IMG_SIZE = 2560;
 const MAX_THUMB_IMG_SIZE = 40; // px
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const MAX_ASPECT_RATIO = 20;
 const FILE_EXT_REGEX = /\.[^/.]+$/;
 
@@ -118,7 +119,9 @@ export async function prepareAttachment(attachment: ApiAttachment): Promise<ApiA
     blob, blobUrl, mimeType, quick, isRoundVideo,
   } = attachment;
   let compressedBlobUrl: string | undefined;
+  let compressedBlob: Blob | undefined;
   let previewBlobUrl: string | undefined;
+  let previewBlob: Blob | undefined;
   let preparedQuick = quick;
 
   try {
@@ -137,7 +140,7 @@ export async function prepareAttachment(attachment: ApiAttachment): Promise<ApiA
         );
       }
 
-      if (preparedQuick && !isGif && (shouldShrink || mimeType !== 'image/jpeg')) {
+      if (preparedQuick && !isGif && (shouldShrink || mimeType !== 'image/jpeg' || sourceBlob.size > MAX_PHOTO_BYTES)) {
         const { width: preparedWidth, height: preparedHeight } = preparedQuick;
         compressedBlobUrl = await resizeImageInBackground(
           sourceBlob, preparedWidth, preparedHeight, 'image/jpeg',
@@ -146,6 +149,10 @@ export async function prepareAttachment(attachment: ApiAttachment): Promise<ApiA
 
       const previewSource = compressedBlobUrl
         ? await fetch(compressedBlobUrl).then((response) => response.blob()) : sourceBlob;
+      if (!isGif && !attachment.shouldSendAsFile && previewSource.size > MAX_PHOTO_BYTES) {
+        throw new Error('PHOTO_FILE_TOO_BIG');
+      }
+      compressedBlob = compressedBlobUrl ? previewSource : undefined;
       const previewRatio = Math.min(MAX_THUMB_IMG_SIZE / Math.max(width, height), 1);
       previewBlobUrl = previewRatio < 1
         ? await resizeImageInBackground(
@@ -157,10 +164,14 @@ export async function prepareAttachment(attachment: ApiAttachment): Promise<ApiA
       previewBlobUrl = await createPosterForVideo(blobUrl);
     }
 
+    if (previewBlobUrl) previewBlob = await fetch(previewBlobUrl).then((response) => response.blob());
+
     return {
       ...attachment,
       compressedBlobUrl,
+      compressedBlob,
       previewBlobUrl,
+      previewBlob,
       quick: preparedQuick,
       isPreparing: undefined,
     };
@@ -180,6 +191,12 @@ export function prepareAttachmentsToSend(
         return {
           ...attach,
           blobUrl: attach.compressedBlobUrl,
+          blob: attach.compressedBlob,
+          compressedBlob: undefined,
+          compressedBlobUrl: undefined,
+          mimeType: attach.compressedBlob?.type || 'image/jpeg',
+          size: attach.compressedBlob?.size ?? attach.size,
+          filename: `${attach.filename.replace(FILE_EXT_REGEX, '')}.jpg`,
         };
       }
       return attach;
@@ -187,6 +204,7 @@ export function prepareAttachmentsToSend(
 
     return {
       ...attach,
+      compressedBlob: undefined,
       shouldSendAsFile: !(attach.voice || attach.audio || attach.isRoundVideo) || undefined,
       shouldSendAsSpoiler: undefined,
     };

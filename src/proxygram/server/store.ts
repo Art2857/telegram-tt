@@ -25,6 +25,8 @@ export interface PxgState {
   isAppUpdateOpen?: boolean;
   isQrScannerOpen?: boolean;
   isConnectOpen: boolean;
+  /** Восстановление уже разрешённой раздачи после потери серверной сессии */
+  connectRecoveryAccountId?: string;
   /** Сервер завершил сессию: не входим заново без явного действия человека */
   isSessionRevoked?: boolean;
   /** Сколько чатов открыли этому человеку другие */
@@ -97,9 +99,11 @@ export function setPxgState(patch: Partial<PxgState>) {
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
       downloadedChat: undefined, sharedFolderEdit: undefined,
       isAdminOpen: false, isSettingsOpen: false, isConnectOpen: false, settingsTarget: undefined,
+      connectRecoveryAccountId: undefined,
     };
   }
   state = { ...state, ...(patch.session ? { ...patch, isSessionRevoked: false } : patch) };
+  if (patch.isConnectOpen === false) state.connectRecoveryAccountId = undefined;
   if (patch.isSettingsOpen === false) state.settingsTarget = undefined;
   if ('session' in patch) writeStoredSession(patch.session);
   listeners.forEach((listener) => listener());

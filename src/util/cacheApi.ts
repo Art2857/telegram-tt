@@ -15,6 +15,9 @@ const cacheWrites = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel(FILE_CACHE_WRITE_CHANNEL) : undefined;
 
 export type CachedFile = { cacheName: string; request: Request; size: number; lastAccess: number };
+export const CACHE_PEER_HEADER = 'X-Pxg-Cache-Peer';
+export const CACHE_POLICY_HEADER = 'X-Pxg-Cache-Policy';
+type CacheMetadata = { peerId?: string; policyVersion?: number };
 
 const LAST_ACCESS_HEADER = 'X-Last-Access';
 const CACHE_TTL = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -55,8 +58,9 @@ function getAccountScopedCacheName(cacheName: string) {
 
 export async function fetch(
   cacheName: string, key: string, type: Type, isHtmlAllowed = false,
+  canRead?: (response: Response) => boolean,
 ) {
-  return fetchFromCache(getAccountScopedCacheName(cacheName), key, type, isHtmlAllowed);
+  return fetchFromCache(getAccountScopedCacheName(cacheName), key, type, isHtmlAllowed, canRead);
 }
 
 export async function fetchShared(
@@ -85,6 +89,7 @@ export async function fetchFromCurrentAccountScope(
 
 async function fetchFromCache(
   resolvedCacheName: string, key: string, type: Type, isHtmlAllowed: boolean,
+  canRead?: (response: Response) => boolean,
 ) {
   if (!cacheApi) {
     return undefined;
@@ -99,6 +104,10 @@ async function fetchFromCache(
     const cache = await cacheApi.open(resolvedCacheName);
     const response = await cache.match(request);
     if (!response) {
+      return undefined;
+    }
+    if (canRead && !canRead(response)) {
+      await cache.delete(request);
       return undefined;
     }
 
@@ -149,7 +158,9 @@ async function fetchFromCache(
   }
 }
 
-export async function save(cacheName: string, key: string, data: AnyLiteral | Blob | ArrayBuffer | string) {
+export async function save(
+  cacheName: string, key: string, data: AnyLiteral | Blob | ArrayBuffer | string, metadata?: CacheMetadata,
+) {
   if (!cacheApi) {
     return false;
   }
@@ -158,17 +169,18 @@ export async function save(cacheName: string, key: string, data: AnyLiteral | Bl
   if (isPasscodeProtectedCache(resolvedCacheName)) {
     return requestPasscodeStateLock(async () => {
       if (await loadPasscodeMeta()) return false;
-      return saveToCache(resolvedCacheName, key, data);
+      return saveToCache(resolvedCacheName, key, data, metadata);
     });
   }
 
-  return saveToCache(resolvedCacheName, key, data);
+  return saveToCache(resolvedCacheName, key, data, metadata);
 }
 
 async function saveToCache(
   resolvedCacheName: string,
   key: string,
   data: AnyLiteral | Blob | ArrayBuffer | string,
+  metadata?: CacheMetadata,
 ) {
   try {
     const cacheData = typeof data === 'string' || data instanceof Blob || data instanceof ArrayBuffer
@@ -180,6 +192,8 @@ async function saveToCache(
       : cacheData instanceof ArrayBuffer ? cacheData.byteLength : new TextEncoder().encode(cacheData).byteLength;
     response.headers.set('Content-Length', String(size));
     response.headers.set(LAST_ACCESS_HEADER, Date.now().toString());
+    if (metadata?.peerId) response.headers.set(CACHE_PEER_HEADER, metadata.peerId);
+    if (metadata?.policyVersion) response.headers.set(CACHE_POLICY_HEADER, String(metadata.policyVersion));
     const cache = await cacheApi.open(resolvedCacheName);
     await cache.put(request, response);
     if (isFileCache(resolvedCacheName)) cacheWrites?.postMessage('saved');
@@ -194,6 +208,17 @@ async function saveToCache(
 
 export async function remove(cacheName: string, key: string) {
   return removeFromCache(getAccountScopedCacheName(cacheName), key);
+}
+
+/** Включение защиты очищает файлы этого чата и прежние части видео без привязки к чату */
+export async function removePeerFiles(peerId: string) {
+  if (!cacheApi) return;
+  const cache = await cacheApi.open(getAccountScopedCacheName(MEDIA_CACHE_NAME));
+  for (const request of await cache.keys()) {
+    const response = await cache.match(request);
+    if (response?.headers.get(CACHE_PEER_HEADER) === peerId) await cache.delete(request);
+  }
+  await clear(MEDIA_PROGRESSIVE_CACHE_NAME);
 }
 
 export async function removeShared(cacheName: string, key: string) {

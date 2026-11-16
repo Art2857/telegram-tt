@@ -31,6 +31,7 @@ import {
 } from '../../util/browser/windowEnvironment';
 import { buildCollectionByKey } from '../../util/iteratees';
 import { getDocumentHasPreview } from '../../components/common/helpers/documentInfo';
+import { restrictMediaCache } from '../../proxygram/fileCachePolicy';
 import { getPageBlocksAudios } from './buildPageAudioById';
 import { getAttachmentMediaType, matchLinkInMessageText } from './messages';
 import { WINDOWED_MEDIA_SEARCH_TYPES } from './middleSearch';
@@ -679,6 +680,17 @@ export function getIsDownloading(activeDownloads: ActiveDownloads, media: Downlo
 }
 
 export function getMessageMediaHash(
+  message: MediaContainer,
+  statefulMedia: StatefulMediaContent,
+  target: SizeTarget,
+  isChatProtected?: boolean,
+) {
+  const hash = buildMessageMediaHash(message, statefulMedia, target);
+  return message.isProtected || message.ttlPeriod || message.content.ttlSeconds || isChatProtected
+    ? restrictMediaCache(hash) : hash;
+}
+
+function buildMessageMediaHash(
   message: MediaContainer,
   statefulMedia: StatefulMediaContent,
   target: SizeTarget,

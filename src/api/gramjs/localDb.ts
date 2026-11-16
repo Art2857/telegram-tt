@@ -36,6 +36,7 @@ export type InlineBotRepairInfo = {
 };
 
 export type RepairInfo = {
+  localCachePolicy?: { peerId: string; isRestricted?: true };
   localRepairInfo?: StoryRepairInfo | MessageRepairInfo | WebPageRepairInfo | SavedMusicRepairInfo
     | InlineBotRepairInfo;
 };
@@ -50,6 +51,7 @@ export interface LocalDb {
   webDocuments: Record<string, GramJs.TypeWebDocument>;
   commonBoxState: Record<string, number>;
   channelPtsById: Record<string, number>;
+  mediaCacheRestrictions: Record<string, boolean>;
 }
 
 const channel = new BroadcastChannel(DATA_BROADCAST_CHANNEL_NAME);
@@ -110,7 +112,7 @@ function convertToVirtualClass(value: any): any {
 function createLocalDbInitial(initial?: LocalDb): LocalDb {
   return [
     'localMessages', 'chats', 'users', 'messages', 'documents', 'stickerSets', 'photos', 'webDocuments', 'stories',
-    'commonBoxState', 'channelPtsById',
+    'commonBoxState', 'channelPtsById', 'mediaCacheRestrictions',
   ]
     .reduce((acc: Record<string, any>, key) => {
       const value = initial?.[key as keyof LocalDb] ?? {};

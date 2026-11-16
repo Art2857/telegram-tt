@@ -1,10 +1,15 @@
 import { Api as GramJs } from '../../../lib/gramjs';
 
+import { removePeerFiles } from '../../../util/cacheApi';
 import { buildApiPeerId, getApiChatIdFromMtpPeer } from '../apiBuilders/peers';
 import localDb, { type InlineBotRepairInfo, type RepairInfo } from '../localDb';
 
 export type MessageRepairContext = Pick<GramJs.TypeMessage, 'peerId' | 'id'>;
-export type MediaRepairContext = MessageRepairContext;
+export type MediaRepairContext = MessageRepairContext & {
+  noforwards?: true;
+  ttlPeriod?: number;
+  isCacheRestricted?: true;
+};
 
 export function addMessageToLocalDb(message: GramJs.TypeMessage | GramJs.TypeSponsoredMessage) {
   if (message instanceof GramJs.Message) {
@@ -39,6 +44,10 @@ export function addWebPageMediaToLocalDb(webPage: GramJs.TypeWebPage) {
 }
 
 export function addMediaToLocalDb(media: GramJs.TypeMessageMedia, context?: MediaRepairContext) {
+  if (context && (('ttlSeconds' in media && media.ttlSeconds !== undefined)
+    || media instanceof GramJs.MessageMediaPaidMedia || media instanceof GramJs.MessageMediaInvoice)) {
+    context = { ...context, isCacheRestricted: true };
+  }
   if (media instanceof GramJs.MessageMediaDocument && media.document) {
     const document = addMessageRepairInfo(media.document, context);
     addDocumentToLocalDb(document);
@@ -145,6 +154,7 @@ export function addStoryRepairInfo<T extends GramJs.TypeDocument | GramJs.TypeWe
 ): T & RepairInfo {
   if (!(media instanceof GramJs.Document || media instanceof GramJs.Photo)) return media;
   const repairableMedia = media as T & RepairInfo;
+  repairableMedia.localCachePolicy = { peerId, isRestricted: true };
   repairableMedia.localRepairInfo = {
     type: 'story',
     peerId,
@@ -162,6 +172,10 @@ export function addMessageRepairInfo<T extends GramJs.TypeDocument | GramJs.Type
   }
 
   const repairableMedia = media as T & RepairInfo;
+  repairableMedia.localCachePolicy = {
+    peerId: getApiChatIdFromMtpPeer(context.peerId),
+    isRestricted: context.noforwards || context.isCacheRestricted || (context.ttlPeriod ? true : undefined),
+  };
   repairableMedia.localRepairInfo = {
     type: 'message',
     peerId: getApiChatIdFromMtpPeer(context.peerId),
@@ -219,6 +233,11 @@ export function addChatToLocalDb(
   const isChatMin = 'min' in chat && chat.min;
   if (storedChat && !isStoredMin && isChatMin) return;
 
+  const isRestricted = 'noforwards' in chat && Boolean(chat.noforwards);
+  if (isRestricted && localDb.mediaCacheRestrictions[id] !== true) {
+    void removePeerFiles(id).catch(() => undefined);
+  }
+  if (!isChatMin) localDb.mediaCacheRestrictions[id] = isRestricted;
   localDb.chats[id] = chat;
 }
 
