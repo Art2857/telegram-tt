@@ -451,6 +451,7 @@ export async function notifyAboutMessage({
   isReaction = false,
 }: { chat: ApiChat; message: Partial<ApiMessage>; isReaction?: boolean }) {
   const global = getGlobal();
+  const { currentUserId } = global;
   const { hasWebNotifications } = selectSettingsKeys(global);
   if (!checkIfShouldNotify(chat, message)) return;
   const isChatSilent = getIsChatSilent(
@@ -490,6 +491,8 @@ export async function notifyAboutMessage({
   if (isNativeNotifications()) {
     void showNativeMessageNotification({
       chatId: chat.id, messageId: message.id, title, body, isSilent: isSilent || message.isSilent,
+      ownerId: currentUserId,
+      isCurrent: () => currentUserId !== undefined && getGlobal().currentUserId === currentUserId,
     }).catch(() => undefined);
     return;
   }

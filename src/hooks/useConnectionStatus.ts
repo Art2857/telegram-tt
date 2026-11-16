@@ -1,6 +1,8 @@
 import type { GlobalState } from '../global/types';
 import type { LangFn } from '../util/localization';
 
+import { isProxyGuest } from '../api/proxy';
+import { usePxgState } from '../proxygram/server/store';
 import useBrowserOnline from './window/useBrowserOnline';
 
 export enum ConnectionStatus {
@@ -25,7 +27,10 @@ export default function useConnectionStatus(
 ) {
   let status: ConnectionStatus;
   const isBrowserOnline = useBrowserOnline();
-  if (!isBrowserOnline || connectionState === 'connectionStateConnecting') {
+  const guestConnection = usePxgState((state) => isProxyGuest() ? state.connection : undefined);
+  const isGuestWaiting = guestConnection === 'connecting' || guestConnection === 'offline';
+  if (!isBrowserOnline || isGuestWaiting || (guestConnection === undefined
+    && connectionState === 'connectionStateConnecting')) {
     status = ConnectionStatus.waitingForNetwork;
   } else if (isSyncing) {
     status = ConnectionStatus.syncing;
@@ -46,7 +51,9 @@ export default function useConnectionStatus(
 
   let text: string | undefined;
   if (status === ConnectionStatus.waitingForNetwork) {
-    text = lang('WaitingForNetwork');
+    text = isBrowserOnline && isGuestWaiting
+      ? lang(guestConnection === 'connecting' ? 'PxgConnectionServerWait' : 'PxgConnectionServerOffline')
+      : lang('WaitingForNetwork');
   } else if (status === ConnectionStatus.syncing) {
     text = lang('Updating');
   }

@@ -269,6 +269,8 @@
 "PxgMemberProfile" = "Профиль участника";
 "PxgMemberPrivateUnavailable" = "Вам не открыт личный чат с этим участником.";
 "PxgMemberOpenChat" = "Открыть чат";
+"PxgConnectionServerWait" = "Подключение к серверу…";
+"PxgConnectionServerOffline" = "Нет связи с сервером";
 "PxgContactPrivateHint" = "Имя, фото и заметку видите только вы на всех своих устройствах. Они не передаются в Telegram и тому, кто поделился чатом.";
 "PxgContactOriginal" = "Имя в Telegram: {name}";
 "PxgContactPrivateNote" = "Личная заметка";

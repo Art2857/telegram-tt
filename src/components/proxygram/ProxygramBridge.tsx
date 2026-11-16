@@ -1,11 +1,11 @@
 import { memo, useEffect, useRef } from '../../lib/teact/teact';
-import { getActions, withGlobal } from '../../global';
+import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
 import type { AccountDto, GuestBurstReason, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
-import { selectCurrentMessageList } from '../../global/selectors';
+import { selectChat, selectCurrentMessageList } from '../../global/selectors';
 import { IS_TAURI } from '../../util/browser/globalEnvironment';
 import { IS_ANDROID } from '../../util/browser/windowEnvironment';
 import { closeMessageNotifications } from '../../util/notifications';
@@ -17,7 +17,9 @@ import { isProxyPeerId } from '../../api/proxy/ids';
 import { isSavedPeer } from '../../api/proxy/saved';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
-import { listenNativeNotificationClicks } from '../../proxygram/nativeNotifications';
+import {
+  forgetNativeNotificationHistory, handleOpenedNativeNotification, listenNativeNotificationClicks,
+} from '../../proxygram/nativeNotifications';
 import { syncSavedMessages } from '../../proxygram/savedSync';
 import { canSendBotStart, clearBotStarts, noteUnconfirmedBotStart } from '../../proxygram/server/botStarts';
 import { pollLogin, startLogin } from '../../proxygram/server/http';
@@ -103,13 +105,18 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const recoveryAttemptedRef = useRef(new Set<string>());
 
   // A tap on a notification of the app (Android, Windows) opens its chat (2026-11-15)
+  useEffect(() => listenNativeNotificationClicks(({ chatId, messageId, ownerId }) => {
+    const global = getGlobal();
+    if (!global.currentUserId || (ownerId ? ownerId !== global.currentUserId : !selectChat(global, chatId))) return;
+    handleOpenedNativeNotification(chatId);
+    const { focusMessage, openChat } = getActions();
+    if (messageId) focusMessage({ chatId, messageId, shouldReplaceHistory: true });
+    else openChat({ id: chatId, shouldReplaceHistory: true });
+  }), []);
+
   useEffect(() => {
-    void listenNativeNotificationClicks(({ chatId, messageId }) => {
-      const { focusMessage, openChat } = getActions();
-      if (messageId) focusMessage({ chatId, messageId, shouldReplaceHistory: true });
-      else openChat({ id: chatId, shouldReplaceHistory: true });
-    });
-  }, []);
+    forgetNativeNotificationHistory();
+  }, [currentUserId]);
 
   // The web client updates with the server; only the Android shell itself needs a new APK now and then
   useEffect(() => {

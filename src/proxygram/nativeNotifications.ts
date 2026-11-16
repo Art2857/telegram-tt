@@ -1,3 +1,4 @@
+import type { PluginListener } from '@tauri-apps/api/core';
 import type { ActionPerformed, Options } from '@tauri-apps/plugin-notification';
 
 import { IS_TAURI } from '../util/browser/globalEnvironment';
@@ -11,15 +12,18 @@ import { ACCOUNT_SLOT } from '../util/multiaccount';
  * приложение (2026-11-15).
  */
 
-export type NotificationTarget = { chatId: string; messageId?: number; slot: number };
+export type NotificationTarget = { chatId: string; messageId?: number; slot: number; ownerId?: string };
 
 /** Сколько последних сообщений чата видно в развёрнутом уведомлении Android */
 const MAX_LINES = 6;
+const MAX_TRACKED_CHATS = 256;
 const GROUP = 'pxg-messages';
 
 const linesByChat = new Map<string, string[]>();
 let pluginPromise: Promise<typeof import('@tauri-apps/plugin-notification')> | undefined;
-let isListening = false;
+type ClickHandler = (target: NotificationTarget) => void;
+const clickHandlers = new Set<ClickHandler>();
+let nativeListener: Promise<PluginListener> | undefined;
 
 function getPlugin() {
   pluginPromise ??= import('@tauri-apps/plugin-notification');
@@ -43,12 +47,17 @@ export function getChatNotificationId(chatId: string, slot = ACCOUNT_SLOT || 1) 
 /** Строки развёрнутого уведомления: последние сообщения чата, самое новое внизу */
 export function appendChatLine(chatId: string, line: string) {
   const lines = [...(linesByChat.get(chatId) || []), line].slice(-MAX_LINES);
+  linesByChat.delete(chatId);
   linesByChat.set(chatId, lines);
+  if (linesByChat.size > MAX_TRACKED_CHATS) {
+    const oldest = linesByChat.keys().next().value;
+    if (oldest !== undefined) forgetChat(oldest);
+  }
   return lines;
 }
 
 export function buildNativeNotification({
-  chatId, messageId, title, body, lines, isSilent, newCount,
+  chatId, messageId, title, body, lines, isSilent, newCount, ownerId,
 }: {
   chatId: string;
   messageId: number;
@@ -56,6 +65,7 @@ export function buildNativeNotification({
   body: string;
   lines: string[];
   isSilent?: boolean;
+  ownerId?: string;
   /** Сколько новых сообщений чата собрано в уведомлении */
   newCount: number;
 }): Options {
@@ -67,7 +77,7 @@ export function buildNativeNotification({
     ...(IS_ANDROID ? { group: GROUP } : {}),
     autoCancel: true,
     silent: isSilent || undefined,
-    extra: { chatId, messageId, slot: ACCOUNT_SLOT || 1 },
+    extra: { chatId, messageId, slot: ACCOUNT_SLOT || 1, ownerId },
   };
 }
 
@@ -77,13 +87,21 @@ const lastIdByChat = new Map<string, number>();
 
 export async function showNativeMessageNotification(params: {
   chatId: string; messageId: number; title: string; body: string; isSilent?: boolean;
+  ownerId?: string; isCurrent?: () => boolean;
 }) {
+  const plugin = await getPlugin();
+  if (params.isCurrent && !params.isCurrent()) return;
   const lines = appendChatLine(params.chatId, params.body);
   const newCount = (countByChat.get(params.chatId) || 0) + 1;
   countByChat.set(params.chatId, newCount);
   lastIdByChat.set(params.chatId, Math.max(params.messageId, lastIdByChat.get(params.chatId) || 0));
-  const plugin = await getPlugin();
   plugin.sendNotification(buildNativeNotification({ ...params, lines, newCount }));
+}
+
+export function forgetNativeNotificationHistory() {
+  linesByChat.clear();
+  countByChat.clear();
+  lastIdByChat.clear();
 }
 
 /**
@@ -109,28 +127,41 @@ export function parseNotificationTarget(event: Pick<ActionPerformed, 'actionId' 
   if (!chatId) return undefined;
   const messageId = Number(extra?.messageId) || undefined;
   const slot = Number(extra?.slot) || 1;
-  return { chatId, messageId, slot } satisfies NotificationTarget;
+  const ownerId = typeof extra?.ownerId === 'string' ? extra.ownerId : undefined;
+  return { chatId, messageId, slot, ownerId } satisfies NotificationTarget;
 }
 
 /**
  * Нажатие на уведомление: окно выходит вперёд (из трея тоже), открывается чат. Окно другого аккаунта своё
  * уведомление обработает само
  */
-export async function listenNativeNotificationClicks(onOpen: (target: NotificationTarget) => void) {
-  if (!IS_TAURI || isListening) return;
-  isListening = true;
-  try {
-    const plugin = await getPlugin();
-    await plugin.onAction((event) => {
+export function listenNativeNotificationClicks(onOpen: ClickHandler) {
+  if (!IS_TAURI) return undefined;
+  clickHandlers.add(onOpen);
+  if (!nativeListener) {
+    const registration = getPlugin().then((plugin) => plugin.onAction((event) => {
+      if (nativeListener !== registration) return;
       const target = parseNotificationTarget(event);
       if (!target || target.slot !== (ACCOUNT_SLOT || 1)) return;
-      forgetChat(target.chatId);
-      void bringWindowToFront();
-      onOpen(target);
+      clickHandlers.values().next().value?.(target);
+    }));
+    nativeListener = registration;
+    void registration.catch(() => {
+      if (nativeListener === registration) nativeListener = undefined;
     });
-  } catch {
-    isListening = false;
   }
+  return () => {
+    clickHandlers.delete(onOpen);
+    if (clickHandlers.size) return;
+    const registration = nativeListener;
+    nativeListener = undefined;
+    void registration?.then((listener) => listener.unregister()).catch(() => undefined);
+  };
+}
+
+export function handleOpenedNativeNotification(chatId: string) {
+  forgetChat(chatId);
+  void bringWindowToFront();
 }
 
 function forgetChat(chatId: string) {

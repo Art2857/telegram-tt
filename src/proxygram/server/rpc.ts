@@ -7,11 +7,14 @@ import { getAccessToken } from './session';
 import { getPxgState, setPxgState, subscribePxg } from './store';
 
 const CALL_TIMEOUT_MS = 45_000;
+const CONNECT_TIMEOUT_MS = 12_000;
+const MAX_CONNECTION_WAITERS = 128;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const ACCESS_READ_METHODS = new Set(['access.chats', 'messages.history', 'messages.window',
   'messages.versions', 'messages.search', 'sync.changes', 'media.url']);
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: number };
+type ReadyWaiter = { resolve: NoneToVoidFunction; reject: (error: Error) => void; timer: number };
 
 /**
  * WebSocket RPC к серверу Proxygram (PLAN.md, 11). Одно соединение на вкладку:
@@ -22,12 +25,13 @@ class PxgRpc {
   #seq = 0;
   readonly #pending = new Map<number, Pending>();
   readonly #listeners = new Set<(event: ServerEvent) => void>();
-  #readyWaiters: { resolve: NoneToVoidFunction; reject: (error: Error) => void }[] = [];
+  readonly #readyWaiters = new Set<ReadyWaiter>();
   #isReady = false;
   #isStopped = true;
   #attempt = 0;
   #reconnectTimer: number | undefined;
   #refreshTimer: number | undefined;
+  #connectTimer: number | undefined;
   #connectionGeneration = 0;
   #accessGeneration = 0;
   #accessList: { userId: string; hash: string; data: AccessChat[]; requestId: number } | undefined;
@@ -45,6 +49,7 @@ class PxgRpc {
     this.#accessList = undefined;
     window.clearTimeout(this.#reconnectTimer);
     window.clearTimeout(this.#refreshTimer);
+    window.clearTimeout(this.#connectTimer);
     this.#ws?.close(1000);
     this.#ws = undefined;
     this.#failAll(new PxgError('disconnected'));
@@ -66,9 +71,9 @@ class PxgRpc {
       ? this.#accessList : undefined;
     const requestParams = method === 'access.chats' ? { hash: knownAccess?.hash ?? '' } : params;
     await this.#whenReady();
-    if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
-      throw new PxgError('unauthorized');
-    }
+    this.#checkConnection(connectionGeneration, userId);
+    const ws = this.#ws;
+    if (!this.#isReady || ws?.readyState !== WebSocket.OPEN) throw new PxgError('disconnected');
     const id = ++this.#seq;
     return new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
@@ -76,11 +81,15 @@ class PxgRpc {
         reject(new PxgError('timeout'));
       }, CALL_TIMEOUT_MS);
       this.#pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
-      this.#ws!.send(JSON.stringify({ t: 'req', id, m: method, p: requestParams }));
-    }).then(async (result) => {
-      if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
-        throw new PxgError('unauthorized');
+      try {
+        ws.send(JSON.stringify({ t: 'req', id, m: method, p: requestParams }));
+      } catch (error) {
+        this.#pending.delete(id);
+        window.clearTimeout(timer);
+        reject(error);
       }
+    }).then(async (result) => {
+      this.#checkConnection(connectionGeneration, userId);
       if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
         throw new PxgError('access_changed');
       }
@@ -95,9 +104,7 @@ class PxgRpc {
         }
       }
       await registerProxyResult(method, data);
-      if (connectionGeneration !== this.#connectionGeneration || getPxgState().session?.user.id !== userId) {
-        throw new PxgError('unauthorized');
-      }
+      this.#checkConnection(connectionGeneration, userId);
       if (ACCESS_READ_METHODS.has(method) && accessGeneration !== this.#accessGeneration) {
         throw new PxgError('access_changed');
       }
@@ -110,15 +117,28 @@ class PxgRpc {
     return this.#isReady;
   }
 
+  #checkConnection(generation: number, userId?: string) {
+    if (getPxgState().session?.user.id !== userId) throw new PxgError('unauthorized');
+    if (generation !== this.#connectionGeneration) throw new PxgError('disconnected');
+  }
+
   #whenReady(): Promise<void> {
     if (this.#isReady) return Promise.resolve();
     if (this.#isStopped) return Promise.reject(new PxgError('unauthorized'));
-    return new Promise((resolve, reject) => this.#readyWaiters.push({ resolve, reject }));
+    if (this.#readyWaiters.size >= MAX_CONNECTION_WAITERS) return Promise.reject(new PxgError('disconnected'));
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        this.#readyWaiters.delete(waiter);
+        reject(new PxgError('timeout'));
+      }, CONNECT_TIMEOUT_MS);
+      const waiter = { resolve, reject, timer };
+      this.#readyWaiters.add(waiter);
+    });
   }
 
   async #open() {
     const generation = this.#connectionGeneration;
-    const token = await getAccessToken();
+    const token = await getAccessToken().catch(() => undefined);
     if (this.#isStopped || generation !== this.#connectionGeneration) return;
     if (!token) {
       this.#scheduleReconnect();
@@ -126,28 +146,46 @@ class PxgRpc {
     }
 
     setPxgState({ connection: 'connecting' });
-    const ws = new WebSocket(getWebSocketUrl());
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(getWebSocketUrl());
+    } catch {
+      this.#failAll(new PxgError('disconnected'));
+      setPxgState({ connection: 'offline' });
+      this.#scheduleReconnect();
+      return;
+    }
     this.#ws = ws;
-    ws.onopen = () => ws.send(JSON.stringify({ t: 'auth', token }));
+    this.#connectTimer = window.setTimeout(() => {
+      if (this.#ws !== ws || this.#isReady) return;
+      this.#disconnect(ws, new PxgError('timeout'));
+      ws.close();
+    }, CONNECT_TIMEOUT_MS);
+    ws.onopen = () => {
+      if (this.#ws === ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'auth', token }));
+    };
     ws.onmessage = (event) => {
       if (this.#ws === ws) this.#onMessage(String(event.data));
     };
-    ws.onclose = (event) => {
-      if (this.#ws !== ws) return;
-      this.#ws = undefined;
-      this.#isReady = false;
-      window.clearTimeout(this.#refreshTimer);
-      this.#failAll(new PxgError('disconnected'));
-      setPxgState({ connection: 'offline' });
+    ws.onclose = (event) => this.#disconnect(ws, new PxgError('disconnected'), event.code);
+  }
 
-      if (event.code === 4403) {
-        // сессию завершили в админке
-        this.#emit({ e: 'session.revoked', d: {} });
-        return;
-      }
-      if (event.code === 4401) void getAccessToken(true);
-      this.#scheduleReconnect();
-    };
+  #disconnect(ws: WebSocket, error: PxgError, code?: number) {
+    if (this.#ws !== ws) return;
+    this.#ws = undefined;
+    this.#isReady = false;
+    this.#connectionGeneration++;
+    window.clearTimeout(this.#connectTimer);
+    window.clearTimeout(this.#refreshTimer);
+    this.#failAll(error);
+    setPxgState({ connection: 'offline' });
+
+    if (code === 4403) {
+      this.#emit({ e: 'session.revoked', d: {} });
+      return;
+    }
+    if (code === 4401) void getAccessToken(true).catch(() => undefined);
+    this.#scheduleReconnect();
   }
 
   #onMessage(raw: string) {
@@ -159,8 +197,10 @@ class PxgRpc {
     } catch {
       return;
     }
+    if (!message || typeof message.t !== 'string') return;
 
     if (message.t === 'ready') {
+      window.clearTimeout(this.#connectTimer);
       this.#isReady = true;
       this.#attempt = 0;
       const { session } = getPxgState();
@@ -170,7 +210,7 @@ class PxgRpc {
         setPxgState({ session: { ...session, user }, ...(user.role !== 'admin' && { isAdminOpen: false }) });
       }
       setPxgState({ connection: 'online' });
-      this.#readyWaiters.splice(0).forEach((waiter) => waiter.resolve());
+      this.#settleConnectionWaiters();
       this.#scheduleTokenRefresh();
       return;
     }
@@ -185,8 +225,8 @@ class PxgRpc {
       } else {
         const error = message.e as {
           code: string; message: string; reason?: string; params?: Record<string, string | number>;
-        };
-        pending.reject(new PxgError(error.code, error.message, error.reason, error.params));
+        } | undefined;
+        pending.reject(new PxgError(error?.code || 'internal', error?.message, error?.reason, error?.params));
       }
       return;
     }
@@ -207,12 +247,14 @@ class PxgRpc {
   #scheduleTokenRefresh() {
     window.clearTimeout(this.#refreshTimer);
     const { session } = getPxgState();
-    if (!session) return;
+    const ws = this.#ws;
+    if (!session || !ws) return;
     const delay = Math.max(session.accessExpiresAt - Date.now() - 90_000, 5_000);
     this.#refreshTimer = window.setTimeout(async () => {
-      const token = await getAccessToken(true);
-      if (token && this.#ws?.readyState === WebSocket.OPEN) {
-        this.#ws.send(JSON.stringify({ t: 'auth', token }));
+      const token = await getAccessToken(true).catch(() => undefined);
+      if (this.#ws !== ws) return;
+      if (token && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ t: 'auth', token }));
       }
       // Сетевой сбой продления не должен оставлять клиент без следующей попытки
       if (getPxgState().session) this.#scheduleTokenRefresh();
@@ -233,7 +275,16 @@ class PxgRpc {
       pending.reject(error);
     });
     this.#pending.clear();
-    this.#readyWaiters.splice(0).forEach((waiter) => waiter.reject(error));
+    this.#settleConnectionWaiters(error);
+  }
+
+  #settleConnectionWaiters(error?: Error) {
+    this.#readyWaiters.forEach((waiter) => {
+      window.clearTimeout(waiter.timer);
+      if (error) waiter.reject(error);
+      else waiter.resolve();
+    });
+    this.#readyWaiters.clear();
   }
 }
 

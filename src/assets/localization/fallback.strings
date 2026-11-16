@@ -4782,6 +4782,8 @@
 "PxgMemberProfile" = "Member profile";
 "PxgMemberPrivateUnavailable" = "You don't have access to a private chat with this member.";
 "PxgMemberOpenChat" = "Open chat";
+"PxgConnectionServerWait" = "Connecting to server…";
+"PxgConnectionServerOffline" = "Server unavailable";
 "PxgContactPrivateHint" = "Only you can see this name, photo and note, on all your devices. They are not sent to Telegram or the person sharing the chat.";
 "PxgContactOriginal" = "Telegram name: {name}";
 "PxgContactPrivateNote" = "Private note";

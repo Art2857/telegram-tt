@@ -3614,6 +3614,8 @@ export interface LangPair {
   'PxgMemberProfile': undefined;
   'PxgMemberPrivateUnavailable': undefined;
   'PxgMemberOpenChat': undefined;
+  'PxgConnectionServerWait': undefined;
+  'PxgConnectionServerOffline': undefined;
   'PxgContactPrivateHint': undefined;
   'PxgContactPrivateNote': undefined;
   'PxgContactResetName': undefined;
