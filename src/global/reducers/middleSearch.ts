@@ -1,4 +1,4 @@
-import type { ApiMessage, ApiMessageSearchType } from '../../api/types';
+import type { ApiMessage } from '../../api/types';
 import type {
   ChatMediaSearchParams,
   ChatMediaSearchSegment,
@@ -9,6 +9,7 @@ import type {
   ThreadId,
 } from '../../types';
 import type { GlobalState, TabArgs } from '../types';
+import type { SharedMediaSearchResult } from '../types/tabState';
 
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import {
@@ -23,11 +24,7 @@ import { updateTabState } from './tabs';
 
 interface SharedMediaSearchParams {
   currentType?: SharedMediaType;
-  resultsByType?: Partial<Record<SharedMediaType, {
-    totalCount?: number;
-    nextOffsetId: number;
-    foundIds: number[];
-  }>>;
+  resultsByType?: Partial<Record<SharedMediaType, SharedMediaSearchResult>>;
 }
 
 function replaceMiddleSearch<T extends GlobalState>(
@@ -196,10 +193,8 @@ export function replaceSharedMediaSearchResults<T extends GlobalState>(
   global: T,
   chatId: string,
   threadId: ThreadId,
-  type: ApiMessageSearchType,
-  foundIds?: number[],
-  totalCount?: number,
-  nextOffsetId?: number,
+  type: SharedMediaType,
+  result: SharedMediaSearchResult,
   ...[tabId = getCurrentTabId()]: TabArgs<T>
 ): T {
   const chatThreadKey = buildChatThreadKey(chatId, threadId);
@@ -208,11 +203,7 @@ export function replaceSharedMediaSearchResults<T extends GlobalState>(
     ...selectTabState(global, tabId).sharedMediaSearch.byChatThreadKey[chatThreadKey],
     resultsByType: {
       ...(selectTabState(global, tabId).sharedMediaSearch.byChatThreadKey[chatThreadKey] || {}).resultsByType,
-      [type]: {
-        foundIds,
-        totalCount,
-        nextOffsetId,
-      },
+      [type]: result,
     },
   }, tabId);
 }
@@ -230,7 +221,7 @@ export function updateSharedMediaSearchResults<T extends GlobalState>(
   const chatThreadKey = buildChatThreadKey(chatId, threadId);
 
   const { resultsByType } = selectTabState(global, tabId).sharedMediaSearch.byChatThreadKey[chatThreadKey] || {};
-  const prevFoundIds = resultsByType?.[type] ? resultsByType[type].foundIds : [];
+  const prevFoundIds = resultsByType?.[type]?.foundIds || [];
   const foundIds = orderFoundIdsByDescending(unique(Array.prototype.concat(prevFoundIds, newFoundIds)));
   const foundOrPrevFoundIds = areSortedArraysEqual(prevFoundIds, foundIds) ? prevFoundIds : foundIds;
 
@@ -239,9 +230,7 @@ export function updateSharedMediaSearchResults<T extends GlobalState>(
     chatId,
     threadId,
     type,
-    foundOrPrevFoundIds,
-    totalCount,
-    nextOffsetId,
+    { foundIds: foundOrPrevFoundIds, totalCount, nextOffsetId },
     tabId,
   );
 }

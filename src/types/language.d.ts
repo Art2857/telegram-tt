@@ -3615,6 +3615,8 @@ export interface LangPair {
   'PxgContactPhotoPending': undefined;
   'PxgContactPhotoResetHint': undefined;
   'PxgContactWaitConnection': undefined;
+  'PxgProfileMediaOffline': undefined;
+  'PxgProfileMediaError': undefined;
   'PxgErrContactPhotoInvalid': undefined;
   'PxgFolderName': undefined;
   'PxgSettingsArchive': undefined;

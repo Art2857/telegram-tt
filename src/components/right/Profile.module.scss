@@ -306,6 +306,19 @@
   }
 }
 
+.mediaStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+
+  padding: 1rem;
+
+  color: var(--color-text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .contentCategoriesPanel {
   position: absolute;
   top: 0;

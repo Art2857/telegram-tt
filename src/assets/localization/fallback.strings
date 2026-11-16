@@ -4783,6 +4783,8 @@
 "PxgContactPhotoPending" = "The new photo is applied when you save your changes.";
 "PxgContactPhotoResetHint" = "Saving restores the photo from Telegram.";
 "PxgContactWaitConnection" = "Connect to the server to load or save changes. Your edits stay in this form while you wait.";
+"PxgProfileMediaOffline" = "More items will load when the server reconnects.";
+"PxgProfileMediaError" = "Couldn't load this section.";
 "PxgErrContactPhotoInvalid" = "Could not process the photo. Choose a JPEG or PNG image up to 20 MB.";
 "PxgErrContactPhotoQuota" = "Personal photos have used all {mb} MB. Remove some photos and try again.";
 "PxgFolderOriginal" = "Original: {title}";

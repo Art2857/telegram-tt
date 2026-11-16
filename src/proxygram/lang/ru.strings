@@ -270,6 +270,8 @@
 "PxgContactPhotoPending" = "Новое фото появится после сохранения изменений.";
 "PxgContactPhotoResetHint" = "При сохранении вернётся фото из Telegram.";
 "PxgContactWaitConnection" = "Чтобы загрузить или сохранить изменения, дождитесь подключения. Введённые данные остаются в открытой форме.";
+"PxgProfileMediaOffline" = "Данные появятся после восстановления связи с сервером.";
+"PxgProfileMediaError" = "Не удалось загрузить раздел.";
 "PxgErrContactPhotoInvalid" = "Не удалось обработать фото. Выберите изображение JPEG или PNG до 20 МБ.";
 "PxgErrContactPhotoQuota" = "Личные фото заняли всё место — {mb} МБ. Удалите ненужные фотографии и повторите.";
 "PxgFolderOriginal" = "Исходное: {title}";

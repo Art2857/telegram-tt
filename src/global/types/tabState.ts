@@ -211,6 +211,13 @@ export type MusicPickerGlobalResults = {
   isFullyLoaded?: boolean;
 };
 
+export type SharedMediaSearchResult = {
+  totalCount?: number;
+  nextOffsetId?: number;
+  foundIds?: number[];
+  loadState?: 'loading' | 'failed';
+};
+
 export type TabState = {
   id: number;
   isBlurred?: boolean;
@@ -400,11 +407,7 @@ export type TabState = {
   sharedMediaSearch: {
     byChatThreadKey: Record<string, {
       currentType?: SharedMediaType;
-      resultsByType?: Partial<Record<SharedMediaType, {
-        totalCount?: number;
-        nextOffsetId: number;
-        foundIds: number[];
-      }>>;
+      resultsByType?: Partial<Record<SharedMediaType, SharedMediaSearchResult>>;
     }>;
   };
 

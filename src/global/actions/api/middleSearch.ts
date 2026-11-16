@@ -18,6 +18,9 @@ import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { buildCollectionByKey, isInsideSortedArrayRange } from '../../../util/iteratees';
 import { getSearchResultKey } from '../../../util/keys/searchResultKey';
 import { callApi } from '../../../api/gramjs';
+import { isProxyGuest } from '../../../api/proxy';
+import { isProxyPeerId } from '../../../api/proxy/ids';
+import { getPxgState } from '../../../proxygram/server/store';
 import { getIsSavedDialog, getMessageContentIds, isSameReaction } from '../../helpers';
 import { isApiPeerChat } from '../../helpers/peers';
 import {
@@ -29,6 +32,7 @@ import {
   addUserStatuses,
   initializeChatMediaSearchResults,
   mergeWithChatMediaSearchSegment,
+  replaceSharedMediaSearchResults,
   setChatMediaSearchLoading,
   updateChatMediaSearchPendingRequest,
   updateChatMediaSearchResults,
@@ -45,6 +49,7 @@ import {
   selectCurrentMiddleSearch,
   selectCurrentSharedMediaSearch,
   selectPeer,
+  selectSharedMediaSearch,
 } from '../../selectors';
 import { selectPlaybackSource } from '../../selectors/audioPlayer';
 import { selectThreadIdFromMessage } from '../../selectors/threads';
@@ -213,7 +218,7 @@ addActionHandler('searchHashtag', (global, actions, payload): ActionReturnType =
 });
 
 addActionHandler('searchSharedMediaMessages', (global, actions, payload): ActionReturnType => {
-  const { tabId = getCurrentTabId() } = payload || {};
+  const { shouldRetry, tabId = getCurrentTabId() } = payload || {};
   const { chatId, threadId } = selectCurrentMessageList(global, tabId) || {};
   if (!chatId || !threadId) {
     return;
@@ -230,14 +235,14 @@ addActionHandler('searchSharedMediaMessages', (global, actions, payload): Action
   }
 
   const { currentType: type, resultsByType } = currentSearch;
-  const currentResults = type && resultsByType && resultsByType[type];
-  const offsetId = currentResults?.nextOffsetId;
+  if (!type) return;
+  const current = resultsByType?.[type];
+  if (current?.loadState === 'loading' || (current?.loadState === 'failed' && !shouldRetry)) return;
+  if (current?.foundIds && current.nextOffsetId === undefined) return;
+  const isProxy = isProxyPeerId(peer.id) || isProxyGuest();
+  if (isProxy && getPxgState().connection !== 'online') return;
 
-  if (!type) {
-    return;
-  }
-
-  void searchSharedMedia(global, peer, threadId, type, offsetId, undefined, isSavedDialog, tabId);
+  void searchSharedMedia(global, chatId, peer, threadId, type, isProxy, isSavedDialog, tabId);
 });
 addActionHandler('searchChatMediaMessages', (global, actions, payload): ActionReturnType => {
   const {
@@ -311,26 +316,40 @@ addActionHandler('searchMessagesByDate', async (global, actions, payload): Promi
 
 async function searchSharedMedia<T extends GlobalState>(
   global: T,
+  chatId: string,
   peer: ApiPeer,
   threadId: ThreadId,
   type: SharedMediaType,
-  offsetId?: number,
-  isBudgetPreload = false,
+  isProxy: boolean,
   isSavedDialog?: boolean,
   ...[tabId = getCurrentTabId()]: TabArgs<T>
 ) {
-  const resultChatId = isSavedDialog ? global.currentUserId! : peer.id;
+  const current = selectSharedMediaSearch(global, chatId, threadId, tabId)?.resultsByType?.[type];
+  const pending = { ...current, loadState: 'loading' as const };
+  const { currentUserId } = global;
+  const proxyUserId = isProxy ? getPxgState().session?.user.id : undefined;
+  global = replaceSharedMediaSearchResults(global, chatId, threadId, type, pending, tabId);
+  setGlobal(global);
 
   const result = await callApi('searchMessagesInChat', {
     peer,
     type,
     limit: SHARED_MEDIA_SLICE * 2,
     threadId,
-    offsetId,
+    offsetId: current?.nextOffsetId,
     isSavedDialog,
-  });
+  }).catch(() => undefined);
+
+  global = getGlobal();
+  if (global.currentUserId !== currentUserId
+    || (isProxy && getPxgState().session?.user.id !== proxyUserId)
+    || selectSharedMediaSearch(global, chatId, threadId, tabId)?.resultsByType?.[type] !== pending) return;
 
   if (!result) {
+    global = replaceSharedMediaSearchResults(global, chatId, threadId, type, {
+      ...current, loadState: 'failed',
+    }, tabId);
+    setGlobal(global);
     return;
   }
 
@@ -341,23 +360,13 @@ async function searchSharedMedia<T extends GlobalState>(
   const byId = buildCollectionByKey(messages, 'id');
   const newFoundIds = Object.keys(byId).map(Number);
 
-  global = getGlobal();
-
-  const currentSearch = selectCurrentSharedMediaSearch(global, tabId);
-  if (!currentSearch) {
-    return;
-  }
-
   global = addUserStatuses(global, userStatusesById);
-  global = addChatMessagesById(global, resultChatId, byId);
+  if (messages.length) global = addChatMessagesById(global, chatId, byId);
   global = updateSharedMediaSearchResults(
-    global, resultChatId, threadId, type, newFoundIds, totalCount, nextOffsetId, tabId,
+    global, chatId, threadId, type, newFoundIds, totalCount,
+    nextOffsetId === current?.nextOffsetId ? undefined : nextOffsetId, tabId,
   );
   setGlobal(global);
-
-  if (!isBudgetPreload) {
-    void searchSharedMedia(global, peer, threadId, type, nextOffsetId, true, isSavedDialog, tabId);
-  }
 }
 
 function findChatMediaSearchSegment(

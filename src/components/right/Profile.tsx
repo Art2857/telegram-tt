@@ -19,6 +19,7 @@ import type {
 } from '../../api/types';
 import type { ProfileCollectionKey } from '../../global/selectors/payments';
 import type { TabState } from '../../global/types';
+import type { SharedMediaSearchResult } from '../../global/types/tabState';
 import type { AnimationLevel, ProfileState, ProfileTabType,
   SharedMediaType, ThemeKey, ThreadId } from '../../types';
 import type { RegularLangKey } from '../../types/language';
@@ -81,7 +82,10 @@ import { isUserId } from '../../util/entities/ids';
 import { getGridCornerClassName } from '../../util/gridCorners';
 import { buildCollectionByKey } from '../../util/iteratees.ts';
 import { resolveTransitionName } from '../../util/resolveTransitionName.ts';
+import { isProxyGuest } from '../../api/proxy';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { canRequestMemberAccess, requestMemberAccess } from '../../proxygram/accessRequests';
+import { usePxgState } from '../../proxygram/server/store';
 import { LOCAL_TGS_URLS } from '../common/helpers/animatedAssets';
 import renderText from '../common/helpers/renderText';
 import { getSenderName } from '../left/search/helpers/getSenderName';
@@ -155,7 +159,7 @@ type StateProps = {
   isBot?: boolean;
   currentUserId?: string;
   messagesById?: Record<number, ApiMessage>;
-  foundIds?: number[];
+  mediaSearch?: SharedMediaSearchResult;
   mediaSearchType?: SharedMediaType;
   hasCommonChatsTab?: boolean;
   hasStoriesTab?: boolean;
@@ -280,7 +284,7 @@ const Profile = ({
   isBot,
   currentUserId,
   messagesById,
-  foundIds,
+  mediaSearch,
   storyIds,
   pinnedStoryIds,
   archiveStoryIds,
@@ -373,6 +377,8 @@ const Profile = ({
   const { profileTab, forceScrollProfileTab, isOwnProfile } = chatInfo;
 
   const profileId = isSavedDialog ? String(threadId) : chatId;
+  const isProxyProfile = isProxyPeerId(profileId) || isProxyGuest();
+  const isMediaOnline = usePxgState((state) => !isProxyProfile || state.connection === 'online');
   const isGeneralSavedMessages = isSavedMessages && !isSavedDialog;
   const [isProfileExpanded, expandProfile, collapseProfile] = useFlag();
 
@@ -625,6 +631,7 @@ const Profile = ({
   });
 
   const [resultType, viewportIds, getMore, noProfileInfo] = useProfileViewportIds({
+    chatId,
     loadMoreMembers: handleLoadMoreMembers,
     searchMessages: searchSharedMediaMessages,
     loadStories: handleLoadPeerStories,
@@ -639,7 +646,7 @@ const Profile = ({
     userStatusesById,
     chatsById,
     chatMessages: messagesById,
-    foundIds,
+    foundIds: mediaSearch?.foundIds,
     threadId,
     storyIds,
     giftIds,
@@ -652,12 +659,33 @@ const Profile = ({
 
   const shouldWrapInIsland = !NON_ISLAND_TABS.has(resultType);
   const isVirtualized = VIRTUALIZED_TABS.has(resultType);
+  const isMediaTab = MESSAGE_BASED_TABS.has(resultType);
+  const hasNextMediaPage = mediaSearch?.nextOffsetId !== undefined;
+  const isMediaLoadFailed = mediaSearch?.loadState === 'failed';
+  const shouldLoadMedia = isMediaTab && resultType === mediaSearchType && isActive && !isClosed && isSynced;
+  const shouldShowMediaStatus = isMediaTab && (!viewportIds?.length || hasNextMediaPage)
+    && (!isMediaOnline || isMediaLoadFailed);
 
   useEffect(() => {
-    if (getMore && !viewportIds && isSynced) {
+    if (getMore && !isMediaTab && !viewportIds && isSynced) {
       getMore({ direction: LoadMoreDirection.Backwards });
     }
-  }, [getMore, viewportIds, resultType, isSynced]);
+  }, [getMore, viewportIds, resultType, isSynced, isMediaTab]);
+
+  useEffectWithPrevDeps(([wasMediaOnline]) => {
+    if (!shouldLoadMedia || !isMediaOnline || mediaSearch?.loadState === 'loading') return;
+    if (wasMediaOnline === false) {
+      if (isMediaLoadFailed || !viewportIds?.length || hasNextMediaPage) {
+        searchSharedMediaMessages({ shouldRetry: true });
+      }
+      return;
+    }
+    if (!isMediaLoadFailed && !viewportIds?.length && (!mediaSearch?.foundIds || hasNextMediaPage)) {
+      searchSharedMediaMessages();
+    }
+  }, [shouldLoadMedia, isMediaOnline, isMediaLoadFailed, viewportIds, mediaSearch, hasNextMediaPage, resultType]);
+
+  const handleRetryMedia = useLastCallback(() => searchSharedMediaMessages({ shouldRetry: true }));
 
   const shouldRenderProfileInfo = !noProfileInfo && !isSavedMessages;
 
@@ -957,8 +985,9 @@ const Profile = ({
       );
     }
 
-    const needsMessages = MESSAGE_BASED_TABS.has(resultType);
-    const noContent = (!viewportIds && !botPreviewMedia) || !canRenderContent || (needsMessages && !messagesById);
+    const noContent = !canRenderContent || (isMediaTab
+      ? !viewportIds || (viewportIds.length ? !messagesById : hasNextMediaPage)
+      : !viewportIds && !botPreviewMedia);
     const noSpinner = isFirstTab && !canRenderContent;
 
     if (shouldWrapInIsland) {
@@ -1013,7 +1042,7 @@ const Profile = ({
         <div
           className={buildClassName(styles.content, styles.emptyList)}
         >
-          {!noSpinner && !forceRenderHiddenMembers && <Spinner />}
+          {!noSpinner && !forceRenderHiddenMembers && (shouldShowMediaStatus ? renderMediaStatus() : <Spinner />)}
           {forceRenderHiddenMembers && <NothingFound text={lang('ChatMemberListNoAccess')} />}
         </div>
       );
@@ -1324,6 +1353,17 @@ const Profile = ({
     return wrapInIsland(contentEl);
   }
 
+  function renderMediaStatus() {
+    return (
+      <div className={styles.mediaStatus} role="status">
+        <span>{lang(isMediaOnline ? 'PxgProfileMediaError' : 'PxgProfileMediaOffline')}</span>
+        {isMediaOnline && (
+          <Button size="smaller" isText onClick={handleRetryMedia}>{lang('Retry')}</Button>
+        )}
+      </div>
+    );
+  }
+
   const contentTransitionKey = (() => {
     if (resultType === 'stories') {
       return selectedStoryAlbumId === 'all' ? 0 : selectedStoryAlbumId;
@@ -1461,6 +1501,7 @@ const Profile = ({
             >
               {renderContent()}
             </Transition>
+            {canRenderContent && Boolean(viewportIds?.length) && shouldShowMediaStatus && renderMediaStatus()}
           </div>
         </>
       )}
@@ -1507,7 +1548,7 @@ export default memo(withGlobal<OwnProps>(
     const { animationLevel, shouldWarnAboutFiles } = selectSharedSettings(global);
 
     const { currentType: mediaSearchType, resultsByType } = selectCurrentSharedMediaSearch(global) || {};
-    const { foundIds } = (resultsByType && mediaSearchType && resultsByType[mediaSearchType]) || {};
+    const mediaSearch = mediaSearchType ? resultsByType?.[mediaSearchType] : undefined;
 
     const isTopicInfo = Boolean(chat?.isForum && threadId && threadId !== MAIN_THREAD_ID);
 
@@ -1578,7 +1619,7 @@ export default memo(withGlobal<OwnProps>(
       isChannel,
       isBot,
       messagesById,
-      foundIds,
+      mediaSearch,
       mediaSearchType,
       hasCommonChatsTab,
       hasStoriesTab,

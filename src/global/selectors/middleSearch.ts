@@ -29,9 +29,15 @@ export function selectCurrentSharedMediaSearch<T extends GlobalState>(
     return undefined;
   }
 
-  const chatThreadKey = buildChatThreadKey(chatId, threadId);
+  return selectSharedMediaSearch(global, chatId, threadId, tabId);
+}
 
-  return selectTabState(global, tabId).sharedMediaSearch.byChatThreadKey[chatThreadKey];
+export function selectSharedMediaSearch<T extends GlobalState>(
+  global: T, chatId: string, threadId: ThreadId,
+  ...[tabId = getCurrentTabId()]: TabArgs<T>
+) {
+  const chatThreadKey = buildChatThreadKey(chatId, threadId);
+  return selectTabState(global, tabId)?.sharedMediaSearch.byChatThreadKey[chatThreadKey];
 }
 
 export function selectCurrentChatMediaSearch<T extends GlobalState>(

@@ -15,8 +15,10 @@ import useInfiniteScroll from '../../../hooks/useInfiniteScroll';
 import useSyncEffect from '../../../hooks/useSyncEffect';
 
 const SHARED_MEDIA_TYPES: SharedMediaType[] = ['media', 'documents', 'links', 'audio', 'voice', 'gif', 'polls'];
+const EMPTY_MEDIA_IDS: number[] = [];
 
 export default function useProfileViewportIds({
+  chatId,
   loadMoreMembers,
   loadCommonChats,
   searchMessages,
@@ -41,6 +43,7 @@ export default function useProfileViewportIds({
   similarBots,
   scrollToTopKey,
 }: {
+  chatId: string;
   loadMoreMembers: AnyToVoidFunction;
   loadCommonChats: AnyToVoidFunction;
   searchMessages: AnyToVoidFunction;
@@ -67,6 +70,7 @@ export default function useProfileViewportIds({
 }) {
   const resultType = mediaSearchType && SHARED_MEDIA_TYPES.includes(tabType as SharedMediaType)
     ? mediaSearchType : tabType;
+  const searchScope = `${chatId}:${threadId ?? ''}`;
 
   const handledScrollToTopKeyRef = useRef(scrollToTopKey);
   const shouldResetToTop = handledScrollToTopKeyRef.current !== scrollToTopKey;
@@ -97,31 +101,31 @@ export default function useProfileViewportIds({
   );
 
   const [mediaViewportIds, getMoreMedia] = useInfiniteScrollForSharedMedia(
-    'media', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'media', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [gifViewportIds, getMoreGifs] = useInfiniteScrollForSharedMedia(
-    'gif', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'gif', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [documentViewportIds, getMoreDocuments] = useInfiniteScrollForSharedMedia(
-    'documents', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'documents', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [linkViewportIds, getMoreLinks] = useInfiniteScrollForSharedMedia(
-    'links', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'links', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [audioViewportIds, getMoreAudio] = useInfiniteScrollForSharedMedia(
-    'audio', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'audio', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [voiceViewportIds, getMoreVoices] = useInfiniteScrollForSharedMedia(
-    'voice', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'voice', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [pollViewportIds, getMorePolls] = useInfiniteScrollForSharedMedia(
-    'polls', shouldResetToTop, resultType, searchMessages, chatMessages, foundIds, threadId,
+    'polls', shouldResetToTop, searchScope, resultType, searchMessages, chatMessages, foundIds,
   );
 
   const [commonChatViewportIds, getMoreCommonChats] = useInfiniteScrollForLoadableItems(
@@ -230,27 +234,23 @@ function useInfiniteScrollForLoadableItems<ListId extends string | number>(
 function useInfiniteScrollForSharedMedia(
   forSharedMediaType: SharedMediaType,
   shouldResetToTop: boolean,
+  searchScope: string,
   currentResultType?: ProfileTabType,
   handleLoadMore?: AnyToVoidFunction,
   chatMessages?: Record<number, ApiMessage>,
   foundIds?: number[],
-  threadId?: ThreadId,
 ) {
   const messageIdsRef = useRef<number[]>();
 
   useSyncEffect(() => {
     messageIdsRef.current = undefined;
-  }, [threadId]);
+  }, [searchScope]);
 
   useSyncEffect(() => {
-    if (currentResultType === forSharedMediaType && chatMessages && foundIds) {
-      messageIdsRef.current = getMessageContentIds(
-        chatMessages,
-        foundIds,
-        forSharedMediaType,
-      );
-    }
-  }, [chatMessages, foundIds, currentResultType, forSharedMediaType]);
+    if (currentResultType !== forSharedMediaType) return;
+    messageIdsRef.current = foundIds && (chatMessages
+      ? getMessageContentIds(chatMessages, foundIds, forSharedMediaType) : EMPTY_MEDIA_IDS);
+  }, [searchScope, chatMessages, foundIds, currentResultType, forSharedMediaType]);
 
   return useInfiniteScroll(
     handleLoadMore,

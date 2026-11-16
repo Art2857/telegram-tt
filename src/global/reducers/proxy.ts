@@ -27,8 +27,21 @@ export function clearProxyChats<T extends GlobalState>(global: T, keptChatIds?: 
   )));
   const keepId = (id: string) => !isProxyPeerId(id);
   const keepContentId = (id: string) => keepId(id) || Boolean(keptChatIds?.has(id));
+  const byTabId = Object.fromEntries(Object.entries(global.byTabId).map(([tabId, tab]) => {
+    let shouldUpdate = false;
+    const byChatThreadKey = Object.fromEntries(Object.entries(tab.sharedMediaSearch.byChatThreadKey).map(([
+      key, search,
+    ]) => {
+      const chatId = key.split('_', 1)[0];
+      if (!search.resultsByType || keepContentId(chatId)) return [key, search];
+      shouldUpdate = true;
+      return [key, { currentType: search.currentType }];
+    }));
+    return [tabId, shouldUpdate ? { ...tab, sharedMediaSearch: { byChatThreadKey } } : tab];
+  }));
   return {
     ...global,
+    byTabId,
     chats: {
       ...global.chats,
       byId: chats,

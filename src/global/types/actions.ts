@@ -398,7 +398,7 @@ export interface ActionPayloads {
   setSharedMediaSearchType: {
     mediaType?: SharedMediaType;
   } & WithTabId;
-  searchSharedMediaMessages: WithTabId | undefined;
+  searchSharedMediaMessages: ({ shouldRetry?: boolean } & WithTabId) | undefined;
   searchChatMediaMessages: {
     currentMediaMessageId: number;
     direction?: LoadMoreDirection;

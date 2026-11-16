@@ -73,6 +73,7 @@ import {
 } from './writes';
 
 type WindowResult = { messages: MessageDto[]; count: number };
+type SearchResult = WindowResult & { nextOffsetId?: number | null };
 type SyncChangesResult = {
   messages: MessageDto[];
   removed: { accountId: string; peerId: number; msgId: number }[];
@@ -1249,11 +1250,19 @@ async function searchMessagesInChat({
   if (savedTag) return undefined;
   const sender = fromPeer && resolveProxyPeer(fromPeer.id);
   if (fromPeer && (!sender || sender.accountId !== peer.accountId)) return undefined;
-  const result = await pxgRpc.call<WindowResult>('messages.search', {
-    ...peer, query, filter: type, limit: Math.min(limit, 200), offsetId, addOffset, minDate, maxDate,
+  const pageSize = Math.min(limit, 200);
+  const result = await pxgRpc.call<SearchResult>('messages.search', {
+    ...peer, query, filter: type, limit: pageSize, offsetId, addOffset, minDate, maxDate,
     senderId: sender?.peerId, topicId: getTopicId(target, threadId),
   });
-  return buildSearchResult(result);
+  const built = await buildSearchResult(result);
+  return {
+    ...built,
+    // Старый сервер не присылает курсор; короткая страница всё равно означает конец
+    nextOffsetId: result.nextOffsetId === undefined
+      ? (result.messages.length === pageSize ? built.nextOffsetId : undefined)
+      : (result.nextOffsetId ?? undefined),
+  };
 }
 
 async function searchMessagesGlobal({
