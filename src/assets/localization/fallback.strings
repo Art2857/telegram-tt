@@ -4657,8 +4657,11 @@
 "PxgQrScanMenu" = "Scan QR code";
 "PxgQrScanTitle" = "Scan QR code";
 "PxgQrScanHint" = "Point the camera at the QR code on the other device.";
+"PxgQrScanIntro" = "Confirm login to your Telegram on another device: turn on the camera or paste the QR link.";
+"PxgQrScanCamera" = "Turn on camera";
+"PxgQrScanCameraOff" = "Turn off camera";
 "PxgQrScanManual" = "Or paste the QR link";
-"PxgQrScanSubmit" = "Confirm";
+"PxgQrScanSubmit" = "Confirm login";
 "PxgQrScanInvalid" = "This is not a login QR code";
 "PxgQrScanSuccess" = "Login confirmed on the other device";
 "PxgQrScanNoCamera" = "Camera is unavailable — paste the QR link";

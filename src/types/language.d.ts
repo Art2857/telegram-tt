@@ -3501,6 +3501,9 @@ export interface LangPair {
   'PxgQrScanMenu': undefined;
   'PxgQrScanTitle': undefined;
   'PxgQrScanHint': undefined;
+  'PxgQrScanIntro': undefined;
+  'PxgQrScanCamera': undefined;
+  'PxgQrScanCameraOff': undefined;
   'PxgQrScanManual': undefined;
   'PxgQrScanSubmit': undefined;
   'PxgQrScanInvalid': undefined;

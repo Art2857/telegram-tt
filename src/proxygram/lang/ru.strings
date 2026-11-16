@@ -144,8 +144,11 @@
 "PxgQrScanMenu" = "Сканировать QR-код";
 "PxgQrScanTitle" = "Сканировать QR-код";
 "PxgQrScanHint" = "Наведите камеру на QR-код на другом устройстве.";
+"PxgQrScanIntro" = "Подтвердите вход в свой Telegram на другом устройстве: включите камеру или вставьте ссылку из QR-кода.";
+"PxgQrScanCamera" = "Включить камеру";
+"PxgQrScanCameraOff" = "Выключить камеру";
 "PxgQrScanManual" = "Или вставьте ссылку из QR-кода";
-"PxgQrScanSubmit" = "Подтвердить";
+"PxgQrScanSubmit" = "Подтвердить вход";
 "PxgQrScanInvalid" = "Это не QR-код для входа";
 "PxgQrScanSuccess" = "Вход подтверждён на другом устройстве";
 "PxgQrScanNoCamera" = "Камера недоступна — вставьте ссылку из QR-кода";

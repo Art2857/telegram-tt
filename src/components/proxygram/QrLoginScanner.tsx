@@ -3,6 +3,7 @@ import { getActions } from '../../global';
 
 import { callApi } from '../../api/gramjs';
 
+import useFlag from '../../hooks/useFlag';
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 
@@ -21,13 +22,22 @@ type DetectedBarcode = { rawValue: string };
 type BarcodeDetectorLike = { detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]> };
 type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorLike;
 
-const TOKEN_PATTERN = /[?&]token=([A-Za-z0-9_-]+)/;
 const TOKEN_ONLY_PATTERN = /^[A-Za-z0-9_-]{20,}$/;
 
 /** Token from the Telegram login QR (`tg://login?token=…`) */
 export function extractQrLoginToken(value: string) {
   const trimmed = value.trim();
-  return TOKEN_PATTERN.exec(trimmed)?.[1] ?? (TOKEN_ONLY_PATTERN.test(trimmed) ? trimmed : undefined);
+  if (TOKEN_ONLY_PATTERN.test(trimmed)) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    const isLoginUrl = (url.protocol === 'tg:' && url.hostname === 'login')
+      || (url.protocol === 'https:' && (url.hostname === 't.me' || url.hostname === 'telegram.me')
+        && url.pathname === '/login');
+    const token = url.searchParams.get('token');
+    return isLoginUrl && token && TOKEN_ONLY_PATTERN.test(token) ? token : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
@@ -37,6 +47,7 @@ const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
   const [manualValue, setManualValue] = useState('');
   const [errorKey, setErrorKey] = useState<string>();
   const [isBusy, setIsBusy] = useState(false);
+  const [isCameraRequested, requestCamera, resetCamera] = useFlag();
   const isHandledRef = useRef(false);
 
   const confirmToken = useLastCallback(async (value: string) => {
@@ -67,17 +78,21 @@ const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
   });
 
   useEffect(() => {
-    if (!isOpen) return undefined;
-
     isHandledRef.current = false;
     setManualValue('');
+    setErrorKey(undefined);
+    resetCamera();
+    return undefined;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isCameraRequested) return undefined;
     setErrorKey(undefined);
 
     let isActive = true;
     let stream: MediaStream | undefined;
     let frame: number | undefined;
     let isDetecting = false;
-    const video = videoRef.current;
 
     const start = async () => {
       const mediaDevices = navigator.mediaDevices;
@@ -91,21 +106,28 @@ const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
           video: { facingMode: { ideal: 'environment' } },
           audio: false,
         });
-        if (!isActive || !video) return;
+        const video = videoRef.current;
+        if (!isActive || !video) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         video.srcObject = stream;
         await video.play();
       } catch {
+        stream?.getTracks().forEach((track) => track.stop());
         if (isActive) setErrorKey('PxgQrScanNoCamera');
         return;
       }
 
       const Detector = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
       if (!Detector) {
+        stream.getTracks().forEach((track) => track.stop());
         setErrorKey('PxgQrScanUnsupported');
         return;
       }
 
       const detector = new Detector({ formats: ['qr_code'] });
+      const video = videoRef.current;
       const scan = async () => {
         if (!isActive || !video) return;
         if (!isDetecting) {
@@ -135,7 +157,7 @@ const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
       if (frame !== undefined) cancelAnimationFrame(frame);
       stream?.getTracks().forEach((track) => track.stop());
     };
-  }, [confirmToken, isOpen]);
+  }, [confirmToken, isOpen, isCameraRequested]);
 
   return (
     <Modal
@@ -145,8 +167,14 @@ const QrLoginScanner = ({ isOpen, onClose }: OwnProps) => {
       onClose={onClose}
     >
       <div className={styles.content}>
-        <video ref={videoRef} className={styles.video} muted playsInline />
-        <p className={styles.hint}>{lang('PxgQrScanHint')}</p>
+        <p className={styles.hint}>{lang('PxgQrScanIntro')}</p>
+        {isCameraRequested ? (
+          <>
+            <video ref={videoRef} className={styles.video} muted playsInline />
+            <p className={styles.hint}>{lang('PxgQrScanHint')}</p>
+            <Button onClick={resetCamera}>{lang('PxgQrScanCameraOff')}</Button>
+          </>
+        ) : <Button onClick={requestCamera}>{lang('PxgQrScanCamera')}</Button>}
         {errorKey && <p className={styles.error} role="alert">{lang(errorKey as 'PxgQrScanInvalid')}</p>}
         <InputText
           label={lang('PxgQrScanManual')}
