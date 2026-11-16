@@ -8,6 +8,7 @@ import { MediaViewerOrigin } from '../../../../types';
 import { getMainUsername, getMessagePhoto, getWebPagePhoto, getWebPageVideo } from '../../../../global/helpers';
 import { getMessageReplyInfo } from '../../../../global/helpers/replies';
 import { tryParseDeepLink } from '../../../../util/deepLinkParser';
+import { openProxyMemberProfile } from '../../../../proxygram/accessRequests';
 
 import useLastCallback from '../../../../hooks/useLastCallback';
 
@@ -80,7 +81,7 @@ export default function useInnerHandlers({
     if (asForwarded && forwardInfo?.channelPostId) {
       focusMessage({ chatId: senderPeer.id, messageId: forwardInfo.channelPostId });
     } else {
-      openChat({ id: senderPeer.id });
+      if (!openProxyMemberProfile(chatId, senderPeer.id)) openChat({ id: senderPeer.id });
     }
   });
 

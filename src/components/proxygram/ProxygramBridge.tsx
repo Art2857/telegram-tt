@@ -36,6 +36,7 @@ import HideFromGuestsModal from './HideFromGuestsModal';
 import HistoryTailChecker from './HistoryTailChecker';
 import LocalArchiveLoader from './LocalArchiveLoader';
 import PersonalContactModal from './PersonalContactModal';
+import ProxyMemberProfile from './ProxyMemberProfile';
 import QrLoginScanner from './QrLoginScanner';
 import ReactionLogModal from './ReactionLogModal';
 import PxgSettingsPanel from './settings/PxgSettingsPanel';
@@ -355,6 +356,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isSettingsOpen && <PxgSettingsPanel />}
       <SharedFolderModal />
       <PersonalContactModal />
+      <ProxyMemberProfile />
       <QrLoginScanner
         isOpen={Boolean(isQrScannerOpen)}
         onClose={() => setPxgState({ isQrScannerOpen: false })}

@@ -84,7 +84,7 @@ import { buildCollectionByKey } from '../../util/iteratees.ts';
 import { resolveTransitionName } from '../../util/resolveTransitionName.ts';
 import { isProxyGuest } from '../../api/proxy';
 import { isProxyPeerId } from '../../api/proxy/ids';
-import { canRequestMemberAccess, requestMemberAccess } from '../../proxygram/accessRequests';
+import { canRequestMemberAccess, openProxyMemberProfile, requestMemberAccess } from '../../proxygram/accessRequests';
 import { usePxgState } from '../../proxygram/server/store';
 import { LOCAL_TGS_URLS } from '../common/helpers/animatedAssets';
 import renderText from '../common/helpers/renderText';
@@ -788,7 +788,7 @@ const Profile = ({
   });
 
   const handleMemberClick = useLastCallback((id: string) => {
-    openChat({ id });
+    if (!openProxyMemberProfile(chatId, id, true)) openChat({ id });
   });
 
   const handleMessageFocus = useLastCallback((message: ApiMessage) => {
@@ -1229,7 +1229,9 @@ const Profile = ({
               className="chat-item-clickable contact-list-item scroll-item small-icon"
 
               onClick={() => handleMemberClick(id)}
-              onFileHoverOpen={() => handleMemberClick(id)}
+              onFileHoverOpen={() => {
+                if (!canRequestMemberAccess(chatId, id)) openChat({ id });
+              }}
               contextActions={getMemberContextAction(id)}
               withPortalForMenu
             >

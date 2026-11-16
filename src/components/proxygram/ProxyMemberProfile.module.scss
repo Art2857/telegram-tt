@@ -1,0 +1,43 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.note {
+  overflow: auto;
+  align-self: stretch;
+
+  max-height: 12rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+
+  text-align: start;
+  white-space: pre-wrap;
+
+  background: var(--color-background-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+
+  max-width: 100%;
+  margin-top: 0.5rem;
+}

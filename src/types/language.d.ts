@@ -3611,6 +3611,9 @@ export interface LangPair {
   'PxgFolderRenameTitle': undefined;
   'PxgFolderRenameHint': undefined;
   'PxgContactEdit': undefined;
+  'PxgMemberProfile': undefined;
+  'PxgMemberPrivateUnavailable': undefined;
+  'PxgMemberOpenChat': undefined;
   'PxgContactPrivateHint': undefined;
   'PxgContactPrivateNote': undefined;
   'PxgContactResetName': undefined;

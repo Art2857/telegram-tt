@@ -33,6 +33,7 @@ import {
   selectSender,
 } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
+import { openProxyMemberProfile } from '../../../proxygram/accessRequests';
 
 import useContextMenuHandlers from '../../../hooks/useContextMenuHandlers';
 import useFlag from '../../../hooks/useFlag';
@@ -128,7 +129,7 @@ const SenderGroupContainer = ({
       return;
     }
 
-    openChat({ id: avatarPeer.id });
+    if (!openProxyMemberProfile(message.chatId, avatarPeer.id)) openChat({ id: avatarPeer.id });
   });
 
   const handleMention = useLastCallback(() => {

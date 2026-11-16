@@ -266,6 +266,9 @@
 "PxgFolderRenameTitle" = "Название папки";
 "PxgFolderRenameHint" = "Это название видите только вы, папка владельца в Telegram не переименовывается.";
 "PxgContactEdit" = "Изменить для себя";
+"PxgMemberProfile" = "Профиль участника";
+"PxgMemberPrivateUnavailable" = "Вам не открыт личный чат с этим участником.";
+"PxgMemberOpenChat" = "Открыть чат";
 "PxgContactPrivateHint" = "Имя, фото и заметку видите только вы на всех своих устройствах. Они не передаются в Telegram и тому, кто поделился чатом.";
 "PxgContactOriginal" = "Имя в Telegram: {name}";
 "PxgContactPrivateNote" = "Личная заметка";
