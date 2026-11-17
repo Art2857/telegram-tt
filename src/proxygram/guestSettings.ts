@@ -1,4 +1,4 @@
-import { addCallback, removeCallback } from '../lib/teact/teactn';
+﻿import { addCallback, removeCallback } from '../lib/teact/teactn';
 import { getGlobal, setGlobal } from '../global';
 
 import type { ApiNotifyPeerType, ApiPeerNotifySettings } from '../api/types';
@@ -49,7 +49,10 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
   let isSaving = false;
   let requestId = 0;
   let lastJson = JSON.stringify(readSettings());
-  let pending: ReturnType<typeof readSettings> | undefined;
+  /** Ключи, изменённые на этом устройстве и ещё не отправленные: только они уходят на сервер */
+  let pending: GuestSettings | undefined;
+  /** То же, пока отправка в пути */
+  let saving: GuestSettings | undefined;
   let timer: number | undefined;
 
   function apply({
@@ -97,11 +100,17 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
       }
       // An edit made while the copy was on its way is newer. Before the first load nothing is an edit: a new
       // device adjusts defaults itself (system theme, time format), and those must not replace the saved choice
+      const settings = sanitizeSettings(result.data || {});
       if (wasLoaded && (pending || isSaving)) {
-        void save();
+        // The copy belongs to other devices: take everything that this one has not changed itself, and keep its
+        // own unsaved keys on top — the save that follows carries them alone
+        const own = pending ?? saving;
+        const merged = own ? { ...settings, ...own } : settings;
+        lastJson = JSON.stringify({ ...readSettings(), ...merged });
+        apply(merged);
+        if (pending) void save();
         return;
       }
-      const settings = sanitizeSettings(result.data || {});
       lastJson = JSON.stringify({ ...readSettings(), ...settings });
       apply(settings);
     } catch {
@@ -114,14 +123,16 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
     const data = pending;
     pending = undefined;
     isSaving = true;
+    saving = data;
     try {
       await pxgRpc.call('settings.set', { data });
     } catch {
-      if (isCurrent()) pending ||= data;
+      if (isCurrent()) pending = { ...data, ...(pending || {}) };
     } finally {
       isSaving = false;
+      saving = undefined;
     }
-    if (pending && pending !== data && isCurrent()) void save();
+    if (pending && isCurrent()) void save();
   }
 
   function handleChange() {
@@ -129,8 +140,11 @@ export function startGuestSettingsSync(applyShared: (settings: Partial<SharedSet
     const data = readSettings();
     const json = JSON.stringify(data);
     if (json === lastJson) return;
+    // Своё изменение: на сервер уходят только тронутые ключи, чужие настройки не перезаписываются
+    const changed = pickChanged(data, JSON.parse(lastJson) as ReturnType<typeof readSettings>);
     lastJson = json;
-    pending = data;
+    if (!Object.keys(changed).length) return;
+    pending = { ...(pending || {}), ...changed };
     window.clearTimeout(timer);
     timer = window.setTimeout(() => void save(), SAVE_DELAY_MS);
   }
@@ -167,6 +181,13 @@ function readSettings() {
     translation: pick(global.settings.byKey, [...TRANSLATION_KEYS]),
     deletedView: pick(global.settings.byKey, [...DELETED_VIEW_KEYS]),
   };
+}
+
+/** Ключи, которые это устройство изменило: их и только их оно отправляет на сервер */
+function pickChanged(local: GuestSettings, known: GuestSettings): GuestSettings {
+  return Object.fromEntries(Object.entries(local).filter(([key, value]) => (
+    JSON.stringify(value) !== JSON.stringify((known as Record<string, unknown>)[key])
+  )));
 }
 
 function sanitizeTranslation(value: unknown): TranslationSettings | undefined {
