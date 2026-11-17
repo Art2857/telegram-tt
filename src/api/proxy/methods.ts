@@ -90,6 +90,8 @@ const SEARCH_FILTERS = new Set(['text', 'media', 'documents', 'links', 'audio', 
 const MAX_TOPICS = 100;
 /** Private chats whose message price this tab has already asked Telegram for */
 const paidPriceAsked = new Set<string>();
+/** Chats whose empty archive already asked the worker for their history in this session */
+const emptyArchiveAsked = new Set<string>();
 /** As many members as Web A loads at once */
 const MEMBERS_SLICE = 50;
 /** Telegram's big profile photo is 640 px */
@@ -502,6 +504,16 @@ async function fetchMessages({
     result = { messages: saved, count: saved.length };
   }
   const oldestId = result.messages.at(-1)?.msgId;
+  // A chat shared before its history reached the archive shows nothing at all: the worker imports it on demand.
+  // Once per chat per session, the next read shows the page; further pages go through the condition below
+  if (!offsetId && !result.messages.length && !result.count && historyId && !emptyArchiveAsked.has(historyId)) {
+    emptyArchiveAsked.add(historyId);
+    await runProxyJob('messages.loadOlder', { ...peer, ...thread, beforeMsgId: offsetId }, HISTORY_WAIT_MS)
+      .catch(() => undefined);
+    result = await pxgRpc.call<WindowResult>('messages.window', {
+      ...peer, ...thread, offsetId, addOffset, limit: Math.min(limit, 200),
+    });
+  }
   // count — сколько сообщений вообще видно в этом окне: если страница уже покрыла всё, импорт не нужен
   if (result.messages.length < result.count && result.messages.length < limit
     && (!offsetId || !oldestId || oldestId <= offsetId)) {
