@@ -659,7 +659,9 @@ export default memo(withGlobal<OwnProps>(
       isSelectedForum,
       isForumPanelOpen: selectIsForumPanelOpen(global),
       canScrollDown: isSelected && currentMessageListType === 'thread',
-      canChangeFolder: (global.chatFolders.orderedIds?.length || 0) > 1,
+      canChangeFolder: Boolean(global.chatFolders.orderedIds?.some((id) => (
+        id !== ALL_FOLDER_ID && !global.chatFolders.byId[id]?.pxgLocal
+      ))),
       user,
       userStatus,
       typingStatusByPeerId,

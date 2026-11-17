@@ -4,10 +4,11 @@ import { getActions, withGlobal } from '../../../global';
 import type { ApiChat, ApiUser } from '../../../api/types';
 import { StoryViewerOrigin } from '../../../types';
 
-import { UNMUTE_TIMESTAMP } from '../../../config';
+import { ALL_FOLDER_ID, ARCHIVED_FOLDER_ID, UNMUTE_TIMESTAMP } from '../../../config';
 import { getIsChatMuted } from '../../../global/helpers/notifications';
 import {
   selectChat,
+  selectChatListType,
   selectIsChatPinned,
   selectNotifyDefaults,
   selectNotifyException,
@@ -39,6 +40,7 @@ type OwnProps = {
 
 type StateProps = {
   chat?: ApiChat;
+  currentUserId?: string;
   user?: ApiUser;
   listedTopicIds?: number[];
   isPinned?: boolean;
@@ -50,6 +52,7 @@ const LeftSearchResultChat = ({
   chatId,
   withUsername,
   chat,
+  currentUserId,
   user,
   listedTopicIds,
   isPinned,
@@ -86,6 +89,7 @@ const LeftSearchResultChat = ({
     isPinned,
     isMuted,
     canChangeFolder,
+    currentUserId,
     topicIds: listedTopicIds,
     handleMute,
     handleUnmute,
@@ -181,7 +185,10 @@ export default memo(withGlobal<OwnProps>(
   (global, { chatId }): Complete<StateProps> => {
     const chat = selectChat(global, chatId);
     const user = selectUser(global, chatId);
-    const isPinned = selectIsChatPinned(global, chatId);
+    const listType = selectChatListType(global, chatId);
+    const isPinned = chat?.pxgProxy && !listType
+      ? undefined
+      : selectIsChatPinned(global, chatId, listType === 'archived' ? ARCHIVED_FOLDER_ID : ALL_FOLDER_ID);
     const isMuted = chat && getIsChatMuted(chat, selectNotifyDefaults(global), selectNotifyException(global, chat.id));
 
     const listedTopicIds = selectTopicsInfo(global, chatId)?.listedTopicIds;
@@ -191,7 +198,10 @@ export default memo(withGlobal<OwnProps>(
       user,
       isPinned,
       isMuted,
-      canChangeFolder: Boolean(global.chatFolders.orderedIds?.length),
+      currentUserId: global.currentUserId,
+      canChangeFolder: Boolean(global.chatFolders.orderedIds?.some((id) => (
+        id !== ALL_FOLDER_ID && !global.chatFolders.byId[id]?.pxgLocal
+      ))),
       listedTopicIds,
     };
   },

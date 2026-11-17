@@ -3,15 +3,15 @@ import { getActions } from '../global';
 
 import type { MenuItemContextAction } from '../components/ui/ListItem';
 import type { GlobalState } from '../global/types';
+import { isLocalFolderId } from '../api/proxy/types';
 import { type ApiChat, type ApiUser, MAIN_THREAD_ID } from '../api/types';
 
-import { ARCHIVED_FOLDER_ID, SERVICE_NOTIFICATIONS_USER_ID } from '../config';
+import { ALL_FOLDER_ID, ARCHIVED_FOLDER_ID, SERVICE_NOTIFICATIONS_USER_ID } from '../config';
 import {
   getCanDeleteChat, isChatArchived, isChatChannel, isChatCommunity, isChatGroup,
 } from '../global/helpers';
 import { selectChat, selectIsChatPinned } from '../global/selectors';
 import { selectThreadReadState } from '../global/selectors/threads';
-import { IS_TAURI } from '../util/browser/globalEnvironment';
 import { IS_OPEN_IN_NEW_TAB_SUPPORTED } from '../util/browser/windowEnvironment';
 import { isUserId } from '../util/entities/ids';
 import { buildCollectionByCallback, compact } from '../util/iteratees';
@@ -125,7 +125,7 @@ const useChatContextActions = ({
     }
 
     const actionOpenInNewTab = IS_OPEN_IN_NEW_TAB_SUPPORTED && {
-      title: IS_TAURI ? lang('ChatListOpenInNewWindow') : lang('ChatListOpenInNewTab'),
+      title: lang('ChatListOpenInNewTab'),
       icon: 'open-in-new-tab',
       handler: () => {
         if (isSavedDialog) {
@@ -198,16 +198,17 @@ const useChatContextActions = ({
     // PXG: A shared chat offers only what stays with the viewer; everything else would act on the owner's account.
     // A full login keeps shared chats in a local folder, a guest also manages their own list (see below)
     const isGuestChat = Boolean(chat.pxgProxy && currentUserId && isProxyPeerId(currentUserId));
-    if (chat.pxgProxy && !isGuestChat) return [actionMute];
+    if (chat.pxgProxy && !isGuestChat) return compact([actionOpenInNewTab, actionQuickPreview, actionMute]);
 
     // A community has no message history, so most chat actions do not apply
     if (isChatCommunity(chat)) {
       return compact([actionPin, actionMute]);
     }
 
-    if (isInSearch && !isGuestChat) {
+    if (isInSearch) {
       return compact([
-        actionOpenInNewTab, actionQuickPreview, actionPin, actionAddToFolder, actionMute,
+        actionOpenInNewTab, actionQuickPreview, (!isGuestChat || isResolvedPinned !== undefined) && actionPin,
+        actionAddToFolder, actionMute,
       ]);
     }
 
@@ -235,10 +236,13 @@ const useChatContextActions = ({
       ? { title: lang('Unarchive'), icon: 'unarchive', handler: () => toggleChatArchived({ id: chat.id }) }
       : { title: lang('Archive'), icon: 'archive', handler: () => toggleChatArchived({ id: chat.id }) };
 
+    const isInFolder = folderId !== undefined && folderId !== ALL_FOLDER_ID && folderId !== ARCHIVED_FOLDER_ID;
     if (isGuestChat) {
+      const isSharedFolder = folderId !== undefined && isLocalFolderId(folderId);
       return compact([
-        actionMarkAsRead, actionMarkAsUnread, !isInSearch && actionAddToFolder, !isInSearch && actionPin,
-        actionMute, !isInSearch && folderId === undefined && actionArchive,
+        actionOpenInNewTab, actionQuickPreview, actionAddToFolder,
+        actionMarkAsRead, actionMarkAsUnread, !isSharedFolder && actionPin,
+        actionMute, !isInFolder && actionArchive,
       ]);
     }
 
@@ -247,7 +251,6 @@ const useChatContextActions = ({
       ? { title: lang('ReportPeerReport'), icon: 'flag', handler: handleReport } satisfies MenuItemContextAction
       : undefined;
 
-    const isInFolder = folderId !== undefined;
     const canManageListPlacement = !(isInCommunityPanel && isLinkedCommunityCollapsed);
 
     return compact<MenuItemContextAction>([

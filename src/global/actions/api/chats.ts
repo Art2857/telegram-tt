@@ -1240,9 +1240,9 @@ addActionHandler('toggleChatPinned', (global, actions, payload): ActionReturnTyp
 
   const limit = selectCurrentLimit(global, 'dialogFolderPinned');
 
-  if (folderId) {
+  if (folderId && folderId !== ARCHIVED_FOLDER_ID) {
     const folder = selectChatFolder(global, folderId);
-    if (folder) {
+    if (folder && !folder.pxgLocal) {
       const shouldBePinned = !selectIsChatPinned(global, id, folderId);
 
       const { pinnedChatIds, includedChatIds } = folder;
@@ -1251,7 +1251,7 @@ addActionHandler('toggleChatPinned', (global, actions, payload): ActionReturnTyp
         : (pinnedChatIds || []).filter((pinnedId) => pinnedId !== id);
 
       // With both Pin and Unpin we need to re-add a user to the included group
-      const newIncludedChatIds = [id, ...includedChatIds];
+      const newIncludedChatIds = includedChatIds.includes(id) ? includedChatIds : [id, ...includedChatIds];
 
       void callApi('editChatFolder', {
         id: folderId,
