@@ -29,7 +29,8 @@ export function clearProxyChats<T extends GlobalState>(global: T, keptChatIds?: 
   const keepContentId = (id: string) => keepId(id) || Boolean(keptChatIds?.has(id));
   const byTabId = Object.fromEntries(Object.entries(global.byTabId).map(([tabId, tab]) => {
     let shouldUpdate = false;
-    const byChatThreadKey = Object.fromEntries(Object.entries(tab.sharedMediaSearch.byChatThreadKey).map(([
+    // A tab state from an older cached copy may have no media search at all
+    const byChatThreadKey = Object.fromEntries(Object.entries(tab.sharedMediaSearch?.byChatThreadKey || {}).map(([
       key, search,
     ]) => {
       const chatId = key.split('_', 1)[0];

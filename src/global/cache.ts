@@ -345,6 +345,11 @@ function pruneExpiredEphemeralMessages(cached: GlobalState) {
 
 function unsafeMigrateCache(cached: GlobalState, initialState: GlobalState) {
   const untypedCached = cached as any;
+  // A tab state is unusable without its own id: an entry left by an earlier version or a partial update breaks
+  // every reader of the tabs, so it is dropped with the cached copy
+  cached.byTabId = Object.fromEntries(
+    Object.entries(cached.byTabId || {}).filter(([, tab]) => Boolean(tab?.id)),
+  );
   Object.values(cached.chats.fullInfoById).forEach((fullInfo) => {
     fullInfo.isCache = true;
   });
