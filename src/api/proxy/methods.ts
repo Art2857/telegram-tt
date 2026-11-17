@@ -345,7 +345,7 @@ export async function fetchProxyChats() {
       item.userStatus ? [[chats[index].id, buildProxyUserStatus(item.userStatus)]] : []
     ))),
     draftsById: Object.fromEntries(drafts.filter((draft) => !draft.topicId).map((draft) => [
-      getProxyPeerId(draft.accountId, draft.peerId), buildProxyDraft(draft),
+      getProxyPeerId(draft.accountId, draft.peerId), buildProxyDraft(draft, draft.accountId),
     ])),
     // A guest mutes a shared chat only for themselves; the server keeps it for every device and for pushes
     notifyExceptionById: Object.fromEntries(access.flatMap((item, index) => (
@@ -790,7 +790,7 @@ async function fetchTopics({ chat, query, offsetTopicId, limit = TOPICS_SLICE }:
     count: search ? topics.length : result.count,
     draftsById: Object.fromEntries(drafts
       .filter((draft) => draft.topicId && draft.accountId === peer.accountId && draft.peerId === peer.peerId)
-      .map((draft) => [draft.topicId!, buildProxyDraft(draft)])),
+      .map((draft) => [draft.topicId!, buildProxyDraft(draft, draft.accountId)])),
   };
 }
 

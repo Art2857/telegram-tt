@@ -317,7 +317,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           '@type': 'draftMessage',
           chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
           threadId: event.d.topicId || undefined,
-          draft: event.d.draft ? buildProxyDraft(event.d.draft) : undefined,
+          draft: event.d.draft ? buildProxyDraft(event.d.draft, event.d.accountId) : undefined,
         });
       }
       if (event.e === 'user.status') {

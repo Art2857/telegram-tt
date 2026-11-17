@@ -1278,12 +1278,22 @@ export async function saveDraft({ chat, draft }: MethodArgs<'saveDraft'>[0]) {
   // Saved Messages have no provider account: their draft stays on this device
   if (isSavedPeer(peer)) return true;
   const replyInfo = draft?.replyInfo?.type === 'message' ? draft.replyInfo : undefined;
+  // "Reply in another chat": the replied message's `replyToTopId` is a topic of the SOURCE chat, not of this one
+  const otherChatId = replyInfo?.replyToPeerId && replyInfo.replyToPeerId !== chat.id
+    ? replyInfo.replyToPeerId : undefined;
   // A comment thread's draft stays on this device: the server keeps drafts of chats and forum topics only
   if (!chat.isForum && replyInfo?.replyToTopId) return true;
-  const topicId = chat.isForum ? replyInfo?.replyToTopId : undefined;
+  const topicId = chat.isForum && !otherChatId ? replyInfo?.replyToTopId : undefined;
   const replyToMsgId = replyInfo?.replyToMsgId !== topicId ? replyInfo?.replyToMsgId : undefined;
   await pxgRpc.call('drafts.save', {
-    ...peer, topicId, text: draft?.text?.text || '', entities: draft?.text?.entities, replyToMsgId,
+    ...peer,
+    topicId,
+    text: draft?.text?.text || '',
+    // A mention carries a peer id of the owner's account: the device's own id would mean another person elsewhere
+    entities: buildProxyInputEntities(
+      draft?.text?.entities, peer.accountId, chat.pxgProxy?.permissions.useOwnerStickers,
+    ),
+    replyToMsgId,
   });
   return true;
 }

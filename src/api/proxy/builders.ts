@@ -226,9 +226,12 @@ export function buildProxySponsoredMessage(
   };
 }
 
-export function buildProxyDraft({ text, entities, replyToMsgId, topicId, date }: DraftDto): ApiDraft {
+export function buildProxyDraft(
+  { text, entities, replyToMsgId, topicId, date }: DraftDto, accountId: string,
+): ApiDraft {
   return {
-    text: text ? { text, entities } : undefined,
+    // The server keeps the raw TL entities of the owner's account: a mention carries that account's peer id
+    text: text ? { text, entities: buildProxyEntities(entities, accountId) } : undefined,
     replyInfo: replyToMsgId ? { type: 'message', replyToMsgId, replyToTopId: topicId || undefined } : undefined,
     date,
   };
