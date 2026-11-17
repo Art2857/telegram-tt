@@ -109,7 +109,6 @@ type StateProps = {
   isInSelectMode?: boolean;
   hasUnreadReaction?: boolean;
   hasUnreadPollVote?: boolean;
-  isResizingContainer?: boolean;
   scrollTargetPosition?: ScrollTargetPosition;
   isAccountFrozen?: boolean;
   noForwardsRequestExpirePeriod: number;
@@ -153,7 +152,6 @@ const ActionMessage = ({
   isInSelectMode,
   hasUnreadReaction,
   hasUnreadPollVote,
-  isResizingContainer,
   scrollTargetPosition,
   isAccountFrozen,
   noForwardsRequestExpirePeriod,
@@ -297,7 +295,6 @@ const ActionMessage = ({
     isFocused,
     focusDirection,
     noFocusHighlight,
-    isResizingContainer,
     isJustAdded,
     scrollTargetPosition,
   });
@@ -805,7 +802,7 @@ export default memo(withGlobal<OwnProps>(
     const {
       direction: focusDirection,
       noHighlight: noFocusHighlight,
-      isResizingContainer, scrollTargetPosition,
+      scrollTargetPosition,
     } = (isFocused && tabState.focusedMessage) || {};
 
     const isCurrentUserPremium = selectIsCurrentUserPremium(global);
@@ -840,7 +837,6 @@ export default memo(withGlobal<OwnProps>(
       actionMessageBg: selectActionMessageBg(global),
       hasUnreadReaction,
       hasUnreadPollVote,
-      isResizingContainer,
       scrollTargetPosition,
       isAccountFrozen,
       noForwardsRequestExpirePeriod: global.appConfig.noForwardsRequestExpirePeriod,

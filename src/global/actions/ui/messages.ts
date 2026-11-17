@@ -401,7 +401,7 @@ addActionHandler('focusNextReply', (global, actions, payload): ActionReturnType 
 addActionHandler('focusMessage', (global, actions, payload): ActionReturnType => {
   const {
     chatId, threadId = MAIN_THREAD_ID, messageListType = 'thread', noHighlight, groupedId, groupedChatId,
-    replyMessageId, isResizingContainer, shouldReplaceHistory, noForumTopicPanel, quote, quoteOffset,
+    replyMessageId, isSendFocus, shouldReplaceHistory, noForumTopicPanel, quote, quoteOffset,
     scrollTargetPosition, timestamp, tabId = getCurrentTabId(),
   } = payload;
 
@@ -447,7 +447,7 @@ addActionHandler('focusMessage', (global, actions, payload): ActionReturnType =>
     messageId,
     threadId,
     noHighlight,
-    isResizingContainer,
+    isSendFocus,
     quote,
     quoteOffset,
     scrollTargetPosition,

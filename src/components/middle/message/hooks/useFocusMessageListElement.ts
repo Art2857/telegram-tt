@@ -14,7 +14,6 @@ import { requestAfterMessageListReflow } from '../../helpers/messageListReflow';
 import {
   getEffectiveMessageListBottomReserve,
   getMessageListTopReserve,
-  isSendCollapsePhaseActive,
 } from '../../helpers/messageListReserves';
 
 // This is used when the viewport was replaced.
@@ -30,7 +29,6 @@ export default function useFocusMessageListElement({
   isFocused,
   focusDirection,
   noFocusHighlight,
-  isResizingContainer,
   isJustAdded,
   isQuote,
   scrollTargetPosition,
@@ -39,7 +37,6 @@ export default function useFocusMessageListElement({
   isFocused?: boolean;
   focusDirection?: FocusDirection;
   noFocusHighlight?: boolean;
-  isResizingContainer?: boolean;
   isJustAdded?: boolean;
   isQuote?: boolean;
   scrollTargetPosition?: ScrollTargetPosition;
@@ -82,7 +79,6 @@ export default function useFocusMessageListElement({
           bottomReserve,
           maxDistance,
           forceDirection: focusDirection,
-          forceNormalContainerHeight: isResizingContainer && !isSendCollapsePhaseActive(messagesContainer),
           shouldReturnMutationFn: true,
         });
 
@@ -105,6 +101,6 @@ export default function useFocusMessageListElement({
       }
     }
   }, [
-    elementRef, isFocused, focusDirection, noFocusHighlight, isResizingContainer, isQuote, scrollTargetPosition,
+    elementRef, isFocused, focusDirection, noFocusHighlight, isQuote, scrollTargetPosition,
   ]);
 }

@@ -816,7 +816,7 @@ const MessageList = ({
     }, [container]);
   });
 
-  const [getContainerHeight, prevContainerHeightRef] = useContainerHeight(containerRef, canPost && !isSelectModeActive);
+  const [getContainerHeight, prevContainerHeightRef] = useContainerHeight(containerRef);
 
   const handleWheel = useLastCallback((e: React.WheelEvent<HTMLDivElement>) => {
     if (e.deltaY > 0) {
@@ -886,14 +886,18 @@ const MessageList = ({
         scrollTopBeforeUpdateRef.current = container?.scrollTop;
         // Во время анимации сохраняем её цель; иначе берём положение до изменения DOM,
         // а не отложенный на 200 мс снимок обработчика прокрутки.
-        scrollBottomBeforeUpdateRef.current = container && !isAnimatingScroll(container)
-          ? container.scrollHeight - container.scrollTop - container.offsetHeight
-          : undefined;
+        if (container && !isAnimatingScroll(container)) {
+          const heightBeforeUpdate = Math.max(container.clientHeight, prevContainerHeightRef.current || 0);
+          scrollBottomBeforeUpdateRef.current = container.scrollHeight - container.scrollTop - heightBeforeUpdate;
+        } else {
+          scrollBottomBeforeUpdateRef.current = undefined;
+        }
         rememberScrollPositionRef.current();
       });
     },
     // This will run before modifying content and should match deps for `useLayoutEffectWithPrevDeps` below
-    [renderMessageIds, isViewportNewest, effectiveLiveTailStartOriginalId, rememberScrollPositionRef],
+    [renderMessageIds, isViewportNewest, effectiveLiveTailStartOriginalId, rememberScrollPositionRef,
+      prevContainerHeightRef],
   );
   useEffect(
     () => rememberScrollPositionRef.current(),
@@ -1033,7 +1037,10 @@ const MessageList = ({
       const reserveDelta = bottomReserve - currentBottomInset;
       const effectiveScrollHeight = scrollHeight + reserveDelta;
 
-      let bottomOffset = scrollOffset - (prevContainerHeight || offsetHeight);
+      const isResized = prevContainerHeight !== undefined && prevContainerHeight !== containerHeight;
+      let bottomOffset = isResized
+        ? scrollHeight - scrollTop - Math.max(prevContainerHeight, offsetHeight)
+        : scrollOffset - (prevContainerHeight || offsetHeight);
       const prevLastItemElement = previousLastCurrentMessageId !== undefined
         ? listItemElements.find(({ dataset }) => (
           Number(dataset.lastMessageId || dataset.messageId) === previousLastCurrentMessageId
@@ -1074,8 +1081,16 @@ const MessageList = ({
       const isAlreadyFocusing = currentLastMessageId !== undefined
         && memoFocusingIdRef.current === currentLastMessageId;
 
+      if (isResized && isAnimatingScroll(container)) {
+        return () => {
+          applyMessageListBottomInset(container, bottomReserve);
+          restartCurrentScrollAnimation();
+          isReplacingHistoryRef.current = false;
+        };
+      }
+
       // Animate incoming message, but if app is in background mode, scroll to the first unread
-      if (wasMessageAdded && isAtBottom && (!isAlreadyFocusing || shouldReleaseLiveTail) && (
+      if (!isResized && wasMessageAdded && isAtBottom && (!isAlreadyFocusing || shouldReleaseLiveTail) && (
         !hasLiveTail || shouldReleaseLiveTail
       )) {
         // Break out of `forceLayout`
@@ -1106,11 +1121,6 @@ const MessageList = ({
             }, SEND_FOCUS_DURATION);
           }
         });
-      }
-
-      const isResized = prevContainerHeight !== undefined && prevContainerHeight !== containerHeight;
-      if (isResized && isAnimatingScroll(container)) {
-        return undefined;
       }
 
       const anchor = anchorIdRef.current && container.querySelector(`#${anchorIdRef.current}`);
@@ -1201,13 +1211,15 @@ const MessageList = ({
         newScrollTop = scrollTop;
       } else if (shouldKeepAtBottom) {
         newScrollTop = scrollHeight - offsetHeight;
-        if (isInSendCollapsePhase) {
+        if (isInSendCollapsePhase && !isResized) {
           isParkedForSendCollapse = true;
           const revealShift = addedTailHeight + reserveDelta;
           if (revealShift > MIN_SEND_COLLAPSE_REVEAL_SHIFT && !noMessageSendingAnimation) {
             newScrollTop -= revealShift;
           }
         }
+      } else if (isResized && renderMessageIds === prevRenderMessageIds) {
+        newScrollTop = scrollTop;
       } else if (anchor) {
         const newAnchorTop = anchor.getBoundingClientRect().top;
         newScrollTop = scrollTop + (newAnchorTop - (anchorTopRef.current || 0));
@@ -1221,7 +1233,7 @@ const MessageList = ({
       }
 
       const isBottomAnchored = !liveTailElement && !shouldFocusLiveTail && typingDraftScrollTop === undefined
-        && !shouldRevealTypingDraft && (shouldKeepAtBottom || (!anchor && !unreadDivider));
+        && !shouldRevealTypingDraft && (shouldKeepAtBottom || (!isResized && !anchor && !unreadDivider));
       if (isBottomAnchored || isParkedForSendCollapse) {
         newScrollTop += reserveDelta;
       }

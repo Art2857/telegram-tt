@@ -364,7 +364,7 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
                 threadId: currentMessageList.threadId,
                 messageId: message.id,
                 noHighlight: true,
-                isResizingContainer: true,
+                isSendFocus: true,
                 tabId,
               });
             }

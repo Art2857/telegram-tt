@@ -27,7 +27,6 @@ export type AnimateScrollArgs = {
   maxDistance?: number;
   forceDirection?: FocusDirection;
   forceDuration?: number;
-  forceNormalContainerHeight?: boolean;
   shouldReturnMutationFn?: boolean;
   noHeavyAnimation?: boolean;
 };
@@ -82,7 +81,6 @@ function createMutateFunction(args: AnimateScrollArgs) {
     bottomReserve = 0,
     maxDistance = SCROLL_MAX_DISTANCE,
     forceDirection,
-    forceNormalContainerHeight,
     noHeavyAnimation,
   } = args;
 
@@ -99,23 +97,19 @@ function createMutateFunction(args: AnimateScrollArgs) {
   const { scrollTop: currentScrollTop, clientHeight: containerHeight, scrollHeight } = container;
   const elementTop = getOffsetToContainer(element, container).top;
 
-  const targetContainerHeight = forceNormalContainerHeight && container.dataset.normalHeight
-    ? Number(container.dataset.normalHeight)
-    : containerHeight;
-
   let scrollTo!: number;
   switch (position) {
     case 'start':
       scrollTo = (elementTop - margin) + (IS_ANDROID ? 1 : 0);
       break;
     case 'end':
-      scrollTo = (elementTop + elementHeight + margin) - targetContainerHeight;
+      scrollTo = (elementTop + elementHeight + margin) - containerHeight;
       break;
     // 'nearest' is not supported yet
     case 'nearest':
     case 'center':
     case 'centerOrTop': {
-      const visibleHeight = Math.max(0, targetContainerHeight - topReserve - bottomReserve);
+      const visibleHeight = Math.max(0, containerHeight - topReserve - bottomReserve);
       scrollTo = elementHeight < visibleHeight
         ? (elementTop + elementHeight / 2 - topReserve - visibleHeight / 2)
         : (elementTop - margin);
@@ -130,7 +124,7 @@ function createMutateFunction(args: AnimateScrollArgs) {
     const remainingPath = -scrollFrom;
     path = Math.max(path, remainingPath);
   } else if (path > 0) {
-    const remainingPath = scrollHeight - (scrollFrom + targetContainerHeight);
+    const remainingPath = scrollHeight - (scrollFrom + containerHeight);
     path = Math.min(path, remainingPath);
   }
 

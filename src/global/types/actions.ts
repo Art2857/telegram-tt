@@ -1141,7 +1141,7 @@ export interface ActionPayloads {
     groupedId?: string;
     groupedChatId?: string;
     replyMessageId?: number;
-    isResizingContainer?: boolean;
+    isSendFocus?: boolean;
     shouldReplaceHistory?: boolean;
     noForumTopicPanel?: boolean;
     quote?: string;

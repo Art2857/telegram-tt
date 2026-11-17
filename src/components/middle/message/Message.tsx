@@ -284,7 +284,6 @@ type StateProps = {
   focusedQuoteOffset?: number;
   noFocusHighlight?: boolean;
   scrollTargetPosition?: ScrollTargetPosition;
-  isResizingContainer?: boolean;
   isForwarding?: boolean;
   isChatWithSelf?: boolean;
   isBotForum?: boolean;
@@ -417,7 +416,6 @@ const Message = ({
   focusedQuoteOffset,
   noFocusHighlight,
   scrollTargetPosition,
-  isResizingContainer,
   isForwarding,
   isChatWithSelf,
   isBotForum,
@@ -1018,7 +1016,6 @@ const Message = ({
     isFocused,
     focusDirection,
     noFocusHighlight,
-    isResizingContainer,
     isJustAdded,
     isQuote: Boolean(focusedQuote),
     scrollTargetPosition,
@@ -2229,12 +2226,12 @@ export default memo(withGlobal<OwnProps>(
       isFocusTarget
       && shouldIgnoreSendFocus
       && focusedMessage?.noHighlight
-      && focusedMessage.isResizingContainer,
+      && focusedMessage.isSendFocus,
     );
     const isFocused = isFocusTarget && !shouldIgnoreFocus;
 
     const {
-      direction: focusDirection, noHighlight: noFocusHighlight, isResizingContainer,
+      direction: focusDirection, noHighlight: noFocusHighlight,
       quote: focusedQuote, quoteOffset: focusedQuoteOffset, scrollTargetPosition,
     } = (isFocused && focusedMessage) || {};
 
@@ -2408,7 +2405,6 @@ export default memo(withGlobal<OwnProps>(
       uploadProgress: typeof uploadProgress === 'number' ? uploadProgress : undefined,
       focusDirection: isFocused ? focusDirection : undefined,
       noFocusHighlight: isFocused ? noFocusHighlight : undefined,
-      isResizingContainer: isFocused ? isResizingContainer : undefined,
       focusedQuote: isFocused ? focusedQuote : undefined,
       focusedQuoteOffset: isFocused ? focusedQuoteOffset : undefined,
       scrollTargetPosition: isFocused ? scrollTargetPosition : undefined,

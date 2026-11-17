@@ -278,7 +278,7 @@ export type TabState = {
     messageId?: number;
     direction?: FocusDirection;
     noHighlight?: boolean;
-    isResizingContainer?: boolean;
+    isSendFocus?: boolean;
     quote?: string;
     quoteOffset?: number;
     scrollTargetPosition?: ScrollTargetPosition;
