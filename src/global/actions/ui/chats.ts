@@ -2,6 +2,7 @@ import type { ProfileTabType } from '../../../types';
 import type { ActionReturnType, GlobalState } from '../../types';
 import { MAIN_THREAD_ID } from '../../../api/types';
 
+import { IS_OPEN_IN_NEW_TAB_SUPPORTED } from '../../../util/browser/windowEnvironment';
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { createMessageHashUrl } from '../../../util/routing';
 import { addActionHandler, execAfterActions, getGlobal, setGlobal } from '../../index';
@@ -116,6 +117,8 @@ addActionHandler('processOpenChatOrThread', (global, actions, payload): ActionRe
 });
 
 addActionHandler('openChatInNewTab', (global, actions, payload): ActionReturnType => {
+  if (!IS_OPEN_IN_NEW_TAB_SUPPORTED) return;
+
   const { chatId, threadId = MAIN_THREAD_ID } = payload;
 
   const hashUrl = createMessageHashUrl(chatId, 'thread', threadId);

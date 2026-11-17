@@ -2,7 +2,7 @@ import {
   IS_TEST, PRODUCTION_HOSTNAME, SVG_NAMESPACE, VIDEO_RECORDING_MIME_TYPE,
 } from '../../config';
 import { requestForcedReflow, requestMutation } from '../../lib/fasterdom/fasterdom.ts';
-import { IS_TAURI } from './globalEnvironment';
+import { IS_ELECTRON, IS_TAURI } from './globalEnvironment';
 
 const MIN_CHROMIUM_TUCK_VERSION = 149;
 const CHROMIUM_VERSION = Number(
@@ -128,7 +128,7 @@ export const IS_OFFSET_PATH_SUPPORTED = CSS.supports('offset-rotate: 0deg');
 export const IS_BACKDROP_BLUR_SUPPORTED = CSS.supports('backdrop-filter: blur()')
   || CSS.supports('-webkit-backdrop-filter: blur()');
 export const IS_INSTALL_PROMPT_SUPPORTED = 'onbeforeinstallprompt' in window;
-export const IS_OPEN_IN_NEW_TAB_SUPPORTED = !(IS_PWA && IS_MOBILE);
+export const IS_OPEN_IN_NEW_TAB_SUPPORTED = !IS_TAURI && !IS_ELECTRON && !(IS_PWA && IS_MOBILE);
 export const IS_TRANSLATION_SUPPORTED = !IS_TEST;
 export const IS_TRANSLATION_DETECTOR_SUPPORTED = 'LanguageDetector' in window;
 export const IS_VIEW_TRANSITION_SUPPORTED = CSS.supports('view-transition-class: test')
