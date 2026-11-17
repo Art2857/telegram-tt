@@ -319,8 +319,10 @@ const MessageList = ({
 
   // We update local cached `scrollOffsetRef` when opening chat.
   // Then we update global version every second on scrolling.
+  // The preview has its own size and shows the chat as it is now: the offset of the chat window would put it
+  // higher than the newest messages when that window is taller than the preview
   const scrollOffsetRef = useRef<number>(
-    (type === 'thread' && (
+    (type === 'thread' && !isQuickPreview && (
       selectScrollOffset(getGlobal(), chatId, threadId)
       || selectLastScrollOffset(getGlobal(), chatId, threadId)
     ))
@@ -1229,7 +1231,8 @@ const MessageList = ({
           scrollHeight - scrollOffset,
         );
       } else {
-        newScrollTop = scrollHeight - scrollOffset;
+        // Without a known offset the list opens at its own end, not past it
+        newScrollTop = scrollHeight - (scrollOffset || offsetHeight);
       }
 
       const isBottomAnchored = !liveTailElement && !shouldFocusLiveTail && typingDraftScrollTop === undefined
