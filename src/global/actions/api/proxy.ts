@@ -196,11 +196,12 @@ addActionHandler('initProxyGuest', async (global, actions): Promise<void> => {
 addActionHandler('resetProxyGuest', (global, actions): ActionReturnType => {
   if (!global.currentUserId || !isProxyPeerId(global.currentUserId)) return;
   loadGeneration++;
-  // Signing out takes this person's history off the device
-  if (syncCursor) {
-    void forgetUserHistory(syncCursor.userId);
-    void forgetProxyFiles(syncCursor.userId);
-    void forgetUserSends(syncCursor.userId);
+  // Signing out takes this person's history off the device, also when the chats never finished loading
+  const userId = getPxgState().session?.user.id ?? syncCursor?.userId;
+  if (userId) {
+    void forgetUserHistory(userId);
+    void forgetProxyFiles(userId);
+    void forgetUserSends(userId);
   }
   setSyncCursor(undefined);
   global = clearProxyChats({ ...global, currentUserId: undefined });
