@@ -232,6 +232,8 @@ const MessageListContent = ({
     fabTriggerRef,
   } = useScrollHooks({
     type,
+    chatId,
+    threadId,
     containerRef,
     messageIds: historyMessageIds,
     getContainerHeight,

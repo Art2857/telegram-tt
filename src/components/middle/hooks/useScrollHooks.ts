@@ -2,7 +2,7 @@ import type { ElementRef } from '../../../lib/teact/teact';
 import { useEffect, useMemo, useRef } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
-import type { MessageListType } from '../../../types';
+import type { MessageListType, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
 import { LoadMoreDirection } from '../../../types';
 
@@ -25,6 +25,8 @@ const TOOLS_FREEZE_TIMEOUT = 350; // Approximate message sending animation durat
 
 export default function useScrollHooks({
   type,
+  chatId,
+  threadId,
   containerRef,
   messageIds,
   getContainerHeight,
@@ -35,6 +37,9 @@ export default function useScrollHooks({
   onScrollDownToggle,
 }: {
   type: MessageListType;
+  /** The list scrolls its own chat: the preview is not the current message list of the tab */
+  chatId: string;
+  threadId: ThreadId;
   containerRef: ElementRef<HTMLDivElement>;
   messageIds: number[];
   getContainerHeight: Signal<number | undefined>;
@@ -48,11 +53,17 @@ export default function useScrollHooks({
 
   const [loadMoreBackwards, loadMoreForwards] = useMemo(
     () => (type === 'thread' ? [
-      debounce(() => loadViewportMessages({ direction: LoadMoreDirection.Backwards }), 1000, true, false),
-      debounce(() => loadViewportMessages({ direction: LoadMoreDirection.Forwards }), 1000, true, false),
+      debounce(
+        () => loadViewportMessages({ direction: LoadMoreDirection.Backwards, chatId, threadId }),
+        1000, true, false,
+      ),
+      debounce(
+        () => loadViewportMessages({ direction: LoadMoreDirection.Forwards, chatId, threadId }),
+        1000, true, false,
+      ),
     ] : []),
     // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
-    [loadViewportMessages, messageIds],
+    [loadViewportMessages, messageIds, chatId, threadId],
   );
 
   const backwardsTriggerRef = useRef<HTMLDivElement>();
