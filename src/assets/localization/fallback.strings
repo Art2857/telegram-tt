@@ -5028,7 +5028,7 @@
 "PxgConnectQrMismatch" = "the code was scanned by a different Telegram account. Scan it with the one you signed in with here";
 "PxgConnectDisconnectNote" = "Disconnecting ends the server session in Telegram. The archive stays, guests lose live access.";
 "PxgShareTitle" = "Share chat";
-"PxgShareUsername" = "Who gets access (username or phone)";
+"PxgShareUsername" = "Username or phone";
 "PxgShareFind" = "Find";
 "PxgShareFound" = "{name} — in Proxygram";
 "PxgShareNotRegistered" = "@{username} has not signed in to Proxygram yet. Ask them to sign in as a guest and try again.";

@@ -114,4 +114,17 @@ describe('Share Chat', () => {
     expect(callRpc).toHaveBeenCalledWith('shares.create', expect.objectContaining({ granteeUserId: 'existing-guest' }));
     expect(callTelegram).not.toHaveBeenCalled();
   });
+
+  it('сохраняет ограничение истории при недоступном охвате', async () => {
+    lookup = { ...EMPTY_LOOKUP, knownToBot: true, candidate: CANDIDATE };
+    await findGuest();
+
+    button('PxgHistoryLastN')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    const coverage = root.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    await vi.waitFor(() => expect(coverage.disabled).toBe(true));
+    expect(root.textContent).toContain('PxgErrShareMembersHistory');
+    button('PxgShareGrant')!.click();
+
+    expect(callRpc).toHaveBeenCalledWith('shares.create', expect.objectContaining({ historyMode: 'last_n' }));
+  });
 });
