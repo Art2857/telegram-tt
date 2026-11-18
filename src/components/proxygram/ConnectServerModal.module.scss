@@ -149,3 +149,18 @@
   overflow-y: auto;
   max-height: 14rem;
 }
+
+.memberMode {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+
+  min-height: 2.5rem;
+  padding-inline: 0.5rem;
+
+  font-size: 0.875rem;
+}
+
+.memberRadio {
+  margin: 0;
+}

@@ -6,6 +6,7 @@ import type {
   GuestCandidate, Permissions, PresetKey, ReachablePage, UserLookup,
 } from '../../proxygram/server/types';
 import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
+import { REACHABLE_MEMBERS_PAGE_SIZE } from '../../proxygram/server/types';
 
 import { SERVICE_NOTIFICATIONS_USER_ID } from '../../config';
 import { getMainUsername, getUserFullName, isChatChannel } from '../../global/helpers';
@@ -42,11 +43,13 @@ type OutgoingShare = {
   accountId: string;
   scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
+  peerTitle?: string | null;
   topicId: number | null;
   folderId: number | null;
   excludePeerIds: number[];
   memberMode?: 'all' | 'selected' | 'none';
   memberIds?: number[];
+  excludeMemberIds?: number[];
   includeBots?: boolean;
   preset: PresetKey;
   permissions: Partial<Permissions>;
@@ -97,6 +100,13 @@ const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_HISTORY_LIMIT = 100_000;
 const MAX_RATE_LIMIT = 60;
 const MAX_GUEST_SUGGESTIONS = 6;
+const MAX_MEMBER_SELECTION = 5000;
+const MEMBER_CHOICES = {
+  all: 'PxgShareMembersAll',
+  selected: 'PxgShareMembersOnly',
+  except: 'PxgShareMembersExcept',
+} as const;
+type MemberChoice = keyof typeof MEMBER_CHOICES;
 /** The server answers about this many people at a time */
 const MAX_KNOWN_PEOPLE = 1000;
 const USERNAME = /^@?\w{5,32}$/;
@@ -109,6 +119,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const accounts = usePxgState((state) => state.accounts);
   const connection = usePxgState((state) => state.connection);
   const shareEditId = usePxgState((state) => state.shareEditId);
+  const shareAccountId = usePxgState((state) => state.shareAccountId);
   const shareRequest = usePxgState((state) => state.shareRequest);
   const contactIds = useSelector((global) => global.contactList?.userIds);
   const [shares, setShares] = useState<OutgoingShare[]>();
@@ -132,9 +143,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [revokeTarget, setRevokeTarget] = useState<{ kind: 'share' | 'invite'; id: string; name: string }>();
   const [isInviting, setIsInviting] = useState(false);
   const [coverMembers, setCoverMembers] = useState(false);
-  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
+  const [memberChoice, setMemberChoice] = useState<MemberChoice>('all');
+  const [chosenMembers, setChosenMembers] = useState<number[]>([]);
+  const [includeBots, setIncludeBots] = useState(false);
   const [memberQuery, setMemberQuery] = useState('');
+  const [memberOffset, setMemberOffset] = useState(0);
   const [memberPage, setMemberPage] = useState<ReachablePage>();
+  const [memberError, setMemberError] = useState<string>();
+  const [memberAttempt, setMemberAttempt] = useState(0);
   const [inviteLink, setInviteLink] = useState<string>();
   const [invites, setInvites] = useState<Invite[]>();
   const [error, setError] = useState<string>();
@@ -144,18 +160,22 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const loadRequestRef = useRef(0);
 
   const currentUserId = getGlobal().currentUserId;
-  const peerTitle = chatId && chatId === currentUserId ? lang('SavedMessages')
-    : chatId ? selectChat(getGlobal(), chatId)?.title : folder?.title;
-  const chat = chatId ? selectChat(getGlobal(), chatId) : undefined;
+  const account = accounts?.find((item) => item.status !== 'revoked'
+    && (shareAccountId ? item.id === shareAccountId : String(item.tgUserId) === currentUserId));
+  const isCurrentAccount = Boolean(account && String(account.tgUserId) === currentUserId);
+  const chat = chatId && isCurrentAccount ? selectChat(getGlobal(), chatId) : undefined;
+  const peerTitle = shareRequest?.peerTitle ?? (chatId && chatId === currentUserId && isCurrentAccount
+    ? lang('SavedMessages') : chat?.title ?? editing?.peerTitle ?? folder?.title);
   const isMemberScope = Boolean(editing?.scope.endsWith('_members'));
   // Охват участников: групповой чат или все чаты папки, но не канал и не тема
   const canCoverMembers = isMemberScope || (!editing && !isInviting && !topic
     && Boolean(folder || (chat && !isChatChannel(chat)
       && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup'))));
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
-  const account = accounts?.find((item) => String(item.tgUserId) === currentUserId && item.status !== 'revoked');
   const peerId = chatId ? Number(chatId) : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
+  const accountId = account?.id;
+  const folderId = folder?.id;
 
   const isSameTarget = (item: ShareTargetFields) => {
     if (folder) return (item.scope === 'folder' || item.scope === 'folder_members') && item.folderId === folder.id;
@@ -186,26 +206,44 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
   // Кого можно включить в охват: состав своего чата или всех чатов папки
   useEffect(() => {
-    if (!coverMembers || !canCoverMembers || !account) return undefined;
+    setMemberPage(undefined);
+    setMemberError(undefined);
+    if (!coverMembers || !canCoverMembers || memberChoice === 'all' || !accountId || connection !== 'online') {
+      return undefined;
+    }
     let isActive = true;
-    const timer = setTimeout(() => {
+    const refreshUntil = Date.now() + 25_000;
+    const fetchPage = () => {
       void pxgRpc.call<ReachablePage>('members.source', {
-        accountId: account.id,
-        ...(folder ? { folderId: folder.id, excludePeerIds: excludedIds } : { peerId }),
+        accountId,
+        ...(folderId !== undefined ? { folderId, excludePeerIds: excludedIds } : { peerId }),
         query: memberQuery.trim() || undefined,
+        offset: memberOffset,
+        includeBots,
       })
         .then((page) => {
-          if (isActive) setMemberPage(page);
+          if (!isActive) return;
+          const lastOffset = Math.floor(Math.max(0, page.total - 1) / REACHABLE_MEMBERS_PAGE_SIZE)
+            * REACHABLE_MEMBERS_PAGE_SIZE;
+          if (memberOffset > lastOffset) setMemberOffset(lastOffset);
+          else {
+            setMemberPage(page);
+            if (page.sourceSyncPending && Date.now() < refreshUntil) timer = setTimeout(fetchPage, 2500);
+          }
         })
-        .catch(() => {
-          if (isActive) setMemberPage(undefined);
+        .catch((err: unknown) => {
+          if (isActive) setMemberError(describePxgError(lang, err));
         });
-    }, 250);
+    };
+    let timer = setTimeout(fetchPage, 250);
     return () => {
       isActive = false;
       clearTimeout(timer);
     };
-  }, [coverMembers, canCoverMembers, account, folder, peerId, memberQuery, excludedIds]);
+  }, [
+    coverMembers, canCoverMembers, memberChoice, accountId, folderId, peerId, memberQuery,
+    memberOffset, memberAttempt, excludedIds, includeBots, connection, lang,
+  ]);
 
   useEffect(() => pxgRpc.on((event) => {
     if (event.e === 'shares.changed' || event.e === 'access.changed') loadShares();
@@ -226,7 +264,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
   const close = () => setPxgState({
     shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
-    shareRequest: undefined,
+    shareRequest: undefined, shareAccountId: undefined,
   });
 
   const resetForm = () => {
@@ -249,7 +287,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setExcludedIds([]);
     setIsInviting(false);
     setCoverMembers(false);
-    setSelectedMembers([]);
+    setMemberChoice('all');
+    setChosenMembers([]);
+    setIncludeBots(false);
+    setMemberOffset(0);
     setMemberQuery('');
     setMemberPage(undefined);
     setError(undefined);
@@ -386,7 +427,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
     setCoverMembers(share.scope.endsWith('_members') && share.memberMode !== 'none');
-    setSelectedMembers(share.memberMode === 'selected' ? share.memberIds ?? [] : []);
+    setMemberChoice(share.memberMode === 'selected' ? 'selected' : share.excludeMemberIds?.length ? 'except' : 'all');
+    setChosenMembers(share.memberMode === 'selected' ? share.memberIds ?? [] : share.excludeMemberIds ?? []);
+    setIncludeBots(Boolean(share.includeBots));
+    setMemberOffset(0);
     setMemberQuery('');
     setMemberPage(undefined);
   };
@@ -433,7 +477,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         ? new Date(`${historySince}T00:00:00`).toISOString() : undefined,
       expiresAt: expiresAt(),
     };
-    const memberMode = !coverMembers ? 'none' as const : selectedMembers.length ? 'selected' as const : 'all' as const;
+    const memberMode = !coverMembers ? 'none' : memberChoice === 'selected' ? 'selected' : 'all';
+    const memberIds = memberChoice === 'selected' ? chosenMembers : [];
+    const excludeMemberIds = memberChoice === 'except' ? chosenMembers
+      : memberChoice === 'selected' ? editing?.excludeMemberIds ?? [] : [];
     try {
       if (isInviting) {
         const result = await pxgRpc.call<{ link: string }>('invites.create', {
@@ -450,19 +497,23 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           // The server clears the expiry only on an explicit JSON `null`
           // eslint-disable-next-line no-null/no-null
           expiresAt: expiry === 'keep' ? undefined : target.expiresAt ?? null,
-          ...(isMemberScope ? { memberMode, memberIds: selectedMembers } : {}),
+          ...(isMemberScope ? { memberMode, memberIds, excludeMemberIds, includeBots } : {}),
         });
       } else if (grantee) {
-        const coverageMemberIds = coverMembers && canCoverMembers ? selectedMembers : undefined;
-        await pxgRpc.call(coverageMemberIds ? 'shares.createWithMembers' : 'shares.create', {
+        const withMembers = coverMembers && canCoverMembers;
+        await pxgRpc.call(withMembers ? 'shares.createWithMembers' : 'shares.create', {
           ...common,
           ...target,
           accountId: account.id,
           // The access answers the guest's request: it becomes "approved" with a link to this access
-          requestId: shareRequest && guest?.user?.id === shareRequest.grantee.id ? shareRequest.id : undefined,
+          requestId: shareRequest?.id,
           ...grantee,
-          coverageMemberIds,
+          ...(withMembers ? { coverageMemberIds: memberIds, memberMode, excludeMemberIds, includeBots } : {}),
         });
+        if (shareRequest) {
+          close();
+          return;
+        }
       }
       resetForm();
       loadShares();
@@ -527,12 +578,12 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const isFormVisible = Boolean(editing || grantee || isInviting);
   const guestTgUserId = guest?.user?.tgUserId ?? guest?.candidate?.tgUserId;
   // PLAN.md 13: a member of the group sees it in their own Telegram as well, as long as the owner's client knows
-  const isGuestMember = Boolean(chatId && guestTgUserId !== undefined && selectChatFullInfo(getGlobal(), chatId)
-    ?.members?.some((member) => member.userId === String(guestTgUserId)));
+  const isGuestMember = Boolean(isCurrentAccount && chatId && guestTgUserId !== undefined
+    && selectChatFullInfo(getGlobal(), chatId)?.members?.some((member) => member.userId === String(guestTgUserId)));
   const isHistoryValid = Boolean(editing) || historyMode !== 'since_date'
     || Number.isFinite(Date.parse(historySince));
   // Chats of other owners may sit in the folder too: they are not this account's to share
-  const folderChatIds = folder ? getOrderedIds(folder.id) : undefined;
+  const folderChatIds = folder && isCurrentAccount ? getOrderedIds(folder.id) : undefined;
   const folderChats = useMemo(() => {
     // Telegram's service chat with login codes stays closed even inside a shared folder: the server skips it
     const ids = (folderChatIds ?? []).filter((id) => !isProxyPeerId(id) && id !== SERVICE_NOTIFICATIONS_USER_ID);
@@ -555,14 +606,157 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     if (patch.sendLimit !== undefined) setSendLimit(patch.sendLimit);
     if (patch.deleteLimit !== undefined) setDeleteLimit(patch.deleteLimit);
     if (patch.starsLimit !== undefined) setStarsLimit(patch.starsLimit);
-    if (patch.excludePeerIds !== undefined) setExcludedIds(patch.excludePeerIds);
+    if (patch.excludePeerIds !== undefined) {
+      setExcludedIds(patch.excludePeerIds);
+      setMemberOffset(0);
+    }
   });
   const suggestions = buildSuggestions();
+
+  function renderMemberSelection() {
+    return (
+      <>
+        <InputText
+          label={lang('PxgShareMembersFind')}
+          value={memberQuery}
+          onChange={(e) => {
+            setMemberQuery(e.target.value);
+            setMemberOffset(0);
+          }}
+        />
+        {memberError ? (
+          <div className={styles.options}>
+            <span role="alert" className={styles.secondary}>{memberError}</span>
+            <Button size="smaller" fluid={false} noFastClick onClick={() => setMemberAttempt((attempt) => attempt + 1)}>
+              {lang('Retry')}
+            </Button>
+          </div>
+        ) : !memberPage ? (
+          <p role="status" className={styles.secondary}>{lang('PxgAdminLoading')}</p>
+        ) : memberPage.people.length ? (
+          <div className={styles.memberList}>
+            {memberPage.people.map((person) => {
+              const name = [person.firstName, person.lastName].filter(Boolean).join(' ')
+                || person.username || String(person.tgUserId);
+              const sourceTitles = person.sources
+                .map((source) => source.title || lang('PxgShareMembersSource'))
+                .join(' · ');
+              const checked = chosenMembers.includes(person.tgUserId);
+              return (
+                <Checkbox
+                  key={person.tgUserId}
+                  checked={checked}
+                  disabled={isSaving || (!checked && chosenMembers.length >= MAX_MEMBER_SELECTION)}
+                  onCheck={(isChecked) => setChosenMembers((current) => (isChecked
+                    ? [...current, person.tgUserId]
+                    : current.filter((id) => id !== person.tgUserId)))}
+                  label={name}
+                  subLabel={[person.username ? `@${person.username}` : undefined, sourceTitles]
+                    .filter(Boolean).join(' · ')}
+                />
+              );
+            })}
+          </div>
+        ) : !memberPage.sourceSyncPending ? (
+          <p className={styles.secondary}>{lang('PxgShareMembersNobody')}</p>
+        ) : undefined}
+        {memberPage?.sourceSyncPending && (
+          <p role="status" className={styles.secondary}>{lang('PxgShareMembersSyncPending')}</p>
+        )}
+        <p className={styles.secondary}>
+          {memberChoice === 'selected' && !chosenMembers.length
+            ? lang('PxgShareMembersEmptySelection')
+            : lang(memberChoice === 'selected' ? 'PxgShareMembersSelected' : 'PxgShareMembersExcluded', {
+              count: chosenMembers.length,
+            })}
+        </p>
+        {memberPage && memberPage.total > REACHABLE_MEMBERS_PAGE_SIZE && (
+          <div className={styles.options}>
+            <Button
+              size="smaller"
+              fluid={false}
+              noFastClick
+              disabled={!memberOffset}
+              onClick={() => setMemberOffset(memberOffset - REACHABLE_MEMBERS_PAGE_SIZE)}
+            >
+              {lang('Back')}
+            </Button>
+            <span className={styles.secondary}>
+              {lang('PxgMembersPage', {
+                page: memberOffset / REACHABLE_MEMBERS_PAGE_SIZE + 1,
+                total: Math.ceil(memberPage.total / REACHABLE_MEMBERS_PAGE_SIZE),
+              })}
+            </span>
+            <Button
+              size="smaller"
+              fluid={false}
+              noFastClick
+              disabled={memberOffset + REACHABLE_MEMBERS_PAGE_SIZE >= memberPage.total}
+              onClick={() => setMemberOffset(memberOffset + REACHABLE_MEMBERS_PAGE_SIZE)}
+            >
+              {lang('Next')}
+            </Button>
+          </div>
+        )}
+      </>
+    );
+  }
 
   function renderForm() {
     const isCoverageBlockedByHistory = !editing && historyMode === 'last_n';
     return (
       <>
+        {canCoverMembers && (
+          <div className={styles.section}>
+            <Checkbox
+              checked={coverMembers}
+              disabled={isCoverageBlockedByHistory || isSaving}
+              onCheck={setCoverMembers}
+              label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
+              subLabel={lang(isCoverageBlockedByHistory ? 'PxgErrShareMembersHistory' : 'PxgShareMembersHint')}
+            />
+            {coverMembers && (
+              <>
+                <div className={styles.options} role="radiogroup" aria-label={lang('PxgShareMembersMode')}>
+                  {(Object.keys(MEMBER_CHOICES) as MemberChoice[]).map((choice) => (
+                    <label key={choice} className={styles.memberMode}>
+                      <input
+                        className={styles.memberRadio}
+                        type="radio"
+                        value={choice}
+                        name="pxg-member-coverage"
+                        checked={memberChoice === choice}
+                        disabled={isSaving}
+                        onChange={() => {
+                          setMemberChoice(choice);
+                          setChosenMembers([]);
+                          setMemberQuery('');
+                          setMemberOffset(0);
+                        }}
+                      />
+                      {lang(MEMBER_CHOICES[choice])}
+                    </label>
+                  ))}
+                </div>
+                <Checkbox
+                  label={lang('PxgShareMembersBots')}
+                  checked={includeBots}
+                  disabled={isSaving}
+                  onCheck={(value) => {
+                    setIncludeBots(value);
+                    setMemberOffset(0);
+                  }}
+                />
+                <p className={styles.secondary}>
+                  {lang(!permissions.write ? 'PxgShareMembersReadOnly'
+                    : permissions.startChats ? 'PxgShareMembersCanStart' : 'PxgShareMembersExisting')}
+                </p>
+                {memberChoice !== 'all' && renderMemberSelection()}
+              </>
+            )}
+          </div>
+        )}
+
         <ShareSettingsFields
           value={settings}
           isFolder={Boolean(folder)}
@@ -572,60 +766,6 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           folderChats={folderChats}
           onChange={changeSettings}
         />
-
-        {canCoverMembers && (
-          <div className={styles.section}>
-            <Checkbox
-              checked={coverMembers}
-              disabled={isCoverageBlockedByHistory || isSaving}
-              onCheck={(isChecked) => {
-                setCoverMembers(isChecked);
-                if (!isChecked) setSelectedMembers([]);
-              }}
-              label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
-              subLabel={lang(isCoverageBlockedByHistory ? 'PxgErrShareMembersHistory' : 'PxgShareMembersHint')}
-            />
-            {coverMembers && (
-              <>
-                <InputText
-                  label={lang('PxgShareMembersFind')}
-                  value={memberQuery}
-                  onChange={(e) => setMemberQuery(e.target.value)}
-                />
-                {memberPage?.people.length ? (
-                  <div className={styles.memberList}>
-                    {memberPage.people.map((person) => {
-                      const name = [person.firstName, person.lastName].filter(Boolean).join(' ')
-                        || person.username || String(person.tgUserId);
-                      const sourceTitles = person.sources
-                        .map((source) => source.title || lang('PxgShareMembersSource'))
-                        .join(' · ');
-                      return (
-                        <Checkbox
-                          key={person.tgUserId}
-                          checked={selectedMembers.includes(person.tgUserId)}
-                          onCheck={(isChecked) => setSelectedMembers((current) => (isChecked
-                            ? [...current, person.tgUserId]
-                            : current.filter((id) => id !== person.tgUserId)))}
-                          label={name}
-                          subLabel={[person.username ? `@${person.username}` : undefined, sourceTitles]
-                            .filter(Boolean).join(' · ')}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : memberPage ? (
-                  <p className={styles.secondary}>{lang('PxgShareMembersNobody')}</p>
-                ) : undefined}
-                <p className={styles.secondary}>
-                  {selectedMembers.length
-                    ? lang('PxgShareMembersSelected', { count: selectedMembers.length })
-                    : lang('PxgShareMembersAll')}
-                </p>
-              </>
-            )}
-          </div>
-        )}
 
         <div className={styles.buttons}>
           <Button noFastClick isLoading={isSaving} disabled={!isHistoryValid || isSaving} onClick={() => void save()}>
@@ -657,7 +797,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           <div className={styles.buttons}>
             <Button
               onClick={() => setPxgState({
-                shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, isConnectOpen: true,
+                shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+                shareRequest: undefined, shareAccountId: undefined, isConnectOpen: true,
               })}
             >
               {lang('PxgConnectTitle')}
@@ -668,7 +809,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         <>
           {editing ? (
             <p className={styles.ok}>{lang('PxgShareEditing', { name: displayName(editing.grantee) })}</p>
-          ) : (
+          ) : !shareRequest && (
             <div className={styles.find}>
               <InputText
                 label={lang('PxgShareUsername')}
@@ -695,7 +836,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
             </div>
           )}
 
-          {suggestions.length > 0 && (
+          {!shareRequest && suggestions.length > 0 && (
             <div className={styles.section}>
               <div className={styles.sectionTitle}>
                 {lang(username.trim() ? 'PxgShareSuggestions' : 'PxgShareContactsInSystem')}
@@ -742,7 +883,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               {lang('PxgShareGuestIsMember', { name: displayName(guest?.user ?? guest?.candidate) })}
             </p>
           )}
-          {!editing && !isInviting && (
+          {!editing && !isInviting && !shareRequest && (
             <Button size="smaller" noFastClick isText fluid={false} onClick={startInvite}>
               {lang('PxgInviteCreate')}
             </Button>

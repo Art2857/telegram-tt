@@ -33,6 +33,7 @@ import {
   getChatSelectionKeyHash,
   includesChatSelectionKey,
 } from '../../util/keys/chatSelectionKey';
+import { isProxyPeerId } from '../../api/proxy/ids';
 import { isSavedPeer } from '../../api/proxy/saved';
 import { getProxySendError } from '../../proxygram/sendErrors';
 import { pxgRpc } from '../../proxygram/server/rpc';
@@ -62,6 +63,7 @@ export type OwnProps = {
   isNativeDialog?: boolean;
   isForwarding?: boolean;
   shouldFilterInviteable?: boolean;
+  onlyNativeChats?: boolean;
   isMultiSelect?: boolean;
   withFolders?: boolean;
   footer?: TeactNode;
@@ -107,6 +109,7 @@ const RecipientPicker = ({
   orderedFolderIds,
   isForwarding,
   shouldFilterInviteable,
+  onlyNativeChats,
   isMultiSelect,
   maxFolders,
   forwardMessages,
@@ -288,6 +291,7 @@ const RecipientPicker = ({
 
     // PXG: Messages of a shared chat go only to other shared chats
     return filterChatIdsByType(global, sorted, filter)
+      .filter((id) => !onlyNativeChats || !isProxyPeerId(id))
       .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id));
   }, [
     isOpen,
@@ -300,6 +304,7 @@ const RecipientPicker = ({
     filter,
     isForwarding,
     shouldFilterInviteable,
+    onlyNativeChats,
     orderedChatIds,
     shouldRenderFolders,
     chatsById,
@@ -314,9 +319,10 @@ const RecipientPicker = ({
       getIsRecipientAllowed(global, id, isForwarding, shouldFilterInviteable)
     ));
     return filterChatIdsByType(global, allowed, filter)
+      .filter((id) => !onlyNativeChats || !isProxyPeerId(id))
       .filter((id) => !isForwarding || getIsProxyForwardAllowed(global, id)) // PXG
       .slice(0, RECENT_CONTACTS_LIMIT);
-  }, [topPeerIds, contactIds, filter, isForwarding, shouldFilterInviteable]);
+  }, [topPeerIds, contactIds, filter, isForwarding, shouldFilterInviteable, onlyNativeChats]);
 
   const hasSelectedChips = isMultiSelect && selectedIds.length > 0;
 

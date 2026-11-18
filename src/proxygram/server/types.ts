@@ -971,12 +971,16 @@ export type ReachablePerson = {
   hasChat: boolean;
   /** Доступ разрешает написать первой */
   canStartChats: boolean;
+  startChatPermissions?: Permissions;
   sources: { peerId: number; title: string | null; scope: 'chat_members' | 'folder_members' }[];
 };
+
+export const REACHABLE_MEMBERS_PAGE_SIZE = 50;
 
 export type ReachablePage = {
   people: ReachablePerson[];
   total: number;
+  sourceSyncPending?: boolean;
 };
 
 export type StoryDto = {

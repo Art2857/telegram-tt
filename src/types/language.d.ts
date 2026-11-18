@@ -3550,6 +3550,7 @@ export interface LangPair {
   'PxgRequestsNoChat': undefined;
   'PxgRequestsNotFound': undefined;
   'PxgRequestsApprove': undefined;
+  'PxgRequestsChooseChat': undefined;
   'PxgRequestsReject': undefined;
   'PxgRequestPending': undefined;
   'PxgRequestApproved': undefined;
@@ -3846,7 +3847,16 @@ export interface LangPair {
   'PxgShareMembersHint': undefined;
   'PxgShareMembersFind': undefined;
   'PxgShareMembersNobody': undefined;
+  'PxgShareMembersMode': undefined;
   'PxgShareMembersAll': undefined;
+  'PxgShareMembersOnly': undefined;
+  'PxgShareMembersExcept': undefined;
+  'PxgShareMembersBots': undefined;
+  'PxgShareMembersEmptySelection': undefined;
+  'PxgShareMembersReadOnly': undefined;
+  'PxgShareMembersExisting': undefined;
+  'PxgShareMembersCanStart': undefined;
+  'PxgShareMembersSyncPending': undefined;
   'PxgShareMembersSource': undefined;
   'PxgShareMembersChip': undefined;
   'PxgShareList': undefined;
@@ -4345,6 +4355,7 @@ export interface LangPair {
   'PxgErrRequestRejectedRecently': undefined;
   'PxgErrRequestNotFound': undefined;
   'PxgErrRequestNotPending': undefined;
+  'PxgErrRequestTargetMismatch': undefined;
   'PxgErrVpnUnavailable': undefined;
   'PxgErrVpnControlDisabled': undefined;
   'PxgErrVpnSubscriptionUnavailable': undefined;
@@ -6813,6 +6824,13 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgShareMembersSelected': {
     'count': V;
   };
+  'PxgShareMembersExcluded': {
+    'count': V;
+  };
+  'PxgMembersPage': {
+    'page': V;
+    'total': V;
+  };
   'PxgShareEditing': {
     'name': V;
   };
@@ -8357,6 +8375,7 @@ export interface LangKeyGroups {
       | 'PxgArchiveCleared'
       | 'PxgAuditMassDelete'
       | 'PxgShareMembersSelected'
+      | 'PxgShareMembersExcluded'
       | 'PxgArchiveFound'
       | 'PxgAdminWarnAccounts'
       | 'PxgAdminWarnLease'
@@ -9526,6 +9545,11 @@ export interface LangKeyGroups {
     keys:
       | 'PxgConnectFailed';
     variables: 'reason';
+  };
+  'page,total': {
+    keys:
+      | 'PxgMembersPage';
+    variables: 'page' | 'total';
   };
   'names': {
     keys:

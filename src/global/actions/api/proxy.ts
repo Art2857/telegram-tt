@@ -1,10 +1,10 @@
 import type { ApiChat, ApiMessage } from '../../../api/types';
-import type { AccessChat, ChatStateDto, ChatUnreadDto } from '../../../proxygram/server/types';
+import type { AccessChat, ChatStateDto, ChatUnreadDto, ReachablePage } from '../../../proxygram/server/types';
 import type { RequiredGlobalActions } from '../../index';
 import type { ActionReturnType, GlobalState } from '../../types';
 import { PROXY_CONFIG, PROXY_REACTION_EMOJIS } from '../../../api/proxy/types';
 import { MAIN_THREAD_ID } from '../../../api/types';
-import { PxgError } from '../../../proxygram/server/types';
+import { PxgError, REACHABLE_MEMBERS_PAGE_SIZE } from '../../../proxygram/server/types';
 import { LoadMoreDirection } from '../../../types';
 
 import { ARCHIVED_FOLDER_ID } from '../../../config';
@@ -246,6 +246,20 @@ addActionHandler('applyProxyFolderPrefs', (global, actions, { prefs }): void => 
   setGlobal(global);
 });
 
+async function refreshLocalComposers(chats: ApiChat[]) {
+  const checked = new Map<string, ReachablePage['people'][number] | undefined>();
+  for (let offset = 0; offset < chats.length; offset += REACHABLE_MEMBERS_PAGE_SIZE) {
+    const batch = chats.slice(offset, offset + REACHABLE_MEMBERS_PAGE_SIZE);
+    const targets = batch.flatMap(({ pxgProxy }) => (pxgProxy
+      ? [{ accountId: pxgProxy.accountId, tgUserId: pxgProxy.peerId }] : []));
+    const page = await pxgRpc.call<ReachablePage>('members.reachable', { targets }).catch(() => undefined);
+    if (!page) continue;
+    const people = new Map(page.people.map((person) => [getProxyPeerId(person.accountId, person.tgUserId), person]));
+    batch.forEach(({ id }) => checked.set(id, people.get(id)));
+  }
+  return checked;
+}
+
 addActionHandler('loadProxyChats', async (global, actions, payload): Promise<void> => {
   const generation = ++loadGeneration;
   const userId = getPxgState().session?.user.id;
@@ -255,12 +269,28 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
   try {
     const result = await fetchProxyChats();
     if (!result || generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
+    const serverChatIds = new Set([...result.chatIds, ...(result.savedChat ? [result.savedChat.id] : [])]);
+    global = getGlobal();
+    const pending = Object.values(global.chats.byId).filter(
+      (chat) => chat.pxgProxy?.isLocal && !serverChatIds.has(chat.id),
+    );
+    const checked = await refreshLocalComposers(pending);
+    if (generation !== loadGeneration || userId !== getPxgState().session?.user.id) return;
     global = getGlobal();
     const previousChats = global.chats.byId;
     // A chat started from the reachable people has no access yet: the server knows it with the first message,
     // and until then it stays with its queued message
-    const localChats = Object.values(previousChats).filter((chat) => chat.pxgProxy?.isLocal);
-    const allowedIds = new Set(result.savedChat ? [...result.chatIds, result.savedChat.id] : result.chatIds);
+    const localChats = Object.values(previousChats).flatMap((chat) => {
+      if (!chat.pxgProxy?.isLocal || serverChatIds.has(chat.id)) return [];
+      if (!checked.has(chat.id)) return [chat];
+      const person = checked.get(chat.id);
+      if (!person?.canStartChats) return [];
+      return [{
+        ...chat,
+        pxgProxy: { ...chat.pxgProxy, permissions: person.startChatPermissions ?? chat.pxgProxy.permissions },
+      }];
+    });
+    const allowedIds = new Set(serverChatIds);
     localChats.forEach((chat) => allowedIds.add(chat.id));
     Object.values(global.byTabId).forEach(({ id: tabId, mediaViewer }) => {
       const chatId = selectCurrentMessageList(global, tabId)?.chatId;
@@ -293,11 +323,9 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     global = addChatListIds(global, 'archived', result.archivedChatIds);
     // A local chat whose access has not appeared yet comes back with its queued message; once the server
     // returns it, its own chat replaces the local one
-    const serverChatIds = new Set([...result.chatIds, ...(result.savedChat ? [result.savedChat.id] : [])]);
-    const keptLocalChats = localChats.filter((chat) => !serverChatIds.has(chat.id));
-    if (keptLocalChats.length) {
-      global = updateChats(global, buildCollectionByKey(keptLocalChats, 'id'));
-      global = addChatListIds(global, 'active', keptLocalChats.map((chat) => chat.id));
+    if (localChats.length) {
+      global = updateChats(global, buildCollectionByKey(localChats, 'id'));
+      global = addChatListIds(global, 'active', localChats.map((chat) => chat.id));
     }
     if (isProxyGuest()) {
       // A guest slot has only shared chats, so the pinned order is entirely the guest's own
@@ -542,7 +570,7 @@ addActionHandler('startProxyChat', (global, actions, payload): ActionReturnType 
     pxgProxy: {
       accountId,
       peerId: person.tgUserId,
-      permissions: resolvePermissions('full'),
+      permissions: person.startChatPermissions ?? resolvePermissions('readOnly', { write: true, startChats: true }),
       shareIds: [],
       // The server learns about this chat with the first message: until then it stays on the device
       isLocal: true,

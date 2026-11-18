@@ -91,6 +91,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const downloadedChat = usePxgState((state) => state.downloadedChat);
   const isAdmin = usePxgState((state) => state.session?.user.role === 'admin');
   const shareChatId = usePxgState((state) => state.shareChatId);
+  const shareAccountId = usePxgState((state) => state.shareAccountId);
   const shareFolder = usePxgState((state) => state.shareFolder);
   const shareTopic = usePxgState((state) => state.shareTopic);
   // архив этого аккаунта на сервере есть, даже если раздача сейчас на паузе или отключена
@@ -353,7 +354,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
       {isConnectOpen && <ConnectServerModal />}
       {(shareChatId || shareFolder) && (
         <ShareChatModal
-          key={`${shareChatId}:${shareFolder?.id}:${shareTopic?.id}`}
+          key={`${shareAccountId}:${shareChatId}:${shareFolder?.id}:${shareTopic?.id}`}
           chatId={shareChatId}
           folder={shareFolder}
           topic={shareTopic}

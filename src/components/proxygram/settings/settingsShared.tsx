@@ -141,6 +141,8 @@ export function openShareEditor(share: ShareRow) {
       shareFolder: { id: share.folderId!, title: share.folderTitle ?? '' },
       shareTopic: undefined,
       shareEditId: share.id,
+      shareAccountId: share.accountId,
+      shareRequest: undefined,
     });
     return;
   }
@@ -150,6 +152,8 @@ export function openShareEditor(share: ShareRow) {
     shareTopic: share.scope === 'topic' && share.topicId
       ? { id: share.topicId, title: share.topicTitle ?? '' } : undefined,
     shareEditId: share.id,
+    shareAccountId: share.accountId,
+    shareRequest: undefined,
   });
 }
 

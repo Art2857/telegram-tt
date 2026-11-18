@@ -1,12 +1,15 @@
 import { memo, useEffect, useMemo, useRef, useState } from '../../lib/teact/teact';
 import { getActions } from '../../global';
 
+import type { ReachablePage } from '../../proxygram/server/types';
+
 import { getMainUsername } from '../../global/helpers';
 import { selectChat, selectUser } from '../../global/selectors';
 import { resolveProxyPeer } from '../../api/proxy';
 import { loadPersonalContact } from '../../api/proxy/contacts';
 import { requestMemberAccess } from '../../proxygram/accessRequests';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
+import { usePxgData } from './settings/settingsShared';
 
 import useSelector from '../../hooks/data/useSelector';
 import useLang from '../../hooks/useLang';
@@ -21,7 +24,7 @@ import styles from './ProxyMemberProfile.module.scss';
 type OwnProps = { chatId: string; memberId: string; isMember?: boolean };
 
 const MemberProfile = ({ chatId, memberId, isMember }: OwnProps) => {
-  const { openChat } = getActions();
+  const { openChat, startProxyChat } = getActions();
   const lang = useLang();
   const source = useSelector((global) => selectChat(global, chatId)?.pxgProxy);
   const member = useSelector((global) => selectUser(global, memberId));
@@ -29,6 +32,15 @@ const MemberProfile = ({ chatId, memberId, isMember }: OwnProps) => {
   const isOnline = usePxgState((state) => state.connection === 'online');
   const identity = usePxgState((state) => state.session?.user.id);
   const tgUserId = resolveProxyPeer(memberId)?.peerId;
+  const { data: reach, error: reachError } = usePxgData<ReachablePage>(
+    'members.reachable', { accountId: source?.accountId, tgUserId }, ['access.changed'],
+  );
+  const reachable = source && reach?.people.find(
+    (person) => person.accountId === source.accountId && person.tgUserId === tgUserId,
+  );
+  const canOpenChat = hasPrivateAccess || Boolean(reachable?.hasChat);
+  const canWrite = isOnline && !canOpenChat && Boolean(reachable?.canStartChats);
+  const isCheckingAccess = isOnline && !hasPrivateAccess && !reach && !reachError;
   const hasSource = Boolean(source);
   const [note, setNote] = useState<string>();
   const [isRequesting, setIsRequesting] = useState(false);
@@ -58,6 +70,12 @@ const MemberProfile = ({ chatId, memberId, isMember }: OwnProps) => {
     openChat({ id: memberId });
   });
 
+  const handleWrite = useLastCallback(() => {
+    if (!canWrite || !reachable) return;
+    close();
+    startProxyChat({ accountId: reachable.accountId, person: reachable });
+  });
+
   const handleRequest = useLastCallback(async () => {
     if (!isOnline || requestRef.current || isRequested) return;
     requestRef.current = true;
@@ -80,7 +98,9 @@ const MemberProfile = ({ chatId, memberId, isMember }: OwnProps) => {
         <Avatar peer={visiblePeer} size="giant" />
         <div className={styles.name} dir="auto">{name}</div>
         {username && <p dir="ltr" className={styles.hint}>{`@${username}`}</p>}
-        {!hasPrivateAccess && <p className={styles.hint}>{lang('PxgMemberPrivateUnavailable')}</p>}
+        {!canOpenChat && !canWrite && (
+          <p className={styles.hint}>{lang(isCheckingAccess ? 'PxgAdminLoading' : 'PxgMemberPrivateUnavailable')}</p>
+        )}
         {note && (
           <div className={styles.note} dir="auto">
             <p className={styles.hint}>{lang('PxgContactPrivateNote')}</p>
@@ -91,9 +111,11 @@ const MemberProfile = ({ chatId, memberId, isMember }: OwnProps) => {
           <Button isText onClick={() => setPxgState({ memberProfile: undefined, personalContactUserId: memberId })}>
             {lang('PxgContactEdit')}
           </Button>
-          {hasPrivateAccess ? (
+          {canOpenChat ? (
             <Button onClick={handleOpenChat}>{lang('PxgMemberOpenChat')}</Button>
-          ) : isMember && (
+          ) : canWrite ? (
+            <Button noFastClick onClick={handleWrite}>{lang('PxgReachableWrite')}</Button>
+          ) : isMember && !isCheckingAccess && (
             <Button disabled={!isOnline || isRequested || isRequesting} onClick={handleRequest}>
               {lang(isRequested ? 'PxgRequestSent' : 'PxgRequestAccess')}
             </Button>

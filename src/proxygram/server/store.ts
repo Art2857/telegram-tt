@@ -43,12 +43,17 @@ export interface PxgState {
   shareTopic?: { id: number; title: string };
   /** Окно «Поделиться» открывается сразу в правке этого доступа (из профиля чата) */
   shareEditId?: string;
+  shareAccountId?: string;
   /** Панель разработчика: сообщение, о котором администратор смотрит данные архива */
   debugMessage?: { accountId: string; peerId: number; msgId: number };
   /** Журнал реакций сообщения: прокси-чата или своего */
   reactionLogMessage?: { accountId: string; peerId: number; msgId: number; isProxy: boolean };
   /** Окно «Поделиться» открыто из запроса доступа: получатель уже выбран, ответ запросу — сама выдача */
-  shareRequest?: { id: string; grantee: { id: string; tgUserId: number; username: string | null; name: string } };
+  shareRequest?: {
+    id: string;
+    peerTitle?: string;
+    grantee: { id: string; tgUserId: number; username: string | null; name: string };
+  };
   /** Окно «Скрыть от гостей»: сообщения своего чата (альбом — целиком) */
   hideMessages?: { accountId: string; peerId: number; chatId: string; msgIds: number[] };
   /** Окно переименования локальной папки доступа */
@@ -98,6 +103,7 @@ export function setPxgState(patch: Partial<PxgState>) {
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,
+      shareAccountId: undefined,
       debugMessage: undefined, reactionLogMessage: undefined, hideMessages: undefined, shareRequest: undefined,
       downloadedChat: undefined, sharedFolderEdit: undefined,
       personalContactUserId: undefined, memberProfile: undefined,

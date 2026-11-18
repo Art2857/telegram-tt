@@ -5,6 +5,7 @@ import type {
 } from './settingsTypes';
 
 import buildClassName from '../../../util/buildClassName';
+import { isProxyPeerId } from '../../../api/proxy/ids';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState } from '../../../proxygram/server/store';
 import { displayName, formatDateTime } from '../helpers';
@@ -13,6 +14,7 @@ import {
   usePxgData,
 } from './settingsShared';
 
+import RecipientPicker from '../../common/RecipientPicker';
 import Button from '../../ui/Button';
 import Modal from '../../ui/Modal';
 
@@ -217,16 +219,20 @@ export const OutgoingTab = memo(({
  */
 function IncomingRequests({ lang, t, run }: Pick<TabProps, 'lang' | 't' | 'run'>) {
   const { data, error, reload } = usePxgData<AccessRequestRow[]>('requests.incoming', {}, ['requests.changed']);
+  const [choosingFor, setChoosingFor] = useState<string>();
   if (!data) return <Loading error={error} lang={lang} onRetry={reload} />;
   if (data.length === 0) return <p className={styles.empty}>{lang('PxgRequestsEmpty')}</p>;
 
-  const approve = (request: AccessRequestRow) => setPxgState({
-    shareChatId: String(request.peerId),
+  const picking = data.find((request) => request.id === choosingFor && request.status === 'pending');
+  const approve = (request: AccessRequestRow, peerId: string) => setPxgState({
+    shareChatId: peerId,
     shareFolder: undefined,
     shareTopic: undefined,
     shareEditId: undefined,
+    shareAccountId: request.accountId ?? undefined,
     shareRequest: {
       id: request.id,
+      peerTitle: request.peerTitle ?? undefined,
       grantee: {
         id: request.requester.id,
         tgUserId: request.requester.tgUserId,
@@ -241,52 +247,75 @@ function IncomingRequests({ lang, t, run }: Pick<TabProps, 'lang' | 't' | 'run'>
   });
 
   return (
-    <table className={buildClassName(styles.table, styles.stacked)}>
-      <tbody>
-        {data.map((request) => (
-          <tr key={request.id}>
-            <td>
-              <div className={styles.name}>{request.requester.name}</div>
-              <div className={styles.secondary}>{formatDateTime(request.createdAt)}</div>
-            </td>
-            <td>
-              {request.peerTitle ?? request.query ?? '—'}
-              {request.originTitle && (
-                <div className={styles.secondary}>{t('PxgRequestsFromGroup', { title: request.originTitle })}</div>
-              )}
-              {request.context && (
-                <div className={styles.secondary}>
-                  {[
-                    request.context.hasChat ? t('PxgRequestsHasChat') : t('PxgRequestsNoChat'),
-                    t('PxgRequestsCommonGroups', { count: request.context.commonGroups }),
-                  ].join(' · ')}
-                </div>
-              )}
-              {request.query && !request.accountId && (
-                <div className={styles.secondary}>{lang('PxgRequestsNotFound')}</div>
-              )}
-              {request.status !== 'pending' && (
-                <div className={styles.secondary}>{t(REQUEST_STATUS_KEYS[request.status])}</div>
-              )}
-            </td>
-            <td className={styles.actions}>
-              {request.status === 'pending' && (
-                <>
-                  {Boolean(request.accountId) && (
-                    <Button size="tiny" color="translucent" isText onClick={() => approve(request)}>
-                      {lang('PxgRequestsApprove')}
+    <>
+      <table className={buildClassName(styles.table, styles.stacked)}>
+        <tbody>
+          {data.map((request) => (
+            <tr key={request.id}>
+              <td>
+                <div className={styles.name}>{request.requester.name}</div>
+                <div className={styles.secondary}>{formatDateTime(request.createdAt)}</div>
+              </td>
+              <td>
+                {request.peerTitle ?? request.query ?? '—'}
+                {request.originTitle && (
+                  <div className={styles.secondary}>{t('PxgRequestsFromGroup', { title: request.originTitle })}</div>
+                )}
+                {request.context && (
+                  <div className={styles.secondary}>
+                    {[
+                      request.context.hasChat ? t('PxgRequestsHasChat') : t('PxgRequestsNoChat'),
+                      t('PxgRequestsCommonGroups', { count: request.context.commonGroups }),
+                    ].join(' · ')}
+                  </div>
+                )}
+                {request.query && !request.accountId && (
+                  <div className={styles.secondary}>{lang('PxgRequestsNotFound')}</div>
+                )}
+                {request.status !== 'pending' && (
+                  <div className={styles.secondary}>{t(REQUEST_STATUS_KEYS[request.status])}</div>
+                )}
+              </td>
+              <td className={styles.actions}>
+                {request.status === 'pending' && (
+                  <>
+                    <Button
+                      size="tiny"
+                      color="translucent"
+                      isText
+                      noFastClick
+                      onClick={() => {
+                        if (typeof request.peerId === 'number') approve(request, String(request.peerId));
+                        else setChoosingFor(request.id);
+                      }}
+                    >
+                      {lang(typeof request.peerId === 'number' ? 'PxgRequestsApprove' : 'PxgRequestsChooseChat')}
                     </Button>
-                  )}
-                  <Button size="tiny" color="danger" isText onClick={() => void reject(request)}>
-                    {lang('PxgRequestsReject')}
-                  </Button>
-                </>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                    <Button size="tiny" color="danger" isText onClick={() => void reject(request)}>
+                      {lang('PxgRequestsReject')}
+                    </Button>
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {picking && (
+        <RecipientPicker
+          isOpen
+          onlyNativeChats
+          title={lang('PxgRequestsChooseChat')}
+          searchPlaceholder={lang('Search')}
+          onSelectRecipient={(peerId) => {
+            if (isProxyPeerId(peerId)) return;
+            setChoosingFor(undefined);
+            approve(picking, peerId);
+          }}
+          onClose={() => setChoosingFor(undefined)}
+        />
+      )}
+    </>
   );
 }
 

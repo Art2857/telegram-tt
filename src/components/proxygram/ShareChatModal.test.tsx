@@ -18,7 +18,10 @@ vi.mock('../../global/selectors', () => ({
 }));
 vi.mock('../../global/helpers', () => ({ isChatChannel: () => false }));
 vi.mock('../../hooks/data/useSelector', () => ({ default: () => undefined }));
-vi.mock('../../hooks/useLang', () => ({ default: () => (key: string) => key }));
+vi.mock('../../hooks/useLang', () => {
+  const lang = (key: string, vars?: { count?: number }) => (vars?.count === undefined ? key : `${key} ${vars.count}`);
+  return { default: () => lang };
+});
 vi.mock('../../proxygram/server/rpc', () => ({
   pxgRpc: { call: callRpc, on: () => () => {} },
 }));
@@ -39,13 +42,23 @@ const EMPTY_LOOKUP = { registered: false, knownToBot: false, user: undefined, ca
 describe('Share Chat', () => {
   let root: HTMLElement;
   let lookup: Record<string, unknown>;
+  let sourceTotal: number;
 
   beforeEach(() => {
     lookup = EMPTY_LOOKUP;
+    sourceTotal = 0;
     callTelegram.mockReset();
-    callRpc.mockReset().mockImplementation((method: string) => {
+    callRpc.mockReset().mockImplementation((method: string, params?: { offset?: number }) => {
       if (method === 'users.lookup') return Promise.resolve(lookup);
-      if (method === 'members.source') return Promise.resolve({ people: [] });
+      if (method === 'members.source') {
+        const offset = params?.offset || 0;
+        const people = Array.from({ length: Math.min(50, sourceTotal - offset) }, (_, index) => ({
+          tgUserId: 500 + index + offset,
+          firstName: `Member ${index + offset + 1}`,
+          sources: [],
+        }));
+        return Promise.resolve({ people, total: sourceTotal });
+      }
       return Promise.resolve([]);
     });
     root = document.createElement('main');
@@ -99,6 +112,50 @@ describe('Share Chat', () => {
       scope: 'chat', grantee: CANDIDATE, coverageMemberIds: [],
     }));
     expect(callRpc).not.toHaveBeenCalledWith('shares.create', expect.anything());
+  });
+
+  it('снятие последней галочки оставляет пустой выбор', async () => {
+    lookup = { ...EMPTY_LOOKUP, candidate: CANDIDATE };
+    sourceTotal = 1;
+    await findGuest();
+    root.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await vi.waitFor(() => expect(root.querySelector('input[type="radio"][value="selected"]')).toBeTruthy());
+    root.querySelector<HTMLInputElement>('input[type="radio"][value="selected"]')!.click();
+    await vi.waitFor(() => expect(root.textContent).toContain('Member 1'));
+    const member = Array.from(root.querySelectorAll('label')).find((label) => label.textContent?.includes('Member 1'));
+    const checkbox = member?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(checkbox).toBeDefined();
+    checkbox!.click();
+    await vi.waitFor(() => expect(checkbox!.checked).toBe(true));
+    checkbox!.click();
+    await vi.waitFor(() => expect(root.textContent).toContain('PxgShareMembersEmptySelection'));
+    button('PxgShareGrant')!.click();
+    expect(callRpc).toHaveBeenCalledWith('shares.createWithMembers', expect.objectContaining({
+      memberMode: 'selected', coverageMemberIds: [], excludeMemberIds: [],
+    }));
+  });
+
+  it('сохраняет исключения с разных страниц списка', async () => {
+    lookup = { ...EMPTY_LOOKUP, candidate: CANDIDATE };
+    sourceTotal = 51;
+    await findGuest();
+    root.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await vi.waitFor(() => expect(root.querySelector('input[type="radio"][value="except"]')).toBeTruthy());
+    root.querySelector<HTMLInputElement>('input[type="radio"][value="except"]')!.click();
+    await vi.waitFor(() => expect(button('Next')).toBeDefined());
+    const choose = (name: string) => {
+      const label = Array.from(root.querySelectorAll('label')).find((item) => item.textContent?.trim() === name);
+      label?.querySelector<HTMLInputElement>('input')?.click();
+    };
+    choose('Member 1');
+    button('Next')!.click();
+    await vi.waitFor(() => expect(root.textContent).toContain('Member 51'));
+    choose('Member 51');
+    await vi.waitFor(() => expect(root.textContent).toContain('PxgShareMembersExcluded 2'));
+    button('PxgShareGrant')!.click();
+    expect(callRpc).toHaveBeenCalledWith('shares.createWithMembers', expect.objectContaining({
+      memberMode: 'all', coverageMemberIds: [], excludeMemberIds: [500, 550],
+    }));
   });
 
   it('выдаёт доступ существующему гостю по ID Proxygram', async () => {

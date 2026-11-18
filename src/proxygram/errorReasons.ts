@@ -131,6 +131,7 @@ export const PXG_ERROR_REASON_KEYS = {
   request_not_found: 'PxgErrRequestNotFound',
   request_owner_unknown: 'PxgErrRequestOwnerUnknown',
   request_not_pending: 'PxgErrRequestNotPending',
+  request_target_mismatch: 'PxgErrRequestTargetMismatch',
   saved_not_found: 'PxgErrSavedNotFound',
   saved_not_editable: 'PxgErrSavedNotEditable',
   cannot_block_self: 'PxgErrCannotBlockSelf',

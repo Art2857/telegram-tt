@@ -485,6 +485,7 @@ async function fetchMessages({
   }
   // Only a guest who may write pays, and only to a person: a group's price comes with the chat
   if (chat.pxgProxy?.permissions.write) prefetchProxyPaidPrice(peer.accountId, peer.peerId);
+  if (chat.pxgProxy?.isLocal) return buildHistoryPage([], 0, chat);
   const thread = { topicId: getTopicId(chat, threadId), threadId: getReplyThreadId(chat, threadId) };
   const historyId = sessionHistoryKey(peer, thread.topicId ?? thread.threadId);
   // Without a connection a call waits for it: the feed comes from the device at once, the sync catches up later
