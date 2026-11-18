@@ -7,7 +7,7 @@ import type { AdminShare } from './types';
 import { getServerTime } from '../../../util/serverTime';
 import { diffPermissions, resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
-import { describePxgError, displayName } from '../helpers';
+import { describePxgError, displayName, getShareGrantee } from '../helpers';
 
 import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
@@ -29,6 +29,7 @@ type OwnProps = { share?: AdminShare; onClose: NoneToVoidFunction };
 
 const SEARCH_DELAY_MS = 250;
 const PHONE = /^\+?[\d\s().-]{7,24}$/;
+const USERNAME = /^@?\w{5,32}$/;
 const MAX_HISTORY_LIMIT = 100_000;
 const DEFAULT_HISTORY_LIMIT = 100;
 const MAX_RATE_LIMIT = 60;
@@ -65,7 +66,13 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   const [targetResult, setTargetResult] = useState<{ key: string; data: Targets }>();
   const [error, setError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
+  const [isFinding, setIsFinding] = useState(false);
   const lookupRequestRef = useRef(0);
+  const isFolderScope = scope === 'folder' || scope === 'folder_members';
+  const isMemberScope = scope.endsWith('_members');
+  const lookupValue = username.trim();
+  const isPhoneLookup = PHONE.test(lookupValue);
+  const canFind = !isFinding && !isSaving && (isPhoneLookup || USERNAME.test(lookupValue));
   const targetsKey = JSON.stringify({
     accountId,
     peerId: scope === 'topic' ? peerId : undefined,
@@ -127,16 +134,19 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   });
 
   const findGuest = async () => {
+    if (!canFind) return;
     const request = ++lookupRequestRef.current;
     setGuest(undefined);
     setError(undefined);
+    setIsFinding(true);
     try {
-      const value = username.trim();
       const found = await pxgRpc.call<UserLookup>('users.lookup',
-        PHONE.test(value) ? { phone: value } : { username: value });
+        isPhoneLookup ? { phone: lookupValue } : { username: lookupValue });
       if (request === lookupRequestRef.current) setGuest(found);
     } catch (err) {
       if (request === lookupRequestRef.current) setError(describePxgError(lang, err));
+    } finally {
+      if (request === lookupRequestRef.current) setIsFinding(false);
     }
   };
 
@@ -144,10 +154,14 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
     ? targets?.folders.some((folder) => folder.id === folderId)
     : peers.some((peer) => peer.peerId === peerId)
       && (scope !== 'topic' || targets?.topics.some((topic) => topic.id === topicId))));
-  const isHistoryValid = Boolean(share) || settings.historyMode !== 'since_date'
-    || Boolean(settings.historySince && Number.isFinite(Date.parse(settings.historySince)));
-  const canSave = Boolean(accountId && hasTarget && isHistoryValid && (share || guest?.user || guest?.candidate)
-    && (scope !== 'folder' || targets));
+  const isLimitedHistoryAvailable = !isFolderScope && !isMemberScope;
+  const isHistoryValid = Boolean(share) || (
+    (settings.historyMode !== 'last_n' || isLimitedHistoryAvailable)
+    && (settings.historyMode !== 'since_date' || Number.isFinite(Date.parse(settings.historySince)))
+  );
+  const grantee = getShareGrantee(guest);
+  const canSave = Boolean(accountId && hasTarget && isHistoryValid && (share || grantee)
+    && (!isFolderScope || targets));
 
   const save = async () => {
     if (!canSave || isSaving) return;
@@ -175,12 +189,11 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
           // eslint-disable-next-line no-null/no-null
           expiresAt: settings.expiry === 'keep' ? undefined : expiresAt ?? null,
         });
-      } else {
+      } else if (grantee) {
         await pxgRpc.call('admin.shares.create', {
           ...common,
           accountId,
-          granteeUserId: guest?.user?.id,
-          grantee: guest?.user ? undefined : guest?.candidate,
+          ...grantee,
           scope,
           peerId: scope !== 'folder' && scope !== 'folder_members' ? peerId : undefined,
           topicId: scope === 'topic' ? topicId : undefined,
@@ -220,6 +233,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
               value={accountId}
               onChange={(e) => {
                 setAccountId(e.currentTarget.value);
+                setPeers([]);
                 setPeerId(undefined);
                 setTopicId(undefined);
                 setFolderId(undefined);
@@ -239,7 +253,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
               onChange={(e) => {
                 setScope(e.currentTarget.value as AdminShare['scope']);
                 setTopicId(undefined);
-                changeSettings({ excludePeerIds: [], historyMode: 'all' });
+                changeSettings({ excludePeerIds: [] });
               }}
             >
               <option value="chat">{lang('PxgAdminColChat')}</option>
@@ -314,13 +328,23 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
             <InputText
               label={lang('PxgShareUsername')}
               value={username}
+              disabled={isSaving}
               onChange={(e) => {
                 lookupRequestRef.current++;
+                setIsFinding(false);
                 setUsername(e.target.value);
                 setGuest(undefined);
+                setError(undefined);
               }}
             />
-            <Button size="smaller" fluid={false} onClick={() => void findGuest()} disabled={!username.trim()}>
+            <Button
+              size="smaller"
+              noFastClick
+              fluid={false}
+              onClick={() => void findGuest()}
+              disabled={!canFind}
+              isLoading={isFinding}
+            >
               {lang('PxgShareFind')}
             </Button>
           </div>
@@ -328,23 +352,33 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
             <p className={guest.user ? styles.ok : styles.secondary}>
               {guest.user || guest.candidate
                 ? lang('PxgShareFound', { name: displayName(guest.user || guest.candidate) })
-                : lang('PxgShareNotRegistered', { username: username.replace(/^@/, '') })}
+                : isPhoneLookup ? lang('PxgShareNotRegisteredPhone')
+                  : lang('PxgShareNotRegistered', { username: lookupValue.replace(/^@/, '') })}
             </p>
           )}
         </>
       )}
       <ShareSettingsFields
         value={settings}
-        isFolder={scope === 'folder' || scope === 'folder_members'}
-        isMemberCoverage={scope.endsWith('_members')}
+        isFolder={isFolderScope}
+        isMemberCoverage={isMemberScope}
         editingHistory={share?.historyMode}
         expiresAt={share?.expiresAt ?? undefined}
-        folderChats={scope === 'folder' || scope === 'folder_members' ? folderChats : undefined}
+        folderChats={isFolderScope ? folderChats : undefined}
         onChange={changeSettings}
       />
-      {error && <p className={styles.errorText}>{error}</p>}
+      {!share && !isHistoryValid && settings.historyMode === 'last_n' && (
+        <p className={styles.errorText}>{lang(isMemberScope ? 'PxgErrShareMembersHistory' : 'PxgErrLastNChatOnly')}</p>
+      )}
+      {error && <p className={styles.errorText} role="alert">{error}</p>}
       <div className={styles.row}>
-        <Button fluid={false} isLoading={isSaving} disabled={!canSave} onClick={() => void save()}>
+        <Button
+          noFastClick
+          fluid={false}
+          isLoading={isSaving}
+          disabled={!canSave || isSaving}
+          onClick={() => void save()}
+        >
           {lang(share ? 'PxgShareSave' : 'PxgShareGrant')}
         </Button>
         <Button fluid={false} color="translucent" onClick={onClose}>{lang('Cancel')}</Button>

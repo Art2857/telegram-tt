@@ -102,7 +102,7 @@ describe('Proxygram code has no hardcoded user-visible text', () => {
     }),
     ...import.meta.glob<string>('../api/proxy/**/*.ts', { query: '?raw', import: 'default', eager: true }),
     ...import.meta.glob<string>('../global/actions/api/proxy.ts', { query: '?raw', import: 'default', eager: true }),
-  }).filter(([path]) => !path.endsWith('.test.ts'))
+  }).filter(([path]) => !/\.test\.tsx?$/.test(path))
     .map(([path, source]) => [path, withoutComments(source)] as const);
   /** Language names are written in their own language, as in Telegram */
   const allowedCyrillic = [/name: '[^']+' \},$/];

@@ -18,7 +18,9 @@ import { isProxyPeerId } from '../../api/proxy/ids';
 import { diffPermissions, resolvePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
-import { describePxgError, displayName, formatDateTime } from './helpers';
+import {
+  describePxgError, displayName, formatDateTime, getShareGrantee,
+} from './helpers';
 
 import useSelector from '../../hooks/data/useSelector';
 import useLang from '../../hooks/useLang';
@@ -147,9 +149,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const chat = chatId ? selectChat(getGlobal(), chatId) : undefined;
   const isMemberScope = Boolean(editing?.scope.endsWith('_members'));
   // Охват участников: групповой чат или все чаты папки, но не канал и не тема
-  const canCoverMembers = (!editing || isMemberScope) && !isInviting && !topic
+  const canCoverMembers = isMemberScope || (!editing && !isInviting && !topic
     && Boolean(folder || (chat && !isChatChannel(chat)
-      && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup')));
+      && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup'))));
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const account = accounts?.find((item) => String(item.tgUserId) === currentUserId && item.status !== 'revoked');
   const peerId = chatId ? Number(chatId) : undefined;
@@ -250,6 +252,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setSelectedMembers([]);
     setMemberQuery('');
     setMemberPage(undefined);
+    setError(undefined);
   };
 
   const startInvite = () => {
@@ -357,7 +360,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       ? await callApi('getChatByPhoneNumber', value.replace(/[^\d+]/g, ''))
       : await callApi('getChatByUsername', value.replace(/^@/, ''));
     const user = result?.user;
-    if (!user || user.type !== 'userTypeRegular') return undefined;
+    if (!user || user.type !== 'userTypeRegular' || result.chat.id !== user.id) return undefined;
     return {
       tgUserId: Number(user.id),
       username: user.usernames?.find((item) => item.isActive)?.username,
@@ -371,6 +374,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setIsFinding(false);
     setEditing(share);
     setGuest(undefined);
+    setError(undefined);
     setPreset(share.preset);
     setPermissions(resolvePermissions(share.preset, share.permissions));
     setIsCustomizing(Object.keys(share.permissions).length > 0);
@@ -381,10 +385,10 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setStarsLimit(share.limits.starsPerDay ? String(share.limits.starsPerDay) : '');
     setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
-    if (share.scope.endsWith('_members')) {
-      setCoverMembers(true);
-      setSelectedMembers(share.memberIds ?? []);
-    }
+    setCoverMembers(share.scope.endsWith('_members') && share.memberMode !== 'none');
+    setSelectedMembers(share.memberMode === 'selected' ? share.memberIds ?? [] : []);
+    setMemberQuery('');
+    setMemberPage(undefined);
   };
 
   // Opened from the chat profile to change one particular access
@@ -402,15 +406,13 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   });
 
   const expiresAt = () => {
-    if (expiry === 'keep') return editing?.expiresAt || undefined;
     const days = EXPIRY_DAYS[expiry];
     return days ? new Date(getServerTime() * 1000 + days * DAY_MS).toISOString() : undefined;
   };
 
   const save = async () => {
-    // Button with isLoading is not disabled: a second click must not send a second create
-    if (isSaving) return;
-    if (!account || (!editing && !guest?.user && !guest?.candidate && !isInviting)) return;
+    if (isSaving || !account || !isHistoryValid) return;
+    if (!editing && !isInviting && !grantee) return;
     setIsSaving(true);
     setError(undefined);
     const common = {
@@ -444,44 +446,23 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       }
       if (editing) {
         await pxgRpc.call('shares.update', {
+          shareId: editing.id, ...common, label: label.trim(),
           // The server clears the expiry only on an explicit JSON `null`
           // eslint-disable-next-line no-null/no-null
-          shareId: editing.id, ...common, label: label.trim(), expiresAt: expiresAt() ?? null,
+          expiresAt: expiry === 'keep' ? undefined : target.expiresAt ?? null,
           ...(isMemberScope ? { memberMode, memberIds: selectedMembers } : {}),
         });
-      } else {
-        const base = await pxgRpc.call<{ id: string }>('shares.create', {
+      } else if (grantee) {
+        const coverageMemberIds = coverMembers && canCoverMembers ? selectedMembers : undefined;
+        await pxgRpc.call(coverageMemberIds ? 'shares.createWithMembers' : 'shares.create', {
           ...common,
           ...target,
           accountId: account.id,
           // The access answers the guest's request: it becomes "approved" with a link to this access
           requestId: shareRequest && guest?.user?.id === shareRequest.grantee.id ? shareRequest.id : undefined,
-          // Someone who has never signed in gets the account in advance and finds the chat at the first sign-in
-          ...(guest!.user ? { granteeUserId: guest!.user.id } : { guest: guest!.candidate! }),
+          ...grantee,
+          coverageMemberIds,
         });
-        // Охват участников — отдельный доступ: сам групповой чат он не открывает
-        if (coverMembers && canCoverMembers) {
-          try {
-            await pxgRpc.call('shares.create', {
-              ...common,
-              ...(folder
-                ? { scope: 'folder_members' as const, folderId: folder.id }
-                : { scope: 'chat_members' as const, peerId }),
-              historyMode: target.historyMode,
-              historyLimit: target.historyLimit,
-              historySince: target.historySince,
-              expiresAt: target.expiresAt,
-              memberMode: selectedMembers.length ? 'selected' : 'all',
-              memberIds: selectedMembers,
-              accountId: account.id,
-              ...(guest!.user ? { granteeUserId: guest!.user.id } : { guest: guest!.candidate! }),
-            });
-          } catch (err) {
-            // второй шаг не прошёл: не оставляем доступ, который открывает не то, что выбрал владелец
-            await pxgRpc.call('shares.revoke', { shareId: base.id }).catch(() => undefined);
-            throw err;
-          }
-        }
       }
       resetForm();
       loadShares();
@@ -542,12 +523,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   };
 
   const presetLabel = (key: PresetKey) => t(`PxgPreset${key[0].toUpperCase()}${key.slice(1)}`);
-  const isFormVisible = Boolean(editing || guest?.user || guest?.candidate || isInviting);
+  const grantee = getShareGrantee(guest);
+  const isFormVisible = Boolean(editing || grantee || isInviting);
   const guestTgUserId = guest?.user?.tgUserId ?? guest?.candidate?.tgUserId;
   // PLAN.md 13: a member of the group sees it in their own Telegram as well, as long as the owner's client knows
   const isGuestMember = Boolean(chatId && guestTgUserId !== undefined && selectChatFullInfo(getGlobal(), chatId)
     ?.members?.some((member) => member.userId === String(guestTgUserId)));
-  const isHistoryValid = historyMode !== 'since_date' || Boolean(historySince);
+  const isHistoryValid = Boolean(editing) || historyMode !== 'since_date'
+    || Number.isFinite(Date.parse(historySince));
   // Chats of other owners may sit in the folder too: they are not this account's to share
   const folderChatIds = folder ? getOrderedIds(folder.id) : undefined;
   const folderChats = useMemo(() => {
@@ -577,6 +560,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const suggestions = buildSuggestions();
 
   function renderForm() {
+    const isCoverageBlockedByHistory = !editing && historyMode === 'last_n';
     return (
       <>
         <ShareSettingsFields
@@ -593,16 +577,13 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
           <div className={styles.section}>
             <Checkbox
               checked={coverMembers}
+              disabled={isCoverageBlockedByHistory || isSaving}
               onCheck={(isChecked) => {
                 setCoverMembers(isChecked);
                 if (!isChecked) setSelectedMembers([]);
-                if (isChecked && historyMode === 'last_n') {
-                  setHistoryMode('all');
-                  setHistoryLimit(String(DEFAULT_HISTORY_LIMIT));
-                }
               }}
               label={lang(folder ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
-              subLabel={lang('PxgShareMembersHint')}
+              subLabel={lang(isCoverageBlockedByHistory ? 'PxgErrShareMembersHistory' : 'PxgShareMembersHint')}
             />
             {coverMembers && (
               <>
@@ -647,11 +628,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         )}
 
         <div className={styles.buttons}>
-          <Button isLoading={isSaving} disabled={!isHistoryValid} onClick={() => void save()}>
+          <Button noFastClick isLoading={isSaving} disabled={!isHistoryValid || isSaving} onClick={() => void save()}>
             {lang(editing ? 'PxgShareSave' : isInviting ? 'PxgInviteMake' : 'PxgShareGrant')}
           </Button>
           {(editing || isInviting) && (
-            <Button color="translucent" onClick={resetForm}>{lang('PxgShareCancelEdit')}</Button>
+            <Button color="translucent" disabled={isSaving} onClick={resetForm}>{lang('PxgShareCancelEdit')}</Button>
           )}
         </div>
       </>
@@ -692,18 +673,21 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
               <InputText
                 label={lang('PxgShareUsername')}
                 value={username}
+                disabled={isSaving}
                 onChange={(e) => {
                   lookupRequestRef.current++;
                   setIsFinding(false);
                   setUsername(e.target.value);
                   setGuest(undefined);
+                  setError(undefined);
                 }}
               />
               <Button
+                noFastClick
                 fluid={false}
                 size="smaller"
                 isLoading={isFinding}
-                disabled={!USERNAME.test(username.trim()) && !PHONE.test(username.trim())}
+                disabled={isFinding || isSaving || (!USERNAME.test(username.trim()) && !PHONE.test(username.trim()))}
                 onClick={() => void find()}
               >
                 {lang('PxgShareFind')}
@@ -759,7 +743,9 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
             </p>
           )}
           {!editing && !isInviting && (
-            <Button size="smaller" isText fluid={false} onClick={startInvite}>{lang('PxgInviteCreate')}</Button>
+            <Button size="smaller" noFastClick isText fluid={false} onClick={startInvite}>
+              {lang('PxgInviteCreate')}
+            </Button>
           )}
           {isInviting && <p className={styles.secondary}>{lang('PxgInviteHint')}</p>}
           {inviteLink && (
@@ -774,7 +760,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
 
           {isFormVisible && renderForm()}
 
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p className={styles.error} role="alert">{error}</p>}
 
           {Boolean(invites?.length) && (
             <div className={styles.section}>

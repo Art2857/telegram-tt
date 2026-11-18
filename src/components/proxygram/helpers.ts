@@ -1,9 +1,18 @@
-import type { MessageDto } from '../../proxygram/server/types';
+import type { GuestCandidate, MessageDto, UserLookup } from '../../proxygram/server/types';
 import type { LangFn } from '../../util/localization/types';
 import { PxgError } from '../../proxygram/server/types';
 
 import { getPxgReasonText } from '../../proxygram/errorReasons';
 import { getProxySendError } from '../../proxygram/sendErrors';
+
+type ShareGrantee = { granteeUserId: string; grantee?: never }
+  | { granteeUserId?: never; grantee: GuestCandidate };
+
+export function getShareGrantee(lookup?: UserLookup): ShareGrantee | undefined {
+  if (lookup?.user) return { granteeUserId: lookup.user.id };
+  if (lookup?.candidate) return { grantee: lookup.candidate };
+  return undefined;
+}
 
 const ERROR_KEYS: Record<string, string> = {
   network: 'PxgErrorNetwork',
