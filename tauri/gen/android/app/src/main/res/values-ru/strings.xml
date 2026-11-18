@@ -1,0 +1,6 @@
+<resources>
+    <string name="pxg_messages">Сообщения</string>
+    <string name="pxg_silent_messages">Тихие сообщения</string>
+    <string name="pxg_background_notifications">Фоновые уведомления Proxygram</string>
+    <string name="pxg_new_message">Новое сообщение</string>
+</resources>

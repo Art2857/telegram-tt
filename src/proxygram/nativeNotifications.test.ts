@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { parseAndroidTap } from './androidNotifications';
 import {
   appendChatLine, buildNativeNotification, getChatNotificationId, parseNotificationTarget,
 } from './nativeNotifications';
@@ -36,5 +37,17 @@ describe('уведомления приложения', () => {
     expect(parseNotificationTarget({
       actionId: 'dismiss', notification: { extra: { chatId: '1' } } as never,
     })).toBeUndefined();
+  });
+
+  it('Android передаёт серверный аккаунт, оригинальный ID, тему и слот до готовности веб-клиента', () => {
+    const tap = {
+      accountId: 'b4fa5036-3587-4e53-8073-b6884ce22e9c', pxgUserId: 'f24eac29-ab9a-4e59-8d64-a5a87801641e',
+      peerId: -1000000000890, messageId: 321, threadId: 7, slot: 2, receipt: '2b0c35c8-9b2e-42cc-b1a8-38b23f44bdd6',
+    };
+    expect(parseAndroidTap(JSON.stringify(tap))).toEqual(tap);
+    expect(parseAndroidTap(JSON.stringify({ ...tap, slot: 0 }))).toBeUndefined();
+    expect(parseAndroidTap(JSON.stringify({ ...tap, messageId: -1 }))).toBeUndefined();
+    expect(parseAndroidTap(JSON.stringify({ ...tap, peerId: '123' }))).toBeUndefined();
+    expect(parseAndroidTap(JSON.stringify({ ...tap, threadId: 0 }))?.threadId).toBeUndefined();
   });
 });

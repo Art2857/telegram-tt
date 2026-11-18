@@ -9,6 +9,8 @@ import {
   playNotifySound,
 } from '../../../util/notifications';
 import { isProxyGuest } from '../../../api/proxy';
+import { getAndroidNotifications } from '../../../proxygram/androidNotifications';
+import { usePxgState } from '../../../proxygram/server/store';
 
 import useHistoryBack from '../../../hooks/useHistoryBack';
 import useLang from '../../../hooks/useLang';
@@ -57,7 +59,10 @@ const SettingsNotifications = ({
   const runDebounced = useRunDebounced(500, true);
 
   const areNotificationsSupported = checkIfNotificationsSupported();
-  const areOfflineNotificationsSupported = areNotificationsSupported && !checkIfOfflinePushFailed();
+  const isAndroidApp = Boolean(getAndroidNotifications());
+  const hasPxgSession = usePxgState((state) => Boolean(state.session));
+  const areOfflineNotificationsSupported = isAndroidApp
+    ? hasPxgSession : areNotificationsSupported && !checkIfOfflinePushFailed();
 
   const areChannelsMuted = Boolean(notifyDefaults?.channels?.mutedUntil);
   const areGroupsMuted = Boolean(notifyDefaults?.groups?.mutedUntil);
@@ -154,11 +159,12 @@ const SettingsNotifications = ({
           onChange={handleWebNotificationsChange}
         />
         <Checkbox
-          label={lang('NotificationsOffline')}
+          label={lang(isAndroidApp ? 'PxgAndroidBackgroundNotifications' : 'NotificationsOffline')}
           disabled={!hasWebNotifications || !areOfflineNotificationsSupported}
-          subLabel={areOfflineNotificationsSupported
-            ? lang(hasPushNotifications ? 'UserInfoNotificationsEnabled' : 'UserInfoNotificationsDisabled')
-            : lang('SettingsOfflineNotificationUnsupported')}
+          subLabel={isAndroidApp ? lang(hasPxgSession ? 'PxgAndroidBackgroundHint' : 'PxgAndroidBackgroundSignIn')
+            : areOfflineNotificationsSupported
+              ? lang(hasPushNotifications ? 'UserInfoNotificationsEnabled' : 'UserInfoNotificationsDisabled')
+              : lang('SettingsOfflineNotificationUnsupported')}
           checked={hasPushNotifications}
           onChange={handlePushNotificationsChange}
         />

@@ -552,6 +552,10 @@
 "PxgMembersPage" = "{page} из {total}";
 "PxgShareMembersSource" = "чат-источник";
 "PxgShareMembersChip" = "участники";
+"PxgShareIncludesMembers" = "Лички с участниками";
+"PxgShareUseSameMemberRights" = "Применить эти права к личным чатам";
+"PxgShareSeparateMemberRights" = "У этой выдачи отдельно настроены права в личных чатах.";
+"PxgShareMembersRevokedTogether" = "Пауза и отзыв выдачи действуют и на её охват участников.";
 "PxgShareList" = "У кого есть доступ";
 "PxgShareRevoke" = "Отозвать";
 "PxgShareNeedServer" = "Чтобы делиться чатами, сначала разрешите раздачу с этого аккаунта.";
@@ -575,7 +579,13 @@
 "PxgPermForwardOut" = "Пересылать из чата";
 "PxgPermSeeArchive" = "Видеть удалённые и историю правок";
 "PxgPermSeeAttribution" = "Видеть, кто из гостей написал";
-"PxgPermMarkRead" = "Отмечать прочитанным у вас";
+"PxgPermMarkRead" = "Разрешить отметку «Прочитано» у вас";
+"PxgReadOwnerAction" = "Отметить прочитанным у владельца";
+"PxgReadOwnerDone" = "У владельца отмечено как прочитанное";
+"PxgReadOwnerEmpty" = "Нет доступных сообщений для отметки";
+"PxgAndroidBackgroundNotifications" = "Уведомления в фоне";
+"PxgAndroidBackgroundHint" = "Получайте сообщения из чатов, синхронизируемых через Proxygram. Пока доставка включена, Android показывает служебное уведомление.";
+"PxgAndroidBackgroundSignIn" = "Войдите в Proxygram, чтобы получать уведомления из его чатов в фоне.";
 "PxgPermTyping" = "Показывать «печатает» от вашего имени";
 "PxgPermSeePhones" = "Видеть номера телефонов участников";
 "PxgPermAdmin" = "Действия администратора";
@@ -671,7 +681,7 @@
 "PxgShareFolderChatsHint" = "Чаты без галочки останутся закрытыми. Добавленные в папку позже откроются сами.";
 "PxgSharePause" = "Пауза";
 "PxgShareResume" = "Возобновить";
-"PxgShareReadWarning" = "Когда гость читает чат, он отмечается прочитанным и у вас — можно пропустить новые сообщения.";
+"PxgShareReadWarning" = "У гостя свой счётчик непрочитанного. С этим правом гость может через меню чата отдельно отметить сообщения прочитанными в вашем Telegram.";
 "PxgAdminTitle" = "Администрирование";
 "PxgAdminOverview" = "Обзор";
 "PxgAdminUsers" = "Пользователи";

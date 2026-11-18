@@ -1,7 +1,8 @@
-import type { GuestCandidate, MessageDto, UserLookup } from '../../proxygram/server/types';
+import type { GuestCandidate, MemberCoverageSummary, MessageDto, UserLookup } from '../../proxygram/server/types';
 import type { LangFn } from '../../util/localization/types';
 import { PxgError } from '../../proxygram/server/types';
 
+import { getServerTime } from '../../util/serverTime';
 import { getPxgReasonText } from '../../proxygram/errorReasons';
 import { getProxySendError } from '../../proxygram/sendErrors';
 
@@ -71,6 +72,20 @@ export function formatDateTime(iso?: string | null) {
   return isToday
     ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleString([], { day: '2-digit', month: '2-digit', year, hour: '2-digit', minute: '2-digit' });
+}
+
+export function describeMemberCoverage(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  coverage: MemberCoverageSummary,
+) {
+  const label = t('PxgShareIncludesMembers');
+  if (coverage.status === 'paused') return `${label} · ${t('PxgShareStatusPaused')}`;
+  if (coverage.status === 'source_lost') return `${label} · ${t('PxgShareStatusLost')}`;
+  if (coverage.expiresAt && Date.parse(coverage.expiresAt) <= getServerTime() * 1000) {
+    return `${label} · ${t('PxgShareStatusExpired')}`;
+  }
+  return coverage.expiresAt
+    ? `${label} · ${t('PxgShareExpires', { date: formatDateTime(coverage.expiresAt) })}` : label;
 }
 
 export function displayName(user?: { username?: string | null; firstName?: string | null; tgUserId?: number } | null) {

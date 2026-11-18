@@ -42,6 +42,10 @@ export function resolvePermissions(preset: PresetKey, overrides: Partial<Permiss
   return { ...PRESETS[preset], ...overrides, read: true };
 }
 
+export function samePermissions(left: Permissions, right: Permissions) {
+  return PERMISSION_KEYS.every((key) => left[key] === right[key]);
+}
+
 /** Отличия от шаблона — только они хранятся в доступе */
 export function diffPermissions(preset: PresetKey, permissions: Permissions): Partial<Permissions> {
   return Object.fromEntries(PERMISSION_KEYS

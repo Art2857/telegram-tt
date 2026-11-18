@@ -3,18 +3,21 @@ import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type { ApiChat } from '../../api/types';
 import type { AccountDto, GuestBurstReason, OutboxDoneDto, OutgoingChatDto } from '../../proxygram/server/types';
+import type { ThreadId } from '../../types';
 import { MAIN_THREAD_ID } from '../../api/types';
 
-import { selectChat, selectCurrentMessageList } from '../../global/selectors';
+import { selectChat, selectCurrentMessageList, selectSettingsKeys } from '../../global/selectors';
 import { IS_TAURI } from '../../util/browser/globalEnvironment';
 import { IS_ANDROID } from '../../util/browser/windowEnvironment';
-import { closeMessageNotifications } from '../../util/notifications';
+import { closeMessageNotifications, requestPermission } from '../../util/notifications';
 import { callApi } from '../../api/gramjs';
 import { getProxyPeerId, setProxyUpdateHandler } from '../../api/proxy';
 import { buildProxyDraft, buildProxyUserStatus } from '../../api/proxy/builders';
 import { loadPersonalContactNames, refreshPersonalContact } from '../../api/proxy/contacts';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { isSavedPeer } from '../../api/proxy/saved';
+import { syncAndroidInbox } from '../../proxygram/androidInbox';
+import { androidTarget, getAndroidNotifications, stopAndroidInbox } from '../../proxygram/androidNotifications';
 import { getAndroidAppUpdate } from '../../proxygram/appDownloads';
 import { startGuestSettingsSync } from '../../proxygram/guestSettings';
 import {
@@ -27,6 +30,8 @@ import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgSession, signOutPxg } from '../../proxygram/server/session';
 import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store';
 import { formatDateTime } from './helpers';
+
+import useAndroidNotificationTap from '../../hooks/useAndroidNotificationTap';
 
 import AdminPanel from './admin/AdminPanel';
 import AppUpdateModal from './AppUpdateModal';
@@ -49,6 +54,11 @@ import TombstonesLoader from './TombstonesLoader';
 type StateProps = {
   currentUserId?: string;
   proxyPeer?: ApiChat['pxgProxy'];
+  visibleChatId?: string;
+  visibleTopic?: ThreadId;
+  showsAllTopics?: boolean;
+  hasOfflineNotifications?: boolean;
+  hasPasscode?: boolean;
 };
 
 const POLL_INTERVAL_MS = 1500;
@@ -75,7 +85,9 @@ export const connectDismissKey = (tgUserId: string | number) => `pxg-connect-dis
  * 2) один раз предлагает разрешить раздачу чатов (подключить сервер);
  * 3) держит окна «Поделиться чатом», подключения и админку.
  */
-const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
+const ProxygramBridge = ({
+  currentUserId, proxyPeer, visibleChatId, visibleTopic, showsAllTopics, hasOfflineNotifications, hasPasscode,
+}: StateProps) => {
   const {
     loadProxyChats, refreshProxyMessage, refreshProxyHistory, refreshProxyTopics, refreshProxyUnread,
     applyProxyChatState, applyProxyTyping, apiUpdate, showNotification,
@@ -105,15 +117,63 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
   const isGuest = Boolean(session?.level === 'guest' && currentUserId && isProxyPeerId(currentUserId));
   const recoveryAttemptedRef = useRef(new Set<string>());
 
-  // A tap on a notification of the app (Android, Windows) opens its chat (2026-11-15)
-  useEffect(() => listenNativeNotificationClicks(({ chatId, messageId, ownerId }) => {
+  useAndroidNotificationTap(currentUserId, connection === 'online');
+
+  // The legacy plugin delivers actions on Windows and on older Android APKs.
+  useEffect(() => listenNativeNotificationClicks(({ chatId, messageId, ownerId, threadId }) => {
     const global = getGlobal();
     if (!global.currentUserId || (ownerId ? ownerId !== global.currentUserId : !selectChat(global, chatId))) return;
     handleOpenedNativeNotification(chatId);
     const { focusMessage, openChat } = getActions();
-    if (messageId) focusMessage({ chatId, messageId, shouldReplaceHistory: true });
+    if (messageId) focusMessage({ chatId, threadId, messageId, shouldReplaceHistory: true });
     else openChat({ id: chatId, shouldReplaceHistory: true });
   }), []);
+
+  const sessionUserId = session?.user.id;
+  useEffect(() => {
+    const android = getAndroidNotifications();
+    if (!android) return undefined;
+    const peer = proxyPeer && sessionUserId ? {
+      accountId: proxyPeer.accountId, peerId: proxyPeer.peerId, pxgUserId: sessionUserId,
+    } : undefined;
+    const target = visibleChatId && currentUserId && androidTarget(visibleChatId, currentUserId, peer,
+      typeof visibleTopic === 'number' ? visibleTopic : undefined);
+    android.setVisible(target ? JSON.stringify({ ...target, allTopics: showsAllTopics }) : '');
+    return () => android.setVisible('');
+  }, [currentUserId, proxyPeer, sessionUserId, visibleChatId, visibleTopic, showsAllTopics]);
+
+  useEffect(() => {
+    if (!getAndroidNotifications() || !sessionUserId) return undefined;
+    if (!hasOfflineNotifications) {
+      stopAndroidInbox();
+      return undefined;
+    }
+    if (connection !== 'online') return undefined;
+    let isCurrent = true;
+    let isUpdating = false;
+    const sync = async () => {
+      if (isUpdating || document.visibilityState === 'hidden') return;
+      isUpdating = true;
+      try {
+        if (await requestPermission()) await syncAndroidInbox(() => isCurrent, Boolean(hasPasscode));
+      } catch {
+        // Reconnect or return to the foreground retries the registration.
+      } finally {
+        isUpdating = false;
+      }
+    };
+    const check = () => {
+      void sync();
+    };
+    check();
+    document.addEventListener('visibilitychange', check);
+    const interval = window.setInterval(check, RETRY_DELAY_MS);
+    return () => {
+      isCurrent = false;
+      document.removeEventListener('visibilitychange', check);
+      window.clearInterval(interval);
+    };
+  }, [connection, hasOfflineNotifications, sessionUserId, hasPasscode]);
 
   useEffect(() => {
     forgetNativeNotificationHistory();
@@ -272,6 +332,7 @@ const ProxygramBridge = ({ currentUserId, proxyPeer }: StateProps) => {
           closeMessageNotifications({
             chatId: getProxyPeerId(event.d.accountId, event.d.peerId),
             lastReadInboxMessageId: event.d.maxId,
+            threadId: event.d.topicId ?? undefined,
           });
         }
         refreshProxyUnread(event.d);
@@ -418,7 +479,17 @@ async function obtainSession(isActive: () => boolean) {
 
 export default memo(withGlobal(
   (global): Complete<StateProps> => {
-    const chatId = selectCurrentMessageList(global)?.chatId;
-    return { currentUserId: global.currentUserId, proxyPeer: chatId ? global.chats.byId[chatId]?.pxgProxy : undefined };
+    const list = selectCurrentMessageList(global);
+    const chat = list && selectChat(global, list.chatId);
+    const { hasPushNotifications, hasWebNotifications } = selectSettingsKeys(global);
+    return {
+      currentUserId: global.currentUserId,
+      proxyPeer: chat?.pxgProxy,
+      visibleChatId: list?.type === 'thread' ? chat?.id : undefined,
+      visibleTopic: chat?.isForum ? list?.threadId : undefined,
+      showsAllTopics: chat?.isForumAsMessages && list?.threadId === MAIN_THREAD_ID,
+      hasOfflineNotifications: hasWebNotifications && hasPushNotifications,
+      hasPasscode: global.passcode.hasPasscode,
+    };
   },
 )(ProxygramBridge));

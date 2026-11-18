@@ -8,7 +8,7 @@ import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
-import { describePxgError, formatDateTime } from '../helpers';
+import { describeMemberCoverage, describePxgError, formatDateTime } from '../helpers';
 
 import Button from '../../ui/Button';
 
@@ -182,6 +182,9 @@ export function describeShare(t: Translate, share: ShareRow) {
   if (share.status === 'paused') parts.push(t('PxgShareStatusPaused'));
   if (share.status === 'source_lost') parts.push(t('PxgShareStatusLost'));
   if (share.expiresAt) parts.push(t('PxgShareExpires', { date: formatDateTime(share.expiresAt) }));
+  if (share.memberCoverage && share.memberCoverage.memberMode !== 'none') {
+    parts.push(describeMemberCoverage(t, share.memberCoverage));
+  }
   return parts.join(' · ');
 }
 

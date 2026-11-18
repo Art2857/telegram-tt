@@ -3859,6 +3859,10 @@ export interface LangPair {
   'PxgShareMembersSyncPending': undefined;
   'PxgShareMembersSource': undefined;
   'PxgShareMembersChip': undefined;
+  'PxgShareIncludesMembers': undefined;
+  'PxgShareUseSameMemberRights': undefined;
+  'PxgShareSeparateMemberRights': undefined;
+  'PxgShareMembersRevokedTogether': undefined;
   'PxgShareList': undefined;
   'PxgShareRevoke': undefined;
   'PxgShareNeedServer': undefined;
@@ -3882,6 +3886,12 @@ export interface LangPair {
   'PxgPermSeeArchive': undefined;
   'PxgPermSeeAttribution': undefined;
   'PxgPermMarkRead': undefined;
+  'PxgReadOwnerAction': undefined;
+  'PxgReadOwnerDone': undefined;
+  'PxgReadOwnerEmpty': undefined;
+  'PxgAndroidBackgroundNotifications': undefined;
+  'PxgAndroidBackgroundHint': undefined;
+  'PxgAndroidBackgroundSignIn': undefined;
   'PxgPermTyping': undefined;
   'PxgPermSeePhones': undefined;
   'PxgPermAdmin': undefined;

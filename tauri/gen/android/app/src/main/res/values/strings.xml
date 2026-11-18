@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">"Proxygram"</string>
     <string name="main_activity_title">"Proxygram"</string>
+    <string name="pxg_messages">Messages</string>
+    <string name="pxg_silent_messages">Silent messages</string>
+    <string name="pxg_background_notifications">Proxygram background notifications</string>
+    <string name="pxg_new_message">New message</string>
 </resources>

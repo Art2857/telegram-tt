@@ -1,9 +1,12 @@
 import type { PluginListener } from '@tauri-apps/api/core';
 import type { ActionPerformed, Options } from '@tauri-apps/plugin-notification';
 
+import type { AndroidPeer } from './androidNotifications';
+
 import { IS_TAURI } from '../util/browser/globalEnvironment';
 import { IS_ANDROID } from '../util/browser/windowEnvironment';
 import { ACCOUNT_SLOT } from '../util/multiaccount';
+import { androidTarget, getAndroidNotifications } from './androidNotifications';
 
 /**
  * Уведомления приложения (APK и Windows) — как в Telegram: одно уведомление на чат с последними сообщениями,
@@ -12,7 +15,9 @@ import { ACCOUNT_SLOT } from '../util/multiaccount';
  * приложение (2026-11-15).
  */
 
-export type NotificationTarget = { chatId: string; messageId?: number; slot: number; ownerId?: string };
+export type NotificationTarget = {
+  chatId: string; messageId?: number; slot: number; ownerId?: string; threadId?: number;
+};
 
 /** Сколько последних сообщений чата видно в развёрнутом уведомлении Android */
 const MAX_LINES = 6;
@@ -57,7 +62,7 @@ export function appendChatLine(chatId: string, line: string) {
 }
 
 export function buildNativeNotification({
-  chatId, messageId, title, body, lines, isSilent, newCount, ownerId,
+  chatId, messageId, title, body, lines, isSilent, newCount, ownerId, threadId,
 }: {
   chatId: string;
   messageId: number;
@@ -66,6 +71,7 @@ export function buildNativeNotification({
   lines: string[];
   isSilent?: boolean;
   ownerId?: string;
+  threadId?: number;
   /** Сколько новых сообщений чата собрано в уведомлении */
   newCount: number;
 }): Options {
@@ -77,7 +83,7 @@ export function buildNativeNotification({
     ...(IS_ANDROID ? { group: GROUP } : {}),
     autoCancel: true,
     silent: isSilent || undefined,
-    extra: { chatId, messageId, slot: ACCOUNT_SLOT || 1, ownerId },
+    extra: { chatId, messageId, slot: ACCOUNT_SLOT || 1, ownerId, threadId },
   };
 }
 
@@ -87,8 +93,22 @@ const lastIdByChat = new Map<string, number>();
 
 export async function showNativeMessageNotification(params: {
   chatId: string; messageId: number; title: string; body: string; isSilent?: boolean;
-  ownerId?: string; isCurrent?: () => boolean;
+  ownerId?: string; threadId?: number; isReaction?: boolean; androidPeer?: AndroidPeer; isCurrent?: () => boolean;
 }) {
+  const android = getAndroidNotifications();
+  if (android && params.ownerId) {
+    if (params.isCurrent && !params.isCurrent()) return;
+    const lines = appendChatLine(`${params.chatId}:${params.threadId ?? ''}`, params.body);
+    android.show(JSON.stringify({
+      target: { ...androidTarget(params.chatId, params.ownerId, params.androidPeer, params.threadId),
+        messageId: params.messageId, reaction: params.isReaction },
+      title: params.title,
+      body: params.body,
+      isSilent: params.isSilent,
+      lines,
+    }));
+    return;
+  }
   const plugin = await getPlugin();
   if (params.isCurrent && !params.isCurrent()) return;
   const lines = appendChatLine(params.chatId, params.body);
@@ -128,7 +148,8 @@ export function parseNotificationTarget(event: Pick<ActionPerformed, 'actionId' 
   const messageId = Number(extra?.messageId) || undefined;
   const slot = Number(extra?.slot) || 1;
   const ownerId = typeof extra?.ownerId === 'string' ? extra.ownerId : undefined;
-  return { chatId, messageId, slot, ownerId } satisfies NotificationTarget;
+  const threadId = Number(extra?.threadId) || undefined;
+  return { chatId, messageId, slot, ownerId, threadId } satisfies NotificationTarget;
 }
 
 /**
@@ -136,7 +157,7 @@ export function parseNotificationTarget(event: Pick<ActionPerformed, 'actionId' 
  * уведомление обработает само
  */
 export function listenNativeNotificationClicks(onOpen: ClickHandler) {
-  if (!IS_TAURI) return undefined;
+  if (!IS_TAURI || getAndroidNotifications()) return undefined;
   clickHandlers.add(onOpen);
   if (!nativeListener) {
     const registration = getPlugin().then((plugin) => plugin.onAction((event) => {

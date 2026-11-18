@@ -5,7 +5,7 @@ import type {
   ApiPhoneCall, ApiUser,
 } from '../api/types';
 import type { GlobalState } from '../global/types';
-import { ApiMediaFormat } from '../api/types';
+import { ApiMediaFormat, MAIN_THREAD_ID } from '../api/types';
 
 import { APP_NAME, DEBUG, IS_TEST } from '../config';
 import {
@@ -22,6 +22,7 @@ import {
   mergeNotifySettings,
 } from '../global/helpers/notifications';
 import { getMessageSenderName } from '../global/helpers/peers';
+import { getMessageForumTopicId } from '../global/helpers/replies';
 import {
   selectCurrentMessageList,
   selectCustomEmoji,
@@ -34,13 +35,15 @@ import {
   selectTopicFromMessage,
 } from '../global/selectors';
 import { callApi } from '../api/gramjs';
-import { isProxyGuest } from '../api/proxy'; // PXG
+import { isProxyGuest, resolveProxyPeer } from '../api/proxy'; // PXG
+import { androidTarget, getAndroidNotifications, stopAndroidInbox } from '../proxygram/androidNotifications';
 import {
   clearNativeChatNotifications, isNativeNotifications, showNativeMessageNotification,
 } from '../proxygram/nativeNotifications'; // PXG
 import { subscribePxgPush } from '../proxygram/push'; // PXG
+import { getPxgState } from '../proxygram/server/store';
 import { IS_TAURI } from './browser/globalEnvironment';
-import { IS_SERVICE_WORKER_SUPPORTED, IS_TOUCH_ENV } from './browser/windowEnvironment';
+import { IS_ANDROID, IS_SERVICE_WORKER_SUPPORTED, IS_TOUCH_ENV } from './browser/windowEnvironment';
 import jsxToHtml from './element/jsxToHtml';
 import { buildCollectionByKey } from './iteratees';
 import { getTranslationFn } from './localization';
@@ -91,6 +94,7 @@ function checkIfPushSupported() {
 }
 
 export function checkIfNotificationsSupported() {
+  if (IS_TAURI && IS_ANDROID) return true;
   // Let's check if the browser supports notifications
   if (!('Notification' in window)) {
     if (DEBUG) {
@@ -152,18 +156,14 @@ function checkIfShouldResubscribe(subscription: PushSubscription | null) {
   return Date.now() - global.push.subscribedAt > expirationTime;
 }
 
+let nativePermission: Promise<boolean> | undefined;
+
 export async function requestPermission() {
   if (IS_TAURI) {
-    const tauriPlugin = await import('@tauri-apps/plugin-notification');
-    const tauriPermissionGranted = await tauriPlugin.isPermissionGranted();
-
-    if (!tauriPermissionGranted) {
-      const permission = await tauriPlugin.requestPermission();
-
-      return permission === 'granted';
-    }
-
-    return true;
+    nativePermission ??= import('@tauri-apps/plugin-notification').then(async (plugin) => (
+      await plugin.isPermissionGranted() || (await plugin.requestPermission()) === 'granted'
+    )).finally(() => { nativePermission = undefined; });
+    return nativePermission;
   }
 
   if (!('Notification' in window)) {
@@ -200,6 +200,10 @@ async function unsubscribeFromPush(subscription: PushSubscription | null) {
 }
 
 export async function unsubscribe() {
+  if (getAndroidNotifications()) {
+    stopAndroidInbox();
+    return;
+  }
   if (!checkIfPushSupported()) return;
   const serviceWorkerRegistration = await navigator.serviceWorker.ready;
   const subscription = await serviceWorkerRegistration.pushManager.getSubscription();
@@ -245,6 +249,15 @@ export async function subscribe() {
   const { setDeviceToken, updateWebNotificationSettings } = getActions();
   let hasWebNotifications = false;
   let hasPushNotifications = false;
+  if (IS_TAURI && IS_ANDROID) {
+    hasWebNotifications = await requestPermission().catch(() => false);
+    updateWebNotificationSettings({
+      hasWebNotifications,
+      hasPushNotifications: hasWebNotifications && getAndroidNotifications()
+        ? selectSettingsKeys(getGlobal()).hasPushNotifications : false,
+    });
+    return;
+  }
   // PXG: A guest slot receives pushes from the Proxygram server, not from Telegram
   if (isProxyGuest()) {
     hasPushNotifications = await subscribePxgPush().catch(() => false);
@@ -330,13 +343,15 @@ function checkIfShouldNotify(chat: ApiChat, message: Partial<ApiMessage>) {
     return false;
   }
   // On touch devices show notifications when chat is not active
-  if (IS_TOUCH_ENV) {
+  if (IS_TOUCH_ENV || (IS_TAURI && IS_ANDROID)) {
     const {
       chatId,
-      type,
+      type, threadId,
     } = selectCurrentMessageList(global) || {};
     // PXG: The app in the background with this chat open still notifies, as Telegram does
-    return !(chatId === chat.id && type === 'thread') || document.visibilityState === 'hidden';
+    const isTopicVisible = !chat.isForum || (threadId === MAIN_THREAD_ID && chat.isForumAsMessages)
+      || (message.content && threadId === getMessageForumTopicId(message as ApiMessage));
+    return !(chatId === chat.id && type === 'thread' && isTopicVisible) || document.visibilityState === 'hidden';
   }
   // On desktop show notifications when window is not focused
   return !document.hasFocus();
@@ -489,9 +504,13 @@ export async function notifyAboutMessage({
 
   // PXG: The app (Android, Windows) shows one notification per chat that opens it, through the plugin directly
   if (isNativeNotifications()) {
+    const threadId = chat.isForum && message.content ? getMessageForumTopicId(message as ApiMessage) : undefined;
+    const peer = chat.pxgProxy;
+    const pxgUserId = getPxgState().session?.user.id;
     void showNativeMessageNotification({
       chatId: chat.id, messageId: message.id, title, body, isSilent: isSilent || message.isSilent,
-      ownerId: currentUserId,
+      ownerId: currentUserId, threadId, isReaction,
+      androidPeer: peer && pxgUserId ? { accountId: peer.accountId, peerId: peer.peerId, pxgUserId } : undefined,
       isCurrent: () => currentUserId !== undefined && getGlobal().currentUserId === currentUserId,
     }).catch(() => undefined);
     return;
@@ -553,8 +572,23 @@ export async function notifyAboutMessage({
   }
 }
 
-export function closeMessageNotifications(payload: { chatId: string; lastReadInboxMessageId?: number }) {
-  clearNativeChatNotifications(payload.chatId, payload.lastReadInboxMessageId); // PXG
+export function closeMessageNotifications(payload: {
+  chatId: string; lastReadInboxMessageId?: number; threadId?: number;
+}) {
+  const android = getAndroidNotifications();
+  if (android && payload.lastReadInboxMessageId) {
+    const { currentUserId } = getGlobal();
+    const pxgUserId = getPxgState().session?.user.id;
+    const peer = resolveProxyPeer(payload.chatId);
+    if (currentUserId) {
+      const target = androidTarget(payload.chatId, currentUserId,
+        peer && pxgUserId ? { ...peer, pxgUserId } : undefined,
+        payload.threadId);
+      android.read(JSON.stringify(target), payload.lastReadInboxMessageId);
+    }
+  } else {
+    clearNativeChatNotifications(payload.chatId, payload.lastReadInboxMessageId);
+  }
   if (IS_TEST || !navigator.serviceWorker?.controller) return;
   navigator.serviceWorker.controller.postMessage({
     type: 'closeMessageNotifications',

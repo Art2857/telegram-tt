@@ -47,6 +47,22 @@ export type Permissions = Record<PermissionKey, boolean>;
 
 export type PresetKey = 'readOnly' | 'assistant' | 'full';
 
+export type MemberCoverageSummary = {
+  memberMode?: 'all' | 'selected' | 'none';
+  status: 'active' | 'paused' | 'source_lost';
+  expiresAt: string | null;
+};
+
+export type MemberCoverageSettings = MemberCoverageSummary & {
+  id: string;
+  memberMode: 'all' | 'selected' | 'none';
+  memberIds: number[];
+  excludeMemberIds: number[];
+  includeBots: boolean;
+  preset: PresetKey;
+  permissions: Partial<Permissions>;
+};
+
 export interface AccessChat {
   accountId: string;
   peerId: number;

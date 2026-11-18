@@ -5063,6 +5063,10 @@
 "PxgMembersPage" = "{page} of {total}";
 "PxgShareMembersSource" = "source chat";
 "PxgShareMembersChip" = "members";
+"PxgShareIncludesMembers" = "Private chats with members";
+"PxgShareUseSameMemberRights" = "Apply these permissions to private chats";
+"PxgShareSeparateMemberRights" = "This share has separately configured permissions for private chats.";
+"PxgShareMembersRevokedTogether" = "Pausing or revoking this share also applies to its member coverage.";
 "PxgShareList" = "Who has access";
 "PxgShareRevoke" = "Revoke";
 "PxgShareNeedServer" = "To share chats, first allow sharing from this account.";
@@ -5086,7 +5090,13 @@
 "PxgPermForwardOut" = "Forward from the chat";
 "PxgPermSeeArchive" = "See deleted messages and edit history";
 "PxgPermSeeAttribution" = "See which guest wrote a message";
-"PxgPermMarkRead" = "Mark the chat as read for you";
+"PxgPermMarkRead" = "Allow guests to mark as read for you";
+"PxgReadOwnerAction" = "Mark as read for the owner";
+"PxgReadOwnerDone" = "Marked as read for the owner";
+"PxgReadOwnerEmpty" = "No visible messages to mark as read";
+"PxgAndroidBackgroundNotifications" = "Background notifications";
+"PxgAndroidBackgroundHint" = "Keep receiving messages from chats synced through Proxygram. Android shows a status notification while delivery is on.";
+"PxgAndroidBackgroundSignIn" = "Sign in to Proxygram to receive its chat notifications in the background.";
 "PxgPermTyping" = "Show “typing” as you";
 "PxgPermSeePhones" = "See members' phone numbers";
 "PxgPermAdmin" = "Admin actions";
@@ -5182,7 +5192,7 @@
 "PxgShareFolderChatsHint" = "Unchecked chats stay closed to the guest. Chats added to the folder later open automatically.";
 "PxgSharePause" = "Pause";
 "PxgShareResume" = "Resume";
-"PxgShareReadWarning" = "When the guest reads the chat, it is marked as read for you too, so you may miss new messages.";
+"PxgShareReadWarning" = "Guests have their own unread count. This permission lets them mark messages as read in your Telegram from the chat menu.";
 "PxgAdminTitle" = "Administration";
 "PxgAdminOverview" = "Overview";
 "PxgAdminUsers" = "Users";

@@ -1,4 +1,4 @@
-import type { Permissions, PresetKey } from '../../../proxygram/server/types';
+import type { MemberCoverageSettings, Permissions, PresetKey } from '../../../proxygram/server/types';
 import type { HistoryMode } from '../ShareSettingsFields';
 
 export type AdminShare = {
@@ -9,6 +9,7 @@ export type AdminShare = {
   topicId: number | null;
   memberMode?: 'all' | 'selected' | 'none';
   memberIds?: number[];
+  memberCoverage?: MemberCoverageSettings | null;
   preset: PresetKey;
   permissions: Partial<Permissions>;
   historyMode: HistoryMode;
@@ -23,6 +24,7 @@ export type AdminShare = {
   lastUsedAt: string | null;
   account: { id: string; displayName: string | null };
   peerTitle: string | null;
+  peerType?: string | null;
   topicTitle: string | null;
   folderTitle: string | null;
   grantee: {

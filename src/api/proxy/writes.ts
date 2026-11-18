@@ -986,7 +986,7 @@ export async function markMessageListRead({
     ...peer, topicId, limit: 1,
   }).catch(() => undefined))?.messages[0]?.msgId;
   if (!readMaxId) return;
-  // The server always keeps the guest's own counters and marks the chat read for the owner only with `markRead`
+  // This changes the viewer's own read state. Delegating a read to the owner is a separate action.
   const isRead = await pxgRpc.call('messages.read', { ...peer, maxId: readMaxId, topicId })
     .then(() => true, () => false);
   if (isRead && !maxId) {

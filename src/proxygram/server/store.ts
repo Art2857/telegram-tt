@@ -5,6 +5,7 @@ import type { DownloadedChat } from '../downloadedChat';
 import type { AccountDto, PxgSettingsTab, StoredSession } from './types';
 
 import { ACCOUNT_SLOT } from '../../util/multiaccount';
+import { stopAndroidInbox } from '../androidNotifications';
 
 import useForceUpdate from '../../hooks/useForceUpdate';
 
@@ -100,6 +101,7 @@ export function setPxgState(patch: Partial<PxgState>) {
     state.session?.user.id !== patch.session?.user.id || state.session?.level !== patch.session?.level
   );
   if (isNewIdentity) {
+    stopAndroidInbox();
     state = { ...state,
       accounts: undefined, sharedCount: undefined, sharedChats: undefined,
       shareChatId: undefined, shareFolder: undefined, shareTopic: undefined, shareEditId: undefined,

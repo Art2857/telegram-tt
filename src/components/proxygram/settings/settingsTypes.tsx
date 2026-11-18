@@ -1,6 +1,6 @@
 import type useLang from '../../../hooks/useLang';
 import type {
-  AccountDto, PresetKey,
+  AccountDto, MemberCoverageSummary, PresetKey,
 } from '../../../proxygram/server/types';
 
 export type Person = { id: string; username: string | null; firstName: string | null } | null;
@@ -20,6 +20,7 @@ export type ShareRow = {
   folderId: number | null;
   folderTitle: string | null;
   hiddenAt?: string | null;
+  memberCoverage?: MemberCoverageSummary | null;
   preset: PresetKey;
   status: 'active' | 'paused' | 'source_lost';
   expiresAt: string | null;

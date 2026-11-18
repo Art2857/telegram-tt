@@ -3,7 +3,7 @@ import { getActions, getGlobal } from '../../global';
 
 import type { ApiUser } from '../../api/types';
 import type {
-  GuestCandidate, Permissions, PresetKey, ReachablePage, UserLookup,
+  GuestCandidate, MemberCoverageSettings, Permissions, PresetKey, ReachablePage, UserLookup,
 } from '../../proxygram/server/types';
 import type { Expiry, HistoryMode, ShareSettings } from './ShareSettingsFields';
 import { REACHABLE_MEMBERS_PAGE_SIZE } from '../../proxygram/server/types';
@@ -16,11 +16,11 @@ import { getOrderedIds } from '../../util/folderManager';
 import { getServerTime } from '../../util/serverTime';
 import { callApi } from '../../api/gramjs';
 import { isProxyPeerId } from '../../api/proxy/ids';
-import { diffPermissions, resolvePermissions } from '../../proxygram/permissions';
+import { diffPermissions, resolvePermissions, samePermissions } from '../../proxygram/permissions';
 import { pxgRpc } from '../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../proxygram/server/store';
 import {
-  describePxgError, displayName, formatDateTime, getShareGrantee,
+  describeMemberCoverage, describePxgError, displayName, formatDateTime, getShareGrantee,
 } from './helpers';
 
 import useSelector from '../../hooks/data/useSelector';
@@ -44,11 +44,13 @@ type OutgoingShare = {
   scope: 'chat' | 'topic' | 'folder' | 'chat_members' | 'folder_members';
   peerId: number | null;
   peerTitle?: string | null;
+  peerType?: string | null;
   topicId: number | null;
   folderId: number | null;
   excludePeerIds: number[];
   memberMode?: 'all' | 'selected' | 'none';
   memberIds?: number[];
+  memberCoverage?: MemberCoverageSettings | null;
   excludeMemberIds?: number[];
   includeBots?: boolean;
   preset: PresetKey;
@@ -146,6 +148,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const [memberChoice, setMemberChoice] = useState<MemberChoice>('all');
   const [chosenMembers, setChosenMembers] = useState<number[]>([]);
   const [includeBots, setIncludeBots] = useState(false);
+  const [useSharePermissions, setUseSharePermissions] = useState(false);
   const [memberQuery, setMemberQuery] = useState('');
   const [memberOffset, setMemberOffset] = useState(0);
   const [memberPage, setMemberPage] = useState<ReachablePage>();
@@ -167,10 +170,21 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   const peerTitle = shareRequest?.peerTitle ?? (chatId && chatId === currentUserId && isCurrentAccount
     ? lang('SavedMessages') : chat?.title ?? editing?.peerTitle ?? folder?.title);
   const isMemberScope = Boolean(editing?.scope.endsWith('_members'));
-  // Охват участников: групповой чат или все чаты папки, но не канал и не тема
-  const canCoverMembers = isMemberScope || (!editing && !isInviting && !topic
-    && Boolean(folder || (chat && !isChatChannel(chat)
-      && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup'))));
+  const groupSource = Boolean(chat && !isChatChannel(chat)
+    && (chat.type === 'chatTypeBasicGroup' || chat.type === 'chatTypeSuperGroup'))
+  || ['chat', 'megagroup', 'forum'].includes(editing?.peerType ?? '');
+  const canCoverMembers = !isInviting && !topic
+    && Boolean(isMemberScope || editing?.memberCoverage || folder || groupSource);
+  const coverage = editing?.memberCoverage;
+  const isChangingPermissions = Boolean(editing && (preset !== editing.preset
+    || !samePermissions(permissions, resolvePermissions(editing.preset, editing.permissions))));
+  const hasSeparateMemberPermissions = Boolean(editing && coverage
+    && !samePermissions(resolvePermissions(coverage.preset, coverage.permissions),
+      resolvePermissions(editing.preset, editing.permissions)));
+  const usesSavedMemberPermissions = Boolean(coverage && hasSeparateMemberPermissions
+    && !useSharePermissions && !isChangingPermissions);
+  const memberPermissions = coverage && usesSavedMemberPermissions
+    ? resolvePermissions(coverage.preset, coverage.permissions) : permissions;
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const peerId = chatId ? Number(chatId) : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
@@ -290,6 +304,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setMemberChoice('all');
     setChosenMembers([]);
     setIncludeBots(false);
+    setUseSharePermissions(false);
     setMemberOffset(0);
     setMemberQuery('');
     setMemberPage(undefined);
@@ -315,6 +330,13 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       // Someone who has never signed in is still found through the owner's own Telegram (PLAN.md 7.5)
       const candidate = found.registered || found.candidate ? found.candidate : await resolveCandidate(value, isPhone);
       if (request !== lookupRequestRef.current) return;
+      const tgUserId = found.user?.tgUserId ?? candidate?.tgUserId;
+      const existing = tgUserId === undefined ? undefined : shares?.find((item) =>
+        item.grantee.tgUserId === tgUserId && !item.scope.endsWith('_members'));
+      if (existing && !shareRequest) {
+        startEdit(existing);
+        return;
+      }
       setGuest({ ...found, candidate });
     } catch (err) {
       if (request === lookupRequestRef.current) setError(describePxgError(lang, err));
@@ -426,10 +448,14 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setStarsLimit(share.limits.starsPerDay ? String(share.limits.starsPerDay) : '');
     setExcludedIds(share.excludePeerIds);
     setIsInviting(false);
-    setCoverMembers(share.scope.endsWith('_members') && share.memberMode !== 'none');
-    setMemberChoice(share.memberMode === 'selected' ? 'selected' : share.excludeMemberIds?.length ? 'except' : 'all');
-    setChosenMembers(share.memberMode === 'selected' ? share.memberIds ?? [] : share.excludeMemberIds ?? []);
-    setIncludeBots(Boolean(share.includeBots));
+    const savedCoverage = share.scope.endsWith('_members') ? share : share.memberCoverage;
+    setCoverMembers(Boolean(savedCoverage && savedCoverage.memberMode !== 'none'));
+    setMemberChoice(savedCoverage?.memberMode === 'selected' ? 'selected'
+      : savedCoverage?.excludeMemberIds?.length ? 'except' : 'all');
+    setChosenMembers(savedCoverage?.memberMode === 'selected'
+      ? savedCoverage.memberIds ?? [] : savedCoverage?.excludeMemberIds ?? []);
+    setIncludeBots(Boolean(savedCoverage?.includeBots));
+    setUseSharePermissions(false);
     setMemberOffset(0);
     setMemberQuery('');
     setMemberPage(undefined);
@@ -477,10 +503,11 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         ? new Date(`${historySince}T00:00:00`).toISOString() : undefined,
       expiresAt: expiresAt(),
     };
-    const memberMode = !coverMembers ? 'none' : memberChoice === 'selected' ? 'selected' : 'all';
+    const memberMode = memberChoice === 'selected' ? 'selected' : 'all';
     const memberIds = memberChoice === 'selected' ? chosenMembers : [];
     const excludeMemberIds = memberChoice === 'except' ? chosenMembers
-      : memberChoice === 'selected' ? editing?.excludeMemberIds ?? [] : [];
+      : memberChoice === 'selected'
+        ? (isMemberScope ? editing?.excludeMemberIds : coverage?.excludeMemberIds) ?? [] : [];
     try {
       if (isInviting) {
         const result = await pxgRpc.call<{ link: string }>('invites.create', {
@@ -493,11 +520,19 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
       }
       if (editing) {
         await pxgRpc.call('shares.update', {
-          shareId: editing.id, ...common, label: label.trim(),
+          shareId: editing.id, ...common,
+          permissions: isChangingPermissions ? common.permissions : undefined,
+          label: label.trim(),
           // The server clears the expiry only on an explicit JSON `null`
           // eslint-disable-next-line no-null/no-null
           expiresAt: expiry === 'keep' ? undefined : target.expiresAt ?? null,
-          ...(isMemberScope ? { memberMode, memberIds, excludeMemberIds, includeBots } : {}),
+          ...(isMemberScope ? {
+            memberMode: coverMembers ? memberMode : 'none', memberIds, excludeMemberIds, includeBots,
+          } : canCoverMembers ? {
+            memberCoverage: coverMembers ? { memberMode, memberIds, excludeMemberIds, includeBots, useSharePermissions }
+              // eslint-disable-next-line no-null/no-null
+              : null,
+          } : {}),
         });
       } else if (grantee) {
         const withMembers = coverMembers && canCoverMembers;
@@ -703,7 +738,8 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
   }
 
   function renderForm() {
-    const isCoverageBlockedByHistory = !editing && historyMode === 'last_n';
+    const isCoverageBlockedByHistory = !isMemberScope && !coverage
+      && (editing?.historyMode ?? historyMode) === 'last_n';
     return (
       <>
         {canCoverMembers && (
@@ -748,9 +784,18 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                   }}
                 />
                 <p className={styles.secondary}>
-                  {lang(!permissions.write ? 'PxgShareMembersReadOnly'
-                    : permissions.startChats ? 'PxgShareMembersCanStart' : 'PxgShareMembersExisting')}
+                  {lang(!memberPermissions.write ? 'PxgShareMembersReadOnly'
+                    : memberPermissions.startChats ? 'PxgShareMembersCanStart' : 'PxgShareMembersExisting')}
                 </p>
+                {hasSeparateMemberPermissions && !isChangingPermissions && (
+                  <Checkbox
+                    label={lang('PxgShareUseSameMemberRights')}
+                    subLabel={lang('PxgShareSeparateMemberRights')}
+                    checked={useSharePermissions}
+                    disabled={isSaving}
+                    onCheck={setUseSharePermissions}
+                  />
+                )}
                 {memberChoice !== 'all' && renderMemberSelection()}
               </>
             )}
@@ -973,16 +1018,19 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
                         ? ` · ${lang('PxgShareExpires', { date: formatDateTime(share.expiresAt) })}` : ''}
                       {share.label ? ` · ${share.label}` : ''}
                       {share.scope.endsWith('_members') ? ` · ${lang('PxgShareMembersChip')}` : ''}
+                      {share.memberCoverage && share.memberCoverage.memberMode !== 'none'
+                        ? ` · ${describeMemberCoverage(t, share.memberCoverage)}` : ''}
                     </span>
                   </span>
                   <span className={styles.rowActions}>
-                    <Button size="tiny" isText fluid={false} onClick={() => startEdit(share)}>
+                    <Button size="tiny" isText fluid={false} noFastClick onClick={() => startEdit(share)}>
                       {lang('PxgShareEdit')}
                     </Button>
                     <Button
                       size="tiny"
                       isText
                       fluid={false}
+                      noFastClick
                       disabled={share.status === 'source_lost'}
                       onClick={() => void setStatus(share, share.status === 'paused' ? 'active' : 'paused')}
                     >

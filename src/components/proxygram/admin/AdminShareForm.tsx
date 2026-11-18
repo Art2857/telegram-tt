@@ -6,7 +6,7 @@ import type { AdminShare } from './types';
 
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
-import { diffPermissions, resolvePermissions } from '../../../proxygram/permissions';
+import { diffPermissions, resolvePermissions, samePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { describePxgError, displayName, getShareGrantee } from '../helpers';
 
@@ -14,6 +14,7 @@ import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
 
 import Button from '../../ui/Button';
+import Checkbox from '../../ui/Checkbox';
 import InputText from '../../ui/InputText';
 import ShareSettingsFields, { parseStarsLimit } from '../ShareSettingsFields';
 
@@ -50,6 +51,9 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
   const [folderId, setFolderId] = useState(share?.folderId ?? undefined);
   const [username, setUsername] = useState('');
   const [guest, setGuest] = useState<UserLookup>();
+  const [coverMembers, setCoverMembers] = useState(Boolean(share?.memberCoverage
+    && share.memberCoverage.memberMode !== 'none'));
+  const [useSharePermissions, setUseSharePermissions] = useState(false);
   const [settings, setSettings] = useState<ShareSettings>(() => ({
     preset: share?.preset ?? 'full',
     permissions: resolvePermissions(share?.preset ?? 'full', share?.permissions),
@@ -71,6 +75,13 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
   const lookupRequestRef = useRef(0);
   const isFolderScope = scope === 'folder' || scope === 'folder_members';
   const isMemberScope = scope.endsWith('_members');
+  const coverage = share?.memberCoverage;
+  const peerType = share?.peerType ?? peers.find((peer) => peer.peerId === peerId)?.type;
+  const canCoverMembers = scope === 'folder' || (scope === 'chat'
+    && Boolean(coverage || ['chat', 'megagroup', 'forum'].includes(peerType ?? '')));
+  const hasSeparateMemberPermissions = Boolean(share && coverage
+    && !samePermissions(resolvePermissions(coverage.preset, coverage.permissions),
+      resolvePermissions(share.preset, share.permissions)));
   const lookupValue = username.trim();
   const isPhoneLookup = PHONE.test(lookupValue);
   const canFind = !isFinding && !isSaving && (isPhoneLookup || USERNAME.test(lookupValue));
@@ -155,7 +166,7 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
     ? targets?.folders.some((folder) => folder.id === folderId)
     : peers.some((peer) => peer.peerId === peerId)
       && (scope !== 'topic' || targets?.topics.some((topic) => topic.id === topicId))));
-  const isLimitedHistoryAvailable = !isFolderScope && !isMemberScope;
+  const isLimitedHistoryAvailable = !isFolderScope && !isMemberScope && !(canCoverMembers && coverMembers);
   const isHistoryValid = Boolean(share) || (
     (settings.historyMode !== 'last_n' || isLimitedHistoryAvailable)
     && (settings.historyMode !== 'since_date' || Number.isFinite(Date.parse(settings.historySince)))
@@ -183,9 +194,22 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
         excludePeerIds: scope === 'folder' || scope === 'folder_members' ? settings.excludePeerIds : undefined,
       };
       if (share) {
+        const changedPermissions = settings.preset !== share.preset
+          || !samePermissions(settings.permissions, resolvePermissions(share.preset, share.permissions));
+        const memberCoverage = !canCoverMembers ? undefined
+          : coverMembers ? {
+            memberMode: coverage?.memberMode === 'selected' ? 'selected' : 'all',
+            memberIds: coverage?.memberIds ?? [],
+            excludeMemberIds: coverage?.excludeMemberIds ?? [],
+            includeBots: coverage?.includeBots ?? false,
+            useSharePermissions,
+          } : undefined;
         await pxgRpc.call('admin.shares.update', {
           shareId: share.id,
           ...common,
+          permissions: changedPermissions ? common.permissions : undefined,
+          // eslint-disable-next-line no-null/no-null
+          memberCoverage: coverage && !coverMembers ? null : memberCoverage,
           // Срок снимается только явным JSON `null`; «оставить» не меняет поле
           // eslint-disable-next-line no-null/no-null
           expiresAt: settings.expiry === 'keep' ? undefined : expiresAt ?? null,
@@ -200,6 +224,7 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
           topicId: scope === 'topic' ? topicId : undefined,
           folderId: scope === 'folder' || scope === 'folder_members' ? folderId : undefined,
           memberMode: scope.endsWith('_members') ? 'all' : undefined,
+          coverageMemberIds: canCoverMembers && coverMembers ? [] : undefined,
           historyMode: settings.historyMode,
           historyLimit: settings.historyMode === 'last_n'
             ? Math.max(1, Math.min(Number(settings.historyLimit) || 1, MAX_HISTORY_LIMIT)) : undefined,
@@ -358,10 +383,28 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
           )}
         </>
       )}
+      {canCoverMembers && (
+        <Checkbox
+          label={lang(scope === 'folder' ? 'PxgShareMembersFolder' : 'PxgShareMembersChat')}
+          subLabel={lang('PxgShareMembersRevokedTogether')}
+          checked={coverMembers}
+          disabled={isSaving || (!coverage && settings.historyMode === 'last_n')}
+          onCheck={setCoverMembers}
+        />
+      )}
+      {coverMembers && hasSeparateMemberPermissions && (
+        <Checkbox
+          label={lang('PxgShareUseSameMemberRights')}
+          subLabel={lang('PxgShareSeparateMemberRights')}
+          checked={useSharePermissions}
+          onCheck={setUseSharePermissions}
+          disabled={isSaving}
+        />
+      )}
       <ShareSettingsFields
         value={settings}
         isFolder={isFolderScope}
-        isMemberCoverage={isMemberScope}
+        isMemberCoverage={isMemberScope || (canCoverMembers && coverMembers)}
         editingHistory={share?.historyMode}
         expiresAt={share?.expiresAt ?? undefined}
         folderChats={isFolderScope ? folderChats : undefined}

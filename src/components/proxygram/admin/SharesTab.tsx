@@ -6,7 +6,7 @@ import type { AdminShare as ShareRow } from './types';
 import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { pxgRpc } from '../../../proxygram/server/rpc';
-import { displayName, formatDateTime } from '../helpers';
+import { describeMemberCoverage, displayName, formatDateTime } from '../helpers';
 import { TAB_TOPICS } from './adminNavigation';
 import {
   Badge, call, Loading, SHARE_STATUS, SHARES_PAGE_SIZE, SYSTEM_REFRESH_MS, t, useAdminData,
@@ -229,6 +229,11 @@ export const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
                           )}
                         </div>
                         {share.scope === 'topic' && <div>{share.topicTitle ?? share.topicId}</div>}
+                        {share.memberCoverage && share.memberCoverage.memberMode !== 'none' && (
+                          <div className={styles.secondary}>
+                            {describeMemberCoverage((key, params) => t(lang, key, params), share.memberCoverage)}
+                          </div>
+                        )}
                         {share.label && <div>{share.label}</div>}
                         <div className={styles.secondary}>
                           {t(lang, 'PxgAdminFromAccount', { name: share.account.displayName ?? '—' })}

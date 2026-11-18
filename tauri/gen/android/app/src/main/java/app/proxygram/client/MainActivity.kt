@@ -1,5 +1,6 @@
 package app.proxygram.client
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
@@ -11,8 +12,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import java.util.concurrent.atomic.AtomicReference
 
 class MainActivity : TauriActivity() {
+  internal val notificationTap = AtomicReference<String?>()
+  private var notificationWebView: WebView? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
@@ -29,6 +34,7 @@ class MainActivity : TauriActivity() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
     val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     setBarsColor(if (isNight) DARK_BACKGROUND else Color.WHITE, isNight)
+    acceptNotification(intent)
   }
 
   override fun onWebViewCreate(webView: WebView) {
@@ -37,6 +43,38 @@ class MainActivity : TauriActivity() {
     webView.addJavascriptInterface(AppUpdater(this), "PxgAppUpdater")
     // Links to the system browser and files to Downloads (`src/proxygram/nativeBridge.ts`)
     webView.addJavascriptInterface(NativeBridge(this), "PxgNative")
+    webView.addJavascriptInterface(AndroidNotificationBridge(this), "PxgAndroidNotifications")
+    notificationWebView = webView
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    acceptNotification(intent)
+  }
+
+  override fun onResume() {
+    super.onResume()
+    MessageNotifications.isActivityVisible = true
+    signalNotificationTap()
+  }
+
+  override fun onPause() {
+    MessageNotifications.isActivityVisible = false
+    super.onPause()
+  }
+
+  private fun acceptNotification(intent: Intent?) {
+    if (intent?.action != MessageNotifications.OPEN_MESSAGE) return
+    val target = intent.getStringExtra(MessageNotifications.TARGET) ?: return
+    notificationTap.set(target)
+    signalNotificationTap()
+  }
+
+  private fun signalNotificationTap() {
+    if (notificationTap.get() != null) {
+      notificationWebView?.evaluateJavascript("window.dispatchEvent(new Event('pxg:android-notification'))", null)
+    }
   }
 
   private fun setBarsColor(color: Int, isDark: Boolean) {

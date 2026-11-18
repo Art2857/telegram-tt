@@ -43,13 +43,16 @@ describe('Share Chat', () => {
   let root: HTMLElement;
   let lookup: Record<string, unknown>;
   let sourceTotal: number;
+  let outgoing: Record<string, unknown>[];
 
   beforeEach(() => {
     lookup = EMPTY_LOOKUP;
     sourceTotal = 0;
+    outgoing = [];
     callTelegram.mockReset();
     callRpc.mockReset().mockImplementation((method: string, params?: { offset?: number }) => {
       if (method === 'users.lookup') return Promise.resolve(lookup);
+      if (method === 'shares.outgoing') return Promise.resolve(outgoing);
       if (method === 'members.source') {
         const offset = params?.offset || 0;
         const people = Array.from({ length: Math.min(50, sourceTotal - offset) }, (_, index) => ({
@@ -183,5 +186,57 @@ describe('Share Chat', () => {
     button('PxgShareGrant')!.click();
 
     expect(callRpc).toHaveBeenCalledWith('shares.create', expect.objectContaining({ historyMode: 'last_n' }));
+  });
+
+  it('показывает охват внутри одной выдачи и выключает его при правке этой выдачи', async () => {
+    outgoing = [{
+      id: 'group-share',
+      accountId: 'qa-account',
+      scope: 'chat',
+      peerId: -1000000000000,
+      preset: 'full',
+      permissions: {},
+      historyMode: 'all',
+      status: 'active',
+      limits: {},
+      excludePeerIds: [],
+      grantee: { ...CANDIDATE, id: 'existing-guest' },
+      memberCoverage: {
+        id: 'group-members', memberMode: 'selected', memberIds: [500], excludeMemberIds: [], includeBots: false,
+        preset: 'assistant', permissions: {}, status: 'active',
+      },
+    }];
+    await vi.waitFor(() => expect(root.textContent).toContain('PxgShareIncludesMembers'));
+    expect([...root.querySelectorAll('button')].filter((node) => node.textContent === 'PxgShareEdit')).toHaveLength(1);
+    button('PxgShareEdit')!.click();
+    await vi.waitFor(() => expect(root.textContent).toContain('PxgShareSeparateMemberRights'));
+    const selected = root.querySelector<HTMLInputElement>('input[type="radio"][value="selected"]');
+    expect(selected?.checked).toBe(true);
+    root.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await vi.waitFor(() => expect(root.querySelector('input[type="radio"][value="selected"]')).toBeNull());
+    button('PxgShareSave')!.click();
+    expect(callRpc).toHaveBeenCalledWith('shares.update', expect.objectContaining({
+      shareId: 'group-share', permissions: undefined,
+    }));
+    expect(callRpc.mock.calls.find(([method]) => method === 'shares.update')?.[1]?.memberCoverage).toBeNull();
+  });
+
+  it('поиск уже приглашённого человека открывает правку вместо повторной выдачи', async () => {
+    const person = { ...CANDIDATE, id: 'existing-guest', isPending: false };
+    lookup = { ...EMPTY_LOOKUP, registered: true, user: person };
+    outgoing = [{
+      id: 'active-share', accountId: 'qa-account', scope: 'chat', peerId: -1000000000000, grantee: person,
+      preset: 'assistant', permissions: {}, historyMode: 'all', status: 'active', limits: {}, excludePeerIds: [],
+    }];
+    await vi.waitFor(() => expect(button('PxgShareEdit')).toBeDefined());
+    const input = root.querySelector<HTMLInputElement>('input[aria-label="PxgShareUsername"]')!;
+    input.value = '@new_guest';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button('PxgShareFind')?.disabled).toBe(false));
+    button('PxgShareFind')!.click();
+    await vi.waitFor(() => expect(button('PxgShareSave')).toBeDefined());
+    expect(button('PxgShareGrant')).toBeUndefined();
+    button('PxgShareSave')!.click();
+    expect(callRpc).toHaveBeenCalledWith('shares.update', expect.objectContaining({ shareId: 'active-share' }));
   });
 });
