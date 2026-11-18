@@ -144,7 +144,12 @@ export const SharesTab = memo(({ lang, ask, run, topics }: TabProps) => {
         className={styles.formModal}
       >
         {isFormOpen && (
-          <AdminShareForm key={editing?.id ?? 'new'} share={editing} onClose={() => setIsFormOpen(false)} />
+          <AdminShareForm
+            key={editing?.id ?? 'new'}
+            share={editing}
+            initialAccountId={filters.accountId || undefined}
+            onClose={() => setIsFormOpen(false)}
+          />
         )}
       </Modal>
       {isPeerInvalid ? (

@@ -26,7 +26,7 @@ type Targets = {
   topics: { id: number; title: string }[];
   folderChats: { peerId: number; title: string | null }[];
 };
-type OwnProps = { share?: AdminShare; onClose: NoneToVoidFunction };
+type OwnProps = { share?: AdminShare; initialAccountId?: string; onClose: NoneToVoidFunction };
 
 const SEARCH_DELAY_MS = 250;
 const PHONE = /^\+?[\d\s().-]{7,24}$/;
@@ -38,10 +38,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRY_DAYS = { keep: 0, never: 0, day: 1, week: 7, month: 30 };
 
 /** Параметры общие с формой владельца; цель и граница истории при правке неизменны */
-const AdminShareForm = ({ share, onClose }: OwnProps) => {
+const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
   const lang = useLang();
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
-  const [accountId, setAccountId] = useState(share?.account.id ?? '');
+  const [accountId, setAccountId] = useState(share?.account.id ?? initialAccountId ?? '');
   const [scope, setScope] = useState<AdminShare['scope']>(share?.scope ?? 'chat');
   const [chatQuery, setChatQuery] = useState('');
   const [peers, setPeers] = useState<PeerOption[]>([]);
@@ -91,7 +91,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
       if (!isActive) return;
       const active = list.filter((account) => account.status !== 'revoked');
       setAccounts(active);
-      if (active[0]) setAccountId(active[0].id);
+      setAccountId((current) => (active.some((account) => account.id === current) ? current : active[0]?.id ?? ''));
     }).catch((err) => {
       if (isActive) setError(describePxgError(lang, err));
     });
