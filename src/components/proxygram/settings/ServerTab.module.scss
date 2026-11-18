@@ -1,0 +1,108 @@
+.page {
+  display: grid;
+  gap: 1.75rem;
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.sectionHeader,
+.accountHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.accountList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 0.75rem;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.card,
+.dangerCard {
+  display: grid;
+  gap: 0.75rem;
+
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-borders);
+  border-radius: 0.875rem;
+
+  background: var(--color-background-secondary);
+
+  :global(.Button) {
+    justify-self: start;
+    width: auto;
+  }
+}
+
+.accountName {
+  min-width: 0;
+  margin: 0;
+
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.accountDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+
+  font-size: 0.9375rem;
+}
+
+.description {
+  margin: 0;
+
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.accountActions,
+.thinAccounts {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-borders);
+}
+
+.thinAccounts :global(.Checkbox) {
+  margin: 0;
+}
+
+.dangerCard {
+  border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-borders));
+  background: var(--color-background);
+}
+
+.connectButton:global(.Button) {
+  width: auto;
+  max-width: 100%;
+
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}

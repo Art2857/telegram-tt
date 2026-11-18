@@ -35,7 +35,7 @@ const AdminPanel = () => {
   const [tab, setTab] = useState(0);
   const [isSectionOpen, setIsSectionOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>();
-  const [actionError, setActionError] = useState<string>();
+  const [actionError, setActionError] = useState<{ tab: string; message: string }>();
   const tabKey = TABS[tab].key;
 
   const close = () => setPxgState({ isAdminOpen: false });
@@ -46,7 +46,7 @@ const AdminPanel = () => {
     try {
       await action();
     } catch (err) {
-      setActionError(describePxgError(lang, err));
+      setActionError({ tab: tabKey, message: describePxgError(lang, err) });
     }
   };
 
@@ -112,7 +112,7 @@ const AdminPanel = () => {
             }}
             />
           )}
-          {actionError && <div className={styles.actionError}>{actionError}</div>}
+          {actionError?.tab === tabKey && <div role="alert" className={styles.actionError}>{actionError.message}</div>}
           <div className={buildClassName(styles.contentBody, 'custom-scroll')}>
             {tabKey === 'overview' && <OverviewTab {...props} />}
             {tabKey === 'users' && <UsersTab {...props} />}

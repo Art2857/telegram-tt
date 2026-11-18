@@ -25,6 +25,12 @@ export type AdminShare = {
   peerTitle: string | null;
   topicTitle: string | null;
   folderTitle: string | null;
-  grantee: { id: string; username: string | null; firstName: string | null } | null;
+  grantee: {
+    id: string;
+    username: string | null;
+    firstName: string | null;
+    lastName?: string | null;
+    tgUserId?: number;
+  } | null;
   grantor: { id: string; username: string | null; firstName: string | null } | null;
 };

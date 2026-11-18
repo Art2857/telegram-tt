@@ -175,7 +175,7 @@ export type TabProps = {
 };
 
 export type ShareFilters = {
-  status: ShareRow['status'] | undefined;
+  status: ShareRow['status'] | 'expired' | undefined;
   accountId: string;
   granteeQuery: string;
   peer: string;

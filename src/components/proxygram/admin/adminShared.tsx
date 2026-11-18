@@ -130,7 +130,7 @@ export const t = (lang: TabProps['lang'], key: string, vars?: Record<string, str
 
 // ─── Доступы ────────────────────────────────────────────────────────────────
 
-export const SHARES_PAGE_SIZE = 200;
+export const SHARES_PAGE_SIZE = 50;
 
 export const REQUESTS_PAGE_SIZE = 50;
 

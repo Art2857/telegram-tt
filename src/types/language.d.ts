@@ -3742,6 +3742,7 @@ export interface LangPair {
   'PxgAuditFilterAllPeople': undefined;
   'PxgAuditFilterChat': undefined;
   'PxgAuditFilterAllChats': undefined;
+  'PxgSettingsLinkTelegram': undefined;
   'PxgSentByYou': undefined;
   'PxgAttributionTitle': undefined;
   'PxgAttributionSentAt': undefined;
@@ -4025,6 +4026,13 @@ export interface LangPair {
   'PxgAdminOpenQueue': undefined;
   'PxgAdminSystem': undefined;
   'PxgAdminAuditChat': undefined;
+  'PxgAdminSharePeerInvalid': undefined;
+  'PxgAdminSharesNoMatches': undefined;
+  'PxgAdminSharesActive': undefined;
+  'PxgAdminSharesPaused': undefined;
+  'PxgAdminSharesLost': undefined;
+  'PxgAdminSharesExpired': undefined;
+  'PxgAdminSharesRevoked': undefined;
   'PxgAdminAuditFrom': undefined;
   'PxgAdminAuditTo': undefined;
   'PxgAdminVersion': undefined;
@@ -6774,6 +6782,9 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgSettingsLastEvent': {
     'time': V;
   };
+  'PxgSettingsConnectedAt': {
+    'time': V;
+  };
   'PxgComposerOnBehalf': {
     'name': V;
   };
@@ -8168,6 +8179,7 @@ export interface LangKeyGroups {
       | 'LiveLocationUpdatedYesterdayAt'
       | 'PxgDeletedAt'
       | 'PxgSettingsLastEvent'
+      | 'PxgSettingsConnectedAt'
       | 'PxgAdminRegistered'
       | 'PxgAdminLastSeen'
       | 'PxgAdminVpnNodeExcluded'

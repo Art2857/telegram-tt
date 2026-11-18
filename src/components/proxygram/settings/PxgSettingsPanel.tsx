@@ -122,7 +122,7 @@ const PxgSettingsPanel = () => {
             <h2 className={styles.title}>{t(tabs[tab].title)}</h2>
           </header>
           <VpnAlert onOpen={() => setPxgState({ isSettingsOpen: false, isAdminOpen: true })} />
-          {actionError?.tab === tabKey && <div className={styles.actionError}>{actionError.message}</div>}
+          {actionError?.tab === tabKey && <div role="alert" className={styles.actionError}>{actionError.message}</div>}
           <div ref={contentRef} className={buildClassName(styles.contentBody, 'custom-scroll')}>
             {tabKey === 'server' && <ServerTab {...props} />}
             {tabKey === 'outgoing' && <OutgoingTab {...props} />}

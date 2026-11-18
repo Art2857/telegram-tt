@@ -2,7 +2,6 @@ import { memo } from '../../../lib/teact/teact';
 
 import type { TabProps } from './settingsTypes';
 
-import buildClassName from '../../../util/buildClassName';
 import { pxgRpc } from '../../../proxygram/server/rpc';
 import { setPxgState, usePxgState } from '../../../proxygram/server/store';
 import { formatDateTime } from '../helpers';
@@ -11,54 +10,84 @@ import { ACCOUNT_STATUS, Badge, describeStatusReason, formatMegabytes, Loading, 
 import Button from '../../ui/Button';
 import Checkbox from '../../ui/Checkbox';
 
-import styles from '../admin/AdminPanel.module.scss';
+import styles from './ServerTab.module.scss';
 
 export const ServerTab = memo(({
   lang, t, ask, run, accounts, accountsError, reloadAccounts,
 }: TabProps) => {
-  const isClient = usePxgState((state) => state.session?.level === 'client');
+  const session = usePxgState((state) => state.session);
   if (!accounts) return <Loading error={accountsError} lang={lang} onRetry={reloadAccounts} />;
 
+  const isClient = session?.level === 'client';
+  const currentAccount = isClient ? accounts.find((account) => account.tgUserId === session.user.tgUserId) : undefined;
+  const recoveryAccountId = currentAccount?.status === 'auth_lost' ? currentAccount.id : undefined;
+  const connectLabel = recoveryAccountId ? 'PxgConnectRestoreTitle' : 'PxgSettingsLinkTelegram';
+
+  function openConnect() {
+    setPxgState({ isSettingsOpen: false, isConnectOpen: true, connectRecoveryAccountId: recoveryAccountId });
+  }
+
   return (
-    <>
-      {accounts.length === 0 && <p className={styles.empty}>{lang('PxgSettingsNoAccounts')}</p>}
-      {accounts.length > 0 && (
-        <table className={buildClassName(styles.table, styles.stacked)}>
-          <tbody>
+    <div className={styles.page}>
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h3 className={styles.heading}>{lang('PxgAdminAccounts')}</h3>
+          {(!currentAccount || recoveryAccountId) && accounts.length > 0 && (
+            <Button noFastClick size="smaller" onClick={openConnect} className={styles.connectButton}>
+              {lang(connectLabel)}
+            </Button>
+          )}
+        </div>
+        {accounts.length === 0 ? (
+          <div className={styles.card}>
+            <p className={styles.description}>{lang('PxgSettingsNoAccounts')}</p>
+            <Button noFastClick size="smaller" onClick={openConnect} className={styles.connectButton}>
+              {lang(connectLabel)}
+            </Button>
+          </div>
+        ) : (
+          <ul className={styles.accountList}>
             {accounts.map((account) => {
               const status = ACCOUNT_STATUS[account.status] ?? { key: account.status, tone: 'gray' as const };
+              const name = account.displayName || String(account.tgUserId || account.id);
               return (
-                <tr key={account.id}>
-                  <td>
-                    <div className={styles.name}>{account.displayName ?? '—'}</div>
-                    <div className={styles.secondary}>{formatDateTime(account.connectedAt)}</div>
-                    {account.lastMessageAt && (
-                      <div className={styles.secondary}>
-                        {t('PxgSettingsLastEvent', { time: formatDateTime(account.lastMessageAt) })}
-                      </div>
-                    )}
-                  </td>
-                  <td>
+                <li className={styles.card} key={account.id}>
+                  <div className={styles.accountHeader}>
+                    <h4 className={styles.accountName}>{name}</h4>
                     <Badge tone={status.tone} text={t(status.key)} />
-                    {account.statusReason && (
-                      <div className={styles.secondary}>{describeStatusReason(t, account.statusReason)}</div>
-                    )}
-                  </td>
-                  <td>
-                    {t('PxgAdminMessages', { count: account.messages })}
-                    <div className={styles.secondary}>
-                      {t('PxgSettingsMedia', { size: formatMegabytes(account.mediaBytes) })}
+                  </div>
+                  {account.statusReason && (
+                    <p className={styles.description}>{describeStatusReason(t, account.statusReason)}</p>
+                  )}
+                  <div className={styles.accountDetails}>
+                    <div>
+                      {t('PxgAdminMessages', { count: account.messages })}
+                      <p className={styles.description}>
+                        {t('PxgSettingsMedia', { size: formatMegabytes(account.mediaBytes) })}
+                      </p>
+                      {renderImport(t, account.importState)}
                     </div>
-                    {renderImport(t, account.importState)}
-                  </td>
-                  <td className={styles.actions}>
+                    <div>
+                      {account.connectedAt && (
+                        <p className={styles.description}>
+                          {t('PxgSettingsConnectedAt', { time: formatDateTime(account.connectedAt) })}
+                        </p>
+                      )}
+                      {account.lastMessageAt && (
+                        <p className={styles.description}>
+                          {t('PxgSettingsLastEvent', { time: formatDateTime(account.lastMessageAt) })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.accountActions}>
                     <Button
-                      size="tiny"
+                      noFastClick
+                      size="smaller"
                       color="danger"
                       isText
                       onClick={() => ask(
-                        t('PxgAdminDisconnectConfirm', { name: account.displayName ?? '' }),
-                        lang('PxgAdminDisconnect'),
+                        t('PxgAdminDisconnectConfirm', { name }), lang('PxgAdminDisconnect'),
                         async () => {
                           await pxgRpc.call('accounts.disconnect', { accountId: account.id });
                           reloadAccounts();
@@ -67,55 +96,54 @@ export const ServerTab = memo(({
                     >
                       {lang('PxgAdminDisconnect')}
                     </Button>
-                  </td>
-                </tr>
+                  </div>
+                </li>
               );
             })}
-          </tbody>
-        </table>
-      )}
+          </ul>
+        )}
+      </section>
       {accounts.length > 0 && (
-        <div className={styles.form}>
-          <h3 className={styles.name}>{lang('PxgThinMode')}</h3>
-          <p className={styles.secondary}>{lang('PxgThinModeHint')}</p>
-          {accounts.map((account) => (
-            <Checkbox
-              key={account.id}
-              label={account.displayName ?? account.id}
-              checked={account.thinMode}
-              onCheck={(enabled) => run(async () => {
-                await pxgRpc.call('accounts.setThinMode', { accountId: account.id, enabled });
-                reloadAccounts();
-              })}
-            />
-          ))}
-        </div>
+        <>
+          <section className={styles.section}>
+            <h3 className={styles.heading}>{lang('PxgThinMode')}</h3>
+            <div className={styles.card}>
+              <p className={styles.description}>{lang('PxgThinModeHint')}</p>
+              <div className={styles.thinAccounts}>
+                {accounts.map((account) => (
+                  <Checkbox
+                    key={account.id}
+                    label={account.displayName || String(account.tgUserId || account.id)}
+                    checked={account.thinMode}
+                    onCheck={(enabled) => void run(async () => {
+                      await pxgRpc.call('accounts.setThinMode', { accountId: account.id, enabled });
+                      reloadAccounts();
+                    })}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+          <section className={styles.section}>
+            <h3 className={styles.heading}>{lang('PxgWipeTitle')}</h3>
+            <div className={styles.dangerCard}>
+              <p className={styles.description}>{lang('PxgWipeHint')}</p>
+              <Button
+                noFastClick
+                size="smaller"
+                color="danger"
+                isText
+                onClick={() => ask(lang('PxgWipeConfirm'), lang('PxgWipeRun'), async () => {
+                  await pxgRpc.call('accounts.wipe');
+                  reloadAccounts();
+                })}
+              >
+                {lang('PxgWipeRun')}
+              </Button>
+            </div>
+          </section>
+        </>
       )}
-      {/* With Telegram on this device its session signs the server in; without it, a phone scans a QR code */}
-      <Button
-        size="smaller"
-        fluid={false}
-        onClick={() => setPxgState({ isSettingsOpen: false, isConnectOpen: true })}
-      >
-        {lang(isClient ? 'PxgConnectTitle' : 'PxgConnectQrTitle')}
-      </Button>
-      {accounts.length > 0 && (
-        <div className={styles.form}>
-          <h3 className={styles.name}>{lang('PxgWipeTitle')}</h3>
-          <p className={styles.secondary}>{lang('PxgWipeHint')}</p>
-          <Button
-            size="smaller"
-            color="danger"
-            fluid={false}
-            onClick={() => ask(lang('PxgWipeConfirm'), lang('PxgWipeRun'), async () => {
-              await pxgRpc.call('accounts.wipe');
-              reloadAccounts();
-            })}
-          >
-            {lang('PxgWipeRun')}
-          </Button>
-        </div>
-      )}
-    </>
+    </div>
   );
 });

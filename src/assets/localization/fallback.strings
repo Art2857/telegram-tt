@@ -4934,6 +4934,8 @@
 "PxgAuditFilterChat" = "Chat";
 "PxgAuditFilterAllChats" = "All chats";
 "PxgSettingsLastEvent" = "Last event: {time}";
+"PxgSettingsConnectedAt" = "Connected {time}";
+"PxgSettingsLinkTelegram" = "Connect Telegram";
 "PxgSentByYou" = "you";
 "PxgAttributionTitle" = "Sent through Proxygram";
 "PxgAttributionSentAt" = "Sent at";
@@ -5078,8 +5080,8 @@
 "PxgPermAdmin" = "Admin actions";
 "PxgPermSignMessages" = "Sign messages with the guest's name";
 "PxgThinMode" = "Chats on devices without a Telegram login";
-"PxgThinModeHint" = "On a device where you signed in with the bot, all chats of the account open through the server: messages, read marks and files go from your account. A device signed in to Telegram keeps its own chats.";
-"PxgWipeTitle" = "Delete everything of mine";
+"PxgThinModeHint" = "Signing in through the bot with this account opens all of its chats on that device. Messages, read receipts and files go through your server.";
+"PxgWipeTitle" = "Your data on the server";
 "PxgWipeHint" = "Disconnects all your accounts from the server, ends their sessions in Telegram and erases the archive, files, accesses you gave and invites. Your Proxygram sign-in and chats others shared with you stay.";
 "PxgWipeRun" = "Delete everything of mine";
 "PxgWipeConfirm" = "Delete all your accounts from the server with their archive and files? Guests lose access at once, deleted messages kept only here are lost for good. This cannot be undone.";
@@ -5243,6 +5245,13 @@
 "PxgAdminWarnLease" = "Worker is not renewing the lease of accounts: {count}";
 "PxgAdminSystem" = "System";
 "PxgAdminAuditChat" = "Chat ID";
+"PxgAdminSharePeerInvalid" = "Enter a chat ID as a whole number";
+"PxgAdminSharesNoMatches" = "No access matches these filters";
+"PxgAdminSharesActive" = "Active";
+"PxgAdminSharesPaused" = "Paused";
+"PxgAdminSharesLost" = "Source lost";
+"PxgAdminSharesExpired" = "Expired";
+"PxgAdminSharesRevoked" = "Revoked";
 "PxgAdminAuditFrom" = "From";
 "PxgAdminAuditTo" = "To";
 "PxgAdminVersion" = "Version";

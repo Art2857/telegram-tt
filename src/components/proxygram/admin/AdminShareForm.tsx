@@ -4,6 +4,7 @@ import type { UserLookup } from '../../../proxygram/server/types';
 import type { ShareSettings } from '../ShareSettingsFields';
 import type { AdminShare } from './types';
 
+import buildClassName from '../../../util/buildClassName';
 import { getServerTime } from '../../../util/serverTime';
 import { diffPermissions, resolvePermissions } from '../../../proxygram/permissions';
 import { pxgRpc } from '../../../proxygram/server/rpc';
@@ -216,8 +217,7 @@ const AdminShareForm = ({ share, onClose }: OwnProps) => {
   };
 
   return (
-    <div className={styles.form}>
-      <h3 className={styles.sectionTitle}>{lang(share ? 'PxgShareEdit' : 'PxgAdminGrant')}</h3>
+    <div className={buildClassName(styles.form, styles.shareForm)}>
       {share ? (
         <>
           <p>{share.account.displayName ?? share.account.id}</p>
