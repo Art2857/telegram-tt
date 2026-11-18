@@ -50,22 +50,10 @@ export default function useAndroidNotificationTap(currentUserId: string | undefi
 
       if ('accountId' in tap && !isOnline) return;
       const chatId = 'accountId' in tap ? getProxyPeerId(tap.accountId, tap.peerId) : tap.chatId;
-      if (!selectChat(getGlobal(), chatId)) {
-        attempts += 1;
-        if (attempts === 1 && 'accountId' in tap) loadProxyChats();
-        if (attempts > CHAT_LIST_MAX_ATTEMPTS) {
-          bridge.consumeTap(tap.receipt);
-          showNotification({ message: { key: 'ErrorFocusInaccessibleMessage' } });
-          return;
-        }
-        window.clearTimeout(timer);
-        timer = window.setTimeout(check, CHAT_LIST_WAIT_MS);
-        return;
-      }
       isChecking = true;
       try {
         let shouldFocus = true;
-        if ('accountId' in tap) {
+        if ('accountId' in tap && (!attempts || selectChat(getGlobal(), chatId))) {
           // A cached chat can outlive a grant. The server checks the selected topic and message before navigation.
           const { messages } = await pxgRpc.call<{ messages: unknown[] }>('messages.window', {
             accountId: tap.accountId, peerId: tap.peerId, topicId: tap.threadId, msgIds: [tap.messageId], limit: 1,
@@ -73,6 +61,18 @@ export default function useAndroidNotificationTap(currentUserId: string | undefi
           shouldFocus = messages.length > 0;
         }
         if (!isActive || raw !== bridge.peekTap() || getGlobal().currentUserId !== currentUserId) return;
+        if (!selectChat(getGlobal(), chatId)) {
+          attempts += 1;
+          if (attempts === 1 && 'accountId' in tap) loadProxyChats();
+          if (attempts > CHAT_LIST_MAX_ATTEMPTS) {
+            bridge.consumeTap(tap.receipt);
+            showNotification({ message: { key: 'ErrorFocusInaccessibleMessage' } });
+            return;
+          }
+          window.clearTimeout(timer);
+          timer = window.setTimeout(check, CHAT_LIST_WAIT_MS);
+          return;
+        }
         bridge.consumeTap(tap.receipt);
         if (shouldFocus) {
           focusMessage({ chatId, threadId: tap.threadId, messageId: tap.messageId, shouldReplaceHistory: true });
