@@ -3,6 +3,7 @@ import {
 } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
+import type { ProxyChatInfo } from '../../api/proxy/types';
 import type { IAnchorPosition, MessageListType, ThreadId, TranslationTone } from '../../types';
 import { MAIN_THREAD_ID } from '../../api/types';
 import { ManagementScreens } from '../../types';
@@ -29,6 +30,7 @@ import {
   selectLanguageCode,
   selectRequestedChatTranslationLanguage,
   selectRequestedChatTranslationTone,
+  selectTopic,
   selectTranslationLanguage,
   selectUserFullInfo,
 } from '../../global/selectors';
@@ -36,6 +38,9 @@ import { ARE_CALLS_SUPPORTED, IS_APP } from '../../util/browser/windowEnvironmen
 import { isUserId } from '../../util/entities/ids';
 import focusNoScroll from '../../util/focusNoScroll';
 import { isProxyPeerId } from '../../api/proxy/ids';
+import { runProxyJob } from '../../api/proxy/outbox';
+import { getPxgErrorMessage } from '../../proxygram/errorReasons';
+import { getPxgState } from '../../proxygram/server/store';
 
 import { useHotkeys } from '../../hooks/useHotkeys';
 import useLang from '../../hooks/useLang';
@@ -86,7 +91,11 @@ interface StateProps {
   doNotTranslate: string[];
   isAccountFrozen?: boolean;
   currentTone?: TranslationTone;
+  proxyReadAccess?: ProxyChatInfo;
+  isProxyForum?: boolean;
 }
+
+const OWNER_READ_TIMEOUT_MS = 15_000;
 
 const HeaderActions = ({
   chatId,
@@ -118,6 +127,8 @@ const HeaderActions = ({
   doNotTranslate,
   isAccountFrozen,
   currentTone,
+  proxyReadAccess,
+  isProxyForum,
   onTopicSearch,
 }: OwnProps & StateProps) => {
   const {
@@ -278,6 +289,37 @@ const HeaderActions = ({
     );
   }, [isRightColumnShown, lang]);
 
+  const SharedChatMenuButton = useCallback(({ onTrigger, isOpen }: { onTrigger: () => void; isOpen?: boolean }) => (
+    <Button
+      className={isOpen ? 'active' : ''}
+      round
+      ripple={!isMobile}
+      size="smaller"
+      color="translucent"
+      ariaLabel={lang('AccDescrMoreOptions')}
+      onClick={onTrigger}
+      iconName="more"
+    />
+  ), [isMobile, lang]);
+
+  const handleReadForOwner = useLastCallback(async () => {
+    if (!proxyReadAccess) return;
+    const userId = getPxgState().session?.user.id;
+    try {
+      const result = await runProxyJob('messages.readForOwner', {
+        accountId: proxyReadAccess.accountId,
+        peerId: proxyReadAccess.peerId,
+        topicId: isProxyForum ? Number(threadId) : undefined,
+        threadId: !isProxyForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined,
+      }, OWNER_READ_TIMEOUT_MS) as { complete?: boolean } | null;
+      if (getPxgState().session?.user.id !== userId) return;
+      showNotification({ message: result?.complete ? lang('PxgReadOwnerEmpty') : lang('PxgReadOwnerDone') });
+    } catch (err) {
+      if (getPxgState().session?.user.id !== userId) return;
+      showNotification({ message: getPxgErrorMessage(lang, err) });
+    }
+  });
+
   return (
     <div className="HeaderActions">
       {!isForForum && canTranslate && (
@@ -384,6 +426,11 @@ const HeaderActions = ({
           <div className="badge">{pendingJoinRequests}</div>
         </Button>
       )}
+      {proxyReadAccess && (
+        <DropdownMenu trigger={SharedChatMenuButton} positionX="right" withPortal>
+          <MenuItem icon="readchats" onClick={handleReadForOwner}>{lang('PxgReadOwnerAction')}</MenuItem>
+        </DropdownMenu>
+      )}
       {!isProxyPeerId(chatId) && (
         <Button
           ref={menuButtonRef}
@@ -444,12 +491,18 @@ export default memo(withGlobal<OwnProps>(
 
     const isRestricted = selectIsChatRestricted(global, chatId);
     if (!chat || chat.pxgProxy || isRestricted || selectIsInSelectMode(global)) {
-      const isProxyAvailable = Boolean(chat?.pxgProxy && !isRestricted && !selectIsInSelectMode(global));
+      const proxy = chat?.pxgProxy;
+      const isProxyAvailable = Boolean(proxy && !isRestricted && !selectIsInSelectMode(global));
       const proxyFullInfo = isPrivate ? selectUserFullInfo(global, chatId) : selectChatFullInfo(global, chatId);
+      const topic = chat?.isForum && threadId !== MAIN_THREAD_ID ? selectTopic(global, chatId, threadId) : undefined;
+      const canReadForOwner = isProxyAvailable && proxy && !proxy.isOwn && !proxy.isLocal && !proxy.restricted
+        && messageListType === 'thread' && (!chat?.isForum || Boolean(topic))
+        && (topic?.pxgPermissions ?? proxy.permissions).markRead;
       return {
         noMenu: true,
         canSearch: isProxyAvailable,
-        // A shared chat has no menu of its own, only search and translation
+        proxyReadAccess: canReadForOwner ? proxy : undefined,
+        isProxyForum: chat?.isForum,
         canTranslate: isProxyAvailable && selectCanTranslateChat(global, chatId)
           && !proxyFullInfo?.isTranslationDisabled,
         isTranslating: isProxyAvailable && Boolean(selectRequestedChatTranslationLanguage(global, chatId)),
@@ -524,6 +577,8 @@ export default memo(withGlobal<OwnProps>(
       isAccountFrozen,
       channelMonoforumId,
       currentTone,
+      proxyReadAccess: undefined,
+      isProxyForum: undefined,
     };
   },
 )(HeaderActions));

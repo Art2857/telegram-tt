@@ -50,9 +50,7 @@ import {
 } from '../../global/selectors';
 import { isUserId } from '../../util/entities/ids';
 import { disableScrolling } from '../../util/scrollLock';
-import { runProxyJob } from '../../api/proxy/outbox';
-import { getPxgErrorMessage } from '../../proxygram/errorReasons';
-import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store'; // PXG
+import { setPxgState, usePxgState } from '../../proxygram/server/store'; // PXG
 import { buildAutoDeletePeriodOptions, DEFAULT_AUTO_DELETE_PERIODS } from '../common/helpers/autoDeletePeriods';
 
 import useAppLayout from '../../hooks/useAppLayout';
@@ -132,7 +130,6 @@ type StateProps = {
   canSendMoney?: boolean;
   canCreateTopic?: boolean;
   canEditTopic?: boolean;
-  canMarkReadForOwner?: boolean;
   hasLinkedChat?: boolean;
   isChatInfoShown?: boolean;
   isRightColumnShown?: boolean;
@@ -151,7 +148,6 @@ type StateProps = {
 };
 
 const CLOSE_MENU_ANIMATION_DURATION = 200;
-const OWNER_READ_TIMEOUT_MS = 15_000;
 
 const HeaderMenuContainer = ({
   chatId,
@@ -191,7 +187,6 @@ const HeaderMenuContainer = ({
   canAddContact,
   canCreateTopic,
   canEditTopic,
-  canMarkReadForOwner,
   canManage,
   isRightColumnShown,
   canTranslate,
@@ -624,27 +619,6 @@ const HeaderMenuContainer = ({
   }, [botCommands, lang, botPrivacyPolicyUrl, isBot]);
 
   const hasPxgSession = usePxgState((state) => state.session?.level === 'client'); // PXG
-  const proxy = chat?.pxgProxy;
-  const isForumTopic = Boolean(chat?.isForum && threadId !== MAIN_THREAD_ID);
-
-  const handleMarkReadForOwner = useLastCallback(async () => {
-    if (!canMarkReadForOwner || !proxy) return;
-    const userId = getPxgState().session?.user.id;
-    closeMenu();
-    try {
-      const result = await runProxyJob('messages.readForOwner', {
-        accountId: proxy.accountId,
-        peerId: proxy.peerId,
-        topicId: isForumTopic ? Number(threadId) : undefined,
-        threadId: !chat?.isForum && threadId !== MAIN_THREAD_ID ? Number(threadId) : undefined,
-      }, OWNER_READ_TIMEOUT_MS) as { complete?: boolean } | null;
-      if (getPxgState().session?.user.id !== userId) return;
-      showNotification({ message: result?.complete ? lang('PxgReadOwnerEmpty') : lang('PxgReadOwnerDone') });
-    } catch (err) {
-      if (getPxgState().session?.user.id !== userId) return;
-      showNotification({ message: getPxgErrorMessage(lang, err) });
-    }
-  });
 
   const deleteTitle = useMemo(() => {
     if (!chat) return undefined;
@@ -719,11 +693,6 @@ const HeaderMenuContainer = ({
               onClick={handleViewGroupInfo}
             >
               {lang(viewInfoLangKey)}
-            </MenuItem>
-          )}
-          {canMarkReadForOwner && (
-            <MenuItem icon="readchats" onClick={handleMarkReadForOwner}>
-              {lang('PxgReadOwnerAction')}
             </MenuItem>
           )}
           {/* PXG: открыть чат гостю через сервер Proxygram */}
@@ -1059,9 +1028,6 @@ export default memo(withGlobal<OwnProps>(
     const canGift = selectCanGift(global, chatId);
 
     const topic = selectTopic(global, chatId, threadId);
-    const proxy = chat.pxgProxy;
-    const canMarkReadForOwner = proxy && !proxy.isOwn && !proxy.isLocal && !proxy.restricted
-      && (!chat.isForum || Boolean(topic)) && (topic?.pxgPermissions ?? proxy.permissions).markRead;
     // Disable manual creation for bot forums
     const canCreateTopic = chat.isForum && !chat.isBotForum && (
       !isUserRightBanned(chat, 'manageTopics') || getHasAdminRight(chat, 'manageTopics')
@@ -1098,7 +1064,6 @@ export default memo(withGlobal<OwnProps>(
       isChatInfoShown: chatInfo.isOpen && currentChatId === chatId && currentThreadId === threadId,
       canCreateTopic,
       canEditTopic,
-      canMarkReadForOwner,
       canManage,
       isRightColumnShown: selectIsRightColumnShown(global),
       canTranslate,
