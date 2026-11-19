@@ -334,27 +334,27 @@ const HeaderMenuContainer = ({
     const userId = getPxgState().session?.user.id;
     ownerChangeInFlightRef.current = true;
     setIsApplyingOwnerChange(true);
+    let message: string;
     try {
       const result = await runProxyJob('chats.ownerAction', {
         accountId: ownerChat.accountId,
         peerId: ownerChat.peerId,
         change,
       }, 15_000) as { isProtected?: boolean; requestSent?: boolean } | null;
-      if (getPxgState().session?.user.id !== userId) return;
-      let message = lang('PxgOwnerChatActionDone');
+      message = lang('PxgOwnerChatActionDone');
       if (change.operation === 'contentProtection' && !change.enabled) {
         if (result?.requestSent) message = lang('PxgOwnerChatProtectionRequested');
         else if (result?.isProtected !== false) message = lang('PxgOwnerChatProtectionStillOn');
       }
-      showNotification({ message });
     } catch (err) {
-      if (getPxgState().session?.user.id === userId) {
-        showNotification({ message: getPxgErrorMessage(lang, err) });
-      }
+      message = getPxgErrorMessage(lang, err);
     } finally {
       ownerChangeInFlightRef.current = false;
       setIsApplyingOwnerChange(false);
       closeOwnerChatChange();
+    }
+    if (getPxgState().session?.user.id === userId) {
+      showNotification({ message, containerSelector: '#portals' });
     }
   });
 
