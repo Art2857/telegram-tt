@@ -180,13 +180,15 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     || !samePermissions(permissions, resolvePermissions(editing.preset, editing.permissions))));
   const hasSeparateMemberPermissions = Boolean(editing && coverage
     && !samePermissions(resolvePermissions(coverage.preset, coverage.permissions),
-      resolvePermissions(editing.preset, editing.permissions)));
+      resolvePermissions(editing.preset, editing.permissions), true));
   const usesSavedMemberPermissions = Boolean(coverage && hasSeparateMemberPermissions
     && !useSharePermissions && !isChangingPermissions);
   const memberPermissions = coverage && usesSavedMemberPermissions
     ? resolvePermissions(coverage.preset, coverage.permissions) : permissions;
   const chatTitle = topic ? `${peerTitle} › ${topic.title}` : peerTitle;
   const peerId = chatId ? Number(chatId) : undefined;
+  const ownerActionsPeerId = !isMemberScope && !folder && !topic && peerId !== undefined
+    && peerId !== account?.tgUserId ? peerId : undefined;
   const t = lang as unknown as (key: string, params?: Record<string, string | number>) => string;
   const accountId = account?.id;
   const folderId = folder?.id;
@@ -487,7 +489,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
     setError(undefined);
     const common = {
       preset,
-      permissions: diffPermissions(preset, permissions),
+      permissions: diffPermissions(preset, permissions, ownerActionsPeerId),
       label: label.trim() || undefined,
       limits: buildLimits(),
       excludePeerIds: folder ? excludedIds : undefined,
@@ -805,6 +807,7 @@ const ShareChatModal = ({ chatId, folder, topic }: OwnProps) => {
         <ShareSettingsFields
           value={settings}
           isFolder={Boolean(folder)}
+          ownerActionsPeerId={ownerActionsPeerId}
           isMemberCoverage={coverMembers}
           editingHistory={editing?.historyMode}
           expiresAt={editing?.expiresAt ?? undefined}

@@ -71,6 +71,7 @@ export const PXG_ERROR_REASON_KEYS = {
   owner_cannot_manage_topics: 'PxgErrOwnerCannotManageTopics',
   owner_cannot_delete_topics: 'PxgErrOwnerCannotDeleteTopics',
   owner_cannot_change_info: 'PxgErrOwnerCannotChangeInfo',
+  owner_chat_action_unavailable: 'PxgErrOwnerChatActionUnavailable',
   topics_need_full_forum: 'PxgErrTopicsNeedFullForum',
   group_only: 'PxgErrGroupOnly',
   topic_only: 'PxgErrTopicOnly',

@@ -1,5 +1,5 @@
 import {
-  memo, useCallback, useMemo, useRef, useState,
+  memo, useCallback, useEffect, useMemo, useRef, useState,
 } from '../../lib/teact/teact';
 import { getActions, withGlobal } from '../../global';
 
@@ -151,12 +151,18 @@ const HeaderActions = ({
   const lang = useLang();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<IAnchorPosition | undefined>(undefined);
+  const [menuState, setMenuState] = useState<{ anchor: IAnchorPosition; chatId: string; threadId: ThreadId }>();
+  const menuAnchor = menuState?.chatId === chatId && menuState.threadId === threadId ? menuState.anchor : undefined;
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setMenuState(undefined);
+  }, [chatId, threadId, noMenu]);
 
   const handleHeaderMenuOpen = useLastCallback(() => {
     setIsMenuOpen(true);
     const rect = menuButtonRef.current!.getBoundingClientRect();
-    setMenuAnchor({ x: rect.right, y: rect.bottom });
+    setMenuState({ anchor: { x: rect.right, y: rect.bottom }, chatId, threadId });
   });
 
   const handleHeaderMenuClose = useLastCallback(() => {
@@ -164,7 +170,7 @@ const HeaderActions = ({
   });
 
   const handleHeaderMenuHide = useLastCallback(() => {
-    setMenuAnchor(undefined);
+    setMenuState(undefined);
   });
 
   const handleTranslateClick = useLastCallback(() => {
@@ -289,19 +295,6 @@ const HeaderActions = ({
     );
   }, [isRightColumnShown, lang]);
 
-  const SharedChatMenuButton = useCallback(({ onTrigger, isOpen }: { onTrigger: () => void; isOpen?: boolean }) => (
-    <Button
-      className={isOpen ? 'active' : ''}
-      round
-      ripple={!isMobile}
-      size="smaller"
-      color="translucent"
-      ariaLabel={lang('AccDescrMoreOptions')}
-      onClick={onTrigger}
-      iconName="more"
-    />
-  ), [isMobile, lang]);
-
   const handleReadForOwner = useLastCallback(async () => {
     if (!proxyReadAccess) return;
     const userId = getPxgState().session?.user.id;
@@ -387,7 +380,7 @@ const HeaderActions = ({
           </MenuItem>
         </DropdownMenu>
       )}
-      {(!isMobile || isProxyPeerId(chatId)) && (
+      {!isMobile && (
         <>
           {canSearch && (
             <Button
@@ -426,12 +419,7 @@ const HeaderActions = ({
           <div className="badge">{pendingJoinRequests}</div>
         </Button>
       )}
-      {proxyReadAccess && (
-        <DropdownMenu trigger={SharedChatMenuButton} positionX="right" withPortal>
-          <MenuItem icon="readchats" onClick={handleReadForOwner}>{lang('PxgReadOwnerAction')}</MenuItem>
-        </DropdownMenu>
-      )}
-      {!isProxyPeerId(chatId) && (
+      {(!isProxyPeerId(chatId) || !noMenu) && (
         <Button
           ref={menuButtonRef}
           className={isMenuOpen ? 'active' : ''}
@@ -445,7 +433,7 @@ const HeaderActions = ({
           iconName="more"
         />
       )}
-      {menuAnchor && (
+      {menuAnchor && !noMenu && (
         <HeaderMenuContainer
           chatId={chatId}
           threadId={threadId}
@@ -469,6 +457,7 @@ const HeaderActions = ({
           channelMonoforumId={channelMonoforumId}
           onSearchClick={handleSearchClick}
           onAsMessagesClick={handleAsMessagesClick}
+          onReadForOwner={proxyReadAccess ? handleReadForOwner : undefined}
           onClose={handleHeaderMenuClose}
           onCloseAnimationEnd={handleHeaderMenuHide}
         />
@@ -499,8 +488,10 @@ export default memo(withGlobal<OwnProps>(
         && messageListType === 'thread' && (!chat?.isForum || Boolean(topic))
         && (topic?.pxgPermissions ?? proxy.permissions).markRead;
       return {
-        noMenu: true,
+        noMenu: !isProxyAvailable,
         canSearch: isProxyAvailable,
+        canMute: isProxyAvailable && !proxy?.isLocal && !proxy?.isSavedMessages && threadId === MAIN_THREAD_ID,
+        isRightColumnShown: selectIsRightColumnShown(global, isMobile),
         proxyReadAccess: canReadForOwner ? proxy : undefined,
         isProxyForum: chat?.isForum,
         canTranslate: isProxyAvailable && selectCanTranslateChat(global, chatId)

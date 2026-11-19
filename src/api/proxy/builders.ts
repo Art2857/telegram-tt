@@ -103,6 +103,8 @@ export function buildProxyChat(chat: AccessChat): ApiChat {
       originalPhotoId: chat.photoId || undefined,
       personalPhoto: personalPhoto || undefined,
       accountId: chat.accountId, peerId: chat.peerId, permissions: chat.permissions, shareIds: chat.shareIds,
+      canAdministerChat: chat.canAdministerChat,
+      ownerChatActions: chat.ownerChatActions,
       restricted: chat.restricted || undefined,
       label: chat.label || undefined,
       coverageSourceTitle: chat.coverageSourceTitle || undefined,
@@ -159,7 +161,7 @@ export function buildProxyChatInfo(
     // A guest writes as the owner unless they chose one of the owner's channels
     sendAsId: sendAsPeerId ? getProxyPeerId(chat.accountId, sendAsPeerId) : undefined,
     // Members of a group are visible as to the owner; subscribers of a channel — to its admins only
-    canViewMembers: (chat.peerId < 0 && (chat.type !== 'channel' || chat.permissions.admin)) || undefined,
+    canViewMembers: (chat.peerId < 0 && (chat.type !== 'channel' || chat.canAdministerChat)) || undefined,
     about: info?.about,
     slowMode: !chat.isOwnerAdmin && info?.slowmodeSeconds ? { seconds: info.slowmodeSeconds } : undefined,
     // The server sends the owner's invite link only to a guest with the admin permission

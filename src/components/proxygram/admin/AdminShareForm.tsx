@@ -20,7 +20,7 @@ import ShareSettingsFields, { parseStarsLimit } from '../ShareSettingsFields';
 
 import styles from './AdminPanel.module.scss';
 
-type AccountOption = { id: string; displayName: string | null; status: string };
+type AccountOption = { id: string; displayName: string | null; status: string; tgUserId?: number | null };
 type PeerOption = { peerId: number; title: string | null; username: string | null; type: string | null };
 type Targets = {
   folders: { id: number; title: string }[];
@@ -77,11 +77,13 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
   const isMemberScope = scope.endsWith('_members');
   const coverage = share?.memberCoverage;
   const peerType = share?.peerType ?? peers.find((peer) => peer.peerId === peerId)?.type;
+  const ownerActionsPeerId = scope === 'chat' && peerId
+    && peerId !== accounts.find((account) => account.id === accountId)?.tgUserId ? peerId : undefined;
   const canCoverMembers = scope === 'folder' || (scope === 'chat'
     && Boolean(coverage || ['chat', 'megagroup', 'forum'].includes(peerType ?? '')));
   const hasSeparateMemberPermissions = Boolean(share && coverage
     && !samePermissions(resolvePermissions(coverage.preset, coverage.permissions),
-      resolvePermissions(share.preset, share.permissions)));
+      resolvePermissions(share.preset, share.permissions), true));
   const lookupValue = username.trim();
   const isPhoneLookup = PHONE.test(lookupValue);
   const canFind = !isFinding && !isSaving && (isPhoneLookup || USERNAME.test(lookupValue));
@@ -184,7 +186,7 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
       const expiresAt = days ? new Date(getServerTime() * 1000 + days * DAY_MS).toISOString() : undefined;
       const common = {
         preset: settings.preset,
-        permissions: diffPermissions(settings.preset, settings.permissions),
+        permissions: diffPermissions(settings.preset, settings.permissions, ownerActionsPeerId),
         label: settings.label.trim(),
         limits: {
           sendPerMinute: parseLimit(settings.sendLimit),
@@ -404,6 +406,7 @@ const AdminShareForm = ({ share, initialAccountId, onClose }: OwnProps) => {
       <ShareSettingsFields
         value={settings}
         isFolder={isFolderScope}
+        ownerActionsPeerId={ownerActionsPeerId}
         isMemberCoverage={isMemberScope || (canCoverMembers && coverMembers)}
         editingHistory={share?.historyMode}
         expiresAt={share?.expiresAt ?? undefined}

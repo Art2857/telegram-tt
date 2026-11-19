@@ -41,9 +41,15 @@ export interface SessionTokensResponse {
 export type PermissionKey =
   | 'read' | 'write' | 'sendMedia' | 'useOwnerStickers' | 'react' | 'editOwn' | 'deleteOwn'
   | 'manageOwnerOutgoing' | 'interact' | 'download' | 'forwardOut' | 'seeArchive' | 'seeAttribution'
-  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages' | 'spendStars' | 'startChats';
+  | 'markRead' | 'typing' | 'seePhones' | 'admin' | 'signMessages' | 'spendStars' | 'startChats'
+  | 'changeAutoDelete' | 'changeContentProtection' | 'manageContactBlock';
 
 export type Permissions = Record<PermissionKey, boolean>;
+export type OwnerChatChange =
+  | { operation: 'autoDelete'; period: number }
+  | { operation: 'contentProtection'; enabled: boolean }
+  | { operation: 'contactBlock'; enabled: boolean };
+export type OwnerChatOperation = OwnerChatChange['operation'];
 
 export type PresetKey = 'readOnly' | 'assistant' | 'full';
 
@@ -95,6 +101,8 @@ export interface AccessChat {
   /** The owner's Stars a day for paid messages; only for a guest with `spendStars` */
   starsPerDay?: number;
   shareIds: string[];
+  canAdministerChat?: boolean;
+  ownerChatActions?: OwnerChatOperation[];
   /** Только архив: чат пропал у владельца, аккаунт недоступен или Telegram ограничил отправку */
   restricted: AccessRestriction | null;
   /** The owner's label for the guest: "Clients / Acme" */

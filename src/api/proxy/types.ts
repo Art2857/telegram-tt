@@ -1,4 +1,6 @@
-import type { AccessRestriction, Permissions, ProviderAccountState } from '../../proxygram/server/types';
+import type {
+  AccessRestriction, OwnerChatOperation, Permissions, ProviderAccountState,
+} from '../../proxygram/server/types';
 
 export type ProxyChatInfo = {
   accountId: string;
@@ -10,6 +12,8 @@ export type ProxyChatInfo = {
   personalPhoto?: { id: string; width: number; height: number };
   permissions: Permissions;
   shareIds: string[];
+  canAdministerChat?: boolean;
+  ownerChatActions?: OwnerChatOperation[];
   restricted?: AccessRestriction;
   /** The owner's label for the guest: "Clients / Acme" */
   label?: string;

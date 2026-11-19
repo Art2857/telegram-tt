@@ -2,7 +2,7 @@ import { memo } from '../../lib/teact/teact';
 
 import type { Permissions, PresetKey } from '../../proxygram/server/types';
 
-import { PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
+import { OWNER_CHAT_PERMISSION_KEYS, PERMISSION_KEYS, resolvePermissions } from '../../proxygram/permissions';
 import { formatDateTime } from './helpers';
 
 import useLang from '../../hooks/useLang';
@@ -34,6 +34,7 @@ export type ShareSettings = {
 type OwnProps = {
   value: ShareSettings;
   isFolder?: boolean;
+  ownerActionsPeerId?: number;
   /** Охват участников: сервер не сочетает его с «последними N» */
   isMemberCoverage?: boolean;
   editingHistory?: HistoryMode;
@@ -59,7 +60,7 @@ const EXPIRY_KEYS = {
 
 /** Общие параметры выдачи и правки доступа владельцем и администратором */
 const ShareSettingsFields = ({
-  value, isFolder, isMemberCoverage, editingHistory, expiresAt, folderChats, onChange,
+  value, isFolder, ownerActionsPeerId, isMemberCoverage, editingHistory, expiresAt, folderChats, onChange,
 }: OwnProps) => {
   const lang = useLang();
   const t = lang as unknown as (key: string) => string;
@@ -99,7 +100,7 @@ const ShareSettingsFields = ({
       </Button>
       {isCustomizing && (
         <div className={styles.permissions}>
-          {PERMISSION_KEYS.filter((key) => key !== 'read').map((key) => (
+          {PERMISSION_KEYS.filter((key) => key !== 'read' && !OWNER_CHAT_PERMISSION_KEYS.includes(key)).map((key) => (
             <Checkbox
               key={key}
               label={t(`PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}
@@ -108,6 +109,23 @@ const ShareSettingsFields = ({
             />
           ))}
         </div>
+      )}
+      {isCustomizing && ownerActionsPeerId !== undefined && (
+        <>
+          <div className={styles.sectionTitle}>{lang('PxgOwnerChatPermissions')}</div>
+          <p className={styles.secondary}>{lang('PxgOwnerChatPermissionsHint')}</p>
+          <div className={styles.permissions}>
+            {OWNER_CHAT_PERMISSION_KEYS.filter((key) => key !== 'manageContactBlock' || ownerActionsPeerId > 0)
+              .map((key) => (
+                <Checkbox
+                  key={key}
+                  label={t(`PxgPerm${key[0].toUpperCase()}${key.slice(1)}`)}
+                  checked={permissions[key]}
+                  onCheck={(isChecked) => onChange({ permissions: { ...permissions, [key]: isChecked } })}
+                />
+              ))}
+          </div>
+        </>
       )}
       {permissions.markRead && <p className={styles.secondary}>{lang('PxgShareReadWarning')}</p>}
       {isFolder && Boolean(folderChats?.length) && (

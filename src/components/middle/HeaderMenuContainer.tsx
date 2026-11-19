@@ -1,11 +1,12 @@
 import {
-  memo, useEffect, useMemo, useState,
+  memo, useEffect, useMemo, useRef, useState,
 } from '../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type {
   ApiBotCommand, ApiChat, ApiDisallowedGifts,
 } from '../../api/types';
+import type { OwnerChatChange } from '../../proxygram/server/types';
 import type { IAnchorPosition, ThreadId } from '../../types';
 import type { IconName } from '../../types/icons';
 import type { RegularLangKey } from '../../types/language';
@@ -19,6 +20,7 @@ import {
   getHasAdminRight,
   getIsSavedDialog,
   isChatAdmin,
+  isChatArchived,
   isChatChannel,
   isChatGroup,
   isSystemBot,
@@ -50,7 +52,10 @@ import {
 } from '../../global/selectors';
 import { isUserId } from '../../util/entities/ids';
 import { disableScrolling } from '../../util/scrollLock';
-import { setPxgState, usePxgState } from '../../proxygram/server/store'; // PXG
+import { isProxyGuest } from '../../api/proxy';
+import { runProxyJob } from '../../api/proxy/outbox';
+import { getPxgErrorMessage } from '../../proxygram/errorReasons';
+import { getPxgState, setPxgState, usePxgState } from '../../proxygram/server/store'; // PXG
 import { buildAutoDeletePeriodOptions, DEFAULT_AUTO_DELETE_PERIODS } from '../common/helpers/autoDeletePeriods';
 
 import useAppLayout from '../../hooks/useAppLayout';
@@ -64,6 +69,7 @@ import DeleteChatModal from '../common/DeleteChatModal';
 import AutoDeleteOutlinedIcon from '../common/icons/AutoDeleteOutlinedIcon';
 import Icon from '../common/icons/Icon';
 import MuteChatModal from '../left/MuteChatModal.async';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import Menu from '../ui/Menu';
 import MenuItem from '../ui/MenuItem';
 import MenuSeparator from '../ui/MenuSeparator';
@@ -106,6 +112,7 @@ export type OwnProps = {
   channelMonoforumId?: string;
   onSearchClick: () => void;
   onAsMessagesClick: () => void;
+  onReadForOwner?: () => void;
   onClose: () => void;
   onCloseAnimationEnd: () => void;
   onJoinRequestsClick?: () => void;
@@ -145,6 +152,8 @@ type StateProps = {
   noForwardsPeerEnabled?: boolean;
   canManageAutoDelete?: boolean;
   historyTtl?: number;
+  canEditPersonalContact?: boolean;
+  canChangeGuestList?: boolean;
 };
 
 const CLOSE_MENU_ANIMATION_DURATION = 200;
@@ -201,10 +210,13 @@ const HeaderMenuContainer = ({
   noForwardsPeerEnabled,
   canManageAutoDelete,
   historyTtl,
+  canEditPersonalContact,
+  canChangeGuestList,
   channelMonoforumId,
   onJoinRequestsClick,
   onSearchClick,
   onAsMessagesClick,
+  onReadForOwner,
   onClose,
   onCloseAnimationEnd,
 }: OwnProps & StateProps) => {
@@ -243,6 +255,8 @@ const HeaderMenuContainer = ({
     setChatHistoryTtl,
     openAutoDeleteTimerModal,
     openWalletTransferLink,
+    markChatUnread,
+    toggleChatArchived,
   } = getActions();
 
   const lang = useLang();
@@ -252,6 +266,9 @@ const HeaderMenuContainer = ({
   const [shouldCloseFast, setShouldCloseFast] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isMuteModalOpen, setIsMuteModalOpen] = useState(false);
+  const [ownerChatChange, setOwnerChatChange] = useState<OwnerChatChange>();
+  const [isApplyingOwnerChange, setIsApplyingOwnerChange] = useState(false);
+  const ownerChangeInFlightRef = useRef(false);
   const [shouldRenderMuteModal, markRenderMuteModal, unmarkRenderMuteModal] = useFlag();
   const { x, y } = anchor;
 
@@ -296,6 +313,49 @@ const HeaderMenuContainer = ({
   const closeMenu = useLastCallback(() => {
     setIsMenuOpen(false);
     onClose();
+  });
+
+  const chooseOwnerChatChange = useLastCallback((change: OwnerChatChange) => {
+    setOwnerChatChange(change);
+    setIsMenuOpen(false);
+  });
+
+  const closeOwnerChatChange = useLastCallback(() => {
+    if (ownerChangeInFlightRef.current) return;
+    setOwnerChatChange(undefined);
+    onClose();
+  });
+
+  const ownerChat = threadId === MAIN_THREAD_ID ? chat?.pxgProxy : undefined;
+  const ownerChatActions = ownerChat?.ownerChatActions ?? [];
+  const applyOwnerChatChange = useLastCallback(async () => {
+    const change = ownerChatChange;
+    if (!change || !ownerChat?.ownerChatActions?.includes(change.operation) || ownerChangeInFlightRef.current) return;
+    const userId = getPxgState().session?.user.id;
+    ownerChangeInFlightRef.current = true;
+    setIsApplyingOwnerChange(true);
+    try {
+      const result = await runProxyJob('chats.ownerAction', {
+        accountId: ownerChat.accountId,
+        peerId: ownerChat.peerId,
+        change,
+      }, 15_000) as { isProtected?: boolean; requestSent?: boolean } | null;
+      if (getPxgState().session?.user.id !== userId) return;
+      let message = lang('PxgOwnerChatActionDone');
+      if (change.operation === 'contentProtection' && !change.enabled) {
+        if (result?.requestSent) message = lang('PxgOwnerChatProtectionRequested');
+        else if (result?.isProtected !== false) message = lang('PxgOwnerChatProtectionStillOn');
+      }
+      showNotification({ message });
+    } catch (err) {
+      if (getPxgState().session?.user.id === userId) {
+        showNotification({ message: getPxgErrorMessage(lang, err) });
+      }
+    } finally {
+      ownerChangeInFlightRef.current = false;
+      setIsApplyingOwnerChange(false);
+      closeOwnerChatChange();
+    }
   });
 
   const handleViewGroupInfo = useLastCallback(() => {
@@ -619,6 +679,7 @@ const HeaderMenuContainer = ({
   }, [botCommands, lang, botPrivacyPolicyUrl, isBot]);
 
   const hasPxgSession = usePxgState((state) => state.session?.level === 'client'); // PXG
+  const isSharedChat = Boolean(chat?.pxgProxy);
 
   const deleteTitle = useMemo(() => {
     if (!chat) return undefined;
@@ -696,7 +757,7 @@ const HeaderMenuContainer = ({
             </MenuItem>
           )}
           {/* PXG: открыть чат гостю через сервер Proxygram */}
-          {hasPxgSession && !savedDialog && chatId !== SERVICE_NOTIFICATIONS_USER_ID && (
+          {hasPxgSession && chat && !isSharedChat && !savedDialog && chatId !== SERVICE_NOTIFICATIONS_USER_ID && (
             <MenuItem
               icon="share-filled"
               onClick={() => {
@@ -721,7 +782,7 @@ const HeaderMenuContainer = ({
             </MenuItem>
           )}
           {/* PXG: открыть гостю только эту тему форума */}
-          {hasPxgSession && isTopic && (
+          {hasPxgSession && !isSharedChat && isTopic && (
             <MenuItem
               icon="share-filled"
               onClick={() => {
@@ -740,6 +801,17 @@ const HeaderMenuContainer = ({
               onClick={handleEditClick}
             >
               {lang('Edit')}
+            </MenuItem>
+          )}
+          {canEditPersonalContact && (
+            <MenuItem
+              icon="edit"
+              onClick={() => {
+                setPxgState({ personalContactUserId: chatId });
+                closeMenu();
+              }}
+            >
+              {lang('PxgContactEdit')}
             </MenuItem>
           )}
           {canEditTopic && (
@@ -812,7 +884,7 @@ const HeaderMenuContainer = ({
               icon="unmute"
               onClick={handleUnmuteClick}
             >
-              {lang('ChatsUnmute')}
+              {lang(isSharedChat ? 'PxgGuestUnmute' : 'ChatsUnmute')}
             </MenuItem>
           )
             : (
@@ -820,7 +892,7 @@ const HeaderMenuContainer = ({
                 icon="mute"
                 onClick={handleMuteClick}
               >
-                {lang('ChatsMute')}
+                {lang(isSharedChat ? 'PxgGuestMute' : 'ChatsMute')}
                 ...
               </MenuItem>
             )
@@ -878,6 +950,88 @@ const HeaderMenuContainer = ({
             >
               {lang('ReportSelectMessages')}
             </MenuItem>
+          )}
+          {canChangeGuestList && chat && (
+            <>
+              <MenuItem
+                icon="readchats"
+                onClick={() => {
+                  markChatUnread({ id: chatId });
+                  closeMenu();
+                }}
+              >
+                {lang('ChatListContextMarkAsUnread')}
+              </MenuItem>
+              <MenuItem
+                icon={isChatArchived(chat) ? 'unarchive' : 'archive'}
+                onClick={() => {
+                  toggleChatArchived({ id: chatId });
+                  closeMenu();
+                }}
+              >
+                {lang(isChatArchived(chat) ? 'PxgGuestUnarchiveChat' : 'PxgGuestArchiveChat')}
+              </MenuItem>
+            </>
+          )}
+          {onReadForOwner && (
+            <MenuItem
+              icon="readchats"
+              onClick={() => {
+                closeMenu();
+                onReadForOwner();
+              }}
+            >
+              {lang('PxgReadOwnerAction')}
+            </MenuItem>
+          )}
+          {ownerChatActions.length > 0 && (
+            <>
+              <MenuSeparator />
+              {ownerChatActions.includes('autoDelete') && (
+                <NestedMenuItem
+                  customIcon={<AutoDeleteOutlinedIcon period={0} />}
+                  submenu={buildAutoDeletePeriodOptions(lang, DEFAULT_AUTO_DELETE_PERIODS, undefined,
+                    lang('AutoDeleteNever')).map(({ label, value }) => (
+                    <MenuItem
+                      key={value}
+                      onClick={() => chooseOwnerChatChange({ operation: 'autoDelete', period: Number(value) })}
+                    >
+                      {label}
+                    </MenuItem>
+                  ))}
+                >
+                  {lang('PxgOwnerChatAutoDelete')}
+                </NestedMenuItem>
+              )}
+              {ownerChatActions.includes('contentProtection') && (
+                <MenuItem
+                  icon={chat?.isProtected ? 'allow-share' : 'no-share'}
+                  onClick={() => chooseOwnerChatChange({ operation: 'contentProtection', enabled: !chat?.isProtected })}
+                >
+                  {lang(chat?.isProtected ? 'PxgOwnerChatAllowCopy' : 'PxgOwnerChatProtectCopy')}
+                </MenuItem>
+              )}
+              {ownerChatActions.includes('contactBlock') && (
+                <NestedMenuItem
+                  icon="hand-stop"
+                  submenu={(
+                    <>
+                      <MenuItem
+                        destructive
+                        onClick={() => chooseOwnerChatChange({ operation: 'contactBlock', enabled: true })}
+                      >
+                        {lang('NewContactBlock')}
+                      </MenuItem>
+                      <MenuItem onClick={() => chooseOwnerChatChange({ operation: 'contactBlock', enabled: false })}>
+                        {lang('Unblock')}
+                      </MenuItem>
+                    </>
+                  )}
+                >
+                  {lang('PxgOwnerChatContactBlock')}
+                </NestedMenuItem>
+              )}
+            </>
           )}
           {canViewBoosts && (
             <MenuItem
@@ -944,7 +1098,7 @@ const HeaderMenuContainer = ({
               {isBlocked ? lang('BotRestart') : lang('BotStop')}
             </MenuItem>
           )}
-          {isPrivate && !isChatWithSelf && !isBot && (
+          {isPrivate && !isSharedChat && !isChatWithSelf && !isBot && (
             <MenuItem
               icon={noForwardsMyEnabled || noForwardsPeerEnabled ? 'allow-share' : 'no-share'}
               onClick={handleToggleNoForwards}
@@ -952,7 +1106,7 @@ const HeaderMenuContainer = ({
               {noForwardsMyEnabled || noForwardsPeerEnabled ? lang('EnableSharing') : lang('DisableSharing')}
             </MenuItem>
           )}
-          {isPrivate && !isChatWithSelf && !isBot && (
+          {isPrivate && !isSharedChat && !isChatWithSelf && !isBot && (
             <MenuItem
               icon={isBlocked ? 'user' : 'hand-stop'}
               onClick={isBlocked ? handleUnblock : handleBlock}
@@ -973,7 +1127,19 @@ const HeaderMenuContainer = ({
             </>
           )}
         </Menu>
-        {chat && (
+        {ownerChatChange && (
+          <ConfirmDialog
+            isOpen
+            title={lang('PxgOwnerChatConfirmTitle')}
+            text={lang(getOwnerChatConfirmation(ownerChatChange))}
+            confirmIsDestructive={ownerChatChange.operation === 'contactBlock' && ownerChatChange.enabled}
+            isConfirmDisabled={!ownerChatActions.includes(ownerChatChange.operation)}
+            isConfirmLoading={isApplyingOwnerChange}
+            confirmHandler={applyOwnerChatChange}
+            onClose={closeOwnerChatChange}
+          />
+        )}
+        {chat && !isSharedChat && (
           <DeleteChatModal
             isOpen={isDeleteModalOpen}
             onClose={closeDeleteModal}
@@ -993,6 +1159,14 @@ const HeaderMenuContainer = ({
     </Portal>
   );
 };
+
+function getOwnerChatConfirmation(change: OwnerChatChange): RegularLangKey {
+  switch (change.operation) {
+    case 'autoDelete': return change.period ? 'PxgOwnerChatConfirmTtlOn' : 'PxgOwnerChatConfirmTtlOff';
+    case 'contentProtection': return change.enabled ? 'PxgOwnerChatConfirmProtect' : 'PxgOwnerChatConfirmUnprotect';
+    case 'contactBlock': return change.enabled ? 'PxgOwnerChatConfirmBlock' : 'PxgOwnerChatConfirmUnblock';
+  }
+}
 
 function getViewInfoLangKey(isTopic: boolean | undefined, isBotForum: boolean | undefined) {
   if (isTopic) {
@@ -1037,6 +1211,32 @@ export default memo(withGlobal<OwnProps>(
     // Context menu item should only be displayed if user hid translation panel
     const canTranslate = selectCanTranslateChat(global, chatId) && fullInfo?.isTranslationDisabled;
 
+    if (chat.pxgProxy) {
+      const proxy = chat.pxgProxy;
+      const isTopic = Boolean(chat.isForum && !isMainThread);
+      const topicRights = isTopic ? topic?.pxgPermissions : proxy.permissions;
+      const isEditable = !proxy.restricted && !proxy.isLocal;
+      return {
+        chat,
+        isMuted: getIsChatMuted(chat, selectNotifyDefaults(global), selectNotifyException(global, chatId)),
+        isTopic,
+        isForum: chat.isForum,
+        isForumAsMessages: chat.isForumAsMessages,
+        canHideDeleted: topicRights?.seeArchive && !proxy.isLocal,
+        isDeletedHidden: selectIsDeletedHidden(global, chatId),
+        isChatInfoShown: selectTabState(global).chatInfo.isOpen
+          && currentChatId === chatId && currentThreadId === threadId,
+        canCreateTopic: isEditable && isMainThread && proxy.canAdministerChat && canCreateTopic,
+        canEditTopic: isEditable && topicRights?.admin && canEditTopic,
+        canManage: isEditable && isMainThread && canManage,
+        canEditPersonalContact: isPrivate && Boolean(user) && proxy.peerId > 0
+          && !proxy.isLocal && !proxy.isSavedMessages,
+        canChangeGuestList: isMainThread && isProxyGuest() && !proxy.isLocal && !proxy.isSavedMessages,
+        isRightColumnShown: selectIsRightColumnShown(global),
+        canTranslate,
+      } as Complete<StateProps>;
+    }
+
     const isSavedDialog = getIsSavedDialog(chatId, threadId, global.currentUserId);
     const savedDialog = isSavedDialog ? selectChat(global, String(threadId)) : undefined;
     const isAccountFrozen = selectIsCurrentUserFrozen(global);
@@ -1053,7 +1253,7 @@ export default memo(withGlobal<OwnProps>(
       isForumAsMessages: chat?.isForumAsMessages,
       canAddContact,
       canDeleteChat: getCanDeleteChat(chat),
-      canHideDeleted: !chat.pxgProxy || chat.pxgProxy.permissions.seeArchive,
+      canHideDeleted: true,
       isDeletedHidden: selectIsDeletedHidden(global, chatId),
       canReportChat,
       canGift,
@@ -1077,6 +1277,8 @@ export default memo(withGlobal<OwnProps>(
       noForwardsPeerEnabled: userFullInfo?.noForwardsPeerEnabled,
       canManageAutoDelete,
       historyTtl: canManageAutoDelete ? selectChatHistoryTtl(global, chatId) : undefined,
+      canEditPersonalContact: undefined,
+      canChangeGuestList: undefined,
     };
   },
 )(HeaderMenuContainer));
