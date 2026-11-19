@@ -271,7 +271,7 @@ export interface ApiChatFolder {
   pxgOwnerName?: string;
   /** Стабильный ключ локальной папки доступа; по нему хранятся название, скрытие и порядок */
   pxgLocalKey?: string;
-  pxgLocalKind?: 'accesses' | 'owner' | 'folder';
+  pxgLocalKind?: 'accesses' | 'owner' | 'folder' | 'dialogArchive';
   /** Исходное название расшаренной папки или подпись владельца */
   pxgOriginalTitle?: string;
   /** Кто открыл папку: подпись «от …» на вкладке и в настройках */

@@ -292,6 +292,7 @@ export function getProxySendingRestrictionReason(lang: LangFn, chat?: ApiChat, t
   const unpaidPrice = chat && getProxyUnpaidPrice(chat, topic);
   if (unpaidPrice) return lang('PxgPaidNoSpendStars', { stars: unpaidPrice });
   if (!proxy || (topic?.pxgPermissions || proxy.permissions).write) return undefined;
+  if (proxy.isOwnerArchive) return lang('PxgDialogArchiveReadOnly');
   if (proxy.restricted === 'source_lost') return lang('PxgRestrictedSourceLost');
   if (proxy.restricted === 'account_unavailable') return getProxyOwnerOfflineText(lang, proxy);
   if (proxy.restricted === 'flood') return lang('PxgRestrictedFlood');

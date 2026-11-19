@@ -21,6 +21,7 @@ export type ProxyChatInfo = {
   coverageSourceTitle?: string;
   /** The viewer's own account in thin mode: nobody's name to write on behalf of */
   isOwn?: boolean;
+  isOwnerArchive?: boolean;
   /** Личка, начатая гостем из охвата: серверного доступа ещё нет, чат живёт на устройстве */
   isLocal?: true;
   /** The provider's Telegram Saved Messages */

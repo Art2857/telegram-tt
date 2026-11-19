@@ -4757,6 +4757,8 @@
 "PxgSettingsIncoming" = "Shared with me";
 "PxgSettingsFolders" = "Folders from others";
 "PxgSharedFolder" = "Shared folder";
+"PxgDialogArchive" = "Conversation archive";
+"PxgDialogArchiveReadOnly" = "Archived conversation history";
 "PxgFolderFrom" = "from {name}";
 "PxgFolderRename" = "Rename";
 "PxgFolderReset" = "Reset name";
@@ -4983,6 +4985,7 @@
 "PxgAuditArchiveClear" = "cleared the archive";
 "PxgAuditArchiveRetention" = "removed from the archive after the keeping period";
 "PxgAuditArchiveChat" = "changed whether the chat is archived";
+"PxgAuditDialogCleared" = "saved a cleared conversation";
 "PxgAuditDisconnect" = "disconnected the account";
 "PxgAuditSessionRevoke" = "ended a session";
 "PxgAuditFailed" = "failed";

@@ -74,6 +74,7 @@ export interface AccessChat {
   peerId: number;
   /** The viewer's own account in thin mode, not a chat someone shared */
   isOwn?: boolean;
+  isOwnerArchive?: boolean;
   /** The provider's Telegram Saved Messages, shared with the same rights as any other chat */
   isSavedMessages?: boolean;
   title: string | null;

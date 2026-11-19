@@ -461,6 +461,7 @@ export type ApiUpdateDeleteScheduledMessages = {
 export type ApiUpdateDeleteHistory = {
   '@type': 'deleteHistory';
   chatId: string;
+  throughMsgId?: number;
 };
 
 export type ApiDeleteParticipantHistory = {

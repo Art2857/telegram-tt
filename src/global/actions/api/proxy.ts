@@ -318,9 +318,12 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
     global = updateUsers(global, buildCollectionByKey(result.users, 'id'));
     global = addUserStatuses(global, result.userStatusesById);
     global = replaceMessages(global, result.messages);
-    const archivedIds = new Set(result.archivedChatIds);
-    global = addChatListIds(global, 'active', result.chatIds.filter((id) => !archivedIds.has(id)));
-    global = addChatListIds(global, 'archived', result.archivedChatIds);
+    const ownerArchiveIds = new Set(result.chats.filter(({ pxgProxy }) => pxgProxy?.isOwnerArchive)
+      .map(({ id }) => id));
+    const archivedIds = new Set(result.archivedChatIds.filter((id) => !ownerArchiveIds.has(id)));
+    global = addChatListIds(global, 'active', result.chatIds.filter((id) => !archivedIds.has(id)
+      && !ownerArchiveIds.has(id)));
+    global = addChatListIds(global, 'archived', [...archivedIds]);
     // A local chat whose access has not appeared yet comes back with its queued message; once the server
     // returns it, its own chat replaces the local one
     if (localChats.length) {
@@ -335,7 +338,7 @@ addActionHandler('loadProxyChats', async (global, actions, payload): Promise<voi
           ...global.chats,
           orderedPinnedIds: {
             ...global.chats.orderedPinnedIds,
-            active: result.pinnedChatIds.filter((id) => !archivedIds.has(id)),
+            active: result.pinnedChatIds.filter((id) => !archivedIds.has(id) && !ownerArchiveIds.has(id)),
             archived: result.pinnedChatIds.filter((id) => archivedIds.has(id)),
           },
           // Every access arrives at once: an empty list is final rather than still loading
@@ -441,6 +444,7 @@ const CONNECTION_ERRORS = new Set(['disconnected', 'timeout', 'network', 'unauth
 /** The same permissions and the same grants: what the guest already sees of this chat stays valid */
 function isSameProxyAccess(previous: ApiChat['pxgProxy'], next: ApiChat['pxgProxy']) {
   return previous && next && previous.restricted === next.restricted
+    && previous.isOwnerArchive === next.isOwnerArchive
     && previous.shareIds.join() === next.shareIds.join()
     && JSON.stringify(previous.permissions) === JSON.stringify(next.permissions);
 }

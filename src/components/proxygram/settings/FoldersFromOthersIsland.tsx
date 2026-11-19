@@ -22,6 +22,7 @@ const FoldersFromOthersIsland = () => {
 
   const titleOf = (folder: ApiChatFolder) => {
     if (folder.pxgCustomTitle && folder.title.text) return folder.title.text;
+    if (folder.pxgLocalKind === 'dialogArchive') return lang('PxgDialogArchive');
     if (folder.pxgLocalKind === 'folder') return folder.pxgOriginalTitle || lang('PxgSharedFolder');
     if (folder.pxgLocalKind === 'owner' && folder.pxgOwnerName) {
       return lang('PxgOwnerTab', { name: folder.pxgOwnerName });

@@ -124,9 +124,10 @@ const useFolderTabs = (params: Params) => {
     return displayedFolders.map((folder, i) => {
       const { id } = folder;
       // У локальной папки название может быть своим; без него — исходное название или подпись владельца
-      const localFallback = folder.pxgLocalKind === 'folder'
-        ? (folder.pxgOriginalTitle || lang('PxgSharedFolder'))
-        : folder.pxgOwnerName ? lang('PxgOwnerTab', { name: folder.pxgOwnerName }) : lang('PxgSharedWithMe');
+      const localFallback = folder.pxgLocalKind === 'dialogArchive' ? lang('PxgDialogArchive')
+        : folder.pxgLocalKind === 'folder'
+          ? (folder.pxgOriginalTitle || lang('PxgSharedFolder'))
+          : folder.pxgOwnerName ? lang('PxgOwnerTab', { name: folder.pxgOwnerName }) : lang('PxgSharedWithMe');
       const localTitle = folder.pxgLocal
         ? { text: folder.pxgCustomTitle && folder.title.text ? folder.title.text : localFallback }
         : folder.title;

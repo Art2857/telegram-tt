@@ -26,6 +26,9 @@ export const MEDIA_ICONS: Record<string, string> = {
   contact: '👤',
 };
 
+// Полная предыдущая история доступна в «Архиве диалогов».
+export const DIALOG_PREFIX_LIMIT = 40;
+
 /**
  * Удалённое сообщение из серверного архива → сообщение Web A с пометкой «удалено». Файл берётся из архива,
  * а если его там нет, вместо него — название и подпись «не сохранён»
@@ -57,13 +60,13 @@ export function tombstoneToApiMessage(dto: MessageDto, chatId: string): ApiMessa
 /**
  * Вставляет надгробия (с сервера или из локального архива) в ленту основного потока чата:
  * в сообщения, в список загруженных и в видимое окно — те, что попадают между уже показанными
- * сообщениями, а если окно дошло до конца чата, то и удалённые после последнего живого сообщения.
+ * сообщениями, а на краях истории — до первого или после последнего живого сообщения.
  */
 export function insertTombstones<T extends GlobalState>(
   global: T,
   chatId: string,
   tombstones: ApiMessage[],
-  options: { isAtEnd?: boolean; isFromServer?: boolean },
+  options: { isAtEnd?: boolean; isFromServer?: boolean; firstLiveId?: number },
   ...[tabId = getCurrentTabId()]: TabArgs<T>
 ): T {
   const fresh: ApiMessage[] = [];
@@ -73,31 +76,33 @@ export function insertTombstones<T extends GlobalState>(
       fresh.push(message);
       return;
     }
-    // The server knows who deleted the message and has its file; the device keeps only what it saw
-    if (options.isFromServer && existing.pxgDeletedAt) {
-      global = updateChatMessage(global, chatId, message.id, message.pxgMediaFallback
-        ? { pxgDeletedBy: message.pxgDeletedBy }
-        : { pxgDeletedBy: message.pxgDeletedBy, content: message.content });
+    // Запоздавшая страница Telegram может ещё содержать сообщение, которое архив уже пометил удалённым.
+    if (!existing.pxgDeletedAt || options.isFromServer) {
+      global = updateChatMessage(global, chatId, message.id, {
+        pxgDeletedAt: existing.pxgDeletedAt ?? message.pxgDeletedAt,
+        ...(options.isFromServer && { pxgDeletedBy: message.pxgDeletedBy }),
+        ...(options.isFromServer && !message.pxgMediaFallback && { content: message.content }),
+      }, true);
     }
   });
-  if (fresh.length === 0) return global;
-
-  const byId: Record<number, ApiMessage> = {};
-  fresh.forEach((message) => {
-    byId[message.id] = message;
-  });
-  const ids = fresh.map((message) => message.id);
-
-  global = addChatMessagesById(global, chatId, byId);
-  global = updateListedIds(global, chatId, MAIN_THREAD_ID, ids);
+  if (fresh.length) {
+    const byId: Record<number, ApiMessage> = {};
+    fresh.forEach((message) => {
+      byId[message.id] = message;
+    });
+    global = addChatMessagesById(global, chatId, byId);
+    global = updateListedIds(global, chatId, MAIN_THREAD_ID, fresh.map(({ id }) => id));
+  }
 
   const viewportIds = selectViewportIds(global, chatId, MAIN_THREAD_ID, tabId) ?? [];
   if (viewportIds.length) {
     const min = viewportIds[0];
     const max = viewportIds[viewportIds.length - 1];
-    const inside = ids.filter((id) => id > min && (id < max || options.isAtEnd));
+    const isAtStart = options.firstLiveId !== undefined && min <= options.firstLiveId;
+    const inside = tombstones.map(({ id }) => id)
+      .filter((id) => (id > min || isAtStart) && (id < max || options.isAtEnd) && !viewportIds.includes(id));
     if (inside.length) {
-      global = safeReplaceViewportIds(global, chatId, MAIN_THREAD_ID, [...viewportIds, ...inside], tabId);
+      global = safeReplaceViewportIds(global, chatId, MAIN_THREAD_ID, [...new Set([...viewportIds, ...inside])], tabId);
     }
   }
   return global;

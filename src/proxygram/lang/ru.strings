@@ -244,6 +244,8 @@
 "PxgSettingsIncoming" = "Со мной поделились";
 "PxgSettingsFolders" = "Папки от других";
 "PxgSharedFolder" = "Общая папка";
+"PxgDialogArchive" = "Архив диалогов";
+"PxgDialogArchiveReadOnly" = "Сохранённая история диалога";
 "PxgFolderFrom" = "от {name}";
 "PxgFolderRename" = "Переименовать";
 "PxgFolderReset" = "Сбросить название";
@@ -472,6 +474,7 @@
 "PxgAuditArchiveClear" = "очистил архив";
 "PxgAuditArchiveRetention" = "удалено из архива по сроку хранения";
 "PxgAuditArchiveChat" = "изменил, архивируется ли чат";
+"PxgAuditDialogCleared" = "сохранил очищенный диалог";
 "PxgAuditDisconnect" = "отключил аккаунт";
 "PxgAuditSessionRevoke" = "завершил сессию";
 "PxgAuditFailed" = "ошибка";

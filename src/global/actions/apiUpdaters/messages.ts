@@ -29,6 +29,8 @@ import { recordEditVersion } from '../../../proxygram/archive/editHistory';
 import { keepDeletedMessages } from '../../../proxygram/archive/keepDeletedMessages';
 import { archiveDeletedMessages, archiveEditVersions } from '../../../proxygram/archive/localArchive';
 import { getProxySendError } from '../../../proxygram/sendErrors';
+import { pxgRpc } from '../../../proxygram/server/rpc';
+import { getPxgState } from '../../../proxygram/server/store';
 import {
   addPaidReaction,
   checkIfHasUnreadReactions,
@@ -1045,8 +1047,17 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
     }
 
     case 'deleteHistory': {
-      const { chatId } = update;
+      const { chatId, throughMsgId } = update;
       const chatMessages = global.messages.byChatId[chatId];
+      const { session, accounts } = getPxgState();
+      const account = accounts?.find(({ tgUserId, status }) => (
+        String(tgUserId) === global.currentUserId && status !== 'revoked'
+      ));
+      if (account && session?.level === 'client' && Number.isSafeInteger(Number(chatId))) {
+        void pxgRpc.call('archive.checkDeletedDialog', {
+          accountId: account.id, peerId: Number(chatId), throughMsgId,
+        }).catch(() => undefined);
+      }
       if (chatId === SERVICE_NOTIFICATIONS_USER_ID) {
         global = {
           ...global,
@@ -1059,7 +1070,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       }
 
       if (chatMessages) {
-        const ids = Object.keys(chatMessages.byId).map(Number);
+        const ids = Object.keys(chatMessages.byId).map(Number)
+          .filter((id) => throughMsgId === undefined || id <= throughMsgId);
         global = getGlobal();
         deleteMessages(global, chatId, ids, actions);
       } else {
@@ -1067,7 +1079,11 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
       }
 
       global = getGlobal();
-      global = removeChatFromChatLists(global, chatId);
+      const lastId = selectChatLastMessageId(global, chatId);
+      if (throughMsgId === undefined || lastId === undefined || lastId <= throughMsgId) {
+        global = removeChatFromChatLists(global, chatId);
+      }
+      global = replaceThreadLocalStateParam(global, chatId, MAIN_THREAD_ID, 'firstMessageId', undefined);
       setGlobal(global);
 
       break;

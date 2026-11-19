@@ -444,7 +444,8 @@ async function fetchChats({ archived }: MethodArgs<'fetchChats'>[0]) {
   const result = await fetchProxyChats();
   if (!result) return undefined;
   const archivedIds = new Set(result.archivedChatIds);
-  const isInList = (id: string) => archivedIds.has(id) === Boolean(archived);
+  const archiveCopies = new Set(result.chats.filter(({ pxgProxy }) => pxgProxy?.isOwnerArchive).map(({ id }) => id));
+  const isInList = (id: string) => !archiveCopies.has(id) && archivedIds.has(id) === Boolean(archived);
   const chatIds = result.chatIds.filter(isInList);
   return {
     ...result, chatIds, orderedPinnedIds: result.pinnedChatIds.filter(isInList), totalChatCount: chatIds.length,

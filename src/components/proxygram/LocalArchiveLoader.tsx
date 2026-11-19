@@ -5,13 +5,13 @@ import { MAIN_THREAD_ID } from '../../api/types';
 
 import { updateChatMessage } from '../../global/reducers';
 import {
-  selectChatLastMessageId, selectChatMessage, selectCurrentMessageList, selectViewportIds,
+  selectChatLastMessageId, selectChatMessage, selectCurrentMessageList, selectFirstMessageId, selectViewportIds,
 } from '../../global/selectors';
 import { getCurrentTabId } from '../../util/establishMultitabRole';
 import { getServerTime } from '../../util/serverTime';
 import { isProxyPeerId } from '../../api/proxy/ids';
 import { pruneLocalArchive, readChatArchive, selectLocalTombstones } from '../../proxygram/archive/localArchive';
-import { insertTombstones } from '../../proxygram/archive/serverTombstones';
+import { DIALOG_PREFIX_LIMIT, insertTombstones } from '../../proxygram/archive/serverTombstones';
 
 type OwnProps = {
   ownerId: string;
@@ -21,6 +21,7 @@ type StateProps = {
   chatId?: string;
   minId?: number;
   maxId?: number;
+  firstLiveId?: number;
   /** The feed window reached the last message of the chat */
   isAtEnd?: boolean;
 };
@@ -33,7 +34,7 @@ const READ_DEBOUNCE_MS = 400;
  * the client was open gets back into the feed after a reload, also without a connected server.
  */
 const LocalArchiveLoader = ({
-  ownerId, chatId, minId, maxId, isAtEnd,
+  ownerId, chatId, minId, maxId, firstLiveId, isAtEnd,
 }: OwnProps & StateProps) => {
   useEffect(() => {
     void pruneLocalArchive(ownerId, getServerTime());
@@ -48,8 +49,17 @@ const LocalArchiveLoader = ({
       let global = getGlobal();
       if (global.currentUserId !== ownerId) return;
 
-      const tombstones = selectLocalTombstones(archive, chatId, minId, isAtEnd ? Infinity : maxId);
-      if (tombstones.length) global = insertTombstones(global, chatId, tombstones, { isAtEnd }, getCurrentTabId());
+      const atStart = firstLiveId !== undefined && minId <= firstLiveId;
+      const tombstones = selectLocalTombstones(
+        archive, chatId, atStart ? firstLiveId : minId, isAtEnd ? Infinity : maxId,
+      );
+      if (atStart) {
+        const prefix = selectLocalTombstones(archive, chatId, 1, firstLiveId - 1);
+        tombstones.unshift(...prefix.sort((a, b) => a.id - b.id).slice(-DIALOG_PREFIX_LIMIT));
+      }
+      if (tombstones.length) {
+        global = insertTombstones(global, chatId, tombstones, { isAtEnd, firstLiveId }, getCurrentTabId());
+      }
       Object.entries(archive.versions).forEach(([id, versions]) => {
         const message = selectChatMessage(global, chatId, Number(id));
         if (!message || message.pxgEditHistory?.length) return;
@@ -58,7 +68,7 @@ const LocalArchiveLoader = ({
       setGlobal(global);
     }, READ_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [ownerId, chatId, minId, maxId, isAtEnd]);
+  }, [ownerId, chatId, minId, maxId, firstLiveId, isAtEnd]);
 
   return undefined;
 };
@@ -68,7 +78,7 @@ export default memo(withGlobal<OwnProps>(
     const list = selectCurrentMessageList(global);
     if (!list || list.type !== 'thread' || list.threadId !== MAIN_THREAD_ID) {
       return {
-        chatId: undefined, minId: undefined, maxId: undefined, isAtEnd: undefined,
+        chatId: undefined, minId: undefined, maxId: undefined, firstLiveId: undefined, isAtEnd: undefined,
       };
     }
     const viewportIds = selectViewportIds(global, list.chatId, MAIN_THREAD_ID);
@@ -78,6 +88,7 @@ export default memo(withGlobal<OwnProps>(
       chatId: list.chatId,
       minId: viewportIds?.[0],
       maxId,
+      firstLiveId: selectFirstMessageId(global, list.chatId, MAIN_THREAD_ID),
       isAtEnd: maxId !== undefined && lastId !== undefined && maxId >= lastId,
     };
   },

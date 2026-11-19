@@ -72,6 +72,7 @@ const AUDIT_KEYS: Record<string, string> = {
   archive_export: 'PxgAuditArchiveExport',
   archive_clear: 'PxgAuditArchiveClear',
   archive_retention: 'PxgAuditArchiveRetention',
+  archive_dialog_cleared: 'PxgAuditDialogCleared',
   'archive.policy': 'PxgAuditPolicy',
   'archive.chat': 'PxgAuditArchiveChat',
   'account.disconnect': 'PxgAuditDisconnect',

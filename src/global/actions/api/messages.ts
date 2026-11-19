@@ -1416,11 +1416,20 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
     return;
   }
 
-  await callApi('deleteHistory', { chat, shouldDeleteForAll });
+  const oldLastId = selectChatLastMessageId(global, chatId);
+  const observedLastMsgId = oldLastId && !isLocalMessageId(oldLastId) ? oldLastId : Object.values(
+    selectChatMessages(global, chatId) ?? {},
+  ).reduce<number | undefined>((latest, { id, pxgDeletedAt }) => (
+    !isLocalMessageId(id) && !pxgDeletedAt && id > (latest ?? 0) ? id : latest
+  ), undefined);
+  const deleted = await callApi('deleteHistory', { chat, shouldDeleteForAll, observedLastMsgId });
+  if (!deleted) return;
 
   global = getGlobal();
   const activeChat = selectCurrentMessageList(global, tabId);
-  if (activeChat && activeChat.chatId === chatId) {
+  const currentLastId = selectChatLastMessageId(global, chatId);
+  if (activeChat?.chatId === chatId
+    && (!observedLastMsgId || !currentLastId || currentLastId <= observedLastMsgId)) {
     actions.openChat({ id: undefined, tabId });
   }
 
@@ -2520,6 +2529,13 @@ async function loadViewportMessages<T extends GlobalState>(
   global = isOutlying
     ? updateOutlyingLists(global, chatId, threadId, ids)
     : updateListedIds(global, chatId, threadId, ids);
+
+  if (threadId === MAIN_THREAD_ID && !chat.pxgProxy && messages.length && (
+    count === messages.length || (direction === LoadMoreDirection.Backwards && messages.length < sliceSize)
+  )) {
+    const firstLiveId = Math.min(...messages.map(({ id }) => id));
+    global = replaceThreadLocalStateParam(global, chatId, threadId, 'firstMessageId', firstLiveId);
+  }
 
   let listedIds = selectListedIds(global, chatId, threadId);
   const outlyingList = offsetId ? selectOutlyingListByMessageId(global, chatId, threadId, offsetId) : undefined;

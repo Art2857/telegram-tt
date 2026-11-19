@@ -79,9 +79,28 @@ describe('надгробия из серверного архива', () => {
     expect(selectViewportIds(atEnd, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([10, 12, 14, 20]);
   });
 
-  it('уже известное сообщение не подменяется', () => {
-    const global = globalWithViewport();
-    expect(insertTombstones(global, PRIVATE_CHAT, deleted(12), {}, TEST_TAB_ID)).toBe(global);
+  it('старая переписка видна перед новой, когда лента дошла до первого живого сообщения', () => {
+    const global = insertTombstones(
+      globalWithViewport(), PRIVATE_CHAT, deleted(3, 7, 11), { firstLiveId: 10 }, TEST_TAB_ID,
+    );
+    expect(selectViewportIds(global, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([3, 7, 10, 11, 12, 14]);
+
+    const middle = safeReplaceViewportIds(global, PRIVATE_CHAT, MAIN_THREAD_ID, [12, 14], TEST_TAB_ID);
+    const after = insertTombstones(middle, PRIVATE_CHAT, deleted(3, 5), { firstLiveId: 10 }, TEST_TAB_ID);
+    expect(selectViewportIds(after, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([12, 14]);
+  });
+
+  it('отмечает старую живую копию удалённой, при повторной доставке сохраняет первую отметку', () => {
+    const global = insertTombstones(globalWithViewport(), PRIVATE_CHAT, deleted(12), {}, TEST_TAB_ID);
+    const marked = selectChatMessage(global, PRIVATE_CHAT, 12);
+    expect(marked?.pxgDeletedAt).toBe(Date.parse('2026-10-31T11:00:00.000Z') / 1000);
+    expect(selectViewportIds(global, PRIVATE_CHAT, MAIN_THREAD_ID, TEST_TAB_ID)).toEqual([10, 12, 14]);
+
+    const again = tombstoneToApiMessage(tombstone(12, {
+      deleted: { at: '2026-10-31T12:00:00.000Z', reason: 'external' },
+    }), PRIVATE_CHAT);
+    const after = insertTombstones(global, PRIVATE_CHAT, [again], { isFromServer: true }, TEST_TAB_ID);
+    expect(selectChatMessage(after, PRIVATE_CHAT, 12)?.pxgDeletedAt).toBe(marked?.pxgDeletedAt);
   });
 
   it('вложение без объекта Web A — значок типа перед текстом', () => {

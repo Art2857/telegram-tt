@@ -3590,6 +3590,8 @@ export interface LangPair {
   'PxgSettingsIncoming': undefined;
   'PxgSettingsFolders': undefined;
   'PxgSharedFolder': undefined;
+  'PxgDialogArchive': undefined;
+  'PxgDialogArchiveReadOnly': undefined;
   'PxgFolderRename': undefined;
   'PxgFolderReset': undefined;
   'PxgFolderHide': undefined;
@@ -3789,6 +3791,7 @@ export interface LangPair {
   'PxgAuditArchiveClear': undefined;
   'PxgAuditArchiveRetention': undefined;
   'PxgAuditArchiveChat': undefined;
+  'PxgAuditDialogCleared': undefined;
   'PxgAuditDisconnect': undefined;
   'PxgAuditSessionRevoke': undefined;
   'PxgAuditFailed': undefined;

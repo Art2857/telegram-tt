@@ -30,6 +30,7 @@ export function keepDeletedMessages<T extends GlobalState>(
       return;
     }
 
+    if (message.pxgDeletedAt) return;
     global = updateChatMessage(global, messageChatId, id, { pxgDeletedAt: now });
     kept.push({ ...message, pxgDeletedAt: now });
   });
@@ -41,6 +42,5 @@ function canKeepDeleted(message: ApiMessage) {
   return !isLocalMessageId(message.id)
     && !message.ttlPeriod
     && !message.content.ttlSeconds
-    && !message.content.action
-    && !message.pxgDeletedAt;
+    && !message.content.action;
 }

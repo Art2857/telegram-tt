@@ -68,7 +68,7 @@ export type SharedFolderEdit = {
   title: string;
   originalTitle: string;
   ownerName?: string;
-  kind: 'accesses' | 'owner' | 'folder';
+  kind: 'accesses' | 'owner' | 'folder' | 'dialogArchive';
 };
 
 const SESSION_KEY_PREFIX = 'pxg-session';

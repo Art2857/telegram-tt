@@ -41,11 +41,13 @@ describe('keepDeletedMessages', () => {
     expect(result.remainingIds).toEqual([99]);
   });
 
-  it('does not move the deletion time of an already kept message', () => {
+  it('keeps the old deletion mark when a reopened conversation is cleared again', () => {
     const global = buildGlobal([buildMessage(CHANNEL, 7, { pxgDeletedAt: 123 })]);
-    const result = keepDeletedMessages(global, CHANNEL, [7]);
+    const reopened = buildGlobal([selectChatMessage(global, CHANNEL, 7)!, buildMessage(CHANNEL, 8)]);
+    const result = keepDeletedMessages(reopened, CHANNEL, [7, 8]);
 
-    expect(result.remainingIds).toEqual([7]);
-    expect(selectChatMessage(global, CHANNEL, 7)?.pxgDeletedAt).toBe(123);
+    expect(result.remainingIds).toEqual([]);
+    expect(result.kept.map(({ id }) => id)).toEqual([8]);
+    expect(selectChatMessage(result.global, CHANNEL, 7)?.pxgDeletedAt).toBe(123);
   });
 });

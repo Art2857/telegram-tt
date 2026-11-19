@@ -30,9 +30,10 @@ const SharedFolderModal = () => {
   if (!edit) return undefined;
 
   const close = () => setPxgState({ sharedFolderEdit: undefined });
-  const fallback = edit.kind === 'folder'
-    ? (edit.originalTitle || lang('PxgSharedFolder'))
-    : edit.ownerName ? lang('PxgOwnerTab', { name: edit.ownerName }) : lang('PxgSharedWithMe');
+  const fallback = edit.kind === 'dialogArchive' ? lang('PxgDialogArchive')
+    : edit.kind === 'folder'
+      ? (edit.originalTitle || lang('PxgSharedFolder'))
+      : edit.ownerName ? lang('PxgOwnerTab', { name: edit.ownerName }) : lang('PxgSharedWithMe');
 
   const save = async (nextTitle: string) => {
     setIsSaving(true);

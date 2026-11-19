@@ -30,6 +30,7 @@ import { throttle } from './schedulers';
 
 interface FolderSummary {
   id: number;
+  pxgLocalKind?: ApiChatFolder['pxgLocalKind'];
   listIds?: Set<string>;
   orderedPinnedIds?: string[];
   contacts?: true;
@@ -48,6 +49,7 @@ interface FolderSummary {
 interface ChatSummary {
   id: string;
   type: ApiChat['type'];
+  isOwnerArchive: boolean;
   isListedInAll: boolean;
   isListedInSaved: boolean;
   isHiddenByCollapsedCommunity: boolean;
@@ -79,6 +81,7 @@ let prevGlobal: {
   archivedFolderListIds?: GlobalState['chats']['listIds']['archived'];
   archivedFolderPinnedIds?: GlobalState['chats']['orderedPinnedIds']['archived'];
   savedFolderListIds?: GlobalState['chats']['listIds']['saved'];
+  dialogArchiveChatIds?: string[];
   savedFolderPinnedIds?: GlobalState['chats']['orderedPinnedIds']['saved'];
   isAllFolderFullyLoaded?: boolean;
   isArchivedFolderFullyLoaded?: boolean;
@@ -413,6 +416,12 @@ function updateFolders(
 
   if (areFoldersChanged) {
     const newFoldersById = global.chatFolders.byId;
+    Object.values(prevGlobal.foldersById).forEach((folder) => {
+      if (folder.pxgLocalKind === 'dialogArchive' && !newFoldersById[folder.id]) {
+        delete prepared.folderSummariesById[folder.id];
+        changedFolders.push(folder.id);
+      }
+    });
 
     Object.values(newFoldersById).forEach((folder) => {
       if (folder === prevGlobal.foldersById[folder.id]) {
@@ -473,16 +482,19 @@ function updateChats(
   const newAllFolderListIds = global.chats.listIds.active;
   const newArchivedFolderListIds = global.chats.listIds.archived;
   const newSavedFolderListIds = global.chats.listIds.saved;
+  const dialogArchiveChatIds = global.chatFolders.pxgLocalFolders
+    ?.find(({ pxgLocalKind }) => pxgLocalKind === 'dialogArchive')?.includedChatIds;
 
   const newGeneralIds = [...newAllFolderListIds || [], ...newArchivedFolderListIds || []];
   const newGeneralIdsSet = new Set(newGeneralIds);
   const newSavedFolderListIdsSet = newSavedFolderListIds && new Set(newSavedFolderListIds);
-  const newAllIds = [...newGeneralIds, ...newSavedFolderListIds || []];
+  const newAllIds = [...newGeneralIds, ...newSavedFolderListIds || [], ...dialogArchiveChatIds || []];
   let allIds = newAllIds;
   if (newAllFolderListIds !== prevAllFolderListIds || newArchivedFolderListIds !== prevArchivedFolderListIds
-    || newSavedFolderListIds !== prevSavedFolderListIds) {
+    || newSavedFolderListIds !== prevSavedFolderListIds || dialogArchiveChatIds !== prevGlobal.dialogArchiveChatIds) {
     allIds = unique(allIds.concat(
       prevAllFolderListIds || [], prevArchivedFolderListIds || [], prevSavedFolderListIds || [],
+      prevGlobal.dialogArchiveChatIds || [],
     ));
   }
 
@@ -585,6 +597,7 @@ function updateChats(
   prevGlobal.usersById = newUsersById;
   prevGlobal.lastAllMessageIds = newAllLastMessageIds;
   prevGlobal.lastSavedMessageIds = newSavedLastMessageIds;
+  prevGlobal.dialogArchiveChatIds = dialogArchiveChatIds;
   prevGlobal.notifyDefaults = newNotifyDefaults;
   prevGlobal.notifyExceptions = newNotifyExceptions;
   prevGlobal.threadsByChatId = allIds.reduce((acc, chatId) => {
@@ -654,6 +667,7 @@ function buildChatSummary<T extends GlobalState>(
   return {
     id,
     type,
+    isOwnerArchive: Boolean(chat.pxgProxy?.isOwnerArchive),
     isListedInAll: Boolean(
       !isRestricted && !isNotJoined && !migratedTo && !shouldHideServiceChat && !isRemovedFromAll
       && !(isCommunity && !isCollapsedInDialogs),
@@ -687,6 +701,10 @@ function isChatInFolder(
   chatSummary: ChatSummary,
   folderSummary: FolderSummary,
 ) {
+  const isDialogArchive = folderSummary.pxgLocalKind === 'dialogArchive';
+  if (chatSummary.isOwnerArchive || isDialogArchive) {
+    return Boolean(isDialogArchive && chatSummary.isOwnerArchive && folderSummary.includedChatIds?.has(chatSummary.id));
+  }
   const isListed = folderSummary.id === SAVED_FOLDER_ID ? chatSummary.isListedInSaved : chatSummary.isListedInAll;
   if (!isListed) {
     return false;

@@ -1560,10 +1560,10 @@ export function deleteScheduledMessages({
 }
 
 export async function deleteHistory({
-  chat, shouldDeleteForAll, maxId,
+  chat, shouldDeleteForAll, maxId, observedLastMsgId,
 }: {
-  chat: ApiChat; shouldDeleteForAll?: boolean; maxId?: number;
-}) {
+  chat: ApiChat; shouldDeleteForAll?: boolean; maxId?: number; observedLastMsgId?: number;
+}): Promise<true | undefined> {
   const isChannel = getEntityTypeById(chat.id) === 'channel';
   const result = await invokeRequest(
     isChannel
@@ -1587,15 +1587,16 @@ export async function deleteHistory({
     processAffectedHistory(chat, result);
 
     if (result.offset) {
-      await deleteHistory({ chat, shouldDeleteForAll });
-      return;
+      return deleteHistory({ chat, shouldDeleteForAll, maxId, observedLastMsgId });
     }
   }
 
   sendApiUpdate({
     '@type': 'deleteHistory',
     chatId: chat.id,
+    throughMsgId: maxId ?? observedLastMsgId,
   });
+  return true;
 }
 
 export async function deleteSavedHistory({

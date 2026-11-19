@@ -5,7 +5,7 @@ import { isLocalFolderId, PROXY_FOLDER_ID } from '../../api/proxy/types';
 import { ALL_FOLDER_ID } from '../../config';
 import { isProxyPeerId } from '../../api/proxy/ids';
 
-type LocalFolderKind = 'accesses' | 'owner' | 'folder';
+type LocalFolderKind = NonNullable<ApiChatFolder['pxgLocalKind']>;
 
 type LocalGroup = {
   key: string;
@@ -93,7 +93,9 @@ export function clearProxyChats<T extends GlobalState>(global: T, keptChatIds?: 
  */
 export function updateProxyFolder<T extends GlobalState>(global: T): T {
   const isGuest = Boolean(global.currentUserId && isProxyPeerId(global.currentUserId));
-  const chats = Object.values(global.chats.byId).filter((chat) => chat.pxgProxy && chat.isListed);
+  const listed = Object.values(global.chats.byId).filter((chat) => chat.pxgProxy && chat.isListed);
+  const chats = listed.filter((chat) => !chat.pxgProxy?.isOwnerArchive);
+  const archiveChats = listed.filter((chat) => chat.pxgProxy?.isOwnerArchive);
   const owners = new Map<string, { name: string; chatIds: string[] }>();
   const groups = new Map<string, LocalGroup>();
   const folderChatIds = new Set<string>();
@@ -139,7 +141,13 @@ export function updateProxyFolder<T extends GlobalState>(global: T): T {
     chatIds: chats.map((chat) => chat.id),
   }];
 
-  const allGroups = [...accessesGroup, ...ownerGroups, ...groups.values()];
+  const archiveGroup: LocalGroup[] = archiveChats.length ? [{
+    key: 'dialog-archive',
+    kind: 'dialogArchive',
+    originalTitle: '',
+    chatIds: archiveChats.map((chat) => chat.id),
+  }] : [];
+  const allGroups = [...accessesGroup, ...archiveGroup, ...ownerGroups, ...groups.values()];
   if (!allGroups.length) {
     const hadLocal = Object.keys(global.chatFolders.byId).some((id) => isLocalFolderId(Number(id)))
       || Boolean(global.chatFolders.pxgLocalFolders?.length);
