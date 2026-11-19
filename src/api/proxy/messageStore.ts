@@ -21,6 +21,7 @@ const WRITE_DELAY_MS = 400;
 
 const pending = new Map<string, { add: MessageDto[]; remove: Set<number> }>();
 let writeTimer: ReturnType<typeof setTimeout> | undefined;
+let storageWrites = Promise.resolve();
 
 export function historyKey(userId: string, accountId: string, peerId: number, topicId?: number) {
   return `${userId}:${accountId}:${peerId}:${topicId || 0}`;
@@ -30,10 +31,9 @@ function chatPrefix(userId: string, accountId: string, peerId: number) {
   return `${userId}:${accountId}:${peerId}:`;
 }
 
-function schedule(key: string, add: MessageDto[], remove: number[] = []) {
+function schedule(key: string, add: MessageDto[]) {
   const entry = pending.get(key) || { add: [], remove: new Set<number>() };
   entry.add.push(...add);
-  remove.forEach((id) => entry.remove.add(id));
   pending.set(key, entry);
   writeTimer ??= setTimeout(() => {
     writeTimer = undefined;
@@ -41,29 +41,35 @@ function schedule(key: string, add: MessageDto[], remove: number[] = []) {
   }, WRITE_DELAY_MS);
 }
 
-async function flush() {
-  const batch = [...pending];
-  pending.clear();
-  for (const [key, { add, remove }] of batch) {
-    try {
-      await PXG_MESSAGES_IDB_STORE.update<ChatHistory | undefined>(key, (current) => {
-        const byId = new Map((current?.messages || []).map((dto) => [dto.msgId, dto]));
-        add.forEach((dto) => byId.set(dto.msgId, dto));
-        remove.forEach((id) => byId.delete(id));
-        const messages = [...byId.values()].sort((a, b) => b.msgId - a.msgId).slice(0, MAX_MESSAGES_PER_CHAT);
-        return { messages, usedAt: Date.now() };
-      });
-    } catch {
-      // A full or blocked storage only means the history comes from the server again
-    }
-  }
-  void trim();
+// A purge sits after any write already started, and before later batches
+function writeInOrder(work: () => Promise<void>) {
+  storageWrites = storageWrites.then(work, work);
+  return storageWrites;
 }
 
-let isTrimming = false;
+function flush() {
+  const batch = [...pending];
+  pending.clear();
+  if (!batch.length) return storageWrites;
+  return writeInOrder(async () => {
+    for (const [key, { add, remove }] of batch) {
+      try {
+        await PXG_MESSAGES_IDB_STORE.update<ChatHistory | undefined>(key, (current) => {
+          const byId = new Map((current?.messages || []).map((dto) => [dto.msgId, dto]));
+          add.forEach((dto) => byId.set(dto.msgId, dto));
+          remove.forEach((id) => byId.delete(id));
+          const messages = [...byId.values()].sort((a, b) => b.msgId - a.msgId).slice(0, MAX_MESSAGES_PER_CHAT);
+          return { messages, usedAt: Date.now() };
+        });
+      } catch {
+        // The history comes from the server when the storage is full or blocked
+      }
+    }
+    await trim();
+  });
+}
+
 async function trim() {
-  if (isTrimming) return;
-  isTrimming = true;
   try {
     const keys = (await PXG_MESSAGES_IDB_STORE.keys()) as string[];
     if (keys.length <= MAX_CHATS) return;
@@ -73,8 +79,6 @@ async function trim() {
     await PXG_MESSAGES_IDB_STORE.delMany(byAge.slice(0, keys.length - MAX_CHATS).map(({ key }) => key));
   } catch {
     // Trimming waits for the next write
-  } finally {
-    isTrimming = false;
   }
 }
 
@@ -86,10 +90,23 @@ export function rememberMessages(key: string, messages: MessageDto[]) {
 /** Deleted or hidden: gone from the device too, in the chat and its topics */
 export function forgetMessages(userId: string, accountId: string, peerId: number, msgIds: number[]) {
   if (!msgIds.length) return;
-  void PXG_MESSAGES_IDB_STORE.keys().then((keys) => {
-    (keys as string[]).filter((key) => key.startsWith(chatPrefix(userId, accountId, peerId)))
-      .forEach((key) => schedule(key, [], msgIds));
-  }).catch(() => undefined);
+  const prefix = chatPrefix(userId, accountId, peerId);
+  const removed = new Set(msgIds);
+  for (const [key, record] of pending) {
+    if (key.startsWith(prefix)) removed.forEach((id) => record.remove.add(id));
+  }
+  void writeInOrder(async () => {
+    try {
+      const keys = (await PXG_MESSAGES_IDB_STORE.keys()) as string[];
+      for (const key of keys.filter((item) => item.startsWith(prefix))) {
+        await PXG_MESSAGES_IDB_STORE.update<ChatHistory | undefined>(key, (record) => record && {
+          ...record, messages: record.messages.filter(({ msgId }) => !removed.has(msgId)),
+        });
+      }
+    } catch {
+      // The history from the server reflects the deletion on the next load
+    }
+  });
 }
 
 /**
@@ -117,6 +134,7 @@ export async function readHistory(
 /** One saved message: a reply or a pinned one opened offline */
 export async function readMessage(key: string, msgId: number): Promise<MessageDto | undefined> {
   try {
+    await storageWrites;
     const record = await PXG_MESSAGES_IDB_STORE.get<ChatHistory | undefined>(key);
     return record?.messages.find((dto) => dto.msgId === msgId);
   } catch {
@@ -128,25 +146,29 @@ export async function readMessage(key: string, msgId: number): Promise<MessageDt
  * A chat whose access ended, paused or narrowed leaves the device with everything the guest had of it;
  * `keep` is every chat (`${accountId}:${peerId}`) that stays as it was
  */
-export async function keepOnlyChats(userId: string, keep: ReadonlySet<string>) {
-  try {
-    const keys = (await PXG_MESSAGES_IDB_STORE.keys()) as string[];
-    const gone = keys.filter((key) => {
-      const [owner, accountId, peerId] = key.split(':');
-      return owner === userId && !keep.has(`${accountId}:${peerId}`);
-    });
-    if (gone.length) await PXG_MESSAGES_IDB_STORE.delMany(gone);
-  } catch {
-    // The next load tries again
-  }
+export function keepOnlyChats(userId: string, keep: ReadonlySet<string>) {
+  return purge((key) => {
+    const [owner, accountId, peerId] = key.split(':');
+    return owner === userId && !keep.has(`${accountId}:${peerId}`);
+  });
 }
 
 /** Signing out takes the person's history off the device */
-export async function forgetUserHistory(userId: string) {
-  try {
-    const keys = (await PXG_MESSAGES_IDB_STORE.keys()) as string[];
-    await PXG_MESSAGES_IDB_STORE.delMany(keys.filter((key) => key.startsWith(`${userId}:`)));
-  } catch {
-    // Nothing to do without storage
+export function forgetUserHistory(userId: string) {
+  return purge((key) => key.startsWith(`${userId}:`));
+}
+
+function purge(shouldRemove: (key: string) => boolean) {
+  for (const key of pending.keys()) {
+    if (shouldRemove(key)) pending.delete(key);
   }
+  return writeInOrder(async () => {
+    try {
+      const keys = (await PXG_MESSAGES_IDB_STORE.keys()) as string[];
+      const removed = keys.filter(shouldRemove);
+      if (removed.length) await PXG_MESSAGES_IDB_STORE.delMany(removed);
+    } catch {
+      // The next load tries again
+    }
+  });
 }

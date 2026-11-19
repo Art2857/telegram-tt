@@ -27,15 +27,18 @@ export function parseServerAddress(input: string): { origin: string } | { error:
 }
 
 /** A Proxygram server answers `/pxg/health` with `{ ok: true }` and lets any site ask */
-export async function checkProxygramServer(origin: string) {
+export async function checkProxygramServer(origin: string, check: AbortController) {
+  const timeout = window.setTimeout(() => check.abort(), CHECK_TIMEOUT_MS);
   try {
     const response = await fetch(`${origin}/pxg/health`, {
-      cache: 'no-store', signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+      cache: 'no-store', signal: check.signal,
     });
     const body = await response.json() as { ok?: boolean };
     return response.ok && body.ok === true;
   } catch {
     return false;
+  } finally {
+    window.clearTimeout(timeout);
   }
 }
 

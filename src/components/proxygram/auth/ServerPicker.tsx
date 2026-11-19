@@ -23,21 +23,30 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
   const lang = useLang();
   const [isEditing, startEditing, stopEditing] = useFlag();
   const [isChecking, markChecking, unmarkChecking] = useFlag();
+  const [isSwitching, markSwitching, unmarkSwitching] = useFlag();
   const [address, setAddress] = useState('');
   const [error, setError] = useState<string>();
   const [unreachableServer] = useState(getUnreachableServer);
-  const checkRef = useRef<symbol>();
+  const checkRef = useRef<AbortController>();
+  const addressRef = useRef<HTMLInputElement>();
 
   useEffect(() => () => {
+    checkRef.current?.abort();
     checkRef.current = undefined;
   }, []);
 
   const handleCancel = useLastCallback(() => {
+    if (isSwitching) return;
+    checkRef.current?.abort();
     checkRef.current = undefined;
     unmarkChecking();
     setError(undefined);
     stopEditing();
   });
+
+  useEffect(() => {
+    if (isLocked) handleCancel();
+  }, [isLocked, handleCancel]);
 
   const handleChange = useLastCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setAddress(e.currentTarget.value);
@@ -46,8 +55,8 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
 
   const handleSubmit = useLastCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (checkRef.current) return;
-    const parsed = parseServerAddress(address);
+    if (isLocked || checkRef.current) return;
+    const parsed = parseServerAddress(addressRef.current?.value ?? address);
     if ('error' in parsed) {
       setError(lang(parsed.error === 'insecure' ? 'PxgServerInsecure' : 'PxgServerInvalid'));
       return;
@@ -56,11 +65,11 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
       stopEditing();
       return;
     }
-    const check = Symbol();
+    const check = new AbortController();
     checkRef.current = check;
     setError(undefined);
     markChecking();
-    const isProxygram = await checkProxygramServer(parsed.origin);
+    const isProxygram = await checkProxygramServer(parsed.origin, check);
     if (checkRef.current !== check) return;
     if (!isProxygram) {
       checkRef.current = undefined;
@@ -68,11 +77,13 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
       setError(lang('PxgServerUnreachable'));
       return;
     }
+    markSwitching();
     try {
       await switchServer(parsed.origin);
     } catch {
       if (checkRef.current !== check) return;
       checkRef.current = undefined;
+      unmarkSwitching();
       unmarkChecking();
       setError(lang('PxgServerSwitchFailed'));
     }
@@ -86,6 +97,7 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
       {isEditing ? (
         <form className={styles.form} onSubmit={handleSubmit}>
           <InputText
+            ref={addressRef}
             value={address}
             label={lang('PxgServerAddress')}
             placeholder="chat.example.org"
@@ -101,7 +113,9 @@ const ServerPicker = ({ isLocked }: OwnProps) => {
             <Button type="submit" isLoading={isChecking} disabled={!address.trim()}>
               {lang('PxgServerConnect')}
             </Button>
-            <button type="button" className={styles.change} onClick={handleCancel}>{lang('Cancel')}</button>
+            <button type="button" className={styles.change} onClick={handleCancel} disabled={isSwitching}>
+              {lang('Cancel')}
+            </button>
           </div>
         </form>
       ) : (

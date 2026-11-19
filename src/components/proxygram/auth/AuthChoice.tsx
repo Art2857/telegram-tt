@@ -25,8 +25,14 @@ const HAS_ANDROID_UPDATER = IS_TAURI && IS_ANDROID;
 const AuthChoice = () => {
   const lang = useLang();
   // Adding one more account can be cancelled: back to the account this slot was opened from
-  const [canCancel] = useState(hasOtherAccount);
+  const [canCancel, setCanCancel] = useState(hasOtherAccount);
   const [updateVersion, setUpdateVersion] = useState<string>();
+
+  useEffect(() => {
+    const update = () => setCanCancel(hasOtherAccount());
+    window.addEventListener('storage', update);
+    return () => window.removeEventListener('storage', update);
+  }, []);
 
   useEffect(() => {
     if (!HAS_ANDROID_UPDATER) return undefined;
