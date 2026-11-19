@@ -5395,8 +5395,6 @@
 "PxgAdminBlock" = "Block";
 "PxgAdminBlockConfirm" = "Block {name}? They will be signed out and will not be able to sign in.";
 "PxgAdminUnblock" = "Unblock";
-"PxgAdminTransfer" = "Transfer admin rights";
-"PxgAdminTransferConfirm" = "Make {name} the server administrator? There is only one administrator: you will become a regular user and lose access to this panel.";
 "PxgAdminEndSession" = "End session";
 "PxgAdminEndSessionConfirm" = "End this session of {name}?";
 "PxgAdminEndSessions" = "End all";
@@ -5657,8 +5655,6 @@
 "PxgErrStartChatsLimit" = "Too many new conversations today: try again later";
 "PxgErrFoldersLimit" = "No more than {max} folders";
 "PxgErrCannotBlockSelf" = "You cannot block yourself";
-"PxgErrAlreadyAdmin" = "You are already the administrator";
-"PxgErrUnblockFirst" = "Unblock the user first";
 "PxgErrRestartNotRunning" = "Only a running account can be restarted";
 "PxgErrAccountNotRunning" = "The account is not running";
 "PxgErrAccountNotPaused" = "The account is not paused";

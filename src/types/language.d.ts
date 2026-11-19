@@ -4149,7 +4149,6 @@ export interface LangPair {
   'PxgAdminKick': undefined;
   'PxgAdminBlock': undefined;
   'PxgAdminUnblock': undefined;
-  'PxgAdminTransfer': undefined;
   'PxgAdminEndSession': undefined;
   'PxgAdminEndSessions': undefined;
   'PxgAdminPause': undefined;
@@ -4371,8 +4370,6 @@ export interface LangPair {
   'PxgErrShareMembersHistory': undefined;
   'PxgErrStartChatsLimit': undefined;
   'PxgErrCannotBlockSelf': undefined;
-  'PxgErrAlreadyAdmin': undefined;
-  'PxgErrUnblockFirst': undefined;
   'PxgErrRestartNotRunning': undefined;
   'PxgErrAccountNotRunning': undefined;
   'PxgErrAccountNotPaused': undefined;
@@ -7007,9 +7004,6 @@ export interface LangPairWithVariables<V = LangVariable> {
   'PxgAdminBlockConfirm': {
     'name': V;
   };
-  'PxgAdminTransferConfirm': {
-    'name': V;
-  };
   'PxgAdminEndSessionConfirm': {
     'name': V;
   };
@@ -8178,7 +8172,6 @@ export interface LangKeyGroups {
       | 'PxgAdminFromAccount'
       | 'PxgAdminKickConfirm'
       | 'PxgAdminBlockConfirm'
-      | 'PxgAdminTransferConfirm'
       | 'PxgAdminEndSessionConfirm'
       | 'PxgAdminDisconnectConfirm'
       | 'PxgAdminArchiveChoice'

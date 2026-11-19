@@ -884,8 +884,6 @@
 "PxgAdminBlock" = "Заблокировать";
 "PxgAdminBlockConfirm" = "Заблокировать {name}? Все сессии завершатся, войти снова не получится.";
 "PxgAdminUnblock" = "Разблокировать";
-"PxgAdminTransfer" = "Передать права администратора";
-"PxgAdminTransferConfirm" = "Сделать {name} администратором сервера? Администратор один: вы станете обычным пользователем и потеряете доступ к админке.";
 "PxgAdminEndSession" = "Завершить";
 "PxgAdminEndSessionConfirm" = "Завершить эту сессию {name}?";
 "PxgAdminEndSessions" = "Завершить все";
@@ -1146,8 +1144,6 @@
 "PxgErrStartChatsLimit" = "Слишком много новых диалогов за сутки: попробуйте позже";
 "PxgErrFoldersLimit" = "Не больше {max} папок";
 "PxgErrCannotBlockSelf" = "Нельзя заблокировать себя";
-"PxgErrAlreadyAdmin" = "Вы уже администратор";
-"PxgErrUnblockFirst" = "Сначала разблокируйте пользователя";
 "PxgErrRestartNotRunning" = "Перезапустить можно только работающий аккаунт";
 "PxgErrAccountNotRunning" = "Аккаунт не работает";
 "PxgErrAccountNotPaused" = "Аккаунт не на паузе";

@@ -161,7 +161,7 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
           {lang('PxgAdminKick')}
         </Button>
       )}
-      {user.id !== selfId && (
+      {user.id !== selfId && user.role !== 'admin' && (
         <>
           {/* docs/spec/08-admin.md §2: a plain session of this person in a new slot, seen in the person's devices */}
           {IS_MULTIACCOUNT_SUPPORTED && !user.blockedAt && (
@@ -173,18 +173,6 @@ function UserActions({ user, hasSessions, lang, ask, run, selfId }: {
                 lang('PxgAdminSignInAs'), signInAs(user.id))}
             >
               {lang('PxgAdminSignInAs')}
-            </Button>
-          )}
-          {/* The server has exactly one administrator: rights move to another user, never get added */}
-          {user.role !== 'admin' && !user.blockedAt && (
-            <Button
-              size="tiny"
-              color="translucent"
-              isText
-              onClick={() => ask(t(lang, 'PxgAdminTransferConfirm', { name: displayName(user) }),
-                lang('PxgAdminTransfer'), call('admin.users.transferAdmin', { userId: user.id }))}
-            >
-              {lang('PxgAdminTransfer')}
             </Button>
           )}
           {user.blockedAt ? (

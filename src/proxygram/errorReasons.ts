@@ -136,8 +136,6 @@ export const PXG_ERROR_REASON_KEYS = {
   saved_not_found: 'PxgErrSavedNotFound',
   saved_not_editable: 'PxgErrSavedNotEditable',
   cannot_block_self: 'PxgErrCannotBlockSelf',
-  already_admin: 'PxgErrAlreadyAdmin',
-  unblock_first: 'PxgErrUnblockFirst',
   restart_not_running: 'PxgErrRestartNotRunning',
   account_not_running: 'PxgErrAccountNotRunning',
   account_not_paused: 'PxgErrAccountNotPaused',
